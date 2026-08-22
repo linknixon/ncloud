@@ -44,9 +44,8 @@ export default function ContactPage() {
       <div className="container">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <span className="badge-tag">Get In Touch</span>
-          <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem' }}>Contact Nova Cloud Edges</h1>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Contact Nova Cloud Edges</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
             Have questions about QuickBooks Enterprise licenses, cloud hosting VPS, or technical support? Our Kampala team is ready to assist you.
           </p>
