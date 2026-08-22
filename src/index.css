@@ -295,6 +295,13 @@ select option {
   }
 }
 
+@media (max-width: 900px) {
+  .responsive-subscription-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.75rem !important;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 0 1rem !important;

@@ -173,7 +173,7 @@ export default function SubscriptionPaymentPage() {
             </button>
           </div>
         ) : (
-          <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
+          <div className="responsive-subscription-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', alignItems: 'start' }}>
             
             {/* Left Column: Multi-Selection Checkbox List for Packages to Renew */}
             <div>
@@ -306,8 +306,8 @@ export default function SubscriptionPaymentPage() {
                   }}>
                     {selectedProducts.length > 0 ? (
                       selectedProducts.map((p, idx) => (
-                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: idx < selectedProducts.length - 1 ? '8px' : 0, gap: '0.5rem' }}>
-                          <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: idx < selectedProducts.length - 1 ? '8px' : 0, gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: '140px', fontWeight: '700' }}>
                             • {p.name}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
@@ -320,7 +320,7 @@ export default function SubscriptionPaymentPage() {
                               onChange={e => updatePackageQuantity(p.id, e.target.value)}
                               style={{
                                 width: '54px',
-                                padding: '0.2rem 0.35rem',
+                                padding: '0.25rem 0.35rem',
                                 borderRadius: '6px',
                                 border: '1px solid var(--border-color)',
                                 background: 'var(--bg-card)',
@@ -422,26 +422,26 @@ export default function SubscriptionPaymentPage() {
 
                 <div style={{
                   background: 'var(--bg-main)',
-                  padding: '1.25rem',
+                  padding: '1rem 1.15rem',
                   borderRadius: '12px',
                   border: '1px solid var(--border-color)',
                   margin: '1.25rem 0'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.875rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
                     <span>Monthly Subtotal ({selectedProducts.length} items):</span>
-                    <span>UGX {monthlyTotal.toLocaleString()} / mo</span>
+                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>UGX {monthlyTotal.toLocaleString()} / mo</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.875rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
                     <span>Subtotal ({subscriptionDuration}):</span>
-                    <span>UGX {subtotalAmount.toLocaleString()}</span>
+                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>UGX {subtotalAmount.toLocaleString()}</span>
                   </div>
                   {includeVat && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.4rem', color: 'var(--accent-cyan)', fontWeight: '600' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.875rem', marginBottom: '0.4rem', color: 'var(--accent-cyan)', fontWeight: '600' }}>
                       <span>VAT (18% Tax):</span>
-                      <span>+ UGX {vatAmount.toLocaleString()}</span>
+                      <span style={{ fontWeight: '700' }}>+ UGX {vatAmount.toLocaleString()}</span>
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '1.15rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)', marginTop: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem', fontWeight: '800', fontSize: '1.05rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
                     <span>Grand Total Due:</span>
                     <span style={{ color: 'var(--primary)' }}>
                       UGX {grandTotal.toLocaleString()}
