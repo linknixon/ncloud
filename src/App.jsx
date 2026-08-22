@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import CartDrawer from './components/CartDrawer';
 import Toast from './components/Toast';
+import BackToTop from './components/BackToTop';
 
 import HomePage from './pages/HomePage';
 import ServicesPage from './pages/ServicesPage';
@@ -63,6 +64,7 @@ export default function App() {
         <AuthModal />
         <CartDrawer onCheckout={() => setActivePage('subscription')} />
         <Toast />
+        <BackToTop />
       </div>
     </AppProvider>
   );
