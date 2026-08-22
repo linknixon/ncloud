@@ -177,8 +177,8 @@ export default function SubscriptionPaymentPage() {
             
             {/* Left Column: Multi-Selection Checkbox List for Packages to Renew */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 style={{ fontSize: '1.3rem' }}>Select Packages to Renew ({selectedProducts.length} Selected)</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.2rem' }}>Select Packages to Renew ({selectedProducts.length} Selected)</h3>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages}</span>
               </div>
 
@@ -208,7 +208,7 @@ export default function SubscriptionPaymentPage() {
                       <div
                         key={prod.id}
                         onClick={() => toggleSelectProduct(prod)}
-                        className="glass-card"
+                        className="glass-card subscription-package-card"
                         style={{
                           padding: '1.25rem',
                           cursor: 'pointer',
@@ -216,7 +216,7 @@ export default function SubscriptionPaymentPage() {
                           background: isSelected ? 'rgba(30, 58, 138, 0.08)' : 'var(--bg-card)',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '1.25rem'
+                          gap: '1rem'
                         }}
                       >
                         {/* Checkbox Input */}
@@ -234,8 +234,8 @@ export default function SubscriptionPaymentPage() {
                           />
                         </div>
 
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: '700', fontSize: '1.025rem', marginBottom: '0.2rem' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: '700', fontSize: '1.0rem', marginBottom: '0.2rem' }}>
                             {prod.name}
                           </div>
                           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -243,12 +243,12 @@ export default function SubscriptionPaymentPage() {
                           </div>
                         </div>
 
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--primary)' }}>
+                        <div className="subscription-package-price" style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontWeight: '800', fontSize: '1.05rem', color: 'var(--primary)' }}>
                             {prod.currency || 'UGX'} {Number(prod.price).toLocaleString()} / mo
                           </div>
                           {isSelected && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', marginTop: '2px' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
                               <Check size={14} /> Selected
                             </span>
                           )}

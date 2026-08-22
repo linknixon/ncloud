@@ -70,7 +70,7 @@ app.get('/api/info', (req, res) => {
   res.json(seed ? seed.companyInfo : {
     name: 'Nova Cloud Edges (U) Limited',
     tagline: 'Empowering Technology Solutions',
-    address: 'Plot 14 Parliament Avenue, Kampala, Uganda',
+    address: 'Plot 14 Ndejje, Wakiso, Uganda',
     phone: '0790001631',
     email: 'support@ncloud.co.ug'
   });
