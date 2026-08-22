@@ -13,7 +13,7 @@ export default function SubscriptionPaymentPage() {
   // Multi-selection state for packages to renew
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [subscriptionDuration, setSubscriptionDuration] = useState('1 Year');
-  const [includeVat, setIncludeVat] = useState(false);
+  const [includeVat, setIncludeVat] = useState(true);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
@@ -72,6 +72,11 @@ export default function SubscriptionPaymentPage() {
     e.preventDefault();
     if (selectedProducts.length === 0) {
       showToast('Please select at least one package to renew.', 'error');
+      return;
+    }
+
+    if (!includeVat) {
+      showToast('Value Added Tax (VAT 18%) selection is mandatory for official tax invoices.', 'error');
       return;
     }
 
@@ -365,22 +370,23 @@ export default function SubscriptionPaymentPage() {
                   </select>
                 </div>
 
-                {/* Tax & VAT Option Checkbox */}
+                {/* Tax & VAT Option Checkbox (Mandatory Required Field) */}
                 <div style={{
                   background: 'var(--bg-main)',
                   padding: '0.85rem 1rem',
                   borderRadius: '10px',
-                  border: '1px solid var(--border-color)',
+                  border: '1.5px solid var(--primary)',
                   marginBottom: '1.25rem'
                 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, fontWeight: '600', fontSize: '0.9rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
                     <input
                       type="checkbox"
                       checked={includeVat}
                       onChange={e => setIncludeVat(e.target.checked)}
+                      required
                       style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
                     />
-                    <span>Add 18% Value Added Tax (VAT) for Official Tax Invoice</span>
+                    <span>Add 18% Value Added Tax (VAT) for Official Tax Invoice <span style={{ color: '#dc2626' }}>* (Mandatory Statutory Tax)</span></span>
                   </label>
                 </div>
 
