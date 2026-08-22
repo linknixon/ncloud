@@ -251,8 +251,18 @@ export default function Navbar({ activePage, setActivePage }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button
                 onClick={() => openAuthModal('login')}
-                className="btn-secondary"
-                style={{ padding: '0.5rem 0.95rem', fontSize: '0.85rem' }}
+                style={{
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  color: '#ffffff',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
               >
                 Sign In
               </button>
@@ -329,8 +339,15 @@ export default function Navbar({ activePage, setActivePage }) {
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
               <button
                 onClick={() => { openAuthModal('login'); setMobileOpen(false); }}
-                className="btn-secondary"
-                style={{ flex: 1, justifyContent: 'center', padding: '0.6rem' }}
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  padding: '0.6rem',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  borderRadius: '10px'
+                }}
               >
                 Sign In
               </button>
