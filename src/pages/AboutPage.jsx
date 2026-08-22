@@ -118,19 +118,28 @@ export default function AboutPage({ setActivePage }) {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2rem' }}>
             {team.map((m, idx) => (
-              <div key={idx} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-                <img
-                  src={m.image}
-                  alt={m.name}
-                  style={{ width: '100%', height: '260px', objectFit: 'cover' }}
-                />
-                <div style={{ padding: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>{m.name}</h3>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>{m.role}</div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5' }}>{m.bio}</p>
+              <div key={idx} className="glass-card" style={{ padding: '2rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{
+                  width: '140px',
+                  height: '140px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  marginBottom: '1.25rem',
+                  border: '3.5px solid var(--primary)',
+                  boxShadow: '0 8px 24px rgba(30, 58, 138, 0.25)',
+                  flexShrink: 0
+                }}>
+                  <img
+                    src={m.image}
+                    alt={m.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 </div>
+                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{m.name}</h3>
+                <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>{m.role}</div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: '1.6', margin: 0 }}>{m.bio}</p>
               </div>
             ))}
           </div>
