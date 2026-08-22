@@ -90,28 +90,13 @@ export default function Navbar({ activePage, setActivePage }) {
         {/* Brand Logo */}
         <div 
           onClick={() => { setActivePage('home'); setMobileOpen(false); }}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
+          style={{ cursor: 'pointer', flexShrink: 0 }}
         >
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '10px',
-            background: 'var(--gradient-brand)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)'
-          }}>
-            <Cloud size={24} />
+          <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: 1, letterSpacing: '-0.03em' }}>
+            NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
           </div>
-          <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: 1, letterSpacing: '-0.03em' }}>
-              NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.05em', fontWeight: '600' }}>
-              EMPOWERING TECHNOLOGY SOLUTIONS
-            </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: '700', marginTop: '3px' }}>
+            EMPOWERING TECHNOLOGY SOLUTIONS
           </div>
         </div>
 

@@ -21,21 +21,12 @@ export default function Footer({ setActivePage }) {
           
           {/* Column 1: Company Profile */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                background: 'var(--gradient-brand)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff'
-              }}>
-                <Cloud size={24} />
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
                 NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#94a3b8', letterSpacing: '0.06em', fontWeight: '700', marginTop: '4px' }}>
+                EMPOWERING TECHNOLOGY SOLUTIONS
               </div>
             </div>
             <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.7' }}>
