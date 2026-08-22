@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider } from './context/AppContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -21,6 +21,10 @@ import PrivacyPage from './pages/PrivacyPage';
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activePage]);
 
   const renderPage = () => {
     switch (activePage) {
