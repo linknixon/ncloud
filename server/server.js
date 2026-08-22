@@ -15,15 +15,10 @@ app.use(express.json());
 // In-Memory Storage for dynamic actions when MySQL is disconnected
 const memoryStore = {
   users: [
-    {
-      id: 1,
-      name: 'Nova Admin',
-      email: 'support@ncloud.co.ug',
-      passwordHash: '$2a$10$wN9Q7Y5D8a9g.sXkK.L4c.0sQ1Kx1Y0gH0mH0mH0mH0mH0mH0mH0m',
-      role: 'admin',
-      phone: '0790001631',
-      company: 'Nova Cloud Edges'
-    }
+    { id: 1, name: 'Nova Super Admin', email: 'admin@ncloud.co.ug', role: 'super_admin', phone: '0790001631', company: 'Nova Cloud Edges (U) Ltd' },
+    { id: 2, name: 'Julian Sales Executive', email: 'sales@ncloud.co.ug', role: 'sales_admin', phone: '0782001928', company: 'Nova Sales Dept' },
+    { id: 3, name: 'Mark Webmaster', email: 'webmaster@ncloud.co.ug', role: 'web_admin', phone: '0701827364', company: 'Nova Digital Team' },
+    { id: 4, name: 'Samuel Okello', email: 'samuel@kintu.co.ug', role: 'customer', phone: '0772111222', company: 'Kintu Logistics Uganda' }
   ],
   applications: [],
   contacts: [
@@ -32,8 +27,8 @@ const memoryStore = {
       name: 'Sarah Kaggwa',
       email: 'sarah@business.co.ug',
       phone: '+256 782 999 111',
-      subject: 'Inquiry regarding QuickBooks Enterprise v24.0',
-      message: 'Hello Nova Team, We are interested in purchasing 5 user licenses for QuickBooks Enterprise. Kindly send us a formal quote.',
+      subject: 'Inquiry regarding Enterprise ERP',
+      message: 'Hello Nova Team, We are interested in purchasing 5 user licenses for Enterprise ERP. Kindly send us a formal quote.',
       status: 'new',
       created_at: new Date().toISOString()
     }
@@ -41,13 +36,46 @@ const memoryStore = {
   subscriptions: [
     {
       id: 1,
-      user_id: 1,
-      plan_name: 'Zimbra Enterprise Email (10 Users)',
-      amount: 450000.00,
+      user_id: 4,
+      plan_name: 'Edge Virtual Server - Standard (4 vCPU, 16GB RAM)',
+      amount: 650000.00,
       currency: 'UGX',
       status: 'active',
       reference: 'NV-SUB-9941',
       created_at: new Date().toISOString()
+    }
+  ],
+  invoices: [
+    {
+      id: 1,
+      invoice_number: 'INV-2026-0041',
+      customer_name: 'Kintu Logistics Uganda',
+      customer_email: 'samuel@kintu.co.ug',
+      amount: 767000.00,
+      vat_amount: 117000.00,
+      status: 'Paid',
+      due_date: '2026-09-01',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      invoice_number: 'INV-2026-0042',
+      customer_name: 'Kampala Medical Supplies',
+      customer_email: 'finance@kampalamed.co.ug',
+      amount: 1416000.00,
+      vat_amount: 216000.00,
+      status: 'Pending',
+      due_date: '2026-08-30',
+      created_at: new Date().toISOString()
+    }
+  ],
+  sliders: [
+    {
+      id: 1,
+      title: 'Sovereign Cloud Edge Infrastructure',
+      subtitle: 'Ultra-low latency virtual servers and Tier III colocation hosting in Kampala, Uganda.',
+      image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80',
+      active: true
     }
   ]
 };
@@ -374,10 +402,78 @@ app.get('/api/admin/overview', async (req, res) => {
     totalContacts: contacts.length,
     totalApplications: applications.length,
     totalSubscriptions: subscriptions.length,
+    totalUsers: memoryStore.users.length,
+    totalInvoices: memoryStore.invoices.length,
     contacts,
     applications,
-    subscriptions
+    subscriptions,
+    users: memoryStore.users,
+    invoices: memoryStore.invoices,
+    sliders: memoryStore.sliders
   });
+});
+
+// Admin & Role Management API Endpoints
+app.get('/api/admin/users', (req, res) => {
+  res.json(memoryStore.users);
+});
+
+app.put('/api/admin/users/:id/role', (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  const targetUser = memoryStore.users.find(u => u.id == id);
+  if (targetUser) {
+    targetUser.role = role;
+    return res.json({ message: `Role updated to ${role} successfully`, user: targetUser });
+  }
+  res.status(404).json({ error: 'User not found' });
+});
+
+app.get('/api/admin/invoices', (req, res) => {
+  res.json(memoryStore.invoices);
+});
+
+app.post('/api/admin/invoices', (req, res) => {
+  const { customer_name, customer_email, amount, vat_amount, due_date } = req.body;
+  const newInvoice = {
+    id: memoryStore.invoices.length + 1,
+    invoice_number: `INV-2026-00${memoryStore.invoices.length + 43}`,
+    customer_name: customer_name || 'Corporate Customer',
+    customer_email: customer_email || 'client@company.co.ug',
+    amount: Number(amount) || 500000,
+    vat_amount: Number(vat_amount) || 90000,
+    status: 'Pending',
+    due_date: due_date || '2026-09-30',
+    created_at: new Date().toISOString()
+  };
+  memoryStore.invoices.unshift(newInvoice);
+  res.json({ message: 'Tax Invoice issued successfully', invoice: newInvoice });
+});
+
+app.post('/api/admin/invoices/:id/remind', (req, res) => {
+  const { id } = req.params;
+  const invoice = memoryStore.invoices.find(i => i.id == id);
+  if (invoice) {
+    return res.json({ message: `Payment reminder sent successfully to ${invoice.customer_email} for Invoice ${invoice.invoice_number}` });
+  }
+  res.status(404).json({ error: 'Invoice not found' });
+});
+
+app.get('/api/admin/sliders', (req, res) => {
+  res.json(memoryStore.sliders);
+});
+
+app.post('/api/admin/sliders', (req, res) => {
+  const { title, subtitle, image } = req.body;
+  const newSlider = {
+    id: memoryStore.sliders.length + 1,
+    title: title || 'New Hero Banner',
+    subtitle: subtitle || 'Empowering Technology Solutions across Uganda',
+    image: image || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80',
+    active: true
+  };
+  memoryStore.sliders.unshift(newSlider);
+  res.json({ message: 'Graphic Slider added successfully', slider: newSlider });
 });
 
 // ----------------------------------------------------
