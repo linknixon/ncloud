@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Nova Cloud Edges (U) Limited — Tech Advisories &amp; Product Updates</title>
+    <link>https://ncloud.co.ug/</link>
+    <description>Official RSS Feed for Nova Cloud Edges — #1 Cloud Infrastructure, Zimbra Email, QuickBooks ERP, and Cybersecurity Updates in Uganda and Africa.</description>
+    <language>en-us</language>
+    <copyright>Copyright 2026 Nova Cloud Edges (U) Limited</copyright>
+    <lastBuildDate>Sat, 22 Aug 2026 18:00:00 EAT</lastBuildDate>
+    <atom:link href="https://ncloud.co.ug/rss.xml" rel="self" type="application/rss+xml" />
+
+    <item>
+      <title>Nova Cloud Edges Achieves ISO/IEC 27001 Security Certification</title>
+      <link>https://ncloud.co.ug/about</link>
+      <guid>https://ncloud.co.ug/news/1</guid>
+      <pubDate>Mon, 10 Aug 2026 09:00:00 EAT</pubDate>
+      <description>Nova Cloud Edges (U) Limited has officially achieved ISO/IEC 27001:2022 Information Security Management accreditation for its Kampala Tier III Datacenter facilities.</description>
+    </item>
+
+    <item>
+      <title>Expanding High-Speed Data Center Colocation Racks in Kampala</title>
+      <link>https://ncloud.co.ug/services</link>
+      <guid>https://ncloud.co.ug/news/2</guid>
+      <pubDate>Tue, 28 Jul 2026 14:30:00 EAT</pubDate>
+      <description>We have commissioned 20 additional 1U/2U server colocation racks connected directly to RENU, Liquid Telecom, and MTN Uganda fiber interconnects.</description>
+    </item>
+
+    <item>
+      <title>Zimbra Collaboration Suite Enterprise Migration Guide</title>
+      <link>https://ncloud.co.ug/shop</link>
+      <guid>https://ncloud.co.ug/news/3</guid>
+      <pubDate>Wed, 15 Jul 2026 11:15:00 EAT</pubDate>
+      <description>Learn how our Zimbra Email Experts migrate corporate mailboxes seamlessly with zero downtime and full spam filtering.</description>
+    </item>
+
+  </channel>
+</rss>
