@@ -51,7 +51,7 @@ export default function ContactPage() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+        <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
           
           {/* Contact Details Card */}
           <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
@@ -193,7 +193,7 @@ export default function ContactPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
                   <div className="form-group">
                     <label>Email Address *</label>
                     <input
