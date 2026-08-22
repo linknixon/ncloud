@@ -2,8 +2,21 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
+const getAutoTimeTheme = () => {
+  const hour = new Date().getHours();
+  // Evening / Night: 6:00 PM (18:00) to 6:00 AM (06:00) -> dark mode
+  // Daytime: 6:00 AM (06:00) to 6:00 PM (18:00) -> light mode
+  return (hour >= 18 || hour < 6) ? 'dark' : 'light';
+};
+
 export function AppProvider({ children }) {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(() => {
+    const manualTheme = localStorage.getItem('user_manual_theme');
+    if (manualTheme) {
+      return localStorage.getItem('theme') || getAutoTimeTheme();
+    }
+    return getAutoTimeTheme();
+  });
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [cart, setCart] = useState(JSON.parse(localStorage.getItem('cart')) || []);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -15,6 +28,20 @@ export function AppProvider({ children }) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Periodic check to update auto theme if time crosses 6 PM or 6 AM
+  useEffect(() => {
+    const checkAutoTheme = () => {
+      const manualTheme = localStorage.getItem('user_manual_theme');
+      if (!manualTheme) {
+        setTheme(getAutoTimeTheme());
+      }
+    };
+    
+    checkAutoTheme();
+    const interval = setInterval(checkAutoTheme, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -29,7 +56,11 @@ export function AppProvider({ children }) {
   }, [user]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme(prev => {
+      const nextTheme = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('user_manual_theme', 'true');
+      return nextTheme;
+    });
   };
 
   const openAuthModal = (mode = 'login') => {
