@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { X, Lock, Mail, User, Building, Phone } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthOpen, setIsAuthOpen, setUser, showToast } = useApp();
+  const { isAuthOpen, setIsAuthOpen, authMode, setUser, showToast } = useApp();
   const [isRegister, setIsRegister] = useState(false);
+
+  useEffect(() => {
+    setIsRegister(authMode === 'register');
+  }, [authMode, isAuthOpen]);
 
   const [formData, setFormData] = useState({
     name: '',

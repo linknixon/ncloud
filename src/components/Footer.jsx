@@ -121,9 +121,13 @@ export default function Footer({ setActivePage }) {
           <div>
             &copy; {new Date().getFullYear()} Nova Cloud Edges (U) Limited. All rights reserved. Registered in the Republic of Uganda.
           </div>
-          <div style={{ display: 'flex', gap: '1.5rem', color: '#94a3b8' }}>
+          <div style={{ display: 'flex', gap: '1.5rem', color: '#94a3b8', flexWrap: 'wrap' }}>
             <button onClick={() => setActivePage('terms')} style={{ background: 'none', color: '#cbd5e1', fontSize: '0.875rem' }}>
               Terms of Reference & SLA
+            </button>
+            <span style={{ color: '#475569' }}>•</span>
+            <button onClick={() => setActivePage('privacy')} style={{ background: 'none', color: '#cbd5e1', fontSize: '0.875rem' }}>
+              Privacy Policy
             </button>
           </div>
         </div>

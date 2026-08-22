@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import TermsPage from './pages/TermsPage';
 import AboutPage from './pages/AboutPage';
 import NewsPage from './pages/NewsPage';
+import PrivacyPage from './pages/PrivacyPage';
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
@@ -40,6 +41,8 @@ export default function App() {
         return <NewsPage />;
       case 'terms':
         return <TermsPage setActivePage={setActivePage} />;
+      case 'privacy':
+        return <PrivacyPage setActivePage={setActivePage} />;
       case 'admin':
         return <AdminDashboard />;
       default:

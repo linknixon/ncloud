@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage }) {
-  const { theme, toggleTheme, user, logout, cart, setIsAuthOpen, setIsCartOpen } = useApp();
+  const { theme, toggleTheme, user, logout, cart, openAuthModal, setIsCartOpen } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
 
@@ -248,13 +248,22 @@ export default function Navbar({ activePage, setActivePage }) {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="btn-primary"
-              style={{ padding: '0.55rem 1.1rem', fontSize: '0.875rem' }}
-            >
-              <User size={16} /> Sign In
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => openAuthModal('login')}
+                className="btn-secondary"
+                style={{ padding: '0.5rem 0.95rem', fontSize: '0.85rem' }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => openAuthModal('register')}
+                className="btn-primary"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+              >
+                <User size={15} /> Sign Up
+              </button>
+            </div>
           )}
 
           {/* Mobile Menu Toggle */}
@@ -315,6 +324,24 @@ export default function Navbar({ activePage, setActivePage }) {
             >
               Admin Portal
             </button>
+          )}
+          {!user && (
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+              <button
+                onClick={() => { openAuthModal('login'); setMobileOpen(false); }}
+                className="btn-secondary"
+                style={{ flex: 1, justifyContent: 'center', padding: '0.6rem' }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => { openAuthModal('register'); setMobileOpen(false); }}
+                className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center', padding: '0.6rem' }}
+              >
+                Sign Up
+              </button>
+            </div>
           )}
         </div>
       )}

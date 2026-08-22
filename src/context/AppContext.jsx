@@ -7,6 +7,7 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [cart, setCart] = useState(JSON.parse(localStorage.getItem('cart')) || []);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
@@ -29,6 +30,11 @@ export function AppProvider({ children }) {
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const openAuthModal = (mode = 'login') => {
+    setAuthMode(mode);
+    setIsAuthOpen(true);
   };
 
   const showToast = (message, type = 'info') => {
@@ -79,6 +85,9 @@ export function AppProvider({ children }) {
         clearCart,
         isAuthOpen,
         setIsAuthOpen,
+        authMode,
+        setAuthMode,
+        openAuthModal,
         isCartOpen,
         setIsCartOpen,
         notification,
