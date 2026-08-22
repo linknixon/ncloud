@@ -29,6 +29,7 @@ export default function Navbar({ activePage, setActivePage }) {
     { id: 'shop', label: 'Shop' },
     { id: 'jobs', label: 'Careers' },
     { id: 'subscription', label: 'Subscriptions' },
+    { id: 'admin', label: 'Dashboard Portal' },
     { id: 'contact', label: 'Contact' }
   ];
 
@@ -121,25 +122,23 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           ))}
 
-          {user && user.role === 'admin' && (
-            <button
-              onClick={() => setActivePage('admin')}
-              style={{
-                background: 'rgba(233, 30, 99, 0.1)',
-                color: 'var(--secondary)',
-                border: '1px solid rgba(233, 30, 99, 0.3)',
-                padding: '0.4rem 0.8rem',
-                borderRadius: '8px',
-                fontWeight: '600',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem'
-              }}
-            >
-              <LayoutDashboard size={15} /> Admin Portal
-            </button>
-          )}
+          <button
+            onClick={() => setActivePage('admin')}
+            style={{
+              background: 'rgba(124, 58, 237, 0.1)',
+              color: 'var(--primary)',
+              border: '1px solid rgba(124, 58, 237, 0.3)',
+              padding: '0.4rem 0.8rem',
+              borderRadius: '8px',
+              fontWeight: '700',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem'
+            }}
+          >
+            <LayoutDashboard size={15} /> Portal Dashboard
+          </button>
         </nav>
 
         {/* Actions (Cart, Theme, Auth) */}
@@ -305,21 +304,19 @@ export default function Navbar({ activePage, setActivePage }) {
               {item.label}
             </button>
           ))}
-          {user && user.role === 'admin' && (
-            <button
-              onClick={() => { setActivePage('admin'); setMobileOpen(false); }}
-              style={{
-                textAlign: 'left',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                background: 'rgba(233, 30, 99, 0.1)',
-                color: 'var(--secondary)',
-                fontWeight: '700'
-              }}
-            >
-              Admin Portal
-            </button>
-          )}
+          <button
+            onClick={() => { setActivePage('admin'); setMobileOpen(false); }}
+            style={{
+              textAlign: 'left',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              background: 'rgba(124, 58, 237, 0.1)',
+              color: 'var(--primary)',
+              fontWeight: '700'
+            }}
+          >
+            Dashboard Portal
+          </button>
           {!user && (
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
               <button
