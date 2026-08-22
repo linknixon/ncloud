@@ -32,22 +32,37 @@ export default function CartDrawer({ onCheckout }) {
       >
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
+          padding: '1rem 1.25rem',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          background: 'var(--bg-card)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: '700', fontSize: '1.1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.05rem' }}>
             <ShoppingBag size={20} color="var(--primary)" />
-            Shopping Cart ({cart.length})
+            Cart ({cart.length})
           </div>
-          <button
-            onClick={() => setIsCartOpen(false)}
-            style={{ background: 'none', color: 'var(--text-muted)' }}
-          >
-            <X size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            {cart.length > 0 && (
+              <button
+                onClick={() => {
+                  setIsCartOpen(false);
+                  onCheckout();
+                }}
+                className="btn-primary"
+                style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', fontWeight: '700' }}
+              >
+                Checkout <ArrowRight size={14} />
+              </button>
+            )}
+            <button
+              onClick={() => setIsCartOpen(false)}
+              style={{ background: 'none', color: 'var(--text-muted)', padding: '0.2rem' }}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Cart Items List */}
@@ -140,14 +155,18 @@ export default function CartDrawer({ onCheckout }) {
           )}
         </div>
 
-        {/* Footer & Checkout */}
+        {/* Sticky Pinned Footer & Prominent Checkout Button */}
         {cart.length > 0 && (
           <div style={{
-            padding: '1.5rem',
+            padding: '1.25rem 1.5rem 1.75rem',
             borderTop: '1px solid var(--border-color)',
-            background: 'var(--bg-main)'
+            background: 'var(--bg-card)',
+            boxShadow: '0 -6px 20px rgba(0, 0, 0, 0.3)',
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 10
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontWeight: '700', fontSize: '1.1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.85rem', fontWeight: '800', fontSize: '1.1rem' }}>
               <span>Total Amount:</span>
               <span style={{ color: 'var(--primary)' }}>UGX {totalAmount.toLocaleString()}</span>
             </div>
@@ -158,9 +177,17 @@ export default function CartDrawer({ onCheckout }) {
                 onCheckout();
               }}
               className="btn-primary"
-              style={{ width: '100%', justifyContent: 'center', padding: '0.85rem' }}
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                padding: '0.95rem',
+                fontSize: '0.95rem',
+                fontWeight: '800',
+                borderRadius: '12px',
+                boxShadow: '0 6px 20px rgba(30, 58, 138, 0.45)'
+              }}
             >
-              Proceed to Subscription Payment <ArrowRight size={18} />
+              Proceed to Checkout & Payment <ArrowRight size={18} />
             </button>
 
             <button
@@ -170,7 +197,7 @@ export default function CartDrawer({ onCheckout }) {
                 background: 'none',
                 color: 'var(--text-muted)',
                 fontSize: '0.8rem',
-                marginTop: '0.75rem'
+                marginTop: '0.65rem'
               }}
             >
               Clear Cart
