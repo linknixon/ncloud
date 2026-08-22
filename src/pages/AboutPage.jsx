@@ -16,7 +16,6 @@ export default function AboutPage({ setActivePage }) {
         
         {/* Page Header */}
         <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-          <span className="badge-tag">About Nova Cloud Edges</span>
           <h1 style={{ fontSize: '2.8rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
             Empowering Technology Solutions Across East Africa
           </h1>
@@ -113,7 +112,6 @@ export default function AboutPage({ setActivePage }) {
         {/* Leadership Team Gallery */}
         <section>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <span className="badge-tag">Leadership & Engineers</span>
             <h2 style={{ fontSize: '2.2rem', marginTop: '0.5rem' }}>Meet Our Executive Team</h2>
             <p style={{ color: 'var(--text-muted)', maxWidth: '600px', margin: '0.5rem auto 0' }}>
               Experienced cloud architects, cybersecurity specialists, and enterprise software engineers based in Kampala.
