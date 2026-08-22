@@ -233,7 +233,7 @@ export default function Navbar({ activePage, setActivePage }) {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <button
                 onClick={() => openAuthModal('login')}
                 style={{

@@ -161,7 +161,7 @@ export default function SubscriptionPaymentPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
+          <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
             
             {/* Left Column: Multi-Selection Checkbox List for Packages to Renew */}
             <div>

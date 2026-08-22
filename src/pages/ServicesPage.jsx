@@ -95,10 +95,10 @@ export default function ServicesPage({ setActivePage }) {
                 return (
                   <div
                     key={srv.id || idx}
-                    className="glass-card"
+                    className="glass-card responsive-2col"
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(280px, 1fr) 2fr',
+                      gridTemplateColumns: 'minmax(260px, 1fr) 2fr',
                       gap: '2.5rem',
                       padding: '2.5rem',
                       alignItems: 'center'

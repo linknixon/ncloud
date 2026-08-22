@@ -129,7 +129,7 @@ export default function HomePage({ setActivePage }) {
       
       {/* 1. Hero Section with Auto-Moving Data Center Image Slider */}
       <section style={{ position: 'relative', width: '100%', overflow: 'hidden', background: '#050a14', color: '#fff' }}>
-        <div style={{ position: 'relative', height: '680px', width: '100%' }}>
+        <div className="hero-slider-container" style={{ position: 'relative', height: '680px', width: '100%' }}>
           
           {sliderImages.map((slide, idx) => (
             <div
@@ -147,7 +147,7 @@ export default function HomePage({ setActivePage }) {
                 alt={slide.title}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.32)' }}
               />
-              <div style={{
+              <div className="hero-slide-overlay" style={{
                 position: 'absolute',
                 inset: 0,
                 background: 'linear-gradient(to bottom, rgba(5,10,20,0.5) 0%, rgba(5,10,20,0.95) 100%)',
