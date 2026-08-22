@@ -32,7 +32,7 @@ export default function SubscriptionPaymentPage() {
       .then(data => {
         setProducts(data);
         if (data.length > 0) {
-          setSelectedProducts([data[0]]);
+          setSelectedProducts([{ ...data[0], quantity: 1 }]);
         }
         setLoading(false);
       })
@@ -58,12 +58,19 @@ export default function SubscriptionPaymentPage() {
     if (exists) {
       setSelectedProducts(selectedProducts.filter(p => p.id !== prod.id));
     } else {
-      setSelectedProducts([...selectedProducts, prod]);
+      setSelectedProducts([...selectedProducts, { ...prod, quantity: 1 }]);
     }
   };
 
+  const updatePackageQuantity = (id, qty) => {
+    const newQty = Math.max(1, parseInt(qty) || 1);
+    setSelectedProducts(selectedProducts.map(p =>
+      p.id === id ? { ...p, quantity: newQty } : p
+    ));
+  };
+
   const durationMultiplier = subscriptionDuration === '6 Months' ? 6 : (subscriptionDuration === '2 Years' ? 24 : 12);
-  const monthlyTotal = selectedProducts.reduce((acc, p) => acc + Number(p.price), 0);
+  const monthlyTotal = selectedProducts.reduce((acc, p) => acc + (Number(p.price) * (p.quantity || 1)), 0);
   const subtotalAmount = monthlyTotal * durationMultiplier;
   const vatAmount = includeVat ? subtotalAmount * 0.18 : 0;
   const grandTotal = subtotalAmount + vatAmount;
@@ -299,8 +306,31 @@ export default function SubscriptionPaymentPage() {
                   }}>
                     {selectedProducts.length > 0 ? (
                       selectedProducts.map((p, idx) => (
-                        <div key={p.id} style={{ marginBottom: idx < selectedProducts.length - 1 ? '4px' : 0 }}>
-                          • {p.name}
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: idx < selectedProducts.length - 1 ? '8px' : 0, gap: '0.5rem' }}>
+                          <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            • {p.name}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Qty:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={p.quantity || 1}
+                              onChange={e => updatePackageQuantity(p.id, e.target.value)}
+                              style={{
+                                width: '54px',
+                                padding: '0.2rem 0.35rem',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontSize: '0.85rem',
+                                fontWeight: '700',
+                                textAlign: 'center'
+                              }}
+                            />
+                          </div>
                         </div>
                       ))
                     ) : (

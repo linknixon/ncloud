@@ -9,6 +9,7 @@ export default function ShopPage({ setActivePage }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [quantities, setQuantities] = useState({});
 
   const itemsPerPage = 8;
 
@@ -145,13 +146,34 @@ export default function ShopPage({ setActivePage }) {
                       {prod.short_desc || prod.description}
                     </p>
 
-                    <div style={{ display: 'flex', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Qty:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={quantities[prod.id] || 1}
+                          onChange={(e) => setQuantities({ ...quantities, [prod.id]: Math.max(1, parseInt(e.target.value) || 1) })}
+                          style={{
+                            width: '52px',
+                            padding: '0.35rem 0.3rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-main)',
+                            color: 'var(--text-main)',
+                            fontWeight: '700',
+                            fontSize: '0.85rem',
+                            textAlign: 'center'
+                          }}
+                        />
+                      </div>
                       <button
-                        onClick={() => addToCart(prod)}
+                        onClick={() => addToCart(prod, quantities[prod.id] || 1)}
                         className="btn-primary"
-                        style={{ flex: 1, justifyContent: 'center', padding: '0.65rem' }}
+                        style={{ flex: 1, justifyContent: 'center', padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
                       >
-                        <ShoppingBag size={16} /> Add to Cart
+                        <ShoppingBag size={15} /> Add to Cart
                       </button>
                     </div>
 

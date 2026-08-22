@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Trash2, ArrowRight, ShieldCheck, ShoppingBag } from 'lucide-react';
 
 export default function CartDrawer({ onCheckout }) {
-  const { isCartOpen, setIsCartOpen, cart, removeFromCart, clearCart, showToast } = useApp();
+  const { isCartOpen, setIsCartOpen, cart, updateCartQuantity, removeFromCart, clearCart, showToast } = useApp();
 
   if (!isCartOpen) return null;
 
@@ -75,14 +75,57 @@ export default function CartDrawer({ onCheckout }) {
                 <img
                   src={item.image_url}
                   alt={item.name}
-                  style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover' }}
+                  style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover' }}
                 />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: '700', fontSize: '0.875rem', lineHeight: '1.3' }}>
                     {item.name}
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Qty: {item.quantity} x {item.currency} {item.price.toLocaleString()}
+                  <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700', marginTop: '0.2rem' }}>
+                    {item.currency} {(item.price * item.quantity).toLocaleString()}
+                  </div>
+
+                  {/* Quantity Counter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.4rem' }}>
+                    <button
+                      onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-main)',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '20px', textAlign: 'center' }}>
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-main)',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
                 <button

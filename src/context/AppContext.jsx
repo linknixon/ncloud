@@ -75,17 +75,25 @@ export function AppProvider({ children }) {
     }, 4000);
   };
 
-  const addToCart = (product) => {
+  const addToCart = (product, qty = 1) => {
+    const addQuantity = Math.max(1, parseInt(qty) || 1);
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + addQuantity } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: addQuantity }];
     });
-    showToast(`Added "${product.name}" to cart!`, 'success');
+    showToast(`Added ${addQuantity}x "${product.name}" to cart!`, 'success');
+  };
+
+  const updateCartQuantity = (id, qty) => {
+    const newQty = Math.max(1, parseInt(qty) || 1);
+    setCart(prev => prev.map(item =>
+      item.id === id ? { ...item, quantity: newQty } : item
+    ));
   };
 
   const removeFromCart = (id) => {
@@ -112,6 +120,7 @@ export function AppProvider({ children }) {
         logout,
         cart,
         addToCart,
+        updateCartQuantity,
         removeFromCart,
         clearCart,
         isAuthOpen,
