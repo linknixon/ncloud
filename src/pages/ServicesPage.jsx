@@ -51,12 +51,12 @@ export default function ServicesPage({ setActivePage }) {
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <div className="container">
         
-        {/* Page Header (Empowering Technology Solutions badge tag removed) */}
-        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <h1 style={{ fontSize: '2.8rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+        {/* Page Header */}
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h1 style={{ fontSize: '2.1rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
             Our Core Services & Technical Capabilities
           </h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '1.1rem' }}>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '1.0rem' }}>
             We provide localized edge server hosting, QuickBooks ERP implementation, Zimbra Email Experts server administration, cybersecurity defense, IoT edge gateways, and custom software engineering.
           </p>
         </div>

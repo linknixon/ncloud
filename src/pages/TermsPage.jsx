@@ -6,9 +6,8 @@ export default function TermsPage({ setActivePage }) {
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <div className="container" style={{ maxWidth: '1000px' }}>
         
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
             Terms of Reference & Hosting Service Agreement
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '720px', margin: '0 auto' }}>

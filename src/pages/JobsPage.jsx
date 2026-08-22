@@ -68,8 +68,8 @@ export default function JobsPage() {
       <div className="container">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem' }}>Current Job Openings</h1>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Current Job Openings</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
             Discover rewarding career opportunities at Nova Cloud Edges (U) Limited. Build your career with our talented team of technology professionals in Kampala.
           </p>

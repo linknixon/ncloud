@@ -113,8 +113,8 @@ export default function SubscriptionPaymentPage() {
       <div className="container">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ fontSize: '2.5rem', marginTop: '0.5rem' }}>Subscription & Service Payment</h1>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Subscription & Service Payment</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
             Select your enterprise packages using checkboxes and complete your cloud subscription renewal.
           </p>

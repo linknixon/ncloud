@@ -15,11 +15,11 @@ export default function AboutPage({ setActivePage }) {
       <div className="container">
         
         {/* Page Header */}
-        <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-          <h1 style={{ fontSize: '2.8rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <h1 style={{ fontSize: '2.1rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
             Empowering Technology Solutions Across East Africa
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '780px', margin: '0 auto', lineHeight: '1.65' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.0rem', maxWidth: '780px', margin: '0 auto', lineHeight: '1.65' }}>
             Nova Cloud Edges (U) Limited is Uganda's leading provider of sovereign cloud edge hosting, Zimbra Email Server administration, QuickBooks Enterprise ERP implementations, and ISO-certified zero-trust cybersecurity defense.
           </p>
         </div>
@@ -50,9 +50,9 @@ export default function AboutPage({ setActivePage }) {
         </div>
 
         {/* ISO Standards & Security Compliance Section */}
-        <section style={{ marginBottom: '5rem' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: '2.4rem', fontWeight: '800' }}>ISO Standards & Security Compliance</h2>
+        <section style={{ marginBottom: '4rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <h2 style={{ fontSize: '1.85rem', fontWeight: '800' }}>ISO Standards & Security Compliance</h2>
             <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
               Our data centers and cloud hosting operations strictly comply with internationally recognized security and quality frameworks.
             </p>
@@ -95,10 +95,10 @@ export default function AboutPage({ setActivePage }) {
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', marginBottom: '1rem' }}>
               <ShieldCheck size={16} /> Elite Threat Hunters
             </div>
-            <h2 style={{ fontSize: '2.5rem', color: '#fff', marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.9rem', color: '#fff', marginBottom: '0.85rem' }}>
               Expert Cyber Security Team
             </h2>
-            <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '1.1rem', lineHeight: '1.7', marginBottom: '1.75rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '1.0rem', lineHeight: '1.7', marginBottom: '1.5rem' }}>
               Nova Cloud Edges houses a dedicated team of certified cybersecurity specialists (CISSP, CEH, CISM) providing 24/7 Security Operations Center (SOC) threat intelligence, penetration testing, endpoint isolation, and Next-Gen Sophos Firewall configuration.
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -111,8 +111,8 @@ export default function AboutPage({ setActivePage }) {
 
         {/* Leadership Team Gallery */}
         <section>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <h2 style={{ fontSize: '2.2rem', marginTop: '0.5rem' }}>Meet Our Executive Team</h2>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: '1.8rem', marginTop: '0.5rem' }}>Meet Our Executive Team</h2>
             <p style={{ color: 'var(--text-muted)', maxWidth: '600px', margin: '0.5rem auto 0' }}>
               Experienced cloud architects, cybersecurity specialists, and enterprise software engineers based in Kampala.
             </p>

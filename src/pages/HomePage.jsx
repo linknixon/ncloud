@@ -159,11 +159,11 @@ export default function HomePage({ setActivePage }) {
               }}>
                 <div className="container" style={{ maxWidth: '1080px' }}>
                   
-                  <h1 style={{ fontSize: 'clamp(2.1rem, 4.2vw, 3.6rem)', color: '#fff', fontWeight: '800', lineHeight: 1.25, marginBottom: '1.25rem', letterSpacing: '-0.01em' }}>
+                  <h1 style={{ fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)', color: '#fff', fontWeight: '800', lineHeight: 1.25, marginBottom: '1.25rem', letterSpacing: '-0.01em' }}>
                     {slide.title}
                   </h1>
                   
-                  <p style={{ fontSize: '1.35rem', color: '#e2e8f0', marginBottom: '2.5rem', maxWidth: '820px', margin: '0 auto 2.5rem', lineHeight: '1.6' }}>
+                  <p style={{ fontSize: '1.15rem', color: '#e2e8f0', marginBottom: '2.25rem', maxWidth: '800px', margin: '0 auto 2.25rem', lineHeight: '1.6' }}>
                     {slide.subtitle}
                   </p>
                   
@@ -277,8 +277,8 @@ export default function HomePage({ setActivePage }) {
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)', fontWeight: '800', lineHeight: '1.3' }}>Featured Software & Colocation Racks</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '0.4rem' }}>
+              <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Featured Software & Colocation Racks</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.4rem' }}>
                 QuickBooks Enterprise ERP, Zimbra Corporate Webmail, and Tier III Server Rack Space.
               </p>
             </div>
@@ -315,9 +315,9 @@ export default function HomePage({ setActivePage }) {
       {/* 5. Industry Partners Section (Google, Microsoft, RENU, Raxio, Liquid Telecom, MTN Uganda) */}
       <section style={{ padding: '5.5rem 0', background: 'var(--bg-card)' }}>
         <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <h2 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)', fontWeight: '800', lineHeight: '1.3' }}>Our Trusted Technology Partners</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.15rem', maxWidth: '720px', margin: '0.5rem auto 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Our Trusted Technology Partners</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '720px', margin: '0.5rem auto 0' }}>
               We collaborate with global and regional technology leaders to guarantee enterprise connectivity, software licensing, and fiber interconnects.
             </p>
           </div>
@@ -347,8 +347,8 @@ export default function HomePage({ setActivePage }) {
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)', fontWeight: '800', lineHeight: '1.3' }}>Latest News Postings & Feeds</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '0.4rem' }}>
+              <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Latest News Postings & Feeds</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.4rem' }}>
                 Technical advisories, enterprise cloud updates, and ISO compliance releases.
               </p>
             </div>

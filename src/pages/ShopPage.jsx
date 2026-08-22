@@ -45,9 +45,9 @@ export default function ShopPage({ setActivePage }) {
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <div className="container">
         
-        {/* Header (Nova Digital Shop badge removed) */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem' }}>Software Licenses & Cloud Hosting</h1>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Software Licenses & Cloud Hosting</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
             Official Intuit QuickBooks Enterprise v24.0, Zimbra Enterprise Email Mailboxes, Cloud Edge VPS Servers, and Network Firewalls.
           </p>

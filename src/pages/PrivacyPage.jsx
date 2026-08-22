@@ -7,8 +7,8 @@ export default function PrivacyPage({ setActivePage }) {
       <div className="container" style={{ maxWidth: '1020px' }}>
         
         {/* Document Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <h1 style={{ fontSize: '2.7rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.1rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
             Enterprise Data Privacy & Security Policy
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '780px', margin: '0 auto', lineHeight: '1.65' }}>
