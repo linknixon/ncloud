@@ -100,9 +100,9 @@ export default function ContactPage() {
               </div>
               <div>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: '700' }}>Phone & Support Lines</h4>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
+                <a href="tel:0790001631" style={{ color: 'var(--primary)', fontWeight: '700', fontSize: '0.95rem', textDecoration: 'none', display: 'inline-block', marginTop: '0.2rem' }}>
                   0790001631
-                </p>
+                </a>
               </div>
             </div>
 
@@ -193,29 +193,28 @@ export default function ContactPage() {
                   />
                 </div>
 
-                <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label>Email Address *</label>
-                    <input
-                      type="email"
-                      className="form-input"
-                      placeholder="samuel@company.com"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                      required
-                    />
-                  </div>
+                <div className="form-group">
+                  <label>Email Address *</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="e.g. samuel@company.co.ug"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
 
-                  <div className="form-group">
-                    <label>Phone Number</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="+256 700 000 000"
-                      value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
+                <div className="form-group">
+                  <label>Phone Number *</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    placeholder="e.g. 0790001631"
+                    value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    required
+                  />
                 </div>
 
                 <div className="form-group">
@@ -223,7 +222,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Enterprise cloud inquiry / Technical support"
+                    placeholder="e.g. Technical Inquiry / Service Support"
                     value={formData.subject}
                     onChange={e => setFormData({ ...formData, subject: e.target.value })}
                   />
