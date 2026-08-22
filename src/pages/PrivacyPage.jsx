@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Lock, Eye, FileText, CheckCircle2, Server, Database, Key, ServerOff, Cpu, RefreshCw, AlertTriangle, Layers, Building } from 'lucide-react';
+import { Shield, Lock, Eye, FileText, CheckCircle2, Server, Database, Key, ServerOff, Cpu, RefreshCw, AlertTriangle, Layers, Building, Globe } from 'lucide-react';
 
 export default function PrivacyPage({ setActivePage }) {
   return (
