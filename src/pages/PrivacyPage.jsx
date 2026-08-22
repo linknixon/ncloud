@@ -26,11 +26,11 @@ export default function PrivacyPage({ setActivePage }) {
               <h2 style={{ fontSize: '1.45rem' }}>1. Scope, Governance & Legal Framework</h2>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.75', marginBottom: '1.25rem' }}>
-              This Data Privacy and Security Policy governs all cloud edge services, virtual private servers (VPS), Zimbra Email mailboxes, QuickBooks ERP hostings, colocation rack infrastructure, and custom software solutions operated by <strong>Nova Cloud Edges (U) Limited</strong> ("Nova Cloud Edges", "We", "Us", or "Our").
+              This Data Privacy and Security Policy governs all cloud edge services, virtual private servers (VPS), corporate mailboxes, enterprise ERP hostings, colocation rack infrastructure, and custom software solutions operated by <strong>Nova Cloud Edges (U) Limited</strong> ("Nova Cloud Edges", "We", "Us", or "Our").
             </p>
             <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', fontSize: '0.925rem', lineHeight: '1.7' }}>
               <div>• <strong>Data Controller Role:</strong> Nova Cloud Edges acts as a Data Controller for subscriber account details, direct customer communications, billing records, and candidate job applications.</div>
-              <div>• <strong>Data Processor Role:</strong> For hosted virtual servers, customer databases, Zimbra mailboxes, and enterprise backups, Nova Cloud Edges acts strictly as a Data Processor under your contractual direction.</div>
+              <div>• <strong>Data Processor Role:</strong> For hosted virtual servers, customer databases, mailboxes, and enterprise backups, Nova Cloud Edges acts strictly as a Data Processor under your contractual direction.</div>
             </div>
           </div>
 
@@ -51,7 +51,7 @@ export default function PrivacyPage({ setActivePage }) {
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                   <li>✓ Tier III Datacenter physical perimeter security & biometric access control.</li>
                   <li>✓ Hypervisor virtualization isolation & Host OS kernel security.</li>
-                  <li>✓ Core network DDoS mitigation & Sophos Next-Gen Firewall protection.</li>
+                  <li>✓ Core network DDoS mitigation & Next-Gen Firewall protection.</li>
                   <li>✓ Redundant power, cooling, and fiber interconnect stability.</li>
                 </ul>
               </div>
@@ -103,7 +103,7 @@ export default function PrivacyPage({ setActivePage }) {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
               <div style={{ background: 'var(--bg-main)', padding: '1.15rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
-                <strong style={{ color: 'var(--primary)' }}>Encryption in Transit:</strong> All web traffic, API transactions, and Zimbra Webmail client sessions are enforced using <strong>TLS 1.3 / SSL 256-bit encryption</strong> with HTTP Strict Transport Security (HSTS).
+                <strong style={{ color: 'var(--primary)' }}>Encryption in Transit:</strong> All web traffic, API transactions, and Webmail client sessions are enforced using <strong>TLS 1.3 / SSL 256-bit encryption</strong> with HTTP Strict Transport Security (HSTS).
               </div>
               <div style={{ background: 'var(--bg-main)', padding: '1.15rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
                 <strong style={{ color: 'var(--primary)' }}>Encryption at Rest:</strong> Core database storage, automated cloud snapshots, and user backups are encrypted using hardware-accelerated <strong>AES-256 bit encryption</strong>.
@@ -121,14 +121,14 @@ export default function PrivacyPage({ setActivePage }) {
               <h2 style={{ fontSize: '1.45rem' }}>5. Data Sovereignty & Strategic Sub-Processors</h2>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.75', marginBottom: '1rem' }}>
-              In accordance with local content regulations, customer data hosted on Nova Cloud Edges localized VPS and Zimbra infrastructure is stored on physical servers situated in <strong>Kampala, Uganda</strong> (Raxio Tier III Datacenter).
+              In accordance with local content regulations, customer data hosted on Nova Cloud Edges localized VPS and email infrastructure is stored on physical servers situated in <strong>Kampala, Uganda</strong> (Raxio Tier III Datacenter).
             </p>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.75', marginBottom: '1rem' }}>
               Where specialized hybrid integrations are required, Nova Cloud Edges interfaces with trusted sub-processors adhering to equivalent privacy safeguards:
             </p>
             <div style={{ background: 'var(--bg-main)', padding: '1rem 1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.9rem', lineHeight: '1.7' }}>
               <div>• <strong>Infrastructure & Transit:</strong> Raxio Data Centre, RENU Uganda, Liquid Intelligent Technologies, MTN Uganda.</div>
-              <div>• <strong>Enterprise Software Partners:</strong> Intuit QuickBooks Enterprise, Zimbra Synacor Inc., Sophos Network Security, Google Cloud Platform, Microsoft Azure.</div>
+              <div>• <strong>Enterprise Software Partners:</strong> Enterprise ERP Solutions, Corporate Email Infrastructure Providers, Network Security Providers, Global Cloud Integration Partners.</div>
             </div>
           </div>
 

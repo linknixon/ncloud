@@ -30,7 +30,7 @@ export default function Footer({ setActivePage }) {
               </div>
             </div>
             <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.7' }}>
-              Nova Cloud Edges (U) Limited is Uganda's premier provider of cloud hosting, enterprise ERP software implementations, Zimbra email server solutions, and cybersecurity defense infrastructure.
+              Nova Cloud Edges (U) Limited is Uganda's premier provider of sovereign cloud edge hosting, enterprise ERP software implementations, corporate email solutions, and cybersecurity defense infrastructure.
             </p>
           </div>
 
@@ -41,11 +41,11 @@ export default function Footer({ setActivePage }) {
             </h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {[
-                { label: 'Intuit QuickBooks Enterprise Solutions v24.0', page: 'shop' },
-                { label: 'Zimbra Email Experts & Server Support', page: 'services' },
+                { label: 'Enterprise ERP & Accounting Software', page: 'shop' },
+                { label: 'Corporate Email & Server Administration', page: 'services' },
                 { label: 'Data Center Colocation & Rack Hosting', page: 'shop' },
                 { label: 'Edge VPS Cloud Hosting (Uganda IXP)', page: 'shop' },
-                { label: 'Sophos Next-Gen Network Firewall', page: 'shop' },
+                { label: 'Next-Generation Network Firewalls', page: 'shop' },
                 { label: 'Managed Security Operations Center (SOC)', page: 'services' }
               ].map((sol, idx) => (
                 <li key={idx}>

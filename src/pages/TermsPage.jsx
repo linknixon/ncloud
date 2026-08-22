@@ -11,7 +11,7 @@ export default function TermsPage({ setActivePage }) {
             Terms of Reference & Hosting Service Agreement
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '720px', margin: '0 auto' }}>
-            Official Terms of Reference (ToR), Service Level Agreement (SLA), and Operational Guidelines for Nova Cloud Edges Hosting, Zimbra Email, and Enterprise Software deployments.
+            Official Terms of Reference (ToR), Service Level Agreement (SLA), and Operational Guidelines for Nova Cloud Edges Hosting, Corporate Email, and Enterprise Software deployments.
           </p>
         </div>
 
@@ -24,7 +24,7 @@ export default function TermsPage({ setActivePage }) {
               <h2 style={{ fontSize: '1.4rem' }}>1. Scope of Cloud Hosting & Managed Services</h2>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.7', marginBottom: '1rem' }}>
-              Nova Cloud Edges (U) Limited provides sovereign cloud infrastructure hosting, edge server virtualization, Zimbra Email server management, and QuickBooks Enterprise software deployment for clients across East Africa.
+              Nova Cloud Edges (U) Limited provides sovereign cloud infrastructure hosting, edge server virtualization, corporate email server management, and enterprise ERP software deployment for clients across East Africa.
             </p>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.9rem' }}>

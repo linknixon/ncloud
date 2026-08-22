@@ -57,7 +57,7 @@ export default function ServicesPage({ setActivePage }) {
             Our Core Services & Technical Capabilities
           </h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '1.0rem' }}>
-            We provide localized edge server hosting, QuickBooks ERP implementation, Zimbra Email Experts server administration, cybersecurity defense, IoT edge gateways, and custom software engineering.
+            We provide localized edge server hosting, enterprise ERP implementations, corporate email administration, cybersecurity defense, IoT edge gateways, and custom software engineering.
           </p>
         </div>
 

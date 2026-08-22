@@ -20,7 +20,7 @@ export default function AboutPage({ setActivePage }) {
             Empowering Technology Solutions Across East Africa
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.0rem', maxWidth: '780px', margin: '0 auto', lineHeight: '1.65' }}>
-            Nova Cloud Edges (U) Limited is Uganda's leading provider of sovereign cloud edge hosting, Zimbra Email Server administration, QuickBooks Enterprise ERP implementations, and ISO-certified zero-trust cybersecurity defense.
+            Nova Cloud Edges (U) Limited is Uganda's leading provider of sovereign cloud edge hosting, corporate email administration, enterprise ERP implementations, and ISO-certified zero-trust cybersecurity defense.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function AboutPage({ setActivePage }) {
               Expert Cyber Security Team
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '1.0rem', lineHeight: '1.7', marginBottom: '1.5rem' }}>
-              Nova Cloud Edges houses a dedicated team of certified cybersecurity specialists (CISSP, CEH, CISM) providing 24/7 Security Operations Center (SOC) threat intelligence, penetration testing, endpoint isolation, and Next-Gen Sophos Firewall configuration.
+              Nova Cloud Edges houses a dedicated team of certified cybersecurity specialists (CISSP, CEH, CISM) providing 24/7 Security Operations Center (SOC) threat intelligence, penetration testing, endpoint isolation, and Next-Gen Firewall configuration.
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <button onClick={() => setActivePage('contact')} style={{ background: '#ffffff', color: 'var(--primary)', fontWeight: '800', padding: '0.9rem 1.75rem', borderRadius: '12px', fontSize: '0.95rem' }}>
