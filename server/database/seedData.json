@@ -1,0 +1,320 @@
+{
+  "companyInfo": {
+    "name": "Nova Cloud Edges (U) Limited",
+    "tagline": "Empowering Technology Solutions",
+    "address": "Plot 14 Parliament Avenue, Kampala, Uganda",
+    "phone": "0790001631",
+    "email": "support@ncloud.co.ug",
+    "supportEmail": "support@ncloud.co.ug",
+    "hours": "Mon - Fri: 8:00 AM - 5:00 PM EAT"
+  },
+  "isoStandards": [
+    {
+      "code": "ISO/IEC 27001:2022",
+      "title": "Information Security Management",
+      "desc": "Certified zero-trust security controls, data encryption, and risk management standards."
+    },
+    {
+      "code": "ISO 9001:2015",
+      "title": "Quality Management Systems",
+      "desc": "International benchmark for service reliability, customer satisfaction, and operational rigor."
+    },
+    {
+      "code": "SOC 2 Type II",
+      "title": "Data Center Security & Availability",
+      "desc": "Independent audit verification of system confidentiality, integrity, and hosting availability."
+    }
+  ],
+  "partners": [
+    { "name": "Google", "category": "Cloud & Enterprise Partner", "logoText": "Google Cloud" },
+    { "name": "Microsoft", "category": "Gold Solution Reseller", "logoText": "Microsoft" },
+    { "name": "RENU", "category": "Research & Education Network Uganda", "logoText": "RENU" },
+    { "name": "Raxio", "category": "Tier III Data Centre Infrastructure", "logoText": "Raxio Data Centre" },
+    { "name": "Liquid Intelligent Technologies", "category": "Fiber Transit & Interconnect", "logoText": "Liquid Telecom" },
+    { "name": "MTN Uganda", "category": "Enterprise Mobile Money & Telecom", "logoText": "MTN Business" }
+  ],
+  "team": [
+    {
+      "name": "Dr. Arthur Mukasa",
+      "role": "Chief Executive Officer & Founder",
+      "bio": "Over 18 years leading digital infrastructure, cloud migration, and telecom strategies across East Africa.",
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "name": "Florence Akello",
+      "role": "Chief Technology Officer",
+      "bio": "Former lead infrastructure architect specializing in edge computing, Kubernetes orchestration, and Zimbra mail clusters.",
+      "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "name": "David Tumusiime",
+      "role": "Head of Cyber Security & Threat Intelligence",
+      "bio": "CISSP & CEH certified security strategist leading Nova's 24/7 Threat Intelligence Security Operations Center (SOC).",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "name": "Grace Nsubuga",
+      "role": "Lead Cloud Operations & Colocation Manager",
+      "bio": "Manages server rack colocation, dual redundant power systems, and client SLA compliance.",
+      "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80"
+    }
+  ],
+  "news": [
+    {
+      "id": 1,
+      "title": "Nova Cloud Edges Achieves ISO/IEC 27001 Certification",
+      "date": "2026-08-10",
+      "category": "Corporate Security",
+      "summary": "We are proud to announce our official ISO 27001 accreditation, reinforcing our commitment to enterprise data security and cloud compliance.",
+      "image": "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 2,
+      "title": "Expanding High-Speed Data Center Colocation Racks in Uganda",
+      "date": "2026-07-28",
+      "category": "Data Center Infrastructure",
+      "summary": "To support growing enterprise demand, Nova Cloud Edges has launched dedicated Colocation Management services with redundant power and fiber cross-connects.",
+      "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 3,
+      "title": "Zimbra Collaboration Suite: Migration Guide for Enterprise IT",
+      "date": "2026-07-15",
+      "category": "Enterprise Software",
+      "summary": "Our Zimbra Email Experts share best practices for seamlessly migrating thousands of corporate mailboxes with zero downtime.",
+      "image": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
+  "services": [
+    {
+      "id": 1,
+      "title": "Cloud Infrastructure & Edge Hosting",
+      "slug": "cloud-infrastructure",
+      "summary": "Scalable, secure cloud edge servers and managed infrastructure tailored for modern enterprises.",
+      "description": "Nova Cloud Edges delivers next-generation cloud infrastructure built for high performance, maximum uptime, and localized edge latency.",
+      "icon": "Cloud",
+      "features": [
+        "99.99% Uptime SLA with edge node redundacy",
+        "Automated backup & quick disaster recovery",
+        "Custom hybrid & private cloud architecture",
+        "24/7 dedicated system engineer monitoring"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Enterprise Software & Accounting Solutions",
+      "slug": "enterprise-software",
+      "summary": "Official reseller and implementation partner for QuickBooks Enterprise and customized ERP systems.",
+      "description": "We specialize in deploying, customizing, and training teams on world-class ERP software, including Intuit QuickBooks Enterprise Solutions.",
+      "icon": "Cpu",
+      "features": [
+        "Official QuickBooks Enterprise License & Installation",
+        "Custom workflow and financial reporting setup",
+        "Multi-currency & localized tax compliance",
+        "Staff training & ongoing technical support"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Zimbra Email Experts",
+      "slug": "zimbra-email",
+      "summary": "Enterprise Zimbra email server administration, migration, webmail, calendar, and high-deliverability anti-spam protection.",
+      "description": "Take full control of your corporate communications with Zimbra Email Experts. Secure, fast, and feature-packed Zimbra email platform.",
+      "icon": "Mail",
+      "features": [
+        "Zimbra Collaboration Suite administration",
+        "Corporate email webmail & ActiveSync mobile support",
+        "Advanced anti-spam & malware protection",
+        "Shared calendars, contacts, and task management"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cybersecurity & Edge Network Defense",
+      "slug": "cybersecurity",
+      "summary": "Expert Cyber Security Team providing proactive firewall protection, endpoint security, and compliance auditing.",
+      "description": "Safeguard your critical enterprise data against cyber threats with Nova's Expert Cyber Security Team. Certified ethical hackers and 24/7 Threat Intelligence SOC monitoring.",
+      "icon": "ShieldCheck",
+      "features": [
+        "Expert Cyber Security Team (CISSP & CEH Certified)",
+        "Next-Gen Firewall configuration & UTM",
+        "24/7 Threat Intelligence SOC monitoring",
+        "Cybersecurity vulnerability assessment & penetration testing"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Managed IT Services & Consultancy",
+      "slug": "managed-it-services",
+      "summary": "End-to-end IT support, network cabling, server management, and technology strategy.",
+      "description": "Partner with Nova Cloud Edges as your dedicated IT department. We handle daily tech support and core infrastructure.",
+      "icon": "Server",
+      "features": [
+        "On-site & remote 24/7 helpdesk support",
+        "Network design, structured cabling & Wi-Fi setup",
+        "Server administration (Linux / Windows)",
+        "IT hardware procurement & warranty management"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Internet of Things (IoT) & Local Edge Gateways",
+      "slug": "iot-edge-gateways",
+      "summary": "Deploy industrial IoT sensors, local edge gateway hardware, and real-time telemetry processing.",
+      "description": "Nova Cloud Edges provides end-to-end Internet of Things (IoT) solutions. We configure and manage local edge gateway hardware to collect, process, and filter sensor data at the edge before syncing with cloud infrastructure.",
+      "icon": "Radio",
+      "features": [
+        "Industrial IoT sensor deployment & hardware setup",
+        "Local Edge Gateway installation & edge processing",
+        "Real-time telemetry, temperature & environmental monitoring",
+        "Low-latency MQTT/HTTP secure data streaming"
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Data Analytics & Interactive Visualization",
+      "slug": "data-analytics-visualization",
+      "summary": "Transform raw enterprise data into actionable Business Intelligence dashboards and real-time charts.",
+      "description": "Unlock strategic insights with Nova's Data Analytics & Visualization services. We build custom BI dashboards, automated reporting pipelines, predictive models, and interactive charts connected to your ERP and database systems.",
+      "icon": "BarChart3",
+      "features": [
+        "Custom Business Intelligence (BI) dashboard design",
+        "Real-time data visualization & automated reporting",
+        "Database ETL pipelines & data warehousing",
+        "Predictive analytics & financial performance trends"
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Custom Software Development & Modern Tech Stacks",
+      "slug": "custom-software-development",
+      "summary": "Full-cycle custom web, mobile, and cloud software development using modern languages and frameworks.",
+      "description": "Nova Cloud Edges builds scalable, high-performance web applications, enterprise microservices, REST/GraphQL APIs, and native mobile apps using modern technology stacks including React, TypeScript, Node.js, Python, Go, Rust, and Cloud-Native architectures.",
+      "icon": "Code2",
+      "features": [
+        "Modern Full-Stack Web Development (React, Next.js, Node.js, TypeScript)",
+        "High-Performance Cloud Microservices & APIs (Python, Go, Rust)",
+        "Mobile App Development (iOS & Android cross-platform solutions)",
+        "Agile CI/CD, automated testing & cloud containerization"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Intuit QuickBooks Enterprise Solutions v24.0",
+      "slug": "intuit-quickbooks-enterprise-solutions-v24-0",
+      "category": "Digital Products",
+      "price": 3500000.00,
+      "currency": "UGX",
+      "badge": "Best Seller",
+      "short_desc": "Industry-leading ERP accounting software designed for growing businesses requiring up to 40 concurrent users.",
+      "description": "Intuit QuickBooks Enterprise Solutions v24.0 gives you powerful control over financial management, inventory tracking, payroll processing, and custom reporting.",
+      "image_url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
+      "stock": 50
+    },
+    {
+      "id": 2,
+      "name": "Zimbra Enterprise Email Package (10 Users)",
+      "slug": "zimbra-email-package",
+      "category": "Digital Products",
+      "price": 450000.00,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.",
+      "description": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, spam protection, and 99.9% uptime guarantee.",
+      "image_url": "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80",
+      "stock": 100
+    },
+    {
+      "id": 3,
+      "name": "Data Center Colocation Management & Rack Hosting (1U Rack Unit)",
+      "slug": "colocation-management-1u",
+      "category": "Cloud Services",
+      "price": 650000.00,
+      "currency": "UGX",
+      "badge": "Infrastructure",
+      "short_desc": "Secure 1U server colocation hosting in high-security Tier III Data Center with dual A+B power feeds and gigabit bandwidth.",
+      "description": "Nova Colocation Management provides rack space, redundant diesel generator backup, precision cooling, biometric access control, and 1Gbps unmetered RENU/Liquid fiber cross-connects.",
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 25
+    },
+    {
+      "id": 4,
+      "name": "Nova Cloud Edge VPS Server (Standard)",
+      "slug": "cloud-vps-standard",
+      "category": "Cloud Services",
+      "price": 280000.00,
+      "currency": "UGX",
+      "badge": "Featured",
+      "short_desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
+      "description": "High-performance Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access.",
+      "image_url": "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=800&q=80",
+      "stock": 30
+    },
+    {
+      "id": 5,
+      "name": "Sophos Next-Gen Firewall Appliance",
+      "slug": "sophos-firewall-appliance",
+      "category": "Hardware & Security",
+      "price": 4200000.00,
+      "currency": "UGX",
+      "badge": "Enterprise",
+      "short_desc": "Hardware firewall appliance with Xstream Architecture, deep packet inspection, and web filtering.",
+      "description": "Robust cybersecurity hardware for medium and large offices. Provides AI-powered threat detection, SSL/TLS inspection, SD-WAN site-to-site connectivity.",
+      "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
+      "stock": 12
+    }
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "title": "Assistant Office Attendant (1)",
+      "slug": "assistant-office-attendant",
+      "department": "Administration & Operations",
+      "location": "Kampala, Uganda",
+      "type": "Full-time",
+      "vacancies": 1,
+      "status": "open",
+      "deadline": "2026-09-30",
+      "description": "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
+      "requirements": [
+        "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management",
+        "Minimum 1-2 years of relevant experience in a corporate or tech office setting",
+        "Strong written and verbal communication skills in English and Luganda",
+        "Punctual, organized, trustworthy, and proactive attitude",
+        "Basic computer literacy (MS Word, Email, Web Browsing)"
+      ],
+      "responsibilities": [
+        "Welcome clients, visitors, and partners at the reception area",
+        "Ensure office cleanliness, orderly meeting rooms, and refreshment management",
+        "Receive and log incoming mail, packages, and office supplies deliveries",
+        "Assist administrative officers with filing, photocopying, and scanning documents",
+        "Run essential external errands for office operations when required"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Cloud Systems & DevOps Engineer",
+      "slug": "cloud-systems-engineer",
+      "department": "Engineering & Cloud Infrastructure",
+      "location": "Kampala, Uganda",
+      "type": "Full-time",
+      "vacancies": 2,
+      "status": "open",
+      "deadline": "2026-10-15",
+      "description": "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
+      "requirements": [
+        "Bachelor's Degree in Computer Science, Software Engineering, or IT",
+        "3+ years experience with Linux administration (Debian/Ubuntu/CentOS), Docker, and KVM/Proxmox",
+        "Hands-on experience with MySQL/MariaDB replication and performance tuning",
+        "Certifications in AWS, CKA, or RHCE are an added advantage"
+      ],
+      "responsibilities": [
+        "Manage cloud virtualization hosts and storage networks",
+        "Implement CI/CD pipelines and automated backup strategies",
+        "Monitor server performance and resolve escalation alerts 24/7"
+      ]
+    }
+  ]
+}
