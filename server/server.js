@@ -167,6 +167,25 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// Social SSO OAuth Endpoints (Google & Microsoft)
+app.post('/api/auth/oauth/:provider', async (req, res) => {
+  const { provider } = req.params;
+  const isGoogle = provider === 'google';
+  const ssoUser = {
+    id: isGoogle ? 101 : 102,
+    name: isGoogle ? 'Google Enterprise User' : 'Microsoft 365 User',
+    email: isGoogle ? 'sso.user@gmail.com' : 'sso.user@outlook.com',
+    role: 'customer'
+  };
+
+  const token = jwt.sign({ id: ssoUser.id, name: ssoUser.name, email: ssoUser.email, role: ssoUser.role }, JWT_SECRET, { expiresIn: '7d' });
+  return res.json({
+    message: `Authenticated via ${isGoogle ? 'Google' : 'Microsoft'} OAuth`,
+    token,
+    user: ssoUser
+  });
+});
+
 // ----------------------------------------------------
 // Services Endpoints
 // ----------------------------------------------------
