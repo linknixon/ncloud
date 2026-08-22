@@ -47,7 +47,7 @@ export default function ContactPage() {
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Contact Nova Cloud Edges</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
-            Have questions about QuickBooks Enterprise licenses, cloud hosting VPS, or technical support? Our Kampala team is ready to assist you.
+            Have questions about our cloud infrastructure, enterprise software solutions, or technical services? Our Kampala team is ready to assist you.
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="QuickBooks enterprise inquiry / Support"
+                    placeholder="Enterprise cloud inquiry / Technical support"
                     value={formData.subject}
                     onChange={e => setFormData({ ...formData, subject: e.target.value })}
                   />

@@ -50,7 +50,7 @@ export default function ShopPage({ setActivePage }) {
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Software Licenses & Cloud Hosting</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
-            Official Intuit QuickBooks Enterprise v24.0, Zimbra Enterprise Email Mailboxes, Cloud Edge VPS Servers, and Network Firewalls.
+            Explore enterprise software solutions, virtual private servers, digital licenses, and colocation infrastructure.
           </p>
         </div>
 

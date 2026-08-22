@@ -279,7 +279,7 @@ export default function HomePage({ setActivePage }) {
             <div>
               <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Featured Software & Colocation Racks</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.4rem' }}>
-                QuickBooks Enterprise ERP, Zimbra Corporate Webmail, and Tier III Server Rack Space.
+                Enterprise software solutions, virtual private servers, and datacenter colocation.
               </p>
             </div>
             <button onClick={() => setActivePage('shop')} className="btn-secondary">
