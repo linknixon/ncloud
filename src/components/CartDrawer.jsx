@@ -12,6 +12,7 @@ export default function CartDrawer({ onCheckout }) {
   return (
     <div className="modal-overlay" onClick={() => setIsCartOpen(false)}>
       <div
+        className="cart-drawer-box"
         style={{
           position: 'fixed',
           top: 0,

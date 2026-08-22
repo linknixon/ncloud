@@ -112,10 +112,10 @@ export default function ShopPage({ setActivePage }) {
           </div>
         ) : (
           <>
-            <div style={{
+            <div className="responsive-grid-shop" style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '2rem'
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: '1.75rem'
             }}>
               {paginatedProducts.map(prod => (
                 <div key={prod.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

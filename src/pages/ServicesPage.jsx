@@ -134,9 +134,9 @@ export default function ServicesPage({ setActivePage }) {
                         {srv.description}
                       </p>
 
-                      <div style={{
+                      <div className="responsive-service-features" style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                         gap: '0.85rem',
                         marginBottom: '2rem'
                       }}>
