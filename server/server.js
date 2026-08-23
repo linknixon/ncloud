@@ -429,6 +429,23 @@ app.put('/api/admin/users/:id/role', (req, res) => {
   res.status(404).json({ error: 'User not found' });
 });
 
+app.post('/api/admin/users', (req, res) => {
+  const { name, email, role, company } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email address are required' });
+  }
+  const newUser = {
+    id: memoryStore.users.length + 1,
+    name,
+    email,
+    role: role || 'sales_admin',
+    company: company || 'Nova Enterprise Partner',
+    created_at: new Date().toISOString()
+  };
+  memoryStore.users.unshift(newUser);
+  res.json({ message: `System User "${name}" created successfully as ${role || 'sales_admin'}`, user: newUser });
+});
+
 app.get('/api/admin/invoices', (req, res) => {
   res.json(memoryStore.invoices);
 });

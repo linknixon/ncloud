@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   // Form Modals State
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showSliderModal, setShowSliderModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   // New Invoice Form Data
@@ -61,6 +62,14 @@ export default function AdminDashboard() {
     title: '',
     subtitle: '',
     image: ''
+  });
+
+  // New User Form Data
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    role: 'sales_admin',
+    company: ''
   });
 
   const fetchDashboardData = async () => {
@@ -173,6 +182,25 @@ export default function AdminDashboard() {
       showToast(resData.message, 'success');
       setShowSliderModal(false);
       setSliderForm({ title: '', subtitle: '', image: '' });
+      fetchDashboardData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error);
+      showToast(resData.message, 'success');
+      setShowUserModal(false);
+      setUserForm({ name: '', email: '', role: 'sales_admin', company: '' });
       fetchDashboardData();
     } catch (err) {
       showToast(err.message, 'error');
@@ -710,7 +738,7 @@ export default function AdminDashboard() {
                     <h3 style={{ fontSize: '1.3rem' }}>User Accounts & Role Assignments</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Manage system access levels for Super Admin, Sales Admin, Web Admin, and Customers.</p>
                   </div>
-                  <button onClick={() => showToast('Create new user window opened', 'info')} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
+                  <button onClick={() => setShowUserModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
                     <Plus size={16} /> Add System User
                   </button>
                 </div>
@@ -1245,6 +1273,71 @@ export default function AdminDashboard() {
                     Save Graphic Banner
                   </button>
                   <button type="button" onClick={() => setShowSliderModal(false)} className="btn-secondary">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ADD SYSTEM USER MODAL */}
+        {showUserModal && (
+          <div className="modal-overlay" onClick={() => setShowUserModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+              <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Add New System User Account</h3>
+              <form onSubmit={handleCreateUser}>
+                <div className="form-group">
+                  <label>Full User Name *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Samuel Kintu"
+                    value={userForm.name}
+                    onChange={e => setUserForm({ ...userForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email Address *</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="samuel@kintu.co.ug"
+                    value={userForm.email}
+                    onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Assign System Role *</label>
+                  <select
+                    className="form-input"
+                    value={userForm.role}
+                    onChange={e => setUserForm({ ...userForm, role: e.target.value })}
+                    required
+                  >
+                    <option value="super_admin">Super Admin (Full System & Role Control)</option>
+                    <option value="sales_admin">Sales Admin (Products, Prices & Invoices)</option>
+                    <option value="web_admin">Web Admin (CMS Sliders, Graphics & Jobs)</option>
+                    <option value="customer">Customer (My Account & Subscriptions)</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Organization / Company Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Kintu Logistics Uganda"
+                    value={userForm.company}
+                    onChange={e => setUserForm({ ...userForm, company: e.target.value })}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
+                  <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                    Create System User
+                  </button>
+                  <button type="button" onClick={() => setShowUserModal(false)} className="btn-secondary">
                     Cancel
                   </button>
                 </div>
