@@ -215,31 +215,31 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Role Switcher Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', paddingLeft: '0.5rem' }}>Switch Role View:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--bg-card)', padding: '0.4rem 0.6rem', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', paddingRight: '0.25rem' }}>Role View:</span>
             <button
               onClick={() => handleRoleSwitch('super_admin')}
-              style={{ padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'super_admin' ? 'var(--primary)' : 'transparent', color: currentRole === 'super_admin' ? '#fff' : 'var(--text-main)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'super_admin' ? 'var(--primary)' : 'transparent', color: currentRole === 'super_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
             >
-              Super Admin
+              <ShieldCheck size={14} /> Super Admin
             </button>
             <button
               onClick={() => handleRoleSwitch('sales_admin')}
-              style={{ padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'sales_admin' ? 'var(--accent-emerald)' : 'transparent', color: currentRole === 'sales_admin' ? '#fff' : 'var(--text-main)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'sales_admin' ? 'var(--accent-emerald)' : 'transparent', color: currentRole === 'sales_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
             >
-              Sales Admin
+              <DollarSign size={14} /> Sales Admin
             </button>
             <button
               onClick={() => handleRoleSwitch('web_admin')}
-              style={{ padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'web_admin' ? 'var(--accent-cyan)' : 'transparent', color: currentRole === 'web_admin' ? '#fff' : 'var(--text-main)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'web_admin' ? 'var(--accent-cyan)' : 'transparent', color: currentRole === 'web_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
             >
-              Web Admin
+              <Sliders size={14} /> Web Admin
             </button>
             <button
               onClick={() => handleRoleSwitch('customer')}
-              style={{ padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'customer' ? 'var(--secondary)' : 'transparent', color: currentRole === 'customer' ? '#fff' : 'var(--text-main)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'customer' ? 'var(--secondary)' : 'transparent', color: currentRole === 'customer' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
             >
-              Customer
+              <User size={14} /> Customer
             </button>
           </div>
         </div>
@@ -370,24 +370,33 @@ export default function AdminDashboard() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.5rem' }}>
                     {isSuperAdmin && (
                       <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <h4 style={{ fontSize: '1.0rem', color: '#8b5cf6', marginBottom: '0.4rem', fontWeight: '700' }}>👑 Super Admin Rights</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                          Assign roles, control full user directory, manage pages, configure graphics, issue invoices, update prices, and perform all admin tasks.
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <ShieldCheck size={18} color="#8b5cf6" />
+                          <h4 style={{ fontSize: '1.0rem', color: '#8b5cf6', margin: 0, fontWeight: '700' }}>Super Admin Authority</h4>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
+                          Assign roles, control full user directory, manage pages, configure graphics, issue invoices, update prices, and perform all administrative operations.
                         </p>
                       </div>
                     )}
                     {isSalesAdmin && (
                       <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <h4 style={{ fontSize: '1.0rem', color: '#10b981', marginBottom: '0.4rem', fontWeight: '700' }}>💼 Sales Admin Rights</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <DollarSign size={18} color="#10b981" />
+                          <h4 style={{ fontSize: '1.0rem', color: '#10b981', margin: 0, fontWeight: '700' }}>Sales & Invoicing Scope</h4>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
                           Manage product catalog prices, issue customer tax invoices, dispatch email payment reminders, and process package renewals.
                         </p>
                       </div>
                     )}
                     {isWebAdmin && (
                       <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <h4 style={{ fontSize: '1.0rem', color: '#06b6d4', marginBottom: '0.4rem', fontWeight: '700' }}>🖼️ Web Admin Rights</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <Sliders size={18} color="#06b6d4" />
+                          <h4 style={{ fontSize: '1.0rem', color: '#06b6d4', margin: 0, fontWeight: '700' }}>Web Content Management</h4>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
                           Update website graphics, homepage sliders, hero banners, manage incoming customer contact messages, and review job applications.
                         </p>
                       </div>

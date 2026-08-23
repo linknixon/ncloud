@@ -29,7 +29,7 @@ export default function Navbar({ activePage, setActivePage }) {
     { id: 'shop', label: 'Shop' },
     { id: 'jobs', label: 'Careers' },
     { id: 'subscription', label: 'Subscriptions' },
-    { id: 'admin', label: 'Dashboard Portal' },
+    { id: 'admin', label: 'Portal' },
     { id: 'contact', label: 'Contact' }
   ];
 
@@ -128,7 +128,7 @@ export default function Navbar({ activePage, setActivePage }) {
               background: 'rgba(124, 58, 237, 0.1)',
               color: 'var(--primary)',
               border: '1px solid rgba(124, 58, 237, 0.3)',
-              padding: '0.4rem 0.8rem',
+              padding: '0.4rem 0.85rem',
               borderRadius: '8px',
               fontWeight: '700',
               fontSize: '0.85rem',
@@ -137,7 +137,7 @@ export default function Navbar({ activePage, setActivePage }) {
               gap: '0.4rem'
             }}
           >
-            <LayoutDashboard size={15} /> Portal Dashboard
+            <LayoutDashboard size={15} /> Portal
           </button>
         </nav>
 
@@ -315,7 +315,7 @@ export default function Navbar({ activePage, setActivePage }) {
               fontWeight: '700'
             }}
           >
-            Dashboard Portal
+            Portal
           </button>
           {!user && (
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
