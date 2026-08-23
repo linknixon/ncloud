@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Lock, Mail, User, Building, Phone } from 'lucide-react';
 
 export default function AuthModal() {
-  const { isAuthOpen, setIsAuthOpen, authMode, setUser, showToast } = useApp();
+  const { isAuthOpen, setIsAuthOpen, authMode, setUser, showToast, setActivePage } = useApp();
   const [isRegister, setIsRegister] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,8 @@ export default function AuthModal() {
 
       localStorage.setItem('token', data.token);
       setUser(data.user);
-      showToast(isRegister ? 'Account created successfully!' : `Welcome back, ${data.user.name}!`, 'success');
+      setActivePage('admin');
+      showToast(isRegister ? 'Account created! Welcome to your Portal Dashboard.' : `Welcome back, ${data.user.name}! Landing on Portal Dashboard.`, 'success');
       setIsAuthOpen(false);
     } catch (err) {
       setError(err.message);
@@ -68,7 +69,8 @@ export default function AuthModal() {
 
       localStorage.setItem('token', data.token);
       setUser(data.user);
-      showToast(`Authenticated via ${provider === 'google' ? 'Google' : 'Microsoft'} OAuth!`, 'success');
+      setActivePage('admin');
+      showToast(`Authenticated via ${provider === 'google' ? 'Google' : 'Microsoft'} OAuth! Welcome to Portal Dashboard.`, 'success');
       setIsAuthOpen(false);
     } catch (err) {
       setError(err.message);
