@@ -27,7 +27,9 @@ import {
   Download,
   BellRing,
   ArrowLeft,
-  Grid
+  Grid,
+  Printer,
+  FileCheck
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -42,6 +44,7 @@ export default function AdminDashboard() {
   // Form Modals State
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showSliderModal, setShowSliderModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   // New Invoice Form Data
   const [invoiceForm, setInvoiceForm] = useState({
@@ -818,13 +821,22 @@ export default function AdminDashboard() {
                         <th style={{ padding: '1rem 1.25rem' }}>Email Address</th>
                         <th style={{ padding: '1rem 1.25rem' }}>Total Amount</th>
                         <th style={{ padding: '1rem 1.25rem' }}>Status</th>
+                        <th style={{ padding: '1rem 1.25rem' }}>Invoice Download</th>
                         <th style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>Payment Reminder Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(data?.invoices || []).map(inv => (
                         <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '1rem 1.25rem', fontWeight: '800', color: 'var(--primary)' }}>{inv.invoice_number}</td>
+                          <td style={{ padding: '1rem 1.25rem' }}>
+                            <button
+                              onClick={() => setSelectedInvoice(inv)}
+                              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                              title="Click to view official Tax Invoice PDF"
+                            >
+                              {inv.invoice_number}
+                            </button>
+                          </td>
                           <td style={{ padding: '1rem 1.25rem', fontWeight: '700' }}>{inv.customer_name}</td>
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-muted)' }}>{inv.customer_email}</td>
                           <td style={{ padding: '1rem 1.25rem', fontWeight: '800' }}>UGX {Number(inv.amount).toLocaleString()}</td>
@@ -832,6 +844,16 @@ export default function AdminDashboard() {
                             <span className="badge-tag" style={{ background: inv.status === 'Paid' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', color: inv.status === 'Paid' ? 'var(--accent-emerald)' : '#f59e0b' }}>
                               {inv.status}
                             </span>
+                          </td>
+                          <td style={{ padding: '1rem 1.25rem' }}>
+                            <button
+                              onClick={() => setSelectedInvoice(inv)}
+                              className="btn-secondary"
+                              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                              title="Download official Tax Invoice PDF"
+                            >
+                              <Download size={14} color="var(--primary)" /> Download PDF
+                            </button>
                           </td>
                           <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
                             <button
@@ -958,11 +980,41 @@ export default function AdminDashboard() {
                   <div className="glass-card">
                     <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>My Official Tax Invoices</h3>
                     <div style={{ padding: '1rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-                      <div style={{ fontWeight: '800', color: 'var(--primary)' }}>INV-2026-0041</div>
+                      <button
+                        onClick={() => setSelectedInvoice({
+                          id: 1,
+                          invoice_number: 'INV-2026-0041',
+                          customer_name: 'Kintu Logistics Uganda',
+                          customer_email: 'samuel@kintu.co.ug',
+                          amount: 767000.00,
+                          vat_amount: 117000.00,
+                          status: 'Paid',
+                          due_date: '2026-09-01',
+                          created_at: new Date().toISOString()
+                        })}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', fontSize: '1.05rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                        title="Click to view official Tax Invoice PDF"
+                      >
+                        INV-2026-0041
+                      </button>
                       <div style={{ fontSize: '0.85rem', fontWeight: '700', marginTop: '0.2rem' }}>UGX 767,000 (Incl 18% VAT)</div>
                     </div>
-                    <button onClick={() => showToast('Downloading Tax Invoice PDF receipt...', 'success')} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', gap: '0.5rem' }}>
-                      <Download size={16} /> Download Tax Invoice
+                    <button
+                      onClick={() => setSelectedInvoice({
+                        id: 1,
+                        invoice_number: 'INV-2026-0041',
+                        customer_name: 'Kintu Logistics Uganda',
+                        customer_email: 'samuel@kintu.co.ug',
+                        amount: 767000.00,
+                        vat_amount: 117000.00,
+                        status: 'Paid',
+                        due_date: '2026-09-01',
+                        created_at: new Date().toISOString()
+                      })}
+                      className="btn-secondary"
+                      style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', gap: '0.5rem' }}
+                    >
+                      <Download size={16} /> Download Tax Invoice PDF
                     </button>
                   </div>
                 </div>
@@ -1084,6 +1136,118 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* OFFICIAL TAX INVOICE PDF VIEWER MODAL */}
+        {selectedInvoice && (
+          <div className="modal-overlay" onClick={() => setSelectedInvoice(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', padding: '2.5rem', background: '#ffffff', color: '#0f172a' }}>
+              
+              {/* PDF Header & EFRIS Details */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#1e3a8a', letterSpacing: '-0.02em' }}>
+                    NOVA CLOUD EDGES (U) LIMITED
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                    Plot 14 Parliament Avenue, Kampala, Republic of Uganda
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                    TIN: 1000987654 | EFRIS Ref: NV-EFRIS-2026-9941
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                    OFFICIAL TAX INVOICE
+                  </span>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#1e3a8a', marginTop: '0.5rem' }}>
+                    {selectedInvoice.invoice_number}
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Billed To:</div>
+                  <div style={{ fontWeight: '800', fontSize: '1.0rem', color: '#0f172a' }}>{selectedInvoice.customer_name}</div>
+                  <div style={{ color: '#475569' }}>{selectedInvoice.customer_email}</div>
+                  <div style={{ color: '#475569' }}>Kampala, Uganda</div>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Invoice Details:</div>
+                  <div><strong>Date Issued:</strong> {new Date(selectedInvoice.created_at || Date.now()).toLocaleDateString()}</div>
+                  <div><strong>Payment Due Date:</strong> {selectedInvoice.due_date}</div>
+                  <div><strong>Payment Status:</strong> <span style={{ color: selectedInvoice.status === 'Paid' ? '#16a34a' : '#d97706', fontWeight: '800' }}>{selectedInvoice.status}</span></div>
+                </div>
+              </div>
+
+              {/* Itemized Line Items Table */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.875rem', color: '#0f172a' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textAlign: 'left' }}>
+                    <th style={{ padding: '0.75rem' }}>Service / Package Description</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Unit Rate</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', fontWeight: '600' }}>
+                      Enterprise Edge Cloud VPS Infrastructure & Technical Support Subscription
+                    </td>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>1</td>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right' }}>
+                      UGX {Number(selectedInvoice.amount - (selectedInvoice.vat_amount || selectedInvoice.amount * 0.18)).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'right', fontWeight: '700' }}>
+                      UGX {Number(selectedInvoice.amount - (selectedInvoice.vat_amount || selectedInvoice.amount * 0.18)).toLocaleString()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Total Calculation Breakdown */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+                <div style={{ width: '280px', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', color: '#475569' }}>
+                    <span>Subtotal:</span>
+                    <span>UGX {Number(selectedInvoice.amount - (selectedInvoice.vat_amount || selectedInvoice.amount * 0.18)).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', color: '#dc2626', fontWeight: '700' }}>
+                    <span>Mandatory Statutory VAT (18%):</span>
+                    <span>UGX {Number(selectedInvoice.vat_amount || selectedInvoice.amount * 0.18).toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', borderTop: '2px solid #0f172a', fontWeight: '900', fontSize: '1.1rem', color: '#1e3a8a' }}>
+                    <span>Total Amount Due:</span>
+                    <span>UGX {Number(selectedInvoice.amount).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => window.print()}
+                  className="btn-primary"
+                  style={{ padding: '0.75rem 1.25rem', gap: '0.5rem' }}
+                >
+                  <Printer size={18} /> Print / Save PDF
+                </button>
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  className="btn-secondary"
+                  style={{ padding: '0.75rem 1.25rem' }}
+                >
+                  Close
+                </button>
+              </div>
+
             </div>
           </div>
         )}
