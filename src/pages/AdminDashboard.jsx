@@ -25,11 +25,13 @@ import {
   ChevronRight,
   TrendingUp,
   Download,
-  BellRing
+  BellRing,
+  ArrowLeft,
+  Grid
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { user, showToast, setActivePage } = useApp();
+  const { user, openAuthModal, showToast, setActivePage } = useApp();
   
   // Current Active Role state (Defaults to user's assigned role or 'super_admin')
   const [currentRole, setCurrentRole] = useState(user?.role || 'super_admin');
@@ -40,8 +42,6 @@ export default function AdminDashboard() {
   // Form Modals State
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showSliderModal, setShowSliderModal] = useState(false);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
 
   // New Invoice Form Data
   const [invoiceForm, setInvoiceForm] = useState({
@@ -76,13 +76,10 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Update role and set default appropriate tab
+  // Update role and set default appropriate card view
   const handleRoleSwitch = (newRole) => {
     setCurrentRole(newRole);
-    if (newRole === 'web_admin') setActiveTab('cms');
-    else if (newRole === 'sales_admin') setActiveTab('invoices');
-    else if (newRole === 'customer') setActiveTab('customer_portal');
-    else setActiveTab('overview');
+    setActiveTab('overview');
     showToast(`Switched active portal view to: ${getRoleTitle(newRole)}`, 'info');
   };
 
@@ -104,10 +101,10 @@ export default function AdminDashboard() {
 
   const getRoleTitle = (role) => {
     switch (role) {
-      case 'super_admin': return 'Super Admin (Full System & Role Control)';
-      case 'sales_admin': return 'Sales Admin (Products, Prices, Subscriptions & Invoices)';
-      case 'web_admin': return 'Web Admin (CMS Graphics, Sliders, Contacts & Jobs)';
-      case 'customer': return 'Customer Portal (My Subscriptions & Tax Invoices)';
+      case 'super_admin': return 'Super Admin Authority';
+      case 'sales_admin': return 'Sales & Invoicing Scope';
+      case 'web_admin': return 'Web Content Management';
+      case 'customer': return 'Customer Portal';
       default: return 'User Portal';
     }
   };
@@ -178,23 +175,58 @@ export default function AdminDashboard() {
     }
   };
 
-  // Define tab navigation based on active role
+  // Define role access flags
   const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'admin';
   const isSalesAdmin = isSuperAdmin || currentRole === 'sales_admin';
   const isWebAdmin = isSuperAdmin || currentRole === 'web_admin';
   const isCustomer = currentRole === 'customer';
 
-  const roleTabs = [
-    ...(isSuperAdmin || isSalesAdmin || isWebAdmin ? [{ id: 'overview', label: 'Overview & Metrics', icon: LayoutDashboard }] : []),
-    ...(isSuperAdmin ? [{ id: 'users', label: 'User & Role Management', icon: ShieldCheck }] : []),
-    ...(isWebAdmin ? [{ id: 'cms', label: 'CMS, Sliders & Banners', icon: Sliders }] : []),
-    ...(isSalesAdmin ? [{ id: 'products', label: 'Products, Services & Prices', icon: Tag }] : []),
-    ...(isSalesAdmin ? [{ id: 'invoices', label: 'Invoices & Reminders', icon: FileText }] : []),
-    ...(isSalesAdmin ? [{ id: 'subscriptions', label: 'Subscriptions & Renewals', icon: CreditCard }] : []),
-    ...(isWebAdmin ? [{ id: 'contacts', label: 'Contact Messages', icon: Mail }] : []),
-    ...(isWebAdmin ? [{ id: 'applications', label: 'Job Applications', icon: Briefcase }] : []),
-    ...(isCustomer ? [{ id: 'customer_portal', label: 'My Subscriptions & Invoices', icon: User }] : [])
-  ];
+  // Unauthenticated User Gate Card
+  if (!user) {
+    return (
+      <div className="animate-fade-in" style={{ paddingTop: '4rem', paddingBottom: '6rem', minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="container" style={{ maxWidth: '480px' }}>
+          <div className="glass-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'rgba(124, 58, 237, 0.12)',
+              color: 'var(--primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1.25rem'
+            }}>
+              <ShieldCheck size={30} />
+            </div>
+            <h2 style={{ fontSize: '1.65rem', marginBottom: '0.4rem', fontWeight: '800' }}>Sign In to Nova Customer Portal</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.75rem', lineHeight: '1.6' }}>
+              Access your active cloud subscriptions, software licenses, tax invoices, and management tools.
+            </p>
+
+            <button
+              onClick={() => openAuthModal('login')}
+              className="btn-primary"
+              style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem', fontWeight: '800', marginBottom: '1.25rem' }}
+            >
+              Sign In to Nova Customer Portal
+            </button>
+
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Don't have a customer account yet?{' '}
+              <button
+                onClick={() => openAuthModal('register')}
+                style={{ background: 'none', color: 'var(--primary)', fontWeight: '700', border: 'none', cursor: 'pointer' }}
+              >
+                Sign Up Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '2.5rem', paddingBottom: '5rem' }}>
@@ -214,7 +246,7 @@ export default function AdminDashboard() {
             <h1 style={{ fontSize: '2.2rem' }}>Nova Management Portal</h1>
           </div>
 
-          {/* Quick Role Switcher Bar */}
+          {/* Role Switcher Bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--bg-card)', padding: '0.4rem 0.6rem', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', paddingRight: '0.25rem' }}>Role View:</span>
             <button
@@ -244,105 +276,18 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Metrics Counter Cards (Role-Specific Visibility) */}
-        {!isCustomer && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1.25rem',
-            marginBottom: '2.25rem'
-          }}>
-            {isSalesAdmin && (
-              <div className="glass-card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Issued Invoices</span>
-                  <FileText size={20} color="var(--primary)" />
-                </div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
-                  {data ? data.totalInvoices || 2 : 2}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '600', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <TrendingUp size={12} /> +18.4% Revenue Growth
-                </div>
-              </div>
-            )}
-
-            {isSalesAdmin && (
-              <div className="glass-card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Active Subscriptions</span>
-                  <CreditCard size={20} color="var(--accent-emerald)" />
-                </div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
-                  {data ? data.totalSubscriptions : 0}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Package Renewals Logged</div>
-              </div>
-            )}
-
-            {isWebAdmin && (
-              <div className="glass-card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Contact Inquiries</span>
-                  <Mail size={20} color="var(--accent-cyan)" />
-                </div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
-                  {data ? data.totalContacts : 0}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Support & Sales Messages</div>
-              </div>
-            )}
-
-            {isSuperAdmin && (
-              <div className="glass-card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>System Accounts</span>
-                  <Users size={20} color="var(--secondary)" />
-                </div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
-                  {data ? data.totalUsers || 4 : 4}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Assigned Portal Roles</div>
-              </div>
-            )}
+        {/* Back to All Modules Navigation Breadcrumb */}
+        {activeTab !== 'overview' && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <button
+              onClick={() => setActiveTab('overview')}
+              className="btn-secondary"
+              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ArrowLeft size={16} /> Return to All Portal Modules
+            </button>
           </div>
         )}
-
-        {/* Dynamic Navigation Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border-color)',
-          marginBottom: '2rem',
-          overflowX: 'auto',
-          paddingBottom: '2px'
-        }}>
-          {roleTabs.map(tab => {
-            const IconC = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: '0.75rem 1.15rem',
-                  fontWeight: '700',
-                  fontSize: '0.875rem',
-                  color: isSelected ? 'var(--primary)' : 'var(--text-muted)',
-                  borderBottom: isSelected ? '3px solid var(--primary)' : '3px solid transparent',
-                  background: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer'
-                }}
-              >
-                <IconC size={17} /> {tab.label}
-              </button>
-            );
-          })}
-        </div>
 
         {/* Loading Indicator */}
         {loading ? (
@@ -353,60 +298,372 @@ export default function AdminDashboard() {
         ) : (
           <div>
 
-            {/* OVERVIEW TAB */}
+            {/* OVERVIEW / CARD NAVIGATION MODULES GRID */}
             {activeTab === 'overview' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                <div className="glass-card">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                    <ShieldCheck size={26} color="var(--primary)" />
-                    <div>
-                      <h2 style={{ fontSize: '1.4rem' }}>{getRoleBadgeStyle(currentRole).label} Operations Workspace</h2>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                        Scoped dashboard capabilities active for <strong>{user?.email || 'admin@ncloud.co.ug'}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1.5rem' }}>
-                    {isSuperAdmin && (
-                      <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <ShieldCheck size={18} color="#8b5cf6" />
-                          <h4 style={{ fontSize: '1.0rem', color: '#8b5cf6', margin: 0, fontWeight: '700' }}>Super Admin Authority</h4>
-                        </div>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
-                          Assign roles, control full user directory, manage pages, configure graphics, issue invoices, update prices, and perform all administrative operations.
-                        </p>
-                      </div>
-                    )}
+                
+                {/* Metrics Summary Banner */}
+                {!isCustomer && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '1.25rem'
+                  }}>
                     {isSalesAdmin && (
-                      <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <DollarSign size={18} color="#10b981" />
-                          <h4 style={{ fontSize: '1.0rem', color: '#10b981', margin: 0, fontWeight: '700' }}>Sales & Invoicing Scope</h4>
+                      <div className="glass-card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Issued Invoices</span>
+                          <FileText size={20} color="var(--primary)" />
                         </div>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
-                          Manage product catalog prices, issue customer tax invoices, dispatch email payment reminders, and process package renewals.
-                        </p>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
+                          {data ? data.totalInvoices || 2 : 2}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '600', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <TrendingUp size={12} /> +18.4% Revenue Growth
+                        </div>
                       </div>
                     )}
-                    {isWebAdmin && (
-                      <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <Sliders size={18} color="#06b6d4" />
-                          <h4 style={{ fontSize: '1.0rem', color: '#06b6d4', margin: 0, fontWeight: '700' }}>Web Content Management</h4>
+
+                    {isSalesAdmin && (
+                      <div className="glass-card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Active Subscriptions</span>
+                          <CreditCard size={20} color="var(--accent-emerald)" />
                         </div>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
-                          Update website graphics, homepage sliders, hero banners, manage incoming customer contact messages, and review job applications.
-                        </p>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
+                          {data ? data.totalSubscriptions : 0}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Package Renewals Logged</div>
+                      </div>
+                    )}
+
+                    {isWebAdmin && (
+                      <div className="glass-card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Contact Inquiries</span>
+                          <Mail size={20} color="var(--accent-cyan)" />
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
+                          {data ? data.totalContacts : 0}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Support & Sales Messages</div>
+                      </div>
+                    )}
+
+                    {isSuperAdmin && (
+                      <div className="glass-card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>System Accounts</span>
+                          <Users size={20} color="var(--secondary)" />
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '800' }}>
+                          {data ? data.totalUsers || 4 : 4}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Assigned Portal Roles</div>
                       </div>
                     )}
                   </div>
+                )}
+
+                {/* Section Header */}
+                <div>
+                  <h2 style={{ fontSize: '1.4rem', marginBottom: '0.4rem', fontWeight: '800' }}>
+                    {getRoleBadgeStyle(currentRole).label} Management Modules
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                    Select any module card below to open interactive controls and configuration tools.
+                  </p>
                 </div>
+
+                {/* Interactive Cards Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                  
+                  {/* Module Card: User & Role Management (Super Admin) */}
+                  {isSuperAdmin && (
+                    <div
+                      onClick={() => setActiveTab('users')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(124, 58, 237, 0.15)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ShieldCheck size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#8b5cf6' }}>
+                            {data?.totalUsers || 4} Users
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>User & Role Management</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Assign Super Admin, Sales Admin, Web Admin, and Customer roles. Manage user accounts and permissions.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Manage User Roles <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: CMS & Graphic Sliders (Web Admin & Super Admin) */}
+                  {isWebAdmin && (
+                    <div
+                      onClick={() => setActiveTab('cms')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Sliders size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>
+                            {data?.sliders?.length || 1} Banners
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>CMS, Sliders & Graphics</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Upload website graphics, configure homepage hero banners, and edit public announcements.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-cyan)', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Configure Banners & Content <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Products & Pricing (Sales Admin & Super Admin) */}
+                  {isSalesAdmin && (
+                    <div
+                      onClick={() => setActiveTab('products')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Tag size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                            Catalog Active
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>Products, Services & Prices</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Update package price lists, adjust service charges, and toggle catalog stock availability.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-emerald)', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Update Prices & Products <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Tax Invoices & Reminders (Sales Admin & Super Admin) */}
+                  {isSalesAdmin && (
+                    <div
+                      onClick={() => setActiveTab('invoices')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FileText size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                            {data?.totalInvoices || 2} Invoices
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>Invoices & Reminders</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Issue official customer tax invoices, track payment status, and dispatch payment reminder notifications.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#3b82f6', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Manage Invoices & Reminders <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Subscriptions & Renewals (Sales Admin & Super Admin) */}
+                  {isSalesAdmin && (
+                    <div
+                      onClick={() => setActiveTab('subscriptions')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <CreditCard size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}>
+                            {data?.totalSubscriptions || 1} Subscriptions
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>Subscriptions & Renewals</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Process customer package renewals, view active plans, and extend subscription expiry dates.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ec4899', fontWeight: '700', fontSize: '0.875rem' }}>
+                        View Subscriptions <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Contact Messages (Web Admin & Super Admin) */}
+                  {isWebAdmin && (
+                    <div
+                      onClick={() => setActiveTab('contacts')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Mail size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                            {data?.totalContacts || 1} Messages
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>Contact Messages</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Read and respond to incoming customer support tickets and business inquiries.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f59e0b', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Open Contact Queue <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Job Applications (Web Admin & Super Admin) */}
+                  {isWebAdmin && (
+                    <div
+                      onClick={() => setActiveTab('applications')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Briefcase size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1' }}>
+                            {data?.totalApplications || 0} Applicants
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>Job Applications</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Review candidate job applications, career resumes, and interview candidate status.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#6366f1', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Review Applications <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Module Card: Customer Subscriptions & Invoices (Customer Role) */}
+                  {isCustomer && (
+                    <div
+                      onClick={() => setActiveTab('customer_portal')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(30, 58, 138, 0.15)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <User size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(30, 58, 138, 0.15)', color: '#3b82f6' }}>
+                            My Account
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>My Subscriptions & Invoices</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          View active subscriptions, process quick renewals, and download tax invoices.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Open Customer Portal <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
               </div>
             )}
 
-            {/* USER & ROLE MANAGEMENT TAB (Super Admin) */}
+            {/* USER & ROLE MANAGEMENT MODULE (Super Admin) */}
             {activeTab === 'users' && isSuperAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -470,7 +727,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CMS, SLIDERS & BANNERS TAB (Web Admin & Super Admin) */}
+            {/* CMS, SLIDERS & BANNERS MODULE (Web Admin & Super Admin) */}
             {activeTab === 'cms' && isWebAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -500,7 +757,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* PRODUCTS, SERVICES & PRICES TAB (Sales Admin & Super Admin) */}
+            {/* PRODUCTS, SERVICES & PRICES MODULE (Sales Admin & Super Admin) */}
             {activeTab === 'products' && isSalesAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -539,7 +796,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* INVOICES & REMINDERS TAB (Sales Admin & Super Admin) */}
+            {/* INVOICES & REMINDERS MODULE (Sales Admin & Super Admin) */}
             {activeTab === 'invoices' && isSalesAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -593,7 +850,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* SUBSCRIPTIONS TAB */}
+            {/* SUBSCRIPTIONS MODULE (Sales Admin & Super Admin) */}
             {activeTab === 'subscriptions' && isSalesAdmin && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -624,7 +881,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CONTACT MESSAGES TAB (Web Admin & Super Admin) */}
+            {/* CONTACT MESSAGES MODULE (Web Admin & Super Admin) */}
             {activeTab === 'contacts' && isWebAdmin && (
               <div>
                 <h3 style={{ fontSize: '1.3rem', marginBottom: '1.5rem' }}>Incoming Contact Messages</h3>
@@ -649,7 +906,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* JOB APPLICATIONS TAB (Web Admin & Super Admin) */}
+            {/* JOB APPLICATIONS MODULE (Web Admin & Super Admin) */}
             {activeTab === 'applications' && isWebAdmin && (
               <div>
                 <h3 style={{ fontSize: '1.3rem', marginBottom: '1.5rem' }}>Submitted Job Applications</h3>
@@ -674,7 +931,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CUSTOMER PORTAL TAB (Customer Role) */}
+            {/* CUSTOMER PORTAL MODULE (Customer Role) */}
             {activeTab === 'customer_portal' && isCustomer && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 <div className="glass-card" style={{ background: 'var(--gradient-brand)', color: '#fff', padding: '2rem' }}>

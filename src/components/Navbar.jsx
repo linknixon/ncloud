@@ -106,7 +106,13 @@ export default function Navbar({ activePage, setActivePage }) {
           {navItems.map(item => (
             <button
               key={item.id}
-              onClick={() => setActivePage(item.id)}
+              onClick={() => {
+                if (item.id === 'admin' && !user) {
+                  openAuthModal('login');
+                } else {
+                  setActivePage(item.id);
+                }
+              }}
               style={{
                 background: 'none',
                 color: activePage === item.id ? 'var(--primary)' : 'var(--text-main)',
@@ -123,7 +129,13 @@ export default function Navbar({ activePage, setActivePage }) {
           ))}
 
           <button
-            onClick={() => setActivePage('admin')}
+            onClick={() => {
+              if (!user) {
+                openAuthModal('login');
+              } else {
+                setActivePage('admin');
+              }
+            }}
             style={{
               background: 'rgba(124, 58, 237, 0.1)',
               color: 'var(--primary)',
@@ -134,7 +146,8 @@ export default function Navbar({ activePage, setActivePage }) {
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem'
+              gap: '0.4rem',
+              cursor: 'pointer'
             }}
           >
             <LayoutDashboard size={15} /> Portal
@@ -200,8 +213,8 @@ export default function Navbar({ activePage, setActivePage }) {
             {theme === 'dark' ? <Sun size={20} color="#fbbf24" /> : <Moon size={20} color="#4f46e5" />}
           </button>
 
-          {/* Auth Button */}
-          {user ? (
+          {/* User Account / Profile Info */}
+          {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <div style={{
                 fontSize: '0.85rem',
@@ -229,33 +242,6 @@ export default function Navbar({ activePage, setActivePage }) {
                 title="Log Out"
               >
                 <LogOut size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="desktop-auth" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                onClick={() => openAuthModal('login')}
-                style={{
-                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                  color: '#ffffff',
-                  padding: '0.5rem 1rem',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  borderRadius: '10px',
-                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem'
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => openAuthModal('register')}
-                className="btn-primary"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-              >
-                <User size={15} /> Sign Up
               </button>
             </div>
           )}
@@ -305,7 +291,14 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           ))}
           <button
-            onClick={() => { setActivePage('admin'); setMobileOpen(false); }}
+            onClick={() => {
+              setMobileOpen(false);
+              if (!user) {
+                openAuthModal('login');
+              } else {
+                setActivePage('admin');
+              }
+            }}
             style={{
               textAlign: 'left',
               padding: '0.75rem',
@@ -317,31 +310,6 @@ export default function Navbar({ activePage, setActivePage }) {
           >
             Portal
           </button>
-          {!user && (
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-              <button
-                onClick={() => { openAuthModal('login'); setMobileOpen(false); }}
-                style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  padding: '0.6rem',
-                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  borderRadius: '10px'
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => { openAuthModal('register'); setMobileOpen(false); }}
-                className="btn-primary"
-                style={{ flex: 1, justifyContent: 'center', padding: '0.6rem' }}
-              >
-                Sign Up
-              </button>
-            </div>
-          )}
         </div>
       )}
     </header>

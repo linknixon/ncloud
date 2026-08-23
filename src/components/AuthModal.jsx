@@ -93,12 +93,14 @@ export default function AuthModal() {
           <X size={20} />
         </button>
 
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
-          {isRegister ? 'Create a Nova Account' : 'Sign In to Nova Portal'}
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-          Access enterprise cloud subscriptions, software licenses, and portal tools.
-        </p>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.55rem', marginBottom: '0.4rem', fontWeight: '800' }}>
+            {isRegister ? 'Create Nova Customer Account' : 'Sign In to Nova Customer Portal'}
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 auto', maxWidth: '360px', lineHeight: '1.5' }}>
+            Access enterprise cloud subscriptions, software licenses, and customer portal tools.
+          </p>
+        </div>
 
         {/* Social SSO OAuth Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
