@@ -372,6 +372,8 @@ select option {
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   /* Remove modal overlay backdrop blur and position invoice document at top */
@@ -383,6 +385,9 @@ select option {
     margin: 0 !important;
     display: block !important;
     z-index: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   /* Format invoice modal box to 100% page printable width */
@@ -396,6 +401,9 @@ select option {
     margin: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 }
 

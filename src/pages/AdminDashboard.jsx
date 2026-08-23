@@ -1142,8 +1142,8 @@ export default function AdminDashboard() {
 
         {/* OFFICIAL TAX INVOICE PDF VIEWER MODAL */}
         {selectedInvoice && (
-          <div className="modal-overlay" onClick={() => setSelectedInvoice(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', padding: '2.5rem', background: '#ffffff', color: '#0f172a' }}>
+          <div className="modal-overlay" onClick={() => setSelectedInvoice(null)} style={{ alignItems: 'flex-start', paddingTop: '2.5rem', paddingBottom: '2.5rem' }}>
+            <div className="modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '2.5rem', background: '#ffffff', color: '#0f172a', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
               
               {/* PDF Header & EFRIS Details */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
