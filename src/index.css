@@ -344,10 +344,59 @@ select option {
     gap: 0.75rem !important;
     padding: 1rem !important;
   }
-  .subscription-package-price {
-    text-align: left !important;
+}
+
+/* ====================================================
+   Official Tax Invoice Document Print Isolation (@media print)
+   ==================================================== */
+@media print {
+  /* Hide all website surroundings, header, navigation, banner, and footer */
+  header,
+  nav,
+  footer,
+  .glass-header,
+  .mobile-toggle,
+  .mobile-drawer,
+  .toast-container,
+  .no-print,
+  button,
+  div[style*="linear-gradient(90deg, #dc2626"],
+  div[style*="linear-gradient(90deg, rgb(220, 38, 38)"] {
+    display: none !important;
+  }
+
+  /* Reset body and page containers for clean document printing */
+  html, body, #root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Remove modal overlay backdrop blur and position invoice document at top */
+  .modal-overlay {
+    position: static !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    z-index: 1 !important;
+  }
+
+  /* Format invoice modal box to 100% page printable width */
+  .modal-content {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
     width: 100% !important;
-    padding-left: 28px !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
   }
 }
+
 
