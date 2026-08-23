@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage }) {
-  const { theme, toggleTheme, user, logout, cart, openAuthModal, setIsCartOpen } = useApp();
+  const { theme, toggleTheme, user, logout, cart, openAuthModal, setIsCartOpen, siteLogo } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
 
@@ -90,14 +90,20 @@ export default function Navbar({ activePage, setActivePage }) {
         {/* Brand Logo */}
         <div 
           onClick={() => { setActivePage('home'); setMobileOpen(false); }}
-          style={{ cursor: 'pointer', flexShrink: 0 }}
+          style={{ cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}
         >
-          <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: 1, letterSpacing: '-0.03em' }}>
-            NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
-          </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: '700', marginTop: '3px' }}>
-            EMPOWERING TECHNOLOGY SOLUTIONS
-          </div>
+          {siteLogo ? (
+            <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ height: '44px', maxWidth: '180px', objectFit: 'contain' }} />
+          ) : (
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
+              </div>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: '700', marginTop: '3px' }}>
+                EMPOWERING TECHNOLOGY SOLUTIONS
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Desktop Nav Links */}

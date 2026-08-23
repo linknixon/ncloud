@@ -33,7 +33,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { user, openAuthModal, showToast, setActivePage } = useApp();
+  const { user, openAuthModal, showToast, setActivePage, siteLogo, updateSiteLogo } = useApp();
+  const [logoInput, setLogoInput] = useState(siteLogo || '');
   
   // Current Active Role state (Defaults to user's assigned role or 'super_admin')
   const [currentRole, setCurrentRole] = useState(user?.role || 'super_admin');
@@ -626,6 +627,41 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
+                  {/* Module Card: System Logo & Brand Settings (Web Admin & Super Admin) */}
+                  {isWebAdmin && (
+                    <div
+                      onClick={() => setActiveTab('settings')}
+                      className="glass-card"
+                      style={{
+                        padding: '1.5rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s ease, border-color 0.2s ease',
+                        border: '1px solid var(--border-color)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ImageIcon size={24} />
+                          </div>
+                          <span className="badge-tag" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' }}>
+                            {siteLogo ? 'Logo Uploaded' : 'Default Brand'}
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>System Logo & Brand Settings</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                          Configure system brand logo, update header navbar mark, and customize tax invoice document header.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#a855f7', fontWeight: '700', fontSize: '0.875rem' }}>
+                        Configure Brand Logo <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Module Card: Customer Subscriptions & Invoices (Customer Role) */}
                   {isCustomer && (
                     <div
@@ -953,6 +989,83 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* SYSTEM LOGO & BRAND SETTINGS MODULE */}
+            {activeTab === 'settings' && isWebAdmin && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.3rem' }}>System Logo & Brand Configuration</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Configure official corporate logo URL. This logo will automatically display across the top header navbar, footer, and tax invoice PDFs.</p>
+                  </div>
+                </div>
+
+                <div className="glass-card" style={{ maxWidth: '640px' }}>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    updateSiteLogo(logoInput);
+                    showToast('System logo updated successfully across the site and invoice documents!', 'success');
+                  }}>
+                    
+                    {/* Live Preview Box */}
+                    <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.04em' }}>
+                        Current Logo Live Preview:
+                      </div>
+                      {logoInput || siteLogo ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60px' }}>
+                          <img
+                            src={logoInput || siteLogo}
+                            alt="Logo Preview"
+                            style={{ maxHeight: '60px', maxWidth: '260px', objectFit: 'contain' }}
+                            onError={(e) => {
+                              showToast('Failed to load image from URL. Please verify image link.', 'error');
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: 1, letterSpacing: '-0.03em', padding: '1rem 0' }}>
+                          NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Official Logo Image URL *</label>
+                      <input
+                        type="url"
+                        className="form-input"
+                        placeholder="https://example.com/logo.png"
+                        value={logoInput}
+                        onChange={(e) => setLogoInput(e.target.value)}
+                      />
+                      <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                        Enter a direct PNG, SVG, or JPEG image web URL for your organization's logo.
+                      </small>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                      <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                        Save System Logo
+                      </button>
+                      {(logoInput || siteLogo) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoInput('');
+                            updateSiteLogo('');
+                            showToast('Reset system logo to default text mark.', 'info');
+                          }}
+                          className="btn-secondary"
+                        >
+                          Reset to Default
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             {/* CUSTOMER PORTAL MODULE (Customer Role) */}
             {activeTab === 'customer_portal' && isCustomer && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -1148,9 +1261,13 @@ export default function AdminDashboard() {
               {/* PDF Header & EFRIS Details */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#1e3a8a', letterSpacing: '-0.02em' }}>
-                    NOVA CLOUD EDGES (U) LIMITED
-                  </div>
+                  {siteLogo ? (
+                    <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ maxHeight: '52px', maxWidth: '240px', objectFit: 'contain', marginBottom: '0.4rem' }} />
+                  ) : (
+                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#1e3a8a', letterSpacing: '-0.02em' }}>
+                      NOVA CLOUD EDGES (U) LIMITED
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
                     Plot 14 Parliament Avenue, Kampala, Republic of Uganda
                   </div>

@@ -1,7 +1,9 @@
 import React from 'react';
+import { useApp } from '../context/AppContext';
 import { Cloud, MapPin, Phone, Mail, Clock, ArrowRight } from 'lucide-react';
 
 export default function Footer({ setActivePage }) {
+  const { siteLogo } = useApp();
   return (
     <footer style={{
       background: 'var(--gradient-dark)',
@@ -22,12 +24,18 @@ export default function Footer({ setActivePage }) {
           {/* Column 1: Company Profile */}
           <div>
             <div style={{ marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-                NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
-              </div>
-              <div style={{ fontSize: '0.68rem', color: '#94a3b8', letterSpacing: '0.06em', fontWeight: '700', marginTop: '4px' }}>
-                EMPOWERING TECHNOLOGY SOLUTIONS
-              </div>
+              {siteLogo ? (
+                <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ height: '46px', maxWidth: '200px', objectFit: 'contain' }} />
+              ) : (
+                <div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                    NOVA <span style={{ color: 'var(--accent-cyan)' }}>CLOUD EDGES</span>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', letterSpacing: '0.06em', fontWeight: '700', marginTop: '4px' }}>
+                    EMPOWERING TECHNOLOGY SOLUTIONS
+                  </div>
+                </div>
+              )}
             </div>
             <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.7' }}>
               Nova Cloud Edges (U) Limited is Uganda's premier provider of sovereign cloud edge hosting, enterprise ERP software implementations, corporate email solutions, and cybersecurity defense infrastructure.

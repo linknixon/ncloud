@@ -110,6 +110,17 @@ export function AppProvider({ children }) {
     showToast('You have been logged out.', 'info');
   };
 
+  const [siteLogo, setSiteLogo] = useState(localStorage.getItem('site_logo') || '');
+
+  const updateSiteLogo = (newLogoUrl) => {
+    setSiteLogo(newLogoUrl);
+    if (newLogoUrl) {
+      localStorage.setItem('site_logo', newLogoUrl);
+    } else {
+      localStorage.removeItem('site_logo');
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -131,7 +142,9 @@ export function AppProvider({ children }) {
         isCartOpen,
         setIsCartOpen,
         notification,
-        showToast
+        showToast,
+        siteLogo,
+        updateSiteLogo
       }}
     >
       {children}
