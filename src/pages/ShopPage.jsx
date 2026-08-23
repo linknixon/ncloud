@@ -127,24 +127,38 @@ export default function ShopPage({ setActivePage }) {
                     style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                   />
 
-                  <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <div style={{ padding: '1.35rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                     
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ marginBottom: '0.65rem' }}>
                       <span className="badge-tag" style={{ fontSize: '0.7rem' }}>
                         {prod.badge || prod.category}
                       </span>
-                      <div style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--primary)' }}>
-                        {prod.currency} {Number(prod.price).toLocaleString()} / mo
-                      </div>
                     </div>
 
-                    <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: '1.3' }}>
+                    <h3 style={{ fontSize: '1.15rem', marginBottom: '0.4rem', lineHeight: '1.3', fontWeight: '800' }}>
                       {prod.name}
                     </h3>
 
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', flex: 1, marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', flex: 1, marginBottom: '1.25rem', lineHeight: '1.5' }}>
                       {prod.short_desc || prod.description}
                     </p>
+
+                    {/* Dedicated Prominent Price Section */}
+                    <div style={{
+                      background: 'var(--bg-main)',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-color)',
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Price:</span>
+                      <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--primary)' }}>
+                        {prod.currency || 'UGX'} {Number(prod.price).toLocaleString()} <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>/ mo</span>
+                      </span>
+                    </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -157,7 +171,7 @@ export default function ShopPage({ setActivePage }) {
                           onChange={(e) => setQuantities({ ...quantities, [prod.id]: Math.max(1, parseInt(e.target.value) || 1) })}
                           style={{
                             width: '52px',
-                            padding: '0.35rem 0.3rem',
+                            padding: '0.4rem 0.3rem',
                             borderRadius: '8px',
                             border: '1px solid var(--border-color)',
                             background: 'var(--bg-main)',
@@ -171,7 +185,7 @@ export default function ShopPage({ setActivePage }) {
                       <button
                         onClick={() => addToCart(prod, quantities[prod.id] || 1)}
                         className="btn-primary"
-                        style={{ flex: 1, justifyContent: 'center', padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
+                        style={{ flex: 1, justifyContent: 'center', padding: '0.65rem 0.85rem', fontSize: '0.85rem' }}
                       >
                         <ShoppingBag size={15} /> Add to Cart
                       </button>
