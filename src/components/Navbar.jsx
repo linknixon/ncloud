@@ -29,7 +29,6 @@ export default function Navbar({ activePage, setActivePage }) {
     { id: 'shop', label: 'Shop' },
     { id: 'jobs', label: 'Careers' },
     { id: 'subscription', label: 'Subscriptions' },
-    { id: 'admin', label: 'Portal' },
     { id: 'contact', label: 'Contact' }
   ];
 
