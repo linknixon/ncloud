@@ -104,6 +104,6 @@ CREATE TABLE IF NOT EXISTS contacts (
     message TEXT NOT NULL,
     status ENUM('new', 'read', 'replied') DEFAULT 'new',
     response TEXT,
-    replied_at TIMESTAMP NULL
+    replied_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
