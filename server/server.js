@@ -18,7 +18,14 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_cloud_edges_secret_key_2026';
 
 app.use(cors());
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Persistent Data Storage Helper (Preserves user database records & saved items)
 function loadPersistentStore() {
@@ -6042,6 +6049,14 @@ app.get(['/rss.xml', '/api/rss'], (req, res) => {
     </item>
   </channel>
 </rss>`);
+});
+
+// SPA Fallback Route for React Router / HTML5 History
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, () => {
