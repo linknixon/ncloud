@@ -3,11 +3,32 @@ import { useApp } from '../context/AppContext';
 import { X, Trash2, ArrowRight, ShieldCheck, ShoppingBag } from 'lucide-react';
 
 export default function CartDrawer({ onCheckout }) {
-  const { isCartOpen, setIsCartOpen, cart, updateCartQuantity, removeFromCart, clearCart, showToast } = useApp();
+  const { isCartOpen, setIsCartOpen, cart, updateCartQuantity, removeFromCart, clearCart, showToast, openDirectCheckout } = useApp();
 
   if (!isCartOpen) return null;
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const isHostingCategoryItem = (item) => {
+    if (!item) return false;
+    const cat = (item.category || '').toLowerCase();
+    const name = (item.name || '').toLowerCase();
+    const badge = (item.badge || '').toLowerCase();
+    const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription'];
+    return keywords.some(kw => cat.includes(kw) || name.includes(kw) || badge.includes(kw));
+  };
+
+  const handleCheckoutClick = () => {
+    setIsCartOpen(false);
+    const hasHosting = cart.some(item => isHostingCategoryItem(item));
+    const hasNonHosting = cart.some(item => !isHostingCategoryItem(item));
+
+    if (hasHosting && !hasNonHosting) {
+      onCheckout();
+    } else {
+      openDirectCheckout(cart);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={() => setIsCartOpen(false)}>
@@ -46,10 +67,7 @@ export default function CartDrawer({ onCheckout }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             {cart.length > 0 && (
               <button
-                onClick={() => {
-                  setIsCartOpen(false);
-                  onCheckout();
-                }}
+                onClick={handleCheckoutClick}
                 className="btn-primary"
                 style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', fontWeight: '700' }}
               >
@@ -172,10 +190,7 @@ export default function CartDrawer({ onCheckout }) {
             </div>
 
             <button
-              onClick={() => {
-                setIsCartOpen(false);
-                onCheckout();
-              }}
+              onClick={handleCheckoutClick}
               className="btn-primary"
               style={{
                 width: '100%',

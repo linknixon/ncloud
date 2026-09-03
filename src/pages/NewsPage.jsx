@@ -1,10 +1,11 @@
+import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { Newspaper, Calendar, ArrowRight, Tag, Search } from 'lucide-react';
 
 export default function NewsPage() {
   const [news, setNews] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/news')
@@ -23,6 +24,7 @@ export default function NewsPage() {
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="News & Insights | Nova Cloud" description="Stay updated with the latest news and announcements from Nova Cloud." keywords="technology news uganda, ISP updates, cloud trends" />
       <div className="container">
         
         {/* Page Header */}

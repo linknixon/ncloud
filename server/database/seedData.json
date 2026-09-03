@@ -26,33 +26,73 @@
     }
   ],
   "partners": [
-    { "name": "Google", "category": "Cloud & Enterprise Partner", "logoText": "Google Cloud" },
-    { "name": "Microsoft", "category": "Gold Solution Reseller", "logoText": "Microsoft" },
-    { "name": "RENU", "category": "Research & Education Network Uganda", "logoText": "RENU" },
-    { "name": "Raxio", "category": "Tier III Data Centre Infrastructure", "logoText": "Raxio Data Centre" },
-    { "name": "Liquid Intelligent Technologies", "category": "Fiber Transit & Interconnect", "logoText": "Liquid Telecom" },
-    { "name": "MTN Uganda", "category": "Enterprise Mobile Money & Telecom", "logoText": "MTN Business" }
+    {
+      "id": 1,
+      "name": "Google Cloud",
+      "category": "Premier Cloud Partner",
+      "logoText": "Google Cloud",
+      "website": "https://cloud.google.com"
+    },
+    {
+      "id": 2,
+      "name": "Microsoft",
+      "category": "Gold Cloud Solutions Provider",
+      "logoText": "Microsoft",
+      "website": "https://microsoft.com"
+    },
+    {
+      "id": 3,
+      "name": "RENU Uganda",
+      "category": "Research & Education Network",
+      "logoText": "RENU",
+      "website": "https://renu.ac.ug"
+    },
+    {
+      "id": 4,
+      "name": "Raxio Data Centre",
+      "category": "Tier III Colocation Facility",
+      "logoText": "Raxio Data Centre",
+      "website": "https://raxio.co.ug"
+    },
+    {
+      "id": 5,
+      "name": "Liquid Intelligent Technologies",
+      "category": "Cross-Border Fiber Transit",
+      "logoText": "Liquid Telecom",
+      "website": "https://liquid.tech"
+    },
+    {
+      "id": 6,
+      "name": "MTN Business Uganda",
+      "category": "Enterprise Telecom & MPLS",
+      "logoText": "MTN Business",
+      "website": "https://mtn.co.ug"
+    }
   ],
   "team": [
     {
+      "id": 1,
       "name": "Dr. Arthur Mukasa",
       "role": "Chief Executive Officer & Founder",
       "bio": "Over 18 years leading digital infrastructure, cloud migration, and telecom strategies across East Africa.",
       "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80"
     },
     {
+      "id": 2,
       "name": "Florence Akello",
       "role": "Chief Technology Officer",
       "bio": "Former lead infrastructure architect specializing in edge computing, Kubernetes orchestration, and Zimbra mail clusters.",
       "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
     },
     {
+      "id": 3,
       "name": "David Tumusiime",
       "role": "Head of Cyber Security & Threat Intelligence",
       "bio": "CISSP & CEH certified security strategist leading Nova's 24/7 Threat Intelligence Security Operations Center (SOC).",
       "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
     },
     {
+      "id": 4,
       "name": "Grace Nsubuga",
       "role": "Lead Cloud Operations & Colocation Manager",
       "bio": "Manages server rack colocation, dual redundant power systems, and client SLA compliance.",
@@ -205,7 +245,7 @@
       "name": "Intuit QuickBooks Enterprise Solutions v24.0",
       "slug": "intuit-quickbooks-enterprise-solutions-v24-0",
       "category": "Digital Products",
-      "price": 3500000.00,
+      "price": 3500000,
       "currency": "UGX",
       "badge": "Best Seller",
       "short_desc": "Industry-leading ERP accounting software designed for growing businesses requiring up to 40 concurrent users.",
@@ -218,7 +258,7 @@
       "name": "Zimbra Enterprise Email Package (10 Users)",
       "slug": "zimbra-email-package",
       "category": "Digital Products",
-      "price": 450000.00,
+      "price": 450000,
       "currency": "UGX",
       "badge": "Popular",
       "short_desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.",
@@ -231,7 +271,7 @@
       "name": "Data Center Colocation Management & Rack Hosting (1U Rack Unit)",
       "slug": "colocation-management-1u",
       "category": "Cloud Services",
-      "price": 650000.00,
+      "price": 650000,
       "currency": "UGX",
       "badge": "Infrastructure",
       "short_desc": "Secure 1U server colocation hosting in high-security Tier III Data Center with dual A+B power feeds and gigabit bandwidth.",
@@ -244,7 +284,7 @@
       "name": "Nova Cloud Edge VPS Server (Standard)",
       "slug": "cloud-vps-standard",
       "category": "Cloud Services",
-      "price": 280000.00,
+      "price": 280000,
       "currency": "UGX",
       "badge": "Featured",
       "short_desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
@@ -257,13 +297,78 @@
       "name": "Sophos Next-Gen Firewall Appliance",
       "slug": "sophos-firewall-appliance",
       "category": "Hardware & Security",
-      "price": 4200000.00,
+      "price": 4200000,
       "currency": "UGX",
       "badge": "Enterprise",
       "short_desc": "Hardware firewall appliance with Xstream Architecture, deep packet inspection, and web filtering.",
       "description": "Robust cybersecurity hardware for medium and large offices. Provides AI-powered threat detection, SSL/TLS inspection, SD-WAN site-to-site connectivity.",
       "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
       "stock": 12
+    },
+    {
+      "id": 101,
+      "name": "WiFi Voucher - 12 Hours",
+      "slug": "wifi-voucher-12-hours",
+      "category": "Digital Products",
+      "price": 800,
+      "currency": "UGX",
+      "badge": "Quick",
+      "short_desc": "12 hours of high-speed guest WiFi access.",
+      "description": "Get instant access to our high-speed guest WiFi network for 12 hours.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 102,
+      "name": "WiFi Voucher - 24 Hours",
+      "slug": "wifi-voucher-24-hours",
+      "category": "Digital Products",
+      "price": 1400,
+      "currency": "UGX",
+      "badge": "Daily",
+      "short_desc": "24 hours of high-speed guest WiFi access.",
+      "description": "Stay connected all day with our 24-hour high-speed guest WiFi network.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 103,
+      "name": "WiFi Voucher - 48 Hours",
+      "slug": "wifi-voucher-48-hours",
+      "category": "Digital Products",
+      "price": 2500,
+      "currency": "UGX",
+      "badge": "Best Value",
+      "short_desc": "48 hours of high-speed guest WiFi access.",
+      "description": "Best value for 2 days of uninterrupted high-speed internet access.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 104,
+      "name": "WiFi Voucher - 7 Days",
+      "slug": "wifi-voucher-7-days",
+      "category": "Digital Products",
+      "price": 6000,
+      "currency": "UGX",
+      "badge": "Weekly",
+      "short_desc": "7 days of high-speed guest WiFi access.",
+      "description": "Perfect for a week-long stay. Get 7 days of unlimited high-speed guest WiFi access.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 105,
+      "name": "WiFi Voucher - 30 Days",
+      "slug": "wifi-voucher-30-days",
+      "category": "Digital Products",
+      "price": 25000,
+      "currency": "UGX",
+      "badge": "Monthly",
+      "short_desc": "30 days of high-speed guest WiFi access.",
+      "description": "Enjoy a full month of uninterrupted high-speed internet access on our guest network.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
     }
   ],
   "jobs": [

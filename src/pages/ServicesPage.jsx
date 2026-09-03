@@ -1,22 +1,30 @@
+import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { Cloud, Cpu, Mail, ShieldCheck, Server, CheckCircle2, ArrowRight, PhoneCall, Radio, BarChart3, Code2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ServicesPage({ setActivePage }) {
   const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
 
   useEffect(() => {
     fetch('/api/services')
       .then(res => res.json())
       .then(data => {
-        setServices(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setServices(data);
+        } else {
+          setServices([]);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setServices([]);
+        setLoading(false);
+      });
   }, []);
 
   // Reset pagination on search change
@@ -49,6 +57,7 @@ export default function ServicesPage({ setActivePage }) {
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="Our Services & Solutions | Nova Cloud" description="Explore our premium ISP and IT solutions tailored for your business." keywords="dedicated internet, cloud hosting, managed IT services, structured cabling" />
       <div className="container">
         
         {/* Page Header */}
@@ -85,7 +94,8 @@ export default function ServicesPage({ setActivePage }) {
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            {/* 2 Services Per Row Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '2rem' }}>
               {paginatedServices.map((srv, idx) => {
                 const IconComponent = getIcon(srv.icon);
                 const features = Array.isArray(srv.features) 
@@ -95,75 +105,85 @@ export default function ServicesPage({ setActivePage }) {
                 return (
                   <div
                     key={srv.id || idx}
-                    className="glass-card responsive-2col"
+                    className="glass-card"
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(260px, 1fr) 2fr',
-                      gap: '2.5rem',
-                      padding: '2.5rem',
-                      alignItems: 'center'
+                      padding: '2rem',
+                      borderRadius: '18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
                     }}
                   >
-                    {/* Icon & Title */}
                     <div>
-                      <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '16px',
-                        background: 'var(--gradient-brand)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '1.5rem',
-                        boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)'
-                      }}>
-                        <IconComponent size={32} />
+                      {/* Icon & Title Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                        <div style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '14px',
+                          background: 'var(--gradient-brand)',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)'
+                        }}>
+                          <IconComponent size={28} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h2 style={{ fontSize: '1.35rem', fontWeight: '800', margin: '0 0 0.35rem', lineHeight: '1.3' }}>
+                            {srv.title}
+                          </h2>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', lineHeight: '1.4' }}>
+                            {srv.summary}
+                          </div>
+                        </div>
                       </div>
-                      <h2 style={{ fontSize: '1.6rem', marginBottom: '0.75rem', lineHeight: '1.3' }}>
-                        {srv.title}
-                      </h2>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6' }}>
-                        {srv.summary}
-                      </p>
-                    </div>
 
-                    {/* Features & Content */}
-                    <div>
-                      <p style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '1.5rem', lineHeight: '1.7' }}>
+                      {/* Description */}
+                      <p style={{ fontSize: '0.925rem', color: 'var(--text-main)', lineHeight: '1.65', marginBottom: '1.25rem' }}>
                         {srv.description}
                       </p>
 
-                      <div className="responsive-service-features" style={{
+                      {/* Key Features Checkmark Grid */}
+                      <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '0.85rem',
-                        marginBottom: '2rem'
+                        gap: '0.65rem',
+                        marginBottom: '1.5rem',
+                        background: 'var(--bg-main)',
+                        padding: '1rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-color)'
                       }}>
                         {features.map((feat, fIdx) => (
-                          <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem', fontWeight: '600' }}>
-                            <CheckCircle2 size={18} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
+                          <div key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', fontWeight: '600' }}>
+                            <CheckCircle2 size={16} color="var(--accent-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
                             <span>{feat}</span>
                           </div>
                         ))}
                       </div>
+                    </div>
 
-                      <div style={{ display: 'flex', gap: '1rem' }}>
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+                      <button
+                        onClick={() => setActivePage('contact')}
+                        className="btn-primary"
+                        style={{ padding: '0.65rem 1.1rem', fontSize: '0.875rem' }}
+                      >
+                        <PhoneCall size={16} /> Request Quote
+                      </button>
+                      {srv.slug && (srv.slug.includes('quickbooks') || srv.slug.includes('email') || srv.slug.includes('vps')) ? (
                         <button
-                          onClick={() => setActivePage('contact')}
-                          className="btn-primary"
+                          onClick={() => setActivePage('shop')}
+                          className="btn-secondary"
+                          style={{ padding: '0.65rem 1.1rem', fontSize: '0.875rem' }}
                         >
-                          <PhoneCall size={18} /> Request Service Quote
+                          Order Online <ArrowRight size={16} />
                         </button>
-                        {srv.slug && (srv.slug.includes('quickbooks') || srv.slug.includes('email') || srv.slug.includes('vps')) ? (
-                          <button
-                            onClick={() => setActivePage('shop')}
-                            className="btn-secondary"
-                          >
-                            Order License Online <ArrowRight size={18} />
-                          </button>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
 
                   </div>

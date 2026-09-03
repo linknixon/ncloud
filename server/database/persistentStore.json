@@ -1,0 +1,2226 @@
+{
+  "users": [
+    {
+      "id": 1788264663641,
+      "name": "Test User",
+      "email": "test@example.com",
+      "phone": "+256 700 000 000",
+      "company": "Corporate Client",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "status": "Active",
+      "created_at": "2026-09-01T12:11:03.641Z",
+      "last_login": "2026-09-01T12:11:03.641Z",
+      "passwordHash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca",
+      "password_hash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca"
+    },
+    {
+      "id": 1788264028640,
+      "name": "Marius Nshekanabo",
+      "email": "nmarius@ncedges.com",
+      "passwordHash": "$2b$10$sqFgBe86rLc9LdojiOOpz./9ApKExXJFOmJQOUjsNDKv.KLKbUIii",
+      "role": "web_admin",
+      "position": "Staff Admin",
+      "title": "Customer",
+      "phone": "0790001631",
+      "company": "Nova Cloud Edges",
+      "status": "Active",
+      "department": "Client Corporate",
+      "salary": 0,
+      "location": "Kampala, Uganda",
+      "notes": "",
+      "avatar_url": "",
+      "supervisor_id": 2,
+      "supervisor_name": "Nixon Kamugisha",
+      "updated_at": "2026-09-01T12:08:41.098Z"
+    },
+    {
+      "id": 1788262157265,
+      "name": "James Brian Otunu",
+      "email": "info@ncedges.com",
+      "passwordHash": "$2b$10$/yb9yvp3HZF9YGxyMothxemq4lRJr6w1RNi5D73TretXtUMGz0dCi",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0790001631",
+      "company": "Legit Hotel",
+      "status": "Active",
+      "password_hash": "$2b$10$/yb9yvp3HZF9YGxyMothxemq4lRJr6w1RNi5D73TretXtUMGz0dCi"
+    },
+    {
+      "id": 1787853881019,
+      "name": "Manishimwe Nelson",
+      "email": "nelsonmanishimwe@gmail.com",
+      "passwordHash": "$2b$10$Q9rARkMa498BYGu3pd6HsOMfTOPLulZEJhgCYw6U.4U3TGn7wFyAy",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "+256 786 833219",
+      "company": "Child Care Ministry",
+      "status": "Active"
+    },
+    {
+      "id": 1787816516992,
+      "name": "Okello Stephen",
+      "email": "okellostephenomoding@gmail.com",
+      "passwordHash": "$2b$10$aF5jp2g1qD3X.E0YlHDstOh1tXf4zUMN0Ql2nvaxUKVCtij0a580S",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "+256 753 930694",
+      "company": "Alice Anume School of Nursing & Midwifery",
+      "status": "Active"
+    },
+    {
+      "id": 1787688887153,
+      "name": "Deogratis Etenu",
+      "email": "deogratisetenu@gmail.com",
+      "phone": "0775015466",
+      "company": "Corporate Client",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "status": "Active",
+      "created_at": "2026-08-25T20:14:47.153Z",
+      "last_login": "2026-08-25T20:14:47.153Z",
+      "location": "Soroti University, Otucopi",
+      "updated_at": "2026-08-26T15:45:34.153Z",
+      "passwordHash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca",
+      "password_hash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca"
+    },
+    {
+      "id": 2,
+      "name": "Nixon Kamugisha",
+      "email": "nkamugisha@ncedges.com",
+      "role": "sales_admin",
+      "phone": "0772669057",
+      "company": "Nova Cloud Edges (U) Ltd",
+      "department": "Core Infrastructure",
+      "position": "Cloud Engineer",
+      "salary": 0,
+      "status": "Active",
+      "location": "Kampala, Uganda",
+      "notes": "",
+      "supervisor_id": 1,
+      "supervisor_name": "Systems Admin",
+      "created_at": "2026-08-25T15:39:11.575Z",
+      "last_login": "Never",
+      "passwordHash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca",
+      "password_hash": "$2b$10$XDKOuezuportNvhNcR4qvuSDARi73Gv2ejfvQnR81RhXLJfnAWfca"
+    },
+    {
+      "id": 1,
+      "name": "Systems Admin",
+      "email": "systems@ncloud.co.ug",
+      "role": "super_admin",
+      "phone": "+256 790 001 631",
+      "company": "Nova Cloud Edges (U) Ltd",
+      "department": "Executive Management",
+      "position": "Managing Director & CEO",
+      "status": "Active",
+      "location": "Kampala, Uganda",
+      "notes": "Chief Executive Officer with overarching system supervision.",
+      "created_at": "2026-01-10T08:00:00.000Z",
+      "last_login": "2026-08-25T07:15:00.000Z",
+      "salary": 0,
+      "avatar_url": "",
+      "supervisor_id": 1,
+      "supervisor_name": "Systems Admin",
+      "updated_at": "2026-09-01T13:30:18.681Z",
+      "password_changed_at": "2026-09-01T13:30:18.681Z",
+      "passwordHash": "$2b$10$UlVNHnPl9BDcmjoWLg8RJeeJPGWOz4xSYuzvzoM8z16nhrPs90Jb6",
+      "password_hash": "$2b$10$UlVNHnPl9BDcmjoWLg8RJeeJPGWOz4xSYuzvzoM8z16nhrPs90Jb6"
+    }
+  ],
+  "services": [
+    {
+      "id": 1,
+      "title": "Cloud Infrastructure & Edge Hosting",
+      "slug": "cloud-infrastructure",
+      "summary": "Scalable, secure cloud edge servers and managed infrastructure tailored for modern enterprises.",
+      "description": "Nova Cloud Edges delivers next-generation cloud infrastructure built for high performance, maximum uptime, and localized edge latency.",
+      "icon": "Cloud",
+      "features": [
+        "99.99% Uptime SLA with edge node redundacy",
+        "Automated backup & quick disaster recovery",
+        "Custom hybrid & private cloud architecture",
+        "24/7 dedicated system engineer monitoring"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Enterprise Software & Accounting Solutions",
+      "slug": "enterprise-software",
+      "summary": "Official reseller and implementation partner for QuickBooks Enterprise and customized ERP systems.",
+      "description": "We specialize in deploying, customizing, and training teams on world-class ERP software, including Intuit QuickBooks Enterprise Solutions.",
+      "icon": "Cpu",
+      "features": [
+        "Official QuickBooks Enterprise License & Installation",
+        "Custom workflow and financial reporting setup",
+        "Multi-currency & localized tax compliance",
+        "Staff training & ongoing technical support"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Zimbra Email Experts",
+      "slug": "zimbra-email",
+      "summary": "Enterprise Zimbra email server administration, migration, webmail, calendar, and high-deliverability anti-spam protection.",
+      "description": "Take full control of your corporate communications with Zimbra Email Experts. Secure, fast, and feature-packed Zimbra email platform.",
+      "icon": "Mail",
+      "features": [
+        "Zimbra Collaboration Suite administration",
+        "Corporate email webmail & ActiveSync mobile support",
+        "Advanced anti-spam & malware protection",
+        "Shared calendars, contacts, and task management"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cybersecurity & Edge Network Defense",
+      "slug": "cybersecurity",
+      "summary": "Expert Cyber Security Team providing proactive firewall protection, endpoint security, and compliance auditing.",
+      "description": "Safeguard your critical enterprise data against cyber threats with Nova's Expert Cyber Security Team. Certified ethical hackers and 24/7 Threat Intelligence SOC monitoring.",
+      "icon": "ShieldCheck",
+      "features": [
+        "Expert Cyber Security Team (CISSP & CEH Certified)",
+        "Next-Gen Firewall configuration & UTM",
+        "24/7 Threat Intelligence SOC monitoring",
+        "Cybersecurity vulnerability assessment & penetration testing"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Managed IT Services & Consultancy",
+      "slug": "managed-it-services",
+      "summary": "End-to-end IT support, network cabling, server management, and technology strategy.",
+      "description": "Partner with Nova Cloud Edges as your dedicated IT department. We handle daily tech support and core infrastructure.",
+      "icon": "Server",
+      "features": [
+        "On-site & remote 24/7 helpdesk support",
+        "Network design, structured cabling & Wi-Fi setup",
+        "Server administration (Linux / Windows)",
+        "IT hardware procurement & warranty management"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Internet of Things (IoT) & Local Edge Gateways",
+      "slug": "iot-edge-gateways",
+      "summary": "Deploy industrial IoT sensors, local edge gateway hardware, and real-time telemetry processing.",
+      "description": "Nova Cloud Edges provides end-to-end Internet of Things (IoT) solutions. We configure and manage local edge gateway hardware to collect, process, and filter sensor data at the edge before syncing with cloud infrastructure.",
+      "icon": "Radio",
+      "features": [
+        "Industrial IoT sensor deployment & hardware setup",
+        "Local Edge Gateway installation & edge processing",
+        "Real-time telemetry, temperature & environmental monitoring",
+        "Low-latency MQTT/HTTP secure data streaming"
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Data Analytics & Interactive Visualization",
+      "slug": "data-analytics-visualization",
+      "summary": "Transform raw enterprise data into actionable Business Intelligence dashboards and real-time charts.",
+      "description": "Unlock strategic insights with Nova's Data Analytics & Visualization services. We build custom BI dashboards, automated reporting pipelines, predictive models, and interactive charts connected to your ERP and database systems.",
+      "icon": "BarChart3",
+      "features": [
+        "Custom Business Intelligence (BI) dashboard design",
+        "Real-time data visualization & automated reporting",
+        "Database ETL pipelines & data warehousing",
+        "Predictive analytics & financial performance trends"
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Custom Software Development & Modern Tech Stacks",
+      "slug": "custom-software-development",
+      "summary": "Full-cycle custom web, mobile, and cloud software development using modern languages and frameworks.",
+      "description": "Nova Cloud Edges builds scalable, high-performance web applications, enterprise microservices, REST/GraphQL APIs, and native mobile apps using modern technology stacks including React, TypeScript, Node.js, Python, Go, Rust, and Cloud-Native architectures.",
+      "icon": "Code2",
+      "features": [
+        "Modern Full-Stack Web Development (React, Next.js, Node.js, TypeScript)",
+        "High-Performance Cloud Microservices & APIs (Python, Go, Rust)",
+        "Mobile App Development (iOS & Android cross-platform solutions)",
+        "Agile CI/CD, automated testing & cloud containerization"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": 17,
+      "name": "Domain Name Registration",
+      "slug": "domain-name-registration",
+      "category": "Domain Names",
+      "price": 95000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "www.childcareministry.org",
+      "desc": "www.childcareministry.org",
+      "description": "Manishimwe Nelson",
+      "specs": "Manishimwe Nelson",
+      "details": "Manishimwe Nelson",
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 50,
+      "is_hidden": true,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 16,
+      "name": "Capacity Building and Trainings",
+      "slug": "capacity-building-and-trainings",
+      "category": "Software & Licenses",
+      "price": 500000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Capacity Building and Trainings",
+      "desc": "Capacity Building and Trainings",
+      "description": "Capacity Building and Trainings",
+      "specs": "Capacity Building and Trainings",
+      "details": "Capacity Building and Trainings",
+      "image_url": "https://www.google.com/url?sa=t&source=web&rct=j&url=https%3A%2F%2Faltouhailyoffice.com%2Fservice%2Fcapacity-building%2F&ved=0CBYQjRxqGAoTCODvupeqwJYDFQAAAAAdAAAAABCjAQ&opi=89978449",
+      "stock": 50,
+      "is_hidden": false,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 15,
+      "name": "Transport Facilitation",
+      "slug": "transport-facilitation",
+      "category": "Software & Licenses",
+      "price": 500000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Transport Facilitation",
+      "desc": "Transport Facilitation",
+      "description": "Clients outreach for support, and surveys",
+      "specs": "Clients outreach for support, and surveys",
+      "details": "Clients outreach for support, and surveys",
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 50,
+      "is_hidden": false,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 14,
+      "name": "Moodle Upgrade",
+      "slug": "moodle-upgrade",
+      "category": "Software & Licenses",
+      "price": 500000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Core file system upgrade and plugins",
+      "desc": "Core file system upgrade and plugins",
+      "description": "Data Migrations from old node to new node",
+      "specs": "Data Migrations from old node to new node",
+      "details": "Data Migrations from old node to new node",
+      "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTTFCfcYcKbyiHn2ETPuBYKnYdUsxCePq4Qbnw3X2mDpG6KGMTS9dVuNKM&s=10",
+      "stock": 50,
+      "is_hidden": true,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 13,
+      "name": "Network Cable Cat 6E",
+      "slug": "network-cable-cat-6e",
+      "category": "Hardware & Security",
+      "price": 500000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Network Cable",
+      "desc": "Network Cable",
+      "description": "",
+      "specs": "",
+      "details": "",
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 50,
+      "is_hidden": false
+    },
+    {
+      "id": 1,
+      "name": "Intuit QuickBooks Enterprise Solutions v24.0",
+      "slug": "intuit-quickbooks-enterprise-solutions-v24-0",
+      "category": "Hosting Services",
+      "price": 34000,
+      "currency": "UGX",
+      "badge": "Best Seller",
+      "short_desc": "Industry-leading ERP accounting software designed for growing businesses requiring up to 40 concurrent users.",
+      "description": "Intuit QuickBooks Enterprise Solutions v24.0 gives you powerful control over financial management, inventory tracking, payroll processing, and custom reporting.",
+      "image_url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
+      "stock": 50,
+      "is_hidden": false
+    },
+    {
+      "id": 2,
+      "name": "Zimbra Enterprise Email Package (10 Users)",
+      "slug": "zimbra-email-package",
+      "category": "Hosting Services",
+      "price": 6500,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.",
+      "description": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, spam protection, and 99.9% uptime guarantee.",
+      "image_url": "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": false,
+      "desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.",
+      "specs": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, spam protection, and 99.9% uptime guarantee.",
+      "details": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, spam protection, and 99.9% uptime guarantee.",
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 3,
+      "name": "Data Center Colocation Management & Rack Hosting (1U Rack Unit)",
+      "slug": "colocation-management-1u",
+      "category": "Hosting Services",
+      "price": 650000,
+      "currency": "UGX",
+      "badge": "Infrastructure",
+      "short_desc": "Secure 1U server colocation hosting in high-security Tier III Data Center with dual A+B power feeds and gigabit bandwidth.",
+      "description": "Nova Colocation Management provides rack space, redundant diesel generator backup, precision cooling, biometric access control, and 1Gbps unmetered RENU/Liquid fiber cross-connects.",
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 25,
+      "desc": "Secure 1U server colocation hosting in high-security Tier III Data Center with dual A+B power feeds and gigabit bandwidth.",
+      "specs": "Nova Colocation Management provides rack space, redundant diesel generator backup, precision cooling, biometric access control, and 1Gbps unmetered RENU/Liquid fiber cross-connects.",
+      "details": "Nova Colocation Management provides rack space, redundant diesel generator backup, precision cooling, biometric access control, and 1Gbps unmetered RENU/Liquid fiber cross-connects.",
+      "is_hidden": false,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 4,
+      "name": "Nova Cloud Edge VPS Server (Standard)",
+      "slug": "cloud-vps-standard",
+      "category": "Hosting Services",
+      "price": 40000,
+      "currency": "UGX",
+      "badge": "Featured",
+      "short_desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
+      "description": "High-performance Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access.",
+      "image_url": "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=800&q=80",
+      "stock": 30,
+      "is_hidden": false,
+      "desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
+      "specs": "High-performance Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access.",
+      "details": "High-performance Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access.",
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 5,
+      "name": "Sophos Next-Gen Firewall Appliance",
+      "slug": "sophos-firewall-appliance",
+      "category": "Hardware & Security",
+      "price": 4200000,
+      "currency": "UGX",
+      "badge": "Enterprise",
+      "short_desc": "Hardware firewall appliance with Xstream Architecture, deep packet inspection, and web filtering.",
+      "description": "Robust cybersecurity hardware for medium and large offices. Provides AI-powered threat detection, SSL/TLS inspection, SD-WAN site-to-site connectivity.",
+      "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
+      "stock": 12
+    },
+    {
+      "id": 6,
+      "name": "Unifi Mesh Access Points",
+      "slug": "unifi-mesh-access-points",
+      "category": "Hardware & Security",
+      "price": 480000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Unifi Products",
+      "description": "",
+      "image_url": "https://images.svc.ui.com/?u=https%3A%2F%2Fcdn.ecomm.ui.com%2Fproducts%2F256e298c-7a20-4d6a-983f-7445e6cb98df%2F5ebd628b-79bd-471a-b779-e5b6725f8086.png&q=75&w=256",
+      "stock": 50,
+      "is_hidden": false
+    },
+    {
+      "id": 12,
+      "name": "Unifi Controller Hosting",
+      "slug": "unifi-controller-managed",
+      "category": "Hosting Services",
+      "price": 15000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Unifi Controller",
+      "description": "Cloud-based Unifi controller, Mobile App access, Token Usage (Admin for token), Stats, and Feeds",
+      "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpcyYqeV5xn8MVR0ALss9D2SLQDX3vY0XS7iCwpfNm9gJRdGYuIdzRFpGp&s=10",
+      "stock": 62,
+      "is_hidden": false,
+      "desc": "Unifi Controller",
+      "specs": "Cloud-based Unifi controller, Mobile App access, Token Usage (Admin for token), Stats, and Feeds",
+      "details": "Cloud-based Unifi controller, Mobile App access, Token Usage (Admin for token), Stats, and Feeds",
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 101,
+      "name": "WiFi Voucher - 12 Hours",
+      "slug": "wifi-voucher-12-hours",
+      "category": "Digital Products",
+      "price": 800,
+      "currency": "UGX",
+      "badge": "Quick",
+      "short_desc": "12 hours of high-speed guest WiFi access.",
+      "description": "Get instant access to our high-speed guest WiFi network for 12 hours.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 102,
+      "name": "WiFi Voucher - 24 Hours",
+      "slug": "wifi-voucher-24-hours",
+      "category": "Digital Products",
+      "price": 1400,
+      "currency": "UGX",
+      "badge": "Daily",
+      "short_desc": "24 hours of high-speed guest WiFi access.",
+      "description": "Stay connected all day with our 24-hour high-speed guest WiFi network.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 103,
+      "name": "WiFi Voucher - 48 Hours",
+      "slug": "wifi-voucher-48-hours",
+      "category": "Digital Products",
+      "price": 2500,
+      "currency": "UGX",
+      "badge": "Best Value",
+      "short_desc": "48 hours of high-speed guest WiFi access.",
+      "description": "Best value for 2 days of uninterrupted high-speed internet access.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    },
+    {
+      "id": 104,
+      "name": "WiFi Voucher - 7 Days",
+      "slug": "wifi-voucher-7-days",
+      "category": "Digital Products",
+      "price": 6000,
+      "currency": "UGX",
+      "badge": "Weekly",
+      "short_desc": "7 days of high-speed guest WiFi access.",
+      "description": "Perfect for a week-long stay. Get 7 days of unlimited high-speed guest WiFi access.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 6,
+      "desc": "7 days of high-speed guest WiFi access.",
+      "specs": "Perfect for a week-long stay. Get 7 days of unlimited high-speed guest WiFi access.",
+      "details": "Perfect for a week-long stay. Get 7 days of unlimited high-speed guest WiFi access.",
+      "is_hidden": false,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 105,
+      "name": "WiFi Voucher - 30 Days",
+      "slug": "wifi-voucher-30-days",
+      "category": "Digital Products",
+      "price": 25000,
+      "currency": "UGX",
+      "badge": "Monthly",
+      "short_desc": "30 days of high-speed guest WiFi access.",
+      "description": "Enjoy a full month of uninterrupted high-speed internet access on our guest network.",
+      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
+      "stock": 0
+    }
+  ],
+  "partners": [
+    {
+      "id": 1,
+      "name": "Google Cloud",
+      "category": "Premier Cloud Partner",
+      "logoText": "Google Cloud",
+      "website": "https://cloud.google.com"
+    },
+    {
+      "id": 2,
+      "name": "Microsoft",
+      "category": "Gold Cloud Solutions Provider",
+      "logoText": "Microsoft",
+      "website": "https://microsoft.com"
+    },
+    {
+      "id": 3,
+      "name": "RENU Uganda",
+      "category": "Research & Education Network",
+      "logoText": "RENU",
+      "website": "https://renu.ac.ug"
+    },
+    {
+      "id": 4,
+      "name": "Raxio Data Centre",
+      "category": "Tier III Colocation Facility",
+      "logoText": "Raxio Data Centre",
+      "website": "https://raxio.co.ug"
+    },
+    {
+      "id": 6,
+      "name": "MTN Uganda",
+      "category": "Enterprise Telecom & MPLS",
+      "logoText": "MTN Business",
+      "website": "https://mtn.co.ug",
+      "logo_text": ""
+    }
+  ],
+  "news": [
+    {
+      "id": 1,
+      "title": "Nova Cloud Edges Achieves ISO/IEC 27001 Certification",
+      "date": "2026-08-10",
+      "category": "Corporate Security",
+      "summary": "We are proud to announce our official ISO 27001 accreditation, reinforcing our commitment to enterprise data security and cloud compliance.",
+      "image": "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 2,
+      "title": "Expanding High-Speed Data Center Colocation Racks in Uganda",
+      "date": "2026-07-28",
+      "category": "Data Center Infrastructure",
+      "summary": "To support growing enterprise demand, Nova Cloud Edges has launched dedicated Colocation Management services with redundant power and fiber cross-connects.",
+      "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 3,
+      "title": "Zimbra Collaboration Suite: Migration Guide for Enterprise IT",
+      "date": "2026-07-15",
+      "category": "Enterprise Software",
+      "summary": "Our Zimbra Email Experts share best practices for seamlessly migrating thousands of corporate mailboxes with zero downtime.",
+      "image": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
+  "applications": [],
+  "contacts": [],
+  "subscriptions": [
+    {
+      "id": 1788415797099,
+      "plan_name": "Domain Name Registration, Custom Technical Services / Infrastructure Support",
+      "amount": 55000,
+      "currency": "UGX",
+      "duration": "1 Year",
+      "status": "Active",
+      "payment_method": "100% Invoice Settlement",
+      "reference": "NV-SUB-27605",
+      "customer_name": "Child Care Ministry (Manishimwe Nelson)",
+      "customer_email": "nelsonmanishimwe@gmail.com",
+      "customer_phone": "+256 786 833219",
+      "customer_address": "Busamba",
+      "company": "",
+      "start_date": "2026-09-03",
+      "expiry_date": "2027-09-03",
+      "invoice_number": "INV-2026-0046",
+      "created_at": "2026-09-03T06:09:51.541Z"
+    }
+  ],
+  "invoices": [
+    {
+      "id": 1788267276178,
+      "invoice_number": "INV-2026-6368",
+      "customer_name": "James Brian Otunu",
+      "customer_email": "info@ncedges.com",
+      "customer_phone": "0790001631",
+      "customer_address": "Plot 14, Parliament Avenue, Kampala, Uganda",
+      "company": "Legit Hotel",
+      "item_name": "Transport Facilitation (Qty: 1)",
+      "plan_name": "Transport Facilitation (Qty: 1)",
+      "amount": 590000,
+      "paid_amount": 0,
+      "balance": 590000,
+      "status": "Pending",
+      "due_date": "2026-09-01",
+      "duration": "Flat Rate / Direct Purchase",
+      "reference": "NV-SUB-7578",
+      "payment_method": "Direct Shop Order & Tax Invoice",
+      "include_vat": true,
+      "vat_exempt": false,
+      "vat_amount": 90000,
+      "items": [
+        {
+          "name": "Transport Facilitation",
+          "description": "Transport Facilitation",
+          "quantity": 1,
+          "qty": 1,
+          "unit_price": 500000,
+          "price": 500000,
+          "amount": 500000
+        }
+      ],
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-6368",
+      "created_at": "2026-09-01T12:54:36.177Z"
+    },
+    {
+      "id": 1787853997304,
+      "invoice_number": "INV-2026-0046",
+      "customer_name": "Child Care Ministry (Manishimwe Nelson)",
+      "customer_email": "nelsonmanishimwe@gmail.com",
+      "customer_phone": "+256 786 833219",
+      "customer_address": "Busamba",
+      "item_name": "Domain Name Registration, Custom Technical Services / Infrastructure Support",
+      "quantity": 2,
+      "unit_price": 25000,
+      "subtotal": 55000,
+      "discount_type": "percentage",
+      "discount_value": 0,
+      "discount_amount": 0,
+      "net_subtotal": 55000,
+      "amount": 55000,
+      "paid_amount": 55000,
+      "balance": 0,
+      "vat_amount": 0,
+      "vat_exempt": true,
+      "excess_amount": 0,
+      "status": "100% Paid",
+      "due_date": "2026-09-26",
+      "is_recurring": true,
+      "recurring_frequency": "Monthly",
+      "next_billing_date": "2026-10-26",
+      "wifi_voucher_id": "",
+      "wifi_voucher_token": null,
+      "assigned_staff_id": 2,
+      "assigned_staff_name": "Nixon Kamugisha",
+      "assigned_staff_email": "nkamugisha@ncedges.com",
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-0046",
+      "created_at": "2026-08-27T18:06:37.304Z",
+      "items": [
+        {
+          "description": "Domain Name Registration",
+          "name": "Domain Name Registration",
+          "qty": 1,
+          "quantity": 1,
+          "unit_price": 25000,
+          "amount": 25000
+        },
+        {
+          "description": "Custom Technical Services / Infrastructure Support",
+          "name": "Custom Technical Services / Infrastructure Support",
+          "qty": 1,
+          "quantity": 1,
+          "unit_price": 30000,
+          "amount": 30000
+        }
+      ],
+      "demand_notice_sent": true,
+      "demand_notice_date": "2026-08-29T05:43:54.119Z",
+      "reminder_count": 1,
+      "payment_history": [
+        {
+          "id": 18,
+          "payment_id": 18,
+          "amount": 55000,
+          "amount_paid": 55000,
+          "payment_method": "Bank Wire Transfer",
+          "reference": "TXN-BANK-475471",
+          "date": "2026-09-03 09:09:51 AM",
+          "payment_date": "2026-09-03 09:09:51 AM",
+          "created_at_time": "2026-09-03 09:09:51 AM",
+          "recorded_by": "Systems Admin",
+          "running_balance": 0,
+          "percent_paid": 100,
+          "status": "100% Paid",
+          "created_at": "2026-09-03T06:09:51.482Z"
+        }
+      ]
+    },
+    {
+      "id": 1787820063903,
+      "invoice_number": "INV-2026-0045",
+      "customer_name": "Alice Anume School of Nursing & Midwifery (Okello Stephen)",
+      "customer_email": "okellostephenomoding@gmail.com",
+      "customer_phone": "+256 753 930694",
+      "customer_address": "Kumi Road, Pallisa District ",
+      "item_name": "Moodle Upgrade, Transport Facilitation, Capacity Building and Trainings",
+      "quantity": 3,
+      "unit_price": 500000,
+      "subtotal": 750000,
+      "discount_type": "percentage",
+      "discount_value": 0,
+      "discount_amount": 0,
+      "net_subtotal": 750000,
+      "amount": 750000,
+      "paid_amount": 0,
+      "balance": 1500000,
+      "vat_amount": 0,
+      "vat_exempt": true,
+      "excess_amount": 0,
+      "status": "Pending",
+      "due_date": "2026-09-26",
+      "is_recurring": false,
+      "recurring_frequency": null,
+      "next_billing_date": null,
+      "wifi_voucher_id": "",
+      "wifi_voucher_token": null,
+      "assigned_staff_id": 2,
+      "assigned_staff_name": "Nixon Kamugisha",
+      "assigned_staff_email": "nkamugisha@ncedges.com",
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-0045",
+      "created_at": "2026-08-27T08:41:03.903Z",
+      "items": [
+        {
+          "description": "Moodle Upgrade",
+          "name": "Moodle Upgrade",
+          "qty": 1,
+          "quantity": 1,
+          "unit_price": 500000,
+          "amount": 500000
+        },
+        {
+          "description": "Transport Facilitation",
+          "name": "Transport Facilitation",
+          "qty": 1,
+          "quantity": 1,
+          "unit_price": 50000,
+          "amount": 50000
+        },
+        {
+          "description": "Capacity Building and Trainings",
+          "name": "Capacity Building and Trainings",
+          "qty": 1,
+          "quantity": 1,
+          "unit_price": 200000,
+          "amount": 200000
+        }
+      ],
+      "demand_notice_sent": true,
+      "demand_notice_date": "2026-08-29T05:44:44.721Z",
+      "reminder_count": 1
+    }
+  ],
+  "payroll": [],
+  "staff_expenses": [
+    {
+      "id": 2,
+      "staff_id": 1788264028640,
+      "staff_name": "Marius Nshekanabo",
+      "staff_email": "nmarius@ncedges.com",
+      "supervisor_name": "Nixon Kamugisha",
+      "category": "Datacenter Server Hardware & Cabling",
+      "description": "Server Installation",
+      "amount": 450000,
+      "receipt_ref": "EXP-REC-4461",
+      "status": "Approved",
+      "date": "2026-09-03",
+      "attachment_url": "",
+      "attachment_name": "",
+      "created_by": "Systems Admin (Super Admin Authority)",
+      "created_at": "2026-09-03T08:46:10.709Z"
+    },
+    {
+      "id": 1,
+      "staff_id": null,
+      "staff_name": "Marius Nshekanabo",
+      "staff_email": "nmarius@ncedges.com",
+      "supervisor_name": "Dr. Arthur Mukasa (Managing Director)",
+      "category": "Datacenter Server Hardware & Cabling",
+      "description": "Procurement of Server Mounting Rack Accessories & Patch Cables",
+      "amount": 236000,
+      "receipt_ref": "EXP-REC-1720",
+      "status": "Approved",
+      "date": "2026-08-27",
+      "attachment_url": "",
+      "attachment_name": "",
+      "created_by": "Systems Admin (Sales & Invoicing Scope)",
+      "created_at": "2026-08-27T09:23:11.609Z"
+    }
+  ],
+  "staff_invoices": [],
+  "paid_stamp": null,
+  "payments": [
+    {
+      "id": 18,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-0046",
+      "party_name": "Child Care Ministry (Manishimwe Nelson)",
+      "party_email": "nelsonmanishimwe@gmail.com",
+      "amount_due": 55000,
+      "amount_paid": 55000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-475471",
+      "status": "100% Paid",
+      "date": "2026-09-03 09:09:51 AM",
+      "payment_date": "2026-09-03 09:09:51 AM",
+      "created_at_time": "2026-09-03 09:09:51 AM",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-09-03T06:09:51.482Z"
+    },
+    {
+      "id": 18,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-3839",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 590000,
+      "amount_paid": 47000,
+      "excess_amount": 0,
+      "payment_method": "Mobile Money (MTN/Airtel)",
+      "reference": "TXN-BANK-214752",
+      "status": "100% Paid",
+      "date": "2026-08-26 11:24:29 PM",
+      "payment_date": "2026-08-26 11:24:29 PM",
+      "created_at_time": "2026-08-26 11:24:29 PM",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T20:24:29.971Z"
+    },
+    {
+      "id": 17,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-3839",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 590000,
+      "amount_paid": 98000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-214752",
+      "status": "Partial",
+      "date": "2026-08-26 11:23:55 PM",
+      "payment_date": "2026-08-26 11:23:55 PM",
+      "created_at_time": "2026-08-26 11:23:55 PM",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T20:23:55.057Z"
+    },
+    {
+      "id": 16,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-3839",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 590000,
+      "amount_paid": 295000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-214752",
+      "status": "Partial",
+      "date": "2026-08-26 11:23:22 PM",
+      "payment_date": "2026-08-26 11:23:22 PM",
+      "created_at_time": "2026-08-26 11:23:22 PM",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T20:23:22.072Z"
+    },
+    {
+      "id": 15,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-3839",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 590000,
+      "amount_paid": 150000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-214752",
+      "status": "Partial",
+      "date": "2026-08-26 11:22:07 PM",
+      "payment_date": "2026-08-26 11:22:07 PM",
+      "created_at_time": "2026-08-26 11:22:07 PM",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T20:22:07.843Z"
+    },
+    {
+      "id": 14,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-9301",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 4956000,
+      "amount_paid": 4956000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-557649",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:22:03.293Z"
+    },
+    {
+      "id": 13,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-7657",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 47200,
+      "amount_paid": 47200,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-431405",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:21:54.960Z"
+    },
+    {
+      "id": 12,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-9301",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 4956000,
+      "amount_paid": 4956000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-823028",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:17:01.003Z"
+    },
+    {
+      "id": 11,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-7657",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 47200,
+      "amount_paid": 47200,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-961975",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:16:45.221Z"
+    },
+    {
+      "id": 10,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-7657",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 47200,
+      "amount_paid": 47200,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-461836",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:13:51.916Z"
+    },
+    {
+      "id": 9,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-3816",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 566400,
+      "amount_paid": 566400,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-152992",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:11:15.410Z"
+    },
+    {
+      "id": 8,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-2017",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 590000,
+      "amount_paid": 590000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-273776",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:06:31.040Z"
+    },
+    {
+      "id": 7,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-4056",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 9204000,
+      "amount_paid": 9204000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-668355",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T18:05:28.639Z"
+    },
+    {
+      "id": 6,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-8047",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 92040,
+      "amount_paid": 92040,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-440083",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T17:58:17.478Z"
+    },
+    {
+      "id": 5,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-8532",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 99999.95999999999,
+      "amount_paid": 100000,
+      "excess_amount": 0.04000000000814907,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-900159",
+      "status": "100% Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T17:46:37.476Z"
+    },
+    {
+      "id": 4,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-0044",
+      "party_name": "Corporate Client (Deogratis Etenu)",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 681000,
+      "amount_paid": 631000,
+      "excess_amount": 0,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-887949",
+      "status": "Partially Paid",
+      "date": "2026-08-26",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-26T12:27:47.591Z"
+    },
+    {
+      "id": 3,
+      "payment_type": "customer",
+      "invoice_number": "INV-2026-8532",
+      "party_name": "Deogratis Etenu",
+      "party_email": "deogratisetenu@gmail.com",
+      "amount_due": 99999.95999999999,
+      "amount_paid": 100000,
+      "excess_amount": 0.04000000000814907,
+      "payment_method": "Bank Wire Transfer",
+      "reference": "TXN-BANK-588777",
+      "status": "100% Paid",
+      "date": "2026-08-25",
+      "updated_by": "Systems Admin",
+      "created_at": "2026-08-25T20:48:11.453Z"
+    },
+    {
+      "id": 2,
+      "payment_type": "staff",
+      "invoice_number": "STF-INV-2026-001",
+      "party_name": "David Opio",
+      "party_email": "david.opio@ncloud.co.ug",
+      "amount_due": 3325000,
+      "amount_paid": 3325000,
+      "payment_method": "EFT Bank Transfer",
+      "reference": "PAYROLL-EFT-202608",
+      "status": "100% Paid",
+      "date": "2026-08-20",
+      "updated_by": "Peter Ntale (HR Manager)",
+      "created_at": "2026-08-25T08:56:43.539Z"
+    }
+  ],
+  "sliders": [
+    {
+      "id": 1,
+      "title": "Sovereign Cloud Edge Infrastructure",
+      "subtitle": "Ultra-low latency virtual servers and Tier III colocation hosting in Kampala, Uganda.",
+      "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+      "active": true
+    }
+  ],
+  "team": [
+    {
+      "id": 1,
+      "name": "Dr. Arthur Mukasa",
+      "role": "Chief Executive Officer & Founder",
+      "bio": "Over 18 years leading digital infrastructure, cloud migration, and telecom strategies across East Africa.",
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "id": 2,
+      "name": "Florence Akello",
+      "role": "Chief Technology Officer",
+      "bio": "Former lead infrastructure architect specializing in edge computing, Kubernetes orchestration, and Zimbra mail clusters.",
+      "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "id": 3,
+      "name": "David Tumusiime",
+      "role": "Head of Cyber Security & Threat Intelligence",
+      "bio": "CISSP & CEH certified security strategist leading Nova's 24/7 Threat Intelligence Security Operations Center (SOC).",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
+    },
+    {
+      "id": 4,
+      "name": "Grace Nsubuga",
+      "role": "Lead Cloud Operations & Colocation Manager",
+      "bio": "Manages server rack colocation, dual redundant power systems, and client SLA compliance.",
+      "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "title": "Assistant Office Attendant (1)",
+      "slug": "assistant-office-attendant",
+      "department": "Administration & Operations",
+      "location": "Kampala, Uganda",
+      "type": "Full-time",
+      "vacancies": 1,
+      "status": "open",
+      "deadline": "2026-09-30",
+      "description": "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
+      "requirements": [
+        "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management",
+        "Minimum 1-2 years of relevant experience in a corporate or tech office setting",
+        "Strong written and verbal communication skills in English and Luganda",
+        "Punctual, organized, trustworthy, and proactive attitude",
+        "Basic computer literacy (MS Word, Email, Web Browsing)"
+      ],
+      "responsibilities": [
+        "Welcome clients, visitors, and partners at the reception area",
+        "Ensure office cleanliness, orderly meeting rooms, and refreshment management",
+        "Receive and log incoming mail, packages, and office supplies deliveries",
+        "Assist administrative officers with filing, photocopying, and scanning documents",
+        "Run essential external errands for office operations when required"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Cloud Systems & DevOps Engineer",
+      "slug": "cloud-systems-engineer",
+      "department": "Engineering & Cloud Infrastructure",
+      "location": "Kampala, Uganda",
+      "type": "Full-time",
+      "vacancies": 2,
+      "status": "open",
+      "deadline": "2026-10-15",
+      "description": "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
+      "requirements": [
+        "Bachelor's Degree in Computer Science, Software Engineering, or IT",
+        "3+ years experience with Linux administration (Debian/Ubuntu/CentOS), Docker, and KVM/Proxmox",
+        "Hands-on experience with MySQL/MariaDB replication and performance tuning",
+        "Certifications in AWS, CKA, or RHCE are an added advantage"
+      ],
+      "responsibilities": [
+        "Manage cloud virtualization hosts and storage networks",
+        "Implement CI/CD pipelines and automated backup strategies",
+        "Monitor server performance and resolve escalation alerts 24/7"
+      ]
+    }
+  ],
+  "expense_categories": [
+    {
+      "id": 1,
+      "name": "Datacenter Server Hardware & Cabling",
+      "description": "Rack units, patch cords, server blades, and switch accessories"
+    },
+    {
+      "id": 2,
+      "name": "Field Infrastructure & Fiber Splicing",
+      "description": "Fiber transceivers, ODFs, and field deployment logistics"
+    },
+    {
+      "id": 3,
+      "name": "Client Hospitality & Meeting Logistics",
+      "description": "Enterprise client demonstrations and executive meetings"
+    },
+    {
+      "id": 4,
+      "name": "Office Consumables & Admin Supplies",
+      "description": "Office utilities, stationery, and front-desk maintenance"
+    },
+    {
+      "id": 5,
+      "name": "Staff Travel & Transport Logistics",
+      "description": "Emergency on-site field visits and data node transit"
+    },
+    {
+      "id": 6,
+      "name": "Software Licenses & DevOps Utilities",
+      "description": "Cloud hypervisor, container registries, and monitoring software"
+    },
+    {
+      "id": 7,
+      "name": "Marketing & Sales Outreach",
+      "description": "Commercial campaigns, exhibition booths, and print media"
+    }
+  ],
+  "announcement": {
+    "enabled": true,
+    "badge": "NEW NOTICE",
+    "text": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631",
+    "link_text": "View Advisory",
+    "link_url": "/news",
+    "schedule_type": "always",
+    "start_date": "",
+    "end_date": "",
+    "bg_gradient": "linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)"
+  },
+  "customer_credits": [
+    {
+      "id": 1,
+      "customer_name": "Samuel Okello",
+      "customer_email": "samuel@kintu.co.ug",
+      "company": "Kintu Logistics Uganda",
+      "available_credit": 0,
+      "history": []
+    },
+    {
+      "id": 2,
+      "customer_name": "Deogratis Etenu",
+      "customer_email": "deogratisetenu@gmail.com",
+      "available_credit": 0.04000000000814907,
+      "history": [
+        {
+          "date": "2026-08-26",
+          "invoice_number": "INV-2026-8532",
+          "amount": 0.04000000000814907,
+          "type": "credit_accrued"
+        }
+      ]
+    }
+  ],
+  "bank_accounts": [
+    {
+      "id": 3,
+      "bank_name": "MTN Mobile Money Merchant Code",
+      "account_name": "Nova Cloud Edges (U) Limited",
+      "account_number": "674859",
+      "branch": "Merchant Code",
+      "swift_code": "MTN Merchant",
+      "currency": "UGX",
+      "is_primary": false
+    }
+  ],
+  "quotations": [],
+  "work_orders": [
+    {
+      "id": 2,
+      "order_number": "WO-2026-0002",
+      "invoice_number": "INV-2026-0046",
+      "customer_name": "Child Care Ministry (Manishimwe Nelson)",
+      "customer_email": "nelsonmanishimwe@gmail.com",
+      "customer_phone": "+256 786 833219",
+      "task_title": "Service Delivery Execution for Child Care Ministry (Manishimwe Nelson) (INV-2026-0046)",
+      "client_site": "Busamba",
+      "assigned_staff_id": 2,
+      "assigned_staff_name": "Nixon Kamugisha",
+      "assigned_staff_email": "nkamugisha@ncedges.com",
+      "charging_mode": "per_hour",
+      "service_description": "Domain Name Registration, Custom Technical Services / Infrastructure Support",
+      "status": "Assigned",
+      "priority": "High",
+      "due_date": "2026-09-26",
+      "notes": "Work order auto-generated upon customer 100% payment receipt.",
+      "created_at": "2026-09-03T06:09:51.543Z",
+      "rate": 20000,
+      "total_cost": null,
+      "scheduled_date": "2026-09-11"
+    },
+    {
+      "id": 1788264229605,
+      "order_number": "WO-2026-0014",
+      "task_title": "Website and Domain Migration Transfer",
+      "client_site": "https://visitgorillasafaris.com",
+      "assigned_staff_id": 1788264028640,
+      "assigned_staff_name": "Marius Nshekanabo",
+      "charging_mode": "per_day",
+      "rate": 50000,
+      "quantity": 1,
+      "total_cost": 50000,
+      "scheduled_date": "2026-09-05",
+      "completion_date": null,
+      "status": "Scheduled",
+      "description": "Check If emails need to be migrated and Backups for all Databases. Do not delete anything at the source after.",
+      "created_at": "2026-09-01T12:03:49.605Z"
+    }
+  ],
+  "unifi_vouchers": [
+    {
+      "id": 1788251337589,
+      "token": "NOVA-WIFI-8866-6585",
+      "package_name": "Monthly (30 Days)",
+      "duration_hours": 720,
+      "data_limit_mb": 0,
+      "down_speed_mbps": 20,
+      "up_speed_mbps": 10,
+      "status": "active",
+      "customer_name": "Public WiFi Guest",
+      "created_at": "2026-09-01T08:28:57.589Z"
+    }
+  ],
+  "schedules": [
+    {
+      "id": 1,
+      "name": "Overdue Invoices Automated Reminder Engine",
+      "description": "Dispatches automated SMS/Email reminders for pending and overdue client invoices.",
+      "cron_expression": "0 8 * * *",
+      "frequency": "Daily at 08:00 AM EAT",
+      "target": "invoices",
+      "enabled": true,
+      "last_run": "2026-08-24T08:00:00Z",
+      "last_status": "Success (2 Reminders Sent)"
+    },
+    {
+      "id": 2,
+      "name": "Quarterly Customer Financial Statements Generator",
+      "description": "Generates and archives balance sheets and tax clearance receipts per customer.",
+      "cron_expression": "0 0 1 1,4,7,10 *",
+      "frequency": "Every Quarter on 1st",
+      "target": "statements",
+      "enabled": true,
+      "last_run": "2026-07-01T00:00:00Z",
+      "last_status": "Success (42 Statements Generated)"
+    },
+    {
+      "id": 3,
+      "name": "Executive Financial Summary & Audit Digest",
+      "description": "Aggregates P&L, collections, and company spend report delivered to Super Admin.",
+      "cron_expression": "0 7 * * 1",
+      "frequency": "Weekly on Monday at 07:00 AM EAT",
+      "target": "executive_report",
+      "enabled": true,
+      "last_run": "2026-08-24T07:00:00Z",
+      "last_status": "Success (Financial Digest Compiled)"
+    },
+    {
+      "id": 4,
+      "name": "UniFi WiFi Guest Token Expiration Janitor",
+      "description": "Revokes expired UniFi Guest WiFi tokens and synchronizes voucher state.",
+      "cron_expression": "0 */6 * * *",
+      "frequency": "Every 6 Hours",
+      "target": "unifi_janitor",
+      "enabled": true,
+      "last_run": "2026-08-24T18:00:00Z",
+      "last_status": "Success (Cleaned 0 Expired Tokens)"
+    }
+  ],
+  "banner_settings": {
+    "message": "Major Datacenter Expansion: 20 New 1U/2U High-Density Colocation Server Racks now live with 10Gbps Cross-Connects!",
+    "enabled": true,
+    "timing_seconds": 15,
+    "auto_dismiss_hours": 24,
+    "bg_gradient": "linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)",
+    "updated_at": "2026-08-25T08:56:43.539Z"
+  },
+  "roles": [
+    {
+      "id": 1,
+      "name": "Super Administrator",
+      "code": "super_admin",
+      "badge_color": "#8b5cf6",
+      "description": "Complete unrestricted access to all modules, financial ledgers, system forensics, and CRUDAS configuration.",
+      "user_count": 2,
+      "permissions": {
+        "invoices": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "quotations": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "work_orders": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "payments": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "expenses": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "hr": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "unifi": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "schedules": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "forensics": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "reports": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "users": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "roles": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "store": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "subscriptions": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "settings": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Sales Administrator",
+      "code": "sales_admin",
+      "badge_color": "#3b82f6",
+      "description": "Manages customer orders, commercial quotations, tax invoices, client billing, and WiFi voucher distribution.",
+      "user_count": 3,
+      "permissions": {
+        "invoices": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "quotations": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "work_orders": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "payments": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "expenses": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "hr": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "unifi": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "schedules": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "forensics": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "reports": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "users": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "roles": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "store": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "subscriptions": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "settings": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Human Resources Manager",
+      "code": "hr_manager",
+      "badge_color": "#f97316",
+      "description": "Oversees personnel staff roll, payroll payslip disbursement, job applications review, and expense approvals.",
+      "user_count": 2,
+      "permissions": {
+        "invoices": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "quotations": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "work_orders": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": true,
+          "share": true
+        },
+        "payments": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": true,
+          "share": true
+        },
+        "expenses": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": true,
+          "share": true
+        },
+        "hr": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "approve": true,
+          "share": true
+        },
+        "unifi": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "schedules": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "forensics": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "reports": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "users": {
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "roles": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "store": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "subscriptions": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "settings": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Auditor / Compliance Reviewer",
+      "code": "reviewer",
+      "badge_color": "#06b6d4",
+      "description": "Audit & financial compliance inspector with read-only and statement sharing access across ledger logs.",
+      "user_count": 1,
+      "permissions": {
+        "invoices": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "quotations": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "work_orders": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "payments": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "expenses": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "hr": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "unifi": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "schedules": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "forensics": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "reports": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "users": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "roles": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "store": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "subscriptions": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "settings": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "Engineering Staff Specialist",
+      "code": "staff",
+      "badge_color": "#10b981",
+      "description": "Technical infrastructure personnel assigned to on-site work orders and field expense reimbursement claims.",
+      "user_count": 5,
+      "permissions": {
+        "invoices": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "quotations": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "work_orders": {
+          "create": false,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "payments": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "expenses": {
+          "create": true,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "hr": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "unifi": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "schedules": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "forensics": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "reports": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "users": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "roles": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "store": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "subscriptions": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "settings": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "Corporate Client / Customer",
+      "code": "customer",
+      "badge_color": "#6366f1",
+      "description": "Client account holder accessing self-service subscription renewals, downloaded invoices, and quotes.",
+      "user_count": 14,
+      "permissions": {
+        "invoices": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "quotations": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "work_orders": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "payments": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "expenses": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "hr": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "unifi": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "schedules": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "forensics": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "reports": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "users": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "roles": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "store": {
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        },
+        "subscriptions": {
+          "create": false,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "approve": false,
+          "share": true
+        },
+        "settings": {
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false,
+          "approve": false,
+          "share": false
+        }
+      }
+    }
+  ],
+  "audit_logs": [],
+  "smtp_settings": {
+    "host": "webmail.ncedges.com",
+    "port": 465,
+    "security_type": "SSL",
+    "username": "alerts@ncloud.co.ug",
+    "password": "Uganda@12",
+    "sender_name": "Nova Cloud Edges Official Notifications",
+    "sender_email": "alerts@ncloud.co.ug",
+    "is_active": true,
+    "last_tested": "2026-09-01T11:48:52.382Z",
+    "updated_at": "2026-08-25T17:25:14.327Z"
+  },
+  "product_categories": [
+    {
+      "id": 1,
+      "name": "Hosting Services",
+      "description": "Cloud VPS, Dedicated Edge Servers, Web & Email Hosting",
+      "slug": "hosting-services"
+    },
+    {
+      "id": 3,
+      "name": "Hardware & Security",
+      "slug": "hardware-security",
+      "description": "UniFi Access Points, Firewalls, CCTV",
+      "display_order": 3
+    }
+  ]
+}

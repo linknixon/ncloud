@@ -1,3 +1,4 @@
+import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -20,7 +21,7 @@ export default function HomePage({ setActivePage }) {
   const { addToCart } = useApp();
 
   // Hero Data Center Moving Image Slider
-  const sliderImages = [
+  const defaultSliders = [
     {
       url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1400&q=80',
       title: 'Tier III Sovereign Cloud Edge Datacenter',
@@ -43,89 +44,61 @@ export default function HomePage({ setActivePage }) {
     }
   ];
 
+  const [sliderImages, setSliderImages] = useState(defaultSliders);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Automatic slide rotation every 3.8 seconds
   useEffect(() => {
+    if (sliderImages.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide(prev => (prev + 1) % sliderImages.length);
     }, 3800);
     return () => clearInterval(timer);
   }, [sliderImages.length]);
 
-  const nextSlide = () => setCurrentSlide((currentSlide + 1) % sliderImages.length);
-  const prevSlide = () => setCurrentSlide((currentSlide - 1 + sliderImages.length) % sliderImages.length);
+  const nextSlide = () => setCurrentSlide(prev => (prev + 1) % Math.max(1, sliderImages.length));
+  const prevSlide = () => setCurrentSlide(prev => (prev - 1 + sliderImages.length) % Math.max(1, sliderImages.length));
 
   // Dynamic API Data
   const [partners, setPartners] = useState([]);
   const [news, setNews] = useState([]);
   const [isoList, setIsoList] = useState([]);
 
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
   useEffect(() => {
+    fetch('/api/sliders')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const activeOnes = data.filter(s => s.active !== false).map(s => ({
+            url: s.image || s.url,
+            title: s.title,
+            subtitle: s.subtitle
+          }));
+          if (activeOnes.length > 0) {
+            setSliderImages(activeOnes);
+          }
+        }
+      })
+      .catch(() => {});
     fetch('/api/partners').then(res => res.json()).then(data => setPartners(data)).catch(() => {});
     fetch('/api/news').then(res => res.json()).then(data => setNews(data)).catch(() => {});
     fetch('/api/iso').then(res => res.json()).then(data => setIsoList(data)).catch(() => {});
+    fetch('/api/products').then(res => res.json()).then(data => {
+      if (Array.isArray(data)) {
+        // Filter products marked as featured, or use first 4 if none are marked
+        let featured = data.filter(p => p.badge && (p.badge.toLowerCase().includes('feature') || p.badge === 'Best Seller' || p.badge === 'Popular' || p.badge === 'Infrastructure'));
+        if (featured.length === 0) featured = data.slice(0, 4);
+        setFeaturedProducts(featured.slice(0, 4));
+      }
+    }).catch(() => {});
   }, []);
 
-  const featuredProducts = [
-    {
-      id: 1,
-      name: 'Intuit QuickBooks Enterprise Solutions v24.0',
-      price: 3500000.00,
-      currency: 'UGX',
-      badge: 'Best Seller',
-      desc: 'Industry-leading ERP accounting software designed for growing businesses requiring up to 40 concurrent users.',
-      image_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 2,
-      name: 'Zimbra Enterprise Email Package (10 Users)',
-      price: 450000.00,
-      currency: 'UGX',
-      badge: 'Popular',
-      desc: 'Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.',
-      image_url: 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 3,
-      name: 'Data Center Colocation Management & Rack Hosting (1U)',
-      price: 650000.00,
-      currency: 'UGX',
-      badge: 'Infrastructure',
-      desc: 'Secure 1U server colocation hosting in high-security Tier III Data Center with dual power feeds.',
-      image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 4,
-      name: 'Nova Cloud Edge VPS Server (Standard)',
-      price: 280000.00,
-      currency: 'UGX',
-      badge: 'Featured',
-      desc: '4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.',
-      image_url: 'https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 5,
-      name: 'Sophos Next-Gen Firewall Appliance',
-      price: 4200000.00,
-      currency: 'UGX',
-      badge: 'Enterprise',
-      desc: 'Hardware firewall appliance with Xstream Architecture, deep packet inspection, and web filtering.',
-      image_url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: 6,
-      name: 'Managed Security Operations Center (SOC)',
-      price: 1200000.00,
-      currency: 'UGX',
-      badge: 'Managed SOC',
-      desc: '24/7 Threat Intelligence SOC monitoring, endpoint protection, and incident response management.',
-      image_url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=800&q=80'
-    }
-  ];
 
   return (
     <div className="animate-fade-in" style={{ width: '100%' }}>
+      <SEO title="Nova Cloud Uganda | Enterprise ISP" description="Empowering your business with scalable internet and cloud infrastructure." keywords="best internet provider uganda, cloud infrastructure, enterprise connectivity" />
       
       {/* 1. Hero Section with Auto-Moving Data Center Image Slider */}
       <section style={{ position: 'relative', width: '100%', overflow: 'hidden', background: '#050a14', color: '#fff' }}>
@@ -139,18 +112,19 @@ export default function HomePage({ setActivePage }) {
                 inset: 0,
                 opacity: currentSlide === idx ? 1 : 0,
                 transition: 'opacity 0.9s ease-in-out',
-                zIndex: currentSlide === idx ? 1 : 0
+                zIndex: currentSlide === idx ? 1 : 0,
+                pointerEvents: currentSlide === idx ? 'auto' : 'none'
               }}
             >
               <img
                 src={slide.url}
                 alt={slide.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.32)' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.82) contrast(1.05)' }}
               />
               <div className="hero-slide-overlay" style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(to bottom, rgba(5,10,20,0.5) 0%, rgba(5,10,20,0.95) 100%)',
+                background: 'linear-gradient(180deg, rgba(5,10,20,0.2) 0%, rgba(5,10,20,0.45) 50%, rgba(5,10,20,0.82) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -159,11 +133,11 @@ export default function HomePage({ setActivePage }) {
               }}>
                 <div className="container" style={{ maxWidth: '1080px' }}>
                   
-                  <h1 style={{ fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)', color: '#fff', fontWeight: '800', lineHeight: 1.25, marginBottom: '1.25rem', letterSpacing: '-0.01em' }}>
+                  <h1 style={{ fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)', color: '#fff', fontWeight: '800', lineHeight: 1.25, marginBottom: '1.25rem', letterSpacing: '-0.01em', textShadow: '0 2px 12px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)' }}>
                     {slide.title}
                   </h1>
                   
-                  <p style={{ fontSize: '1.15rem', color: '#e2e8f0', marginBottom: '2.25rem', maxWidth: '800px', margin: '0 auto 2.25rem', lineHeight: '1.6' }}>
+                  <p style={{ fontSize: '1.15rem', color: '#f8fafc', marginBottom: '2.25rem', maxWidth: '800px', margin: '0 auto 2.25rem', lineHeight: '1.6', textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
                     {slide.subtitle}
                   </p>
                   
@@ -183,25 +157,72 @@ export default function HomePage({ setActivePage }) {
 
           {/* Slider Arrows */}
           <button
-            onClick={prevSlide}
-            style={{ position: 'absolute', left: '1.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '999px', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.3)' }}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              prevSlide();
+            }}
+            aria-label="Previous Slide"
+            style={{
+              position: 'absolute',
+              left: '1.5rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 25,
+              background: 'rgba(5, 10, 20, 0.75)',
+              color: '#ffffff',
+              borderRadius: '999px',
+              width: '52px',
+              height: '52px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1.5px solid rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+              transition: 'all 0.2s ease'
+            }}
           >
-            <ChevronLeft size={28} />
+            <ChevronLeft size={30} />
           </button>
           <button
-            onClick={nextSlide}
-            style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '999px', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.3)' }}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              nextSlide();
+            }}
+            aria-label="Next Slide"
+            style={{
+              position: 'absolute',
+              right: '1.5rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 25,
+              background: 'rgba(5, 10, 20, 0.75)',
+              color: '#ffffff',
+              borderRadius: '999px',
+              width: '52px',
+              height: '52px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1.5px solid rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+              transition: 'all 0.2s ease'
+            }}
           >
-            <ChevronRight size={28} />
+            <ChevronRight size={30} />
           </button>
 
           {/* Slider Indicators */}
-          <div style={{ position: 'absolute', bottom: '1.75rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', gap: '0.6rem' }}>
+          <div style={{ position: 'absolute', bottom: '1.75rem', left: '50%', transform: 'translateX(-50%)', zIndex: 25, display: 'flex', gap: '0.6rem' }}>
             {sliderImages.map((_, i) => (
               <button
+                type="button"
                 key={i}
                 onClick={() => setCurrentSlide(i)}
-                style={{ width: currentSlide === i ? '32px' : '12px', height: '12px', borderRadius: '999px', background: currentSlide === i ? 'var(--secondary)' : 'rgba(255,255,255,0.45)', transition: 'all 0.3s ease' }}
+                style={{ width: currentSlide === i ? '32px' : '12px', height: '12px', borderRadius: '999px', background: currentSlide === i ? 'var(--secondary)' : 'rgba(255,255,255,0.45)', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }}
               />
             ))}
           </div>
@@ -211,30 +232,28 @@ export default function HomePage({ setActivePage }) {
 
       {/* 2. ISO Standards & Security Compliance Section */}
       <section style={{ padding: '4.5rem 0', background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
-        <div className="container">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2.5rem' }}>
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)', fontWeight: '800', lineHeight: '1.3' }}>ISO Standards & Security Compliance</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '0.5rem', maxWidth: '600px', lineHeight: '1.6' }}>
-                International quality benchmarks for enterprise data security, zero-trust controls, and infrastructure availability.
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1.75rem', flexWrap: 'wrap' }}>
-              {(isoList.length > 0 ? isoList : [
-                { code: 'ISO/IEC 27001:2022', title: 'Information Security Management' },
-                { code: 'ISO 9001:2015', title: 'Quality Management Systems' },
-                { code: 'SOC 2 Type II', title: 'Data Center Security SLA' }
-              ]).map((iso, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-main)', padding: '1.1rem 1.6rem', borderRadius: '14px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                  <Award size={36} color="var(--primary)" />
-                  <div>
-                    <div style={{ fontWeight: '800', fontSize: '1.15rem', color: 'var(--primary)' }}>{iso.code}</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>{iso.title}</div>
-                  </div>
+        <div className="container" style={{ textAlign: 'center' }}>
+          <div style={{ maxWidth: '780px', margin: '0 auto 2.5rem' }}>
+            <h2 style={{ fontSize: 'clamp(1.8rem, 3.2vw, 2.4rem)', fontWeight: '800', lineHeight: '1.3' }}>ISO Standards & Security Compliance</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '0.5rem', lineHeight: '1.6' }}>
+              International quality benchmarks for enterprise data security, zero-trust controls, and infrastructure availability.
+            </p>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '1.75rem', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch' }}>
+            {(isoList.length > 0 ? isoList : [
+              { code: 'ISO/IEC 27001:2022', title: 'Information Security Management' },
+              { code: 'ISO 9001:2015', title: 'Quality Management Systems' },
+              { code: 'SOC 2 Type II', title: 'Data Center Security SLA' }
+            ]).map((iso, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-main)', padding: '1.1rem 1.6rem', borderRadius: '14px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', minWidth: '280px', textAlign: 'left' }}>
+                <Award size={36} color="var(--primary)" style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '1.15rem', color: 'var(--primary)' }}>{iso.code}</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>{iso.title}</div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -275,15 +294,13 @@ export default function HomePage({ setActivePage }) {
       {/* 4. Featured Digital Shop & Colocation Management */}
       <section style={{ padding: '5.5rem 0', background: 'var(--bg-card-hover)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Featured Software & Colocation Racks</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.4rem' }}>
-                Enterprise software solutions, virtual private servers, and datacenter colocation.
-              </p>
-            </div>
-            <button onClick={() => setActivePage('shop')} className="btn-secondary">
-              View Digital Shop <ArrowRight size={20} />
+          <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3.5rem' }}>
+            <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Featured Software & Colocation Racks</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', marginTop: '0.4rem', marginBottom: '1.25rem' }}>
+              Enterprise software solutions, virtual private servers, and datacenter colocation.
+            </p>
+            <button onClick={() => setActivePage('shop')} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}>
+              View Digital Shop <ArrowRight size={18} />
             </button>
           </div>
 
@@ -300,7 +317,7 @@ export default function HomePage({ setActivePage }) {
                   </div>
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '0.6rem', lineHeight: '1.35' }}>{prod.name}</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', flex: 1, marginBottom: '1.75rem', lineHeight: '1.6' }}>
-                    {prod.desc}
+                    {prod.short_desc || prod.description || prod.desc}
                   </p>
                   <button onClick={() => addToCart(prod)} className="btn-primary" style={{ justifyContent: 'center', padding: '0.9rem' }}>
                     <ShoppingBag size={20} /> Add to Cart
@@ -312,7 +329,7 @@ export default function HomePage({ setActivePage }) {
         </div>
       </section>
 
-      {/* 5. Industry Partners Section (Google, Microsoft, RENU, Raxio, Liquid Telecom, MTN Uganda) */}
+      {/* 5. Industry Partners Section */}
       <section style={{ padding: '5.5rem 0', background: 'var(--bg-card)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
@@ -322,19 +339,20 @@ export default function HomePage({ setActivePage }) {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.75rem' }}>
-            {(partners.length > 0 ? partners.slice(0, 5) : [
-              { name: 'Google', category: 'Cloud Partner', logoText: 'Google Cloud' },
-              { name: 'Microsoft', category: 'Gold Reseller', logoText: 'Microsoft' },
-              { name: 'RENU', category: 'Research Network', logoText: 'RENU Uganda' },
-              { name: 'Raxio', category: 'Data Centre Tier III', logoText: 'Raxio' },
-              { name: 'Liquid Intelligent Technologies', category: 'Fiber Transit', logoText: 'Liquid Telecom' }
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.75rem', justifyContent: 'center' }}>
+            {(partners.length > 0 ? partners : [
+              { name: 'Google Cloud', category: 'Premier Cloud Partner' },
+              { name: 'Microsoft', category: 'Gold Cloud Solutions Provider' },
+              { name: 'RENU Uganda', category: 'Research & Education Network' },
+              { name: 'Raxio Data Centre', category: 'Tier III Colocation Facility' },
+              { name: 'Liquid Intelligent Technologies', category: 'Cross-Border Fiber Transit' },
+              { name: 'MTN Business Uganda', category: 'Enterprise Telecom & MPLS' }
             ]).map((p, idx) => (
-              <div key={idx} className="glass-card" style={{ textAlign: 'center', padding: '1.75rem' }}>
+              <div key={p.id || idx} className="glass-card" style={{ textAlign: 'center', padding: '1.75rem', borderRadius: '16px' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(30,58,138,0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
                   <Building size={28} />
                 </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '0.3rem' }}>{p.name}</h3>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.3rem' }}>{p.name}</h3>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>{p.category}</div>
               </div>
             ))}
@@ -342,17 +360,15 @@ export default function HomePage({ setActivePage }) {
         </div>
       </section>
 
-      {/* 6. Latest Feeds & News Postings Section (3 items max with View More option) */}
+      {/* 6. Latest Feeds & News Postings Section */}
       <section style={{ padding: '5.5rem 0', background: 'var(--bg-main)', borderTop: '1px solid var(--border-color)' }}>
         <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div>
-              <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Latest News Postings & Feeds</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.4rem' }}>
-                Technical advisories, enterprise cloud updates, and ISO compliance releases.
-              </p>
-            </div>
-            <button onClick={() => setActivePage('about')} className="btn-secondary">
+          <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3.5rem' }}>
+            <h2 style={{ fontSize: 'clamp(1.45rem, 2.4vw, 1.95rem)', fontWeight: '800', lineHeight: '1.3' }}>Latest News Postings & Feeds</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', marginTop: '0.4rem', marginBottom: '1.25rem' }}>
+              Technical advisories, enterprise cloud updates, and ISO compliance releases.
+            </p>
+            <button onClick={() => setActivePage('about')} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}>
               View More News <ArrowRight size={18} />
             </button>
           </div>

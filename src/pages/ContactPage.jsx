@@ -1,5 +1,7 @@
+import SEO from "../components/SEO";
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle2 } from 'lucide-react';
 
 export default function ContactPage() {
@@ -14,6 +16,8 @@ export default function ContactPage() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const { clearDraft } = useAutoSaveDraft('contact_form', formData, setFormData);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,6 +35,7 @@ export default function ContactPage() {
 
       setSubmitted(true);
       showToast('Thank you! Your message has been sent to Nova Cloud Edges.', 'success');
+      clearDraft();
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (err) {
       showToast(err.message, 'error');
@@ -41,6 +46,7 @@ export default function ContactPage() {
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="Contact Us | Nova Cloud" description="Get in touch with Nova Cloud for dedicated support and inquiries." keywords="contact Nova Cloud, ISP support Kampala, IT consulting email" />
       <div className="container">
         
         {/* Header */}

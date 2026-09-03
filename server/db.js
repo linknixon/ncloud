@@ -29,13 +29,24 @@ export const pool = mysql.createPool({
   queueLimit: 0
 });
 
+let isMysqlOffline = false;
+
 // Helper wrapper for DB queries with graceful fallback if MySQL server is not running locally
 export async function query(sql, params = []) {
+  if (isMysqlOffline) {
+    return { success: false, error: 'MySQL known offline', isFallback: true };
+  }
+
   try {
     const [rows] = await pool.execute(sql, params);
     return { success: true, data: rows, isFallback: false };
   } catch (error) {
     console.warn(`[MySQL Note] Local MySQL offline or query error (${error.code}). Serving structured memory provider.`);
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      isMysqlOffline = true;
+      // Optionally reset the flag after a minute to check if it comes back up
+      setTimeout(() => { isMysqlOffline = false; }, 60000);
+    }
     return { success: false, error: error.message, isFallback: true };
   }
 }

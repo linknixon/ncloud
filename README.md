@@ -1,4 +1,4 @@
-# 🌐 Nova Cloud Edges (U) Limited Web Application
+# Nova Cloud Edges (U) Limited Web Application
 
 Official web application for **Nova Cloud Edges (U) Limited** — Uganda's premier provider of cloud infrastructure, edge server hosting, Intuit QuickBooks ERP, Zimbra Email server management, and cybersecurity defense.
 
@@ -6,13 +6,13 @@ Repository: `git@github.com:linknixon/ncloud.git`
 
 ---
 
-## 🚀 Key Features & Highlights
+## Key Features & Highlights
 
 - **Dynamic Digital Shop**: Enterprise software licenses and cloud hosting packages (`QuickBooks Enterprise`, `Zimbra Email Experts`, `Colocation 1U Rack Space`, `Edge VPS`, `Sophos Firewalls`).
 - **Subscription Renewal Portal**:
   - Multi-package checkbox selection for renewing multiple services simultaneously.
   - Flexible billing cycles (`6 Months`, `1 Year`, `2 Years`).
-  - Optional **18% Value Added Tax (VAT)** calculation for official EFRIS-compliant tax invoices.
+  - Optional **18% Value Added Tax (VAT)** calculation for official tax invoices.
 - **Careers & Job Application Modal**: Vacancies portal with multi-document upload support (CV, Cover Letter, Academic Certificates).
 - **Core Services Catalog**: 10-item pagination, search filtering, quote request form, and direct software ordering.
 - **System Maintenance Banner**: Top alert banner with `New!!` feature badge for scheduled cloud infrastructure updates.
@@ -21,7 +21,7 @@ Repository: `git@github.com:linknixon/ncloud.git`
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Frontend**: React 18, Vite 8, Vanilla CSS (Design Tokens & Glassmorphism), Lucide Icons, Google Sans Typography.
 - **Backend**: Node.js, Express.js REST API.
@@ -30,7 +30,7 @@ Repository: `git@github.com:linknixon/ncloud.git`
 
 ---
 
-## 📋 Prerequisites
+## Prerequisites
 
 Make sure you have the following installed on your server:
 
@@ -42,7 +42,7 @@ Make sure you have the following installed on your server:
 
 ---
 
-## 💻 Local Development Setup
+## Local Development Setup
 
 1. **Clone the Repository**:
    ```bash
@@ -82,7 +82,7 @@ Make sure you have the following installed on your server:
 
 ---
 
-## 🏗️ Production Build & Hosting Guide
+## Production Build & Hosting Guide
 
 ### Method 1: Nginx + PM2 Node Server (Recommended for Linux/Ubuntu VPS)
 
@@ -173,7 +173,7 @@ sudo systemctl start nova-cloud
 
 ---
 
-## 📞 Support & Contacts
+## Support & Contacts
 
 - **Email**: `support@ncloud.co.ug`
 - **Phone**: `0790001631`

@@ -1,17 +1,74 @@
+import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Award, Server, Users, CheckCircle2, Lock, Cpu, Globe, ArrowRight } from 'lucide-react';
 
+const defaultTeam = [
+  {
+    name: "Dr. Arthur Mukasa",
+    role: "Chief Executive Officer & Founder",
+    bio: "Over 18 years leading digital infrastructure, cloud migration, and telecom strategies across East Africa.",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80"
+  },
+  {
+    name: "Florence Akello",
+    role: "Chief Technology Officer",
+    bio: "Former lead infrastructure architect specializing in edge computing, Kubernetes orchestration, and Zimbra mail clusters.",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+  },
+  {
+    name: "David Tumusiime",
+    role: "Head of Cyber Security & Threat Intelligence",
+    bio: "CISSP & CEH certified security strategist leading Nova's 24/7 Threat Intelligence Security Operations Center (SOC).",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80"
+  },
+  {
+    name: "Grace Nsubuga",
+    role: "Lead Cloud Operations & Colocation Manager",
+    bio: "Manages server rack colocation, dual redundant power systems, and client SLA compliance.",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80"
+  }
+];
+
+const defaultIso = [
+  {
+    code: "ISO/IEC 27001:2022",
+    title: "Information Security Management",
+    desc: "Certified zero-trust security controls, data encryption, and risk management standards."
+  },
+  {
+    code: "ISO 9001:2015",
+    title: "Quality Management Systems",
+    desc: "International benchmark for service reliability, customer satisfaction, and operational rigor."
+  },
+  {
+    code: "SOC 2 Type II",
+    title: "Data Center Security & Availability",
+    desc: "Independent audit verification of system confidentiality, integrity, and hosting availability."
+  }
+];
+
 export default function AboutPage({ setActivePage }) {
-  const [team, setTeam] = useState([]);
-  const [isoStandards, setIsoStandards] = useState([]);
+  const [team, setTeam] = useState(defaultTeam);
+  const [isoStandards, setIsoStandards] = useState(defaultIso);
 
   useEffect(() => {
-    fetch('/api/team').then(res => res.json()).then(data => setTeam(data)).catch(() => {});
-    fetch('/api/iso').then(res => res.json()).then(data => setIsoStandards(data)).catch(() => {});
+    fetch('/api/team')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setTeam(data);
+      })
+      .catch(() => {});
+    fetch('/api/iso')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setIsoStandards(data);
+      })
+      .catch(() => {});
   }, []);
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="About Us | Nova Cloud" description="Learn more about Nova Cloud, our mission, and our team." keywords="Nova Cloud team, ISP company profile, mission vision" />
       <div className="container">
         
         {/* Page Header */}

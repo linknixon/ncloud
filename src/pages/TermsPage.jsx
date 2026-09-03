@@ -1,9 +1,11 @@
+import SEO from "../components/SEO";
 import React from 'react';
 import { ShieldCheck, FileText, CheckCircle2, Clock, Lock, Server, Mail } from 'lucide-react';
 
 export default function TermsPage({ setActivePage }) {
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="Terms of Service | Nova Cloud" description="Read our terms of service and acceptable use policies." keywords="service terms, ISP agreement, terms of use" />
       <div className="container" style={{ maxWidth: '1000px' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>

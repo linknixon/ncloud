@@ -1,9 +1,11 @@
+import SEO from "../components/SEO";
 import React from 'react';
 import { Shield, Lock, Eye, FileText, CheckCircle2, Server, Database, Key, ServerOff, Cpu, RefreshCw, AlertTriangle, Layers, Building, Globe } from 'lucide-react';
 
 export default function PrivacyPage({ setActivePage }) {
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+      <SEO title="Privacy Policy | Nova Cloud" description="Understand how we protect your data and privacy." keywords="data protection, privacy policy, GDPR" />
       <div className="container" style={{ maxWidth: '1020px' }}>
         
         {/* Document Header */}
@@ -81,7 +83,7 @@ export default function PrivacyPage({ setActivePage }) {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div style={{ background: 'var(--bg-main)', padding: '1rem 1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
-                <strong>A. Subscriber Account & Billing Information:</strong> Full name, authorized representative details, corporate email (`support@ncloud.co.ug`), phone number (`0790001631`), billing address, subscription duration, and URA EFRIS tax invoice receipts.
+                <strong>A. Subscriber Account & Billing Information:</strong> Full name, authorized representative details, corporate email (`support@ncloud.co.ug`), phone number (`0790001631`), billing address, subscription duration, and official tax invoice receipts.
               </div>
               <div style={{ background: 'var(--bg-main)', padding: '1rem 1.25rem', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
                 <strong>B. Recruitment Candidate Data:</strong> Applicant name, contact number, employment history, and attached documentation (CV, cover statement, certificates, testimonials) submitted via our Careers portal.
