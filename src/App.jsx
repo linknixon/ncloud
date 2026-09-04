@@ -20,7 +20,6 @@ import TermsPage from './pages/TermsPage';
 import AboutPage from './pages/AboutPage';
 import NewsPage from './pages/NewsPage';
 import PrivacyPage from './pages/PrivacyPage';
-import BrandPage from './pages/BrandPage';
 import VerifyDocumentPage from './pages/VerifyDocumentPage';
 
 import ShopCheckoutModal from './components/ShopCheckoutModal';
@@ -48,7 +47,6 @@ export default function App() {
         '/contact': 'contact',
         '/about': 'about',
         '/news': 'news',
-        '/brand': 'brand',
         '/terms': 'terms',
         '/privacy': 'privacy',
         '/subscription': 'subscription',
@@ -99,7 +97,6 @@ export default function App() {
             '/contact': 'contact',
             '/about': 'about',
             '/news': 'news',
-            '/brand': 'brand',
             '/terms': 'terms',
             '/privacy': 'privacy',
             '/subscription': 'subscription',
@@ -138,8 +135,6 @@ export default function App() {
         return <AboutPage setActivePage={setActivePage} />;
       case 'news':
         return <NewsPage />;
-      case 'brand':
-        return <BrandPage setActivePage={setActivePage} />;
       case 'terms':
         return <TermsPage setActivePage={setActivePage} />;
       case 'privacy':

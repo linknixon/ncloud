@@ -1414,14 +1414,39 @@ app.get('/api/products', async (req, res) => {
   });
 
   const rawProducts = combinedMap.size > 0 ? Array.from(combinedMap.values()) : memoryProds;
-  const normalizedProducts = rawProducts.map(p => ({
-    ...p,
-    short_desc: p.short_desc || p.desc || '',
-    desc: p.short_desc || p.desc || '',
-    description: p.description || p.specs || p.details || '',
-    specs: p.description || p.specs || p.details || '',
-    details: p.description || p.specs || p.details || ''
-  }));
+  const availableVouchers = (memoryStore.unifi_vouchers || []).filter(v => v.status === 'available');
+
+  const normalizedProducts = rawProducts.map(p => {
+    let stock = p.stock !== undefined ? p.stock : 10;
+    const isWifiVoucher = (p.category === 'WiFi Vouchers' || p.category === 'Digital Products') &&
+      ((p.name || '').toLowerCase().includes('wifi voucher') || (p.slug || '').includes('wifi-voucher'));
+
+    if (isWifiVoucher) {
+      const durationMatch = (p.name || '').match(/(\d+)\s*(hour|day|week|month)/i);
+      if (durationMatch) {
+        const num = parseInt(durationMatch[1]);
+        const unit = durationMatch[2].toLowerCase();
+        const durationHours = unit.startsWith('hour') ? num
+          : unit.startsWith('day') ? num * 24
+          : unit.startsWith('week') ? num * 168
+          : num * 720;
+
+        stock = availableVouchers.filter(v => v.duration_hours === durationHours).length;
+      } else {
+        stock = availableVouchers.length;
+      }
+    }
+
+    return {
+      ...p,
+      stock,
+      short_desc: p.short_desc || p.desc || '',
+      desc: p.short_desc || p.desc || '',
+      description: p.description || p.specs || p.details || '',
+      specs: p.description || p.specs || p.details || '',
+      details: p.description || p.specs || p.details || ''
+    };
+  });
   res.json(normalizedProducts);
 });
 

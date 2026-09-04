@@ -1,7 +1,7 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShoppingBag, Search, ChevronLeft, ChevronRight, Info, X, CheckCircle } from 'lucide-react';
+import { ShoppingBag, Search, ChevronLeft, ChevronRight, Info, X, CheckCircle, Wifi, Zap } from 'lucide-react';
 
 export default function ShopPage({ setActivePage }) {
   const { addToCart, openDirectCheckout, openSubscriptionCheckout } = useApp();
@@ -15,8 +15,16 @@ export default function ShopPage({ setActivePage }) {
 
   const itemsPerPage = 9;
 
+  const isWifiVoucherItem = (prod) => {
+    if (!prod) return false;
+    const cat = (prod.category || '').toLowerCase();
+    const name = (prod.name || '').toLowerCase();
+    return cat.includes('voucher') || cat.includes('wifi') || name.includes('voucher') || name.includes('wifi voucher');
+  };
+
   const isHostingCategoryItem = (prod) => {
     if (!prod) return false;
+    if (isWifiVoucherItem(prod)) return false;
     if (prod.checkout_type === 'hosting' || prod.checkout_flow === 'hosting') return true;
     if (prod.checkout_type === 'shop' || prod.checkout_flow === 'shop') return false;
 
@@ -25,6 +33,20 @@ export default function ShopPage({ setActivePage }) {
     const badgeStr = (prod.badge || '').toLowerCase();
     const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription'];
     return keywords.some(kw => categoryStr.includes(kw) || nameStr.includes(kw) || badgeStr.includes(kw));
+  };
+
+  const getPriceSuffix = (prod) => {
+    if (!prod) return '';
+    if (isWifiVoucherItem(prod)) return '/ pass';
+    if (isHostingCategoryItem(prod)) return '/ mo';
+    return '';
+  };
+
+  const getPriceLabel = (prod) => {
+    if (!prod) return 'Price:';
+    if (isWifiVoucherItem(prod)) return 'Pass Price:';
+    if (isHostingCategoryItem(prod)) return 'Monthly Subscription:';
+    return 'Price:';
   };
 
   const handleBuyNow = (prod, qty = 1) => {
@@ -70,11 +92,18 @@ export default function ShopPage({ setActivePage }) {
     setCurrentPage(1);
   }, [category, searchTerm]);
 
-  // Public category tabs dynamically aggregated from Admin created categories & existing product categories
-  const categories = ['All', ...Array.from(new Set([
+  // Public category tabs dynamically aggregated and prioritized
+  const rawCategories = Array.from(new Set([
     ...dbCategories.filter(c => !c.is_hidden && !c.hidden).map(c => c.name),
     ...products.map(p => p.category)
-  ].filter(Boolean)))];
+  ].filter(Boolean)));
+
+  const priorityTabs = ['WiFi Vouchers', 'Hosting Services', 'Hardware & Security'];
+  const categories = [
+    'All',
+    ...priorityTabs.filter(cat => rawCategories.includes(cat)),
+    ...rawCategories.filter(cat => !priorityTabs.includes(cat)).sort()
+  ];
 
   const filteredProducts = products.filter(prod => {
     if (prod.is_hidden || prod.hidden) return false;
@@ -205,10 +234,29 @@ export default function ShopPage({ setActivePage }) {
 
                       <h3
                         onClick={() => setSelectedProductModal(prod)}
-                        style={{ fontSize: '1.15rem', marginBottom: '0.65rem', lineHeight: '1.3', fontWeight: '800', cursor: 'pointer' }}
+                        style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: '1.3', fontWeight: '800', cursor: 'pointer' }}
                       >
                         {prod.name}
                       </h3>
+
+                      {isWifiVoucherItem(prod) && (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          background: 'rgba(99, 102, 241, 0.08)',
+                          border: '1px solid rgba(99, 102, 241, 0.25)',
+                          borderRadius: '8px',
+                          padding: '0.35rem 0.6rem',
+                          marginBottom: '0.65rem',
+                          fontSize: '0.75rem',
+                          color: 'var(--primary)',
+                          fontWeight: '700'
+                        }}>
+                          <Wifi size={13} />
+                          <span>Instant Pass Token &bull; 1 Device &bull; High Speed</span>
+                        </div>
+                      )}
 
                       {/* Prominent Short Description Section */}
                       <div style={{ marginBottom: '0.65rem' }}>
@@ -262,9 +310,9 @@ export default function ShopPage({ setActivePage }) {
                         alignItems: 'baseline',
                         justifyContent: 'space-between'
                       }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Price:</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{getPriceLabel(prod)}</span>
                         <span style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--primary)' }}>
-                          {prod.currency || 'UGX'} {Number(prod.price).toLocaleString()} <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>/ mo</span>
+                          {prod.currency || 'UGX'} {Number(prod.price).toLocaleString()} {getPriceSuffix(prod) && <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>{getPriceSuffix(prod)}</span>}
                         </span>
                       </div>
 
@@ -435,9 +483,9 @@ export default function ShopPage({ setActivePage }) {
               {/* Pricing & Add to Cart Footer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Subscription Price:</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>{getPriceLabel(selectedProductModal)}</div>
                   <div style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--primary)' }}>
-                    {selectedProductModal.currency || 'UGX'} {Number(selectedProductModal.price).toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>/ mo</span>
+                    {selectedProductModal.currency || 'UGX'} {Number(selectedProductModal.price).toLocaleString()} {getPriceSuffix(selectedProductModal) && <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{getPriceSuffix(selectedProductModal)}</span>}
                   </div>
                 </div>
 
