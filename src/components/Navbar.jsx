@@ -396,6 +396,7 @@ export default function Navbar({ activePage, setActivePage }) {
           {/* Logged-In Circular Profile Box with Hover Selection Dropdown */}
           {user ? (
             <div 
+              className="desktop-auth"
               style={{ position: 'relative' }}
               onMouseEnter={handleProfileMouseEnter}
               onMouseLeave={handleProfileMouseLeave}
@@ -659,6 +660,7 @@ export default function Navbar({ activePage, setActivePage }) {
             </div>
           ) : (
             <button
+              className="desktop-auth"
               onClick={() => openAuthModal('login')}
               style={{
                 background: 'var(--primary)',
