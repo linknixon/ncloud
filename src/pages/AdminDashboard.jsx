@@ -677,13 +677,17 @@ const normalizeTabName = (rawTab) => {
   const [announcementForm, setAnnouncementForm] = useState({
     enabled: true,
     badge: 'NEW NOTICE',
+    badge_text: 'NEW NOTICE',
     text: 'Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631',
     link_text: 'View Advisory',
+    btn_text: 'View Advisory',
     link_url: '/news',
+    link: '/news',
     schedule_type: 'always',
     start_date: '',
     end_date: '',
-    bg_gradient: 'linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)'
+    bg_gradient: 'linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)',
+    theme: 'rose'
   });
 
   // Reports & Financial Analytics State
