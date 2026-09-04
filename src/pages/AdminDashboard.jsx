@@ -3120,14 +3120,7 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
-  // Define role access flags
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'admin';
-  const canDeleteSystemRecords = ['super_admin', 'admin', 'web_admin', 'sales_admin', 'hr_manager', 'superadmin'].includes(currentRole);
-  const isSalesAdmin = isSuperAdmin || currentRole === 'sales_admin';
-  const isWebAdmin = isSuperAdmin || currentRole === 'web_admin';
-  const isHrManager = isSuperAdmin || currentRole === 'hr_manager';
-  const isStaff = isHrManager || currentRole === 'staff';
-  const isCustomer = currentRole === 'customer';
+
 
   // Nova Cloud Portal Management Modules Definition (16 modules)
   const allModulesList = [
