@@ -2053,37 +2053,33 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
-  const handleFetchSmtpSettings = async () => {
+  async function handleFetchSmtpSettings() {
     try {
       const res = await fetch('/api/admin/smtp-settings');
-      const data = await res.json();
-      if (data && data.host) {
+      if (res.ok) {
+        const data = await res.json();
         setSmtpSettings(prev => ({ ...prev, ...data }));
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    } catch (err) {}
+  }
 
-  const handleFetchNotificationEmails = async () => {
+  async function handleFetchNotificationEmails() {
     try {
       const res = await fetch('/api/admin/notification-emails');
-      const data = await res.json();
-      if (data && data.billing) {
+      if (res.ok) {
+        const data = await res.json();
         setNotificationEmails(data);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    } catch (err) {}
+  }
 
-  const handleFetchSecuritySettings = async () => {
+  async function handleFetchSecuritySettings() {
     try {
       const res = await fetch('/api/admin/security-settings', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-      const data = await res.json();
-      if (data) {
+      if (res.ok) {
+        const data = await res.json();
         setSecuritySettings(prev => ({ ...prev, ...data }));
       }
     } catch (e) {
