@@ -231,6 +231,33 @@ const authenticatedFetch = async (url, options = {}) => {
 
 const fetch = authenticatedFetch;
 
+class SettingsErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('Crash caught by SettingsErrorBoundary:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', background: '#fee2e2', color: '#991b1b', borderRadius: '12px', margin: '1rem' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Settings Tab Crashed!</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', marginTop: '1rem', fontSize: '0.85rem' }}>
+            {this.state.error?.toString()}
+          </pre>
+          <p style={{ marginTop: '1rem' }}>Please share this error message with the developer.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function AdminDashboard({ setActivePage }) {
   const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon } = useApp();
   const [logoInput, setLogoInput] = useState(siteLogo || '');
@@ -9501,6 +9528,7 @@ const normalizeTabName = (rawTab) => {
 
             {/* BRAND SETTINGS MODULE */}
             {activeTab === 'settings' && (
+              <SettingsErrorBoundary>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <div>
@@ -10272,7 +10300,7 @@ const normalizeTabName = (rawTab) => {
                                   <div>
                                     <span style={{ fontWeight: '700', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Troubleshooting Guidance:</span>
                                     <ul style={{ margin: '0.3rem 0 0 1.2rem', padding: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                      {smtpDiagnosticResult.recommendations.map((rec, idx) => (
+                                      {smtpDiagnosticResult.recommendations?.map((rec, idx) => (
                                         <li key={idx} style={{ marginBottom: '2px' }}>{rec}</li>
                                       ))}
                                     </ul>
@@ -10365,6 +10393,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
                 </div>
               </div>
+              </SettingsErrorBoundary>
             )}
 
             {/* HR & PAYROLL MODULE */}
