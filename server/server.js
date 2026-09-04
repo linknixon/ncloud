@@ -3902,10 +3902,13 @@ app.get('/api/admin/unifi/vouchers', (req, res) => {
   res.json(memoryStore.unifi_vouchers || []);
 });
 
-// POST generate new vouchers (admin only)
+// POST register new UniFi vouchers copied manually from UniFi controller (admin only)
 app.post('/api/admin/unifi/generate', (req, res) => {
   const {
-    count = 1,
+    voucher_codes,
+    voucher_code,
+    voucher_token,
+    token,
     duration_hours = 24,
     duration_label,
     data_quota_mb = 0,
@@ -3917,8 +3920,18 @@ app.post('/api/admin/unifi/generate', (req, res) => {
 
   if (!memoryStore.unifi_vouchers) memoryStore.unifi_vouchers = [];
 
-  const numCount = Math.min(50, Math.max(1, parseInt(count) || 1));
-  const generatedTokens = [];
+  const rawInput = voucher_codes || voucher_code || voucher_token || token || '';
+  const lines = (typeof rawInput === 'string'
+    ? rawInput.split(/[\r\n,]+/)
+    : Array.isArray(rawInput) ? rawInput : []
+  ).map(s => String(s).trim()).filter(Boolean);
+
+  if (lines.length === 0) {
+    return res.status(400).json({ error: 'Please enter or paste at least one voucher code copied from your UniFi controller.' });
+  }
+
+  const registeredTokens = [];
+  const duplicates = [];
 
   const resolvedLabel = duration_label || (() => {
     const h = Number(duration_hours);
@@ -3940,15 +3953,17 @@ app.post('/api/admin/unifi/generate', (req, res) => {
   const resolvedPackageName = package_name ||
     ('Nova WiFi — ' + resolvedLabel + ' (' + dataLabel + ' Data)');
 
-  for (let i = 0; i < numCount; i++) {
-    const seg1 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const seg2 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const seg3 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const token = 'NOVA-' + seg1 + '-' + seg2 + '-' + seg3;
+  lines.forEach((code, idx) => {
+    const cleanToken = code.trim();
+    const exists = memoryStore.unifi_vouchers.some(v => v.token.toLowerCase() === cleanToken.toLowerCase());
+    if (exists) {
+      duplicates.push(cleanToken);
+      return;
+    }
 
     const newVoucher = {
-      id: Date.now() + i,
-      token,
+      id: Date.now() + idx,
+      token: cleanToken,
       package_name: resolvedPackageName,
       duration_hours: Number(duration_hours),
       duration_label: resolvedLabel,
@@ -3963,13 +3978,22 @@ app.post('/api/admin/unifi/generate', (req, res) => {
     };
 
     memoryStore.unifi_vouchers.unshift(newVoucher);
-    generatedTokens.push(newVoucher);
+    registeredTokens.push(newVoucher);
+  });
+
+  if (registeredTokens.length === 0 && duplicates.length > 0) {
+    return res.status(400).json({ error: `The voucher code(s) already exist in the system: ${duplicates.join(', ')}` });
   }
 
   savePersistentStore();
+  let message = `Successfully registered ${registeredTokens.length} UniFi voucher${registeredTokens.length > 1 ? 's' : ''}!`;
+  if (duplicates.length > 0) {
+    message += ` (${duplicates.length} duplicate(s) skipped)`;
+  }
+
   res.json({
-    message: 'Successfully generated ' + numCount + ' WiFi voucher' + (numCount > 1 ? 's' : '') + '!',
-    vouchers: generatedTokens
+    message,
+    vouchers: registeredTokens
   });
 });
 

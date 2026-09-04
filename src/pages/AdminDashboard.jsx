@@ -452,9 +452,9 @@ const normalizeTabName = (rawTab) => {
   const [unifiVouchersList, setUnifiVouchersList] = useState([]);
   const [showUnifiModal, setShowUnifiModal] = useState(false);
   const [unifiForm, setUnifiForm] = useState({
-    count: 1,
+    voucher_codes: '',
     duration_hours: 24,
-    duration_label: '',
+    duration_label: '24 Hours',
     data_quota_mb: 0,
     package_name: '',
     customer_name: '',
@@ -2515,7 +2515,7 @@ const normalizeTabName = (rawTab) => {
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message, 'success');
       setShowUnifiModal(false);
-      setUnifiForm({ count: 1, duration_hours: 24, duration_label: '', data_quota_mb: 0, package_name: '', customer_name: '', customer_email: '' });
+      setUnifiForm({ voucher_codes: '', duration_hours: 24, duration_label: '24 Hours', data_quota_mb: 0, package_name: '', customer_name: '', customer_email: '' });
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message, 'error');
@@ -8578,9 +8578,9 @@ const normalizeTabName = (rawTab) => {
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>WiFi Guest Voucher Management</h3>
+                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>UniFi WiFi Guest Voucher Pool</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        Internal voucher pool — generate tokens, manage availability, and auto-dispatch on invoice payment.
+                        Register voucher tokens copied from UniFi Controller. Vouchers are securely stored and auto-dispatched to customers upon payment.
                       </p>
                     </div>
                     {isSuperAdmin && (
@@ -8589,7 +8589,7 @@ const normalizeTabName = (rawTab) => {
                         className="btn-primary"
                         style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
                       >
-                        <Plus size={16} /> Generate WiFi Vouchers
+                        <Plus size={16} /> Register UniFi Vouchers
                       </button>
                     )}
                   </div>
@@ -13350,16 +13350,33 @@ const normalizeTabName = (rawTab) => {
           <div className="modal-overlay" onClick={() => setShowUnifiModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
               <h3 style={{ fontSize: '1.35rem', marginBottom: '0.35rem', fontWeight: '800', color: '#0284c7' }}>
-                Generate WiFi Guest Vouchers
+                Register UniFi WiFi Vouchers
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                Create new vouchers for the internal pool. Vouchers are dispatched automatically when a WiFi invoice is fully paid.
+                Copy voucher code(s) generated in your UniFi Controller and paste them here. The system stores them in your pool and automatically dispatches them to customers upon invoice payment.
               </p>
               <form onSubmit={handleGenerateUnifiVouchers}>
 
+                {/* UniFi Voucher Code(s) Paste Field */}
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Voucher Code(s) *</label>
+                  <textarea
+                    rows={4}
+                    className="form-input"
+                    style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.5' }}
+                    placeholder={"Paste voucher code(s) from UniFi Controller:\ne.g. 54321-98765\n(Paste one code, or multiple codes one per line)"}
+                    value={unifiForm.voucher_codes}
+                    onChange={e => setUnifiForm({ ...unifiForm, voucher_codes: e.target.value })}
+                    required
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                    Copy voucher tokens directly from UniFi Controller and paste them here. Separate multiple codes with newlines or commas.
+                  </small>
+                </div>
+
                 {/* Quick Preset Buttons */}
                 <div className="form-group">
-                  <label>Quick Duration Preset</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Quick Duration Preset</label>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {[
                       { label: '8 Hours', hours: 8 },
@@ -13387,34 +13404,20 @@ const normalizeTabName = (rawTab) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label>Number of Vouchers *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="50"
-                      className="form-input"
-                      value={unifiForm.count}
-                      onChange={e => setUnifiForm({ ...unifiForm, count: Math.max(1, parseInt(e.target.value) || 1) })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Duration (Hours) *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="form-input"
-                      value={unifiForm.duration_hours}
-                      onChange={e => setUnifiForm({ ...unifiForm, duration_hours: Number(e.target.value), duration_label: '' })}
-                      required
-                    />
-                  </div>
+                <div className="form-group">
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Duration (Hours) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={unifiForm.duration_hours}
+                    onChange={e => setUnifiForm({ ...unifiForm, duration_hours: Number(e.target.value), duration_label: '' })}
+                    required
+                  />
                 </div>
 
                 <div className="form-group">
-                  <label>Data Quota Limit (MB) — leave 0 for Unlimited</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Data Quota Limit (MB) — leave 0 for Unlimited</label>
                   <input
                     type="number"
                     min="0"
@@ -13431,7 +13434,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div className="form-group">
-                  <label>Custom Package Name (optional)</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Custom Package Name (optional)</label>
                   <input
                     type="text"
                     className="form-input"
@@ -13443,7 +13446,7 @@ const normalizeTabName = (rawTab) => {
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
                   <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#0284c7' }}>
-                    <Plus size={16} /> Generate {unifiForm.count > 1 ? `${unifiForm.count} Vouchers` : 'Voucher'}
+                    <Plus size={16} /> Save UniFi Voucher(s)
                   </button>
                   <button type="button" onClick={() => setShowUnifiModal(false)} className="btn-secondary">
                     Cancel
