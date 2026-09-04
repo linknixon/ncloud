@@ -1,7 +1,7 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShoppingBag, Search, ChevronLeft, ChevronRight, Info, X, CheckCircle, Wifi, Zap } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Info, X, Wifi } from 'lucide-react';
 
 export default function ShopPage({ setActivePage }) {
   const { addToCart, openDirectCheckout, openSubscriptionCheckout } = useApp();
@@ -128,9 +128,9 @@ export default function ShopPage({ setActivePage }) {
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Software Licenses & Cloud Hosting</h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
-            Explore enterprise software solutions, virtual private servers, digital licenses, and colocation infrastructure.
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Products, Cloud Solutions & WiFi Vouchers</h1>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
+            Explore enterprise cloud hosting, high-speed WiFi vouchers, QuickBooks ERP licenses, and carrier-grade IT networking hardware.
           </p>
         </div>
 

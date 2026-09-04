@@ -9,14 +9,9 @@ import {
   Menu, 
   X, 
   ShieldAlert, 
-  Briefcase, 
-  CreditCard, 
   LayoutDashboard,
   LogOut,
   ChevronDown,
-  Check,
-  UserPlus,
-  ShieldCheck,
   Edit3
 } from 'lucide-react';
 

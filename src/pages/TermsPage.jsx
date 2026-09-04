@@ -1,6 +1,6 @@
 import SEO from "../components/SEO";
 import React from 'react';
-import { ShieldCheck, FileText, CheckCircle2, Clock, Lock, Server, Mail, Wifi, AlertTriangle, Scale, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Clock, Lock, Server, Mail, Wifi, AlertTriangle, Scale, ShieldAlert } from 'lucide-react';
 
 export default function TermsPage({ setActivePage }) {
   return (
