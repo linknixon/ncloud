@@ -79,7 +79,14 @@ export function AppProvider({ children }) {
     if (!user?.email) return;
 
     const syncUserProfile = () => {
-      fetch('/api/admin/users')
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
         .then(r => r.json())
         .then(usersList => {
           if (Array.isArray(usersList)) {

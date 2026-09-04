@@ -894,9 +894,39 @@ app.get('/api/iso', (req, res) => {
 });
 
 // ----------------------------------------------------
+// Cloudflare Turnstile Verification Middleware
+// ----------------------------------------------------
+async function verifyTurnstile(req, res, next) {
+  const security = memoryStore.security_settings;
+  if (!security || !security.is_active || !security.turnstile_secret_key) {
+    return next();
+  }
+  const token = req.body.turnstileToken || req.headers['x-turnstile-token'];
+  if (!token) {
+    return res.status(400).json({ error: 'CAPTCHA verification is required. Please check the box.' });
+  }
+
+  try {
+    const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(security.turnstile_secret_key)}&response=${encodeURIComponent(token)}`
+    });
+    const cfData = await cfRes.json();
+    if (!cfData.success) {
+      return res.status(403).json({ error: 'CAPTCHA verification failed. Please try again.' });
+    }
+    next();
+  } catch (err) {
+    console.error('Turnstile verification error:', err);
+    return res.status(500).json({ error: 'CAPTCHA verification service unavailable.' });
+  }
+}
+
+// ----------------------------------------------------
 // Auth Endpoints
 // ----------------------------------------------------
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', verifyTurnstile, async (req, res) => {
   const { name, email, password, phone, company } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -933,7 +963,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
@@ -961,6 +991,23 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }, JWT_SECRET, { expiresIn: '7d' });
+  
+  // Log in forensics audit trail
+  if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+  memoryStore.audit_logs.unshift({
+    id: Date.now(),
+    user_email: user.email,
+    user_name: user.name,
+    user_role: user.role || 'customer',
+    action: 'AUDIT_LOGIN',
+    resource_type: 'Authentication',
+    resource_id: user.id,
+    details: 'User successfully authenticated and created a new session.',
+    ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+    timestamp: new Date().toISOString()
+  });
+  savePersistentStore();
+
   return res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }
@@ -2381,7 +2428,7 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
 // ----------------------------------------------------
 // Contact Inquiry Endpoint
 // ----------------------------------------------------
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', verifyTurnstile, async (req, res) => {
   const { name, email, phone, subject, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
@@ -2420,9 +2467,9 @@ app.post('/api/contact', async (req, res) => {
         <td colspan="2" style="text-align: right;">${phone || 'N/A'}</td>
       </tr>
       <tr>
-        <td colspan="3" style="padding-top: 15px; border-top: 1px solid #334155;">
+        <td colspan="3" style="padding-top: 15px; border-top: 1px solid #e2e8f0;">
           <strong style="display:block; margin-bottom: 8px;">Message Content:</strong>
-          <div style="background: #0f172a; padding: 12px; border-radius: 6px; color: #cbd5e1;">${message}</div>
+          <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; color: #334155; border: 1px solid #e2e8f0;">${message}</div>
         </td>
       </tr>
     `,
@@ -2435,8 +2482,12 @@ app.post('/api/contact', async (req, res) => {
   });
 
   const billingEmail = memoryStore.notification_emails?.billing || 'billing@ncloud.co.ug';
+  const salesEmail = memoryStore.notification_emails?.sales || 'sales@ncloud.co.ug';
+  const supportEmail = 'support@ncloud.co.ug';
+  const adminEmails = [billingEmail, salesEmail, supportEmail].filter((v, i, a) => a.indexOf(v) === i).join(', ');
+
   await sendMail({
-    to: billingEmail,
+    to: adminEmails,
     subject: `New Inquiry from ${name}: ${subject || 'General Inquiry'}`,
     html: adminHtml
   });
@@ -2574,7 +2625,8 @@ app.get('/api/admin/overview', async (req, res) => {
     staffInvoices: memoryStore.staff_invoices,
     sliders: memoryStore.sliders,
     audit_logs: memoryStore.audit_logs || [],
-    forensics: memoryStore.audit_logs || []
+    forensics: memoryStore.audit_logs || [],
+    security_settings: memoryStore.security_settings || null
   });
 });
 
@@ -4364,21 +4416,21 @@ function generateCorporateEmailHtml({ title, preheader, recipientName, badgeText
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: #1e293b; border-radius: 14px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); padding: 25px; text-align: center; border-bottom: 2px solid #6366f1; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .header { background: linear-gradient(135deg, #0284c7 0%, #3b82f6 50%, #4f46e5 100%); padding: 25px; text-align: center; border-bottom: 2px solid #93c5fd; }
     .logo-text { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
-    .logo-sub { font-size: 11px; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
+    .logo-sub { font-size: 11px; color: #e0f2fe; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
     .content { padding: 25px; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; background: rgba(99, 102, 241, 0.2); color: #818cf8; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px; }
-    .title { font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 10px 0; }
-    .text { font-size: 14px; line-height: 1.6; color: #cbd5e1; margin-bottom: 18px; }
-    .invoice-box { background: #0f172a; border-radius: 10px; border: 1px solid #334155; padding: 16px; margin-bottom: 20px; }
-    .table { width: 100%; border-collapse: collapse; font-size: 13px; color: #e2e8f0; }
-    .table th { text-align: left; padding: 8px 0; border-bottom: 1px solid #334155; color: #94a3b8; font-size: 11px; text-transform: uppercase; }
-    .table td { padding: 8px 0; border-bottom: 1px solid #1e293b; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; background: rgba(59, 130, 246, 0.1); color: #2563eb; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px; }
+    .title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; }
+    .text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 18px; }
+    .invoice-box { background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 20px; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; }
+    .table th { text-align: left; padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; text-transform: uppercase; }
+    .table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
     .btn { display: inline-block; background: #6366f1; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; font-size: 14px; text-align: center; margin: 10px 0; }
-    .footer { background: #0f172a; padding: 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; border-top: 1px solid #334155; }
+    .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; border-top: 1px solid #e2e8f0; }
   </style>
 </head>
 <body>
@@ -4417,9 +4469,9 @@ function generateCorporateEmailHtml({ title, preheader, recipientName, badgeText
               <td colspan="2" style="font-weight: 600; color: #94a3b8;">VAT (18% / Clearance):</td>
               <td style="text-align: right; font-weight: 700;">${vatText || ''}</td>
             </tr>
-            <tr style="border-top: 2px solid #334155;">
-              <td colspan="2" style="font-size: 15px; font-weight: 900; color: #ffffff; padding-top: 10px;">Total Amount:</td>
-              <td style="text-align: right; font-size: 16px; font-weight: 900; color: #38bdf8; padding-top: 10px;">${totalAmountText || ''}</td>
+            <tr style="border-top: 2px solid #cbd5e1;">
+              <td colspan="2" style="font-size: 15px; font-weight: 900; color: #0f172a; padding-top: 10px;">Total Amount:</td>
+              <td style="text-align: right; font-size: 16px; font-weight: 900; color: #2563eb; padding-top: 10px;">${totalAmountText || ''}</td>
             </tr>
             ` : ''}
           </tbody>
@@ -4467,6 +4519,41 @@ app.put('/api/admin/notification-emails', (req, res) => {
   savePersistentStore();
   
   res.json({ message: 'Notification email settings updated successfully', settings: memoryStore.notification_emails });
+});
+
+// Cloudflare Security Settings Endpoints
+app.get('/api/admin/security-settings', verifyToken, requireCRUDAS, (req, res) => {
+  res.json(memoryStore.security_settings || {
+    turnstile_site_key: '',
+    turnstile_secret_key: '',
+    is_active: false
+  });
+});
+
+app.get('/api/security/turnstile', (req, res) => {
+  const settings = memoryStore.security_settings || {};
+  if (settings.is_active) {
+    res.json({ is_active: true, site_key: settings.turnstile_site_key });
+  } else {
+    res.json({ is_active: false });
+  }
+});
+
+app.put('/api/admin/security-settings', (req, res) => {
+  let { turnstile_site_key, turnstile_secret_key, is_active } = req.body;
+  if (!memoryStore.security_settings) memoryStore.security_settings = {};
+  
+  if (turnstile_site_key !== undefined) memoryStore.security_settings.turnstile_site_key = turnstile_site_key.trim();
+  if (turnstile_secret_key !== undefined) memoryStore.security_settings.turnstile_secret_key = turnstile_secret_key.trim();
+  if (is_active !== undefined) memoryStore.security_settings.is_active = Boolean(is_active);
+  memoryStore.security_settings.updated_at = new Date().toISOString();
+
+  savePersistentStore();
+
+  res.json({ 
+    message: 'Cloudflare Security Settings saved successfully!', 
+    settings: memoryStore.security_settings 
+  });
 });
 
 // SMTP Settings Endpoints
@@ -5342,7 +5429,7 @@ app.delete('/api/admin/invoices/:id', async (req, res) => {
     }).catch(err => console.error("Failed to send invoice deletion email:", err));
   }
 
-  return res.json({ message: `Tax Invoice #${deletedNum} deleted permanently!` });
+  return res.json({ success: true, message: `Tax Invoice #${deletedNum} deleted permanently!` });
 });
 
 app.delete('/api/admin/payments/:id', async (req, res) => {

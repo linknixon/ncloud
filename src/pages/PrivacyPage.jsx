@@ -7,7 +7,7 @@ export default function PrivacyPage({ setActivePage }) {
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <SEO title="Privacy Policy | Nova Cloud" description="Understand how we protect your data and privacy." keywords="data protection, privacy policy, GDPR" />
       <div className="container" style={{ maxWidth: '1020px' }}>
-        
+
         {/* Document Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <h1 style={{ fontSize: '2.1rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
@@ -20,7 +20,7 @@ export default function PrivacyPage({ setActivePage }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.25rem' }}>
-          
+
           {/* Section 1: Scope & Regulatory Framework */}
           <div className="glass-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -198,7 +198,7 @@ export default function PrivacyPage({ setActivePage }) {
               <div><strong>Data Protection Officer:</strong> Legal & Information Security Office</div>
               <div><strong>Official Email:</strong> <a href="mailto:support@ncloud.co.ug" style={{ color: 'var(--primary)', fontWeight: '700' }}>support@ncloud.co.ug</a></div>
               <div><strong>Direct Support Hotline:</strong> <strong style={{ color: 'var(--primary)' }}>0790001631</strong></div>
-              <div><strong>Physical Address:</strong> Plot 14 Parliament Avenue, Kampala, Republic of Uganda</div>
+              <div><strong>Physical Address:</strong> Plot 14 Ndejje, Wakiso, Kampala Uganda</div>
             </div>
           </div>
 

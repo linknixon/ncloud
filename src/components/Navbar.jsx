@@ -175,6 +175,7 @@ export default function Navbar({ activePage, setActivePage }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexWrap: 'wrap',
           gap: '0.75rem',
           position: 'relative',
           zIndex: 1001,

@@ -17,17 +17,62 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const turnstileRef = React.useRef(null);
+  const [siteKey, setSiteKey] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileError, setTurnstileError] = useState('');
+
+  React.useEffect(() => {
+    fetch('/api/security/turnstile')
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_active && data.site_key) {
+          setSiteKey(data.site_key);
+          const renderWidget = () => {
+            if (window.turnstile && turnstileRef.current) {
+              try {
+                window.turnstile.render(turnstileRef.current, {
+                  sitekey: data.site_key,
+                  callback: (token) => {
+                    setTurnstileToken(token);
+                    setTurnstileError('');
+                  }
+                });
+              } catch (e) {}
+            }
+          };
+          if (!document.getElementById('turnstile-script')) {
+            const script = document.createElement('script');
+            script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+            script.async = true;
+            script.defer = true;
+            script.id = 'turnstile-script';
+            script.onload = renderWidget;
+            document.body.appendChild(script);
+          } else {
+            setTimeout(renderWidget, 500);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const { clearDraft } = useAutoSaveDraft('contact_form', formData, setFormData);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (siteKey && !turnstileToken) {
+      setTurnstileError('Please complete the CAPTCHA verification.');
+      return;
+    }
     setLoading(true);
+    setTurnstileError('');
 
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, turnstileToken })
       });
       const data = await res.json();
 
@@ -245,6 +290,18 @@ export default function ContactPage() {
                     required
                   />
                 </div>
+
+                {turnstileError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem', fontWeight: '600' }}>
+                    {turnstileError}
+                  </div>
+                )}
+
+                {siteKey && (
+                  <div style={{ margin: '1rem 0' }}>
+                    <div ref={turnstileRef}></div>
+                  </div>
+                )}
 
                 <button
                   type="submit"

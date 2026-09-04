@@ -537,3 +537,13 @@ select option {
 .profile-avatar-circle:hover {
   transform: scale(1.05);
 }
+
+/* Global Mobile Responsiveness Fixes */
+@media (max-width: 768px) {
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    max-width: 100vw !important;
+  }
+}

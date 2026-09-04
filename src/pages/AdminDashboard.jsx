@@ -221,7 +221,7 @@ const authenticatedFetch = async (url, options = {}) => {
     }
   }
   const res = await window.fetch(url, options);
-  if (res.status === 401 || res.status === 403) {
+  if (res.status === 401) {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('auth_error'));
     }
@@ -491,15 +491,13 @@ const normalizeTabName = (rawTab) => {
 
   // Enterprise Global SMTP Mail Server State
   const [smtpSettings, setSmtpSettings] = useState({
-    host: 'mail.ncloud.co.ug',
-    port: 587,
-    security_type: 'TLS',
-    username: 'billing@ncloud.co.ug',
-    password: '••••••••••••',
-    sender_name: 'Nova Cloud Edges Official Notifications',
-    sender_email: 'billing@ncloud.co.ug',
-    is_active: true
+    host: '', port: 587, security_type: 'TLS', username: '', password: '', sender_name: '', sender_email: '', is_active: false
   });
+
+  const [securitySettings, setSecuritySettings] = useState({
+    turnstile_site_key: '', turnstile_secret_key: '', is_active: false
+  });
+
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
   const [testingSmtp, setTestingSmtp] = useState(false);
   const [smtpDiagnosticResult, setSmtpDiagnosticResult] = useState(null);
@@ -988,6 +986,7 @@ const normalizeTabName = (rawTab) => {
       fetchProductCategories();
       handleFetchSmtpSettings();
       handleFetchNotificationEmails();
+      handleFetchSecuritySettings();
       loadAnalyticsData();
 
       fetch('/api/admin/applications')
@@ -1045,6 +1044,14 @@ const normalizeTabName = (rawTab) => {
 
     return () => clearInterval(autoRefreshInterval);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'settings' && isSuperAdmin) {
+      handleFetchNotificationEmails();
+      handleFetchSmtpSettings();
+      handleFetchSecuritySettings();
+    }
+  }, [activeTab]);
 
   // Update role and set default appropriate card view (Restricted to Super Admin)
   const handleRoleSwitch = (newRole) => {
@@ -2035,6 +2042,20 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const handleFetchSecuritySettings = async () => {
+    try {
+      const res = await fetch('/api/admin/security-settings', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      if (data) {
+        setSecuritySettings(prev => ({ ...prev, ...data }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [savingNotificationEmails, setSavingNotificationEmails] = useState(false);
 
   const handleSaveNotificationEmails = async (e) => {
@@ -2043,7 +2064,7 @@ const normalizeTabName = (rawTab) => {
     try {
       const res = await fetch('/api/admin/notification-emails', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify(notificationEmails)
       });
       const resData = await res.json().catch(() => ({}));
@@ -2056,6 +2077,30 @@ const normalizeTabName = (rawTab) => {
       showToast(e.message, 'error');
     } finally {
       setSavingNotificationEmails(false);
+    }
+  };
+
+  const [savingSecurity, setSavingSecurity] = useState(false);
+
+  const handleSaveSecuritySettings = async (e) => {
+    if (e) e.preventDefault();
+    setSavingSecurity(true);
+    try {
+      const res = await fetch('/api/admin/security-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(securitySettings)
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast('Cloudflare Security Settings saved successfully!', 'success');
+      } else {
+        throw new Error(resData.error || 'Failed to save security settings');
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSavingSecurity(false);
     }
   };
 
@@ -9975,8 +10020,8 @@ const normalizeTabName = (rawTab) => {
                             type="email"
                             className="form-input"
                             placeholder="billing@ncloud.co.ug"
-                            value={notificationEmails.billing || ''}
-                            onChange={e => setNotificationEmails({ ...notificationEmails, billing: e.target.value })}
+                            value={notificationEmails?.billing || ''}
+                            onChange={e => setNotificationEmails({ ...(notificationEmails || {}), billing: e.target.value })}
                             required
                           />
                         </div>
@@ -9987,8 +10032,8 @@ const normalizeTabName = (rawTab) => {
                             type="email"
                             className="form-input"
                             placeholder="sales@ncloud.co.ug"
-                            value={notificationEmails.sales || ''}
-                            onChange={e => setNotificationEmails({ ...notificationEmails, sales: e.target.value })}
+                            value={notificationEmails?.sales || ''}
+                            onChange={e => setNotificationEmails({ ...(notificationEmails || {}), sales: e.target.value })}
                             required
                           />
                         </div>
@@ -10246,6 +10291,74 @@ const normalizeTabName = (rawTab) => {
                           style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.65rem' }}
                         >
                           <Check size={16} /> {savingSmtp ? 'Saving Configuration...' : 'Save Global SMTP Settings'}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  {/* Card 7: Cloudflare Security Settings */}
+                  <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Shield size={18} color="var(--accent-orange)" /> Cloudflare Turnstile Security
+                        </h4>
+                        <select
+                          className="form-input"
+                          style={{
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.75rem',
+                            fontWeight: '800',
+                            width: 'auto',
+                            background: securitySettings.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            color: securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444',
+                            border: `1px solid ${securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444'}`
+                          }}
+                          value={securitySettings.is_active ? 'true' : 'false'}
+                          onChange={e => setSecuritySettings({ ...securitySettings, is_active: e.target.value === 'true' })}
+                        >
+                          <option value="true">● CAPTCHA Active</option>
+                          <option value="false">○ Disabled (Off)</option>
+                        </select>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                        Protect all public forms (Login, Registration, Contact) from bots and spam using Cloudflare Turnstile.
+                      </p>
+
+                      <form onSubmit={handleSaveSecuritySettings}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Site Key *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="0x4AAAAAA..."
+                              value={securitySettings.turnstile_site_key || ''}
+                              onChange={e => setSecuritySettings({ ...securitySettings, turnstile_site_key: e.target.value })}
+                              required={securitySettings.is_active}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Secret Key *</label>
+                            <input
+                              type="password"
+                              className="form-input"
+                              placeholder="0x4AAAAAA..."
+                              value={securitySettings.turnstile_secret_key || ''}
+                              onChange={e => setSecuritySettings({ ...securitySettings, turnstile_secret_key: e.target.value })}
+                              required={securitySettings.is_active}
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          onClick={handleSaveSecuritySettings}
+                          disabled={savingSecurity}
+                          className="btn-primary"
+                          style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.65rem' }}
+                        >
+                          <Check size={16} /> {savingSecurity ? 'Saving Configuration...' : 'Save Security Settings'}
                         </button>
                       </form>
                     </div>
@@ -12238,28 +12351,6 @@ const normalizeTabName = (rawTab) => {
                   </div>
                 </div>
 
-                {/* Attach UniFi WiFi Voucher Option */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Wifi size={15} color="#0284c7" />
-                    <span>Attach UniFi Enterprise WiFi Access Voucher (Optional)</span>
-                  </label>
-                  <select
-                    className="form-input"
-                    value={invoiceForm.wifi_voucher_id || ''}
-                    onChange={e => setInvoiceForm({ ...invoiceForm, wifi_voucher_id: e.target.value })}
-                  >
-                    <option value="">-- Do Not Attach WiFi Voucher --</option>
-                    {(unifiVouchersList || []).filter(v => v.status === 'unassigned' || v.id == invoiceForm.wifi_voucher_id).map(v => (
-                      <option key={v.id} value={v.id}>
-                        Voucher Token: {v.token} — {v.package_name} ({v.duration_hours} Hours)
-                      </option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
-                    Attaching a voucher token binds guest WiFi internet access directly to this tax invoice document.
-                  </span>
-                </div>
 
                 {/* Live Invoice Financial Summary Box */}
                 {(() => {

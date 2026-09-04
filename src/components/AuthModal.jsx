@@ -32,11 +32,57 @@ export default function AuthModal({ setActivePage }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [siteKey, setSiteKey] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const turnstileRef = React.useRef(null);
+
+  useEffect(() => {
+    if (isAuthOpen) {
+      fetch('/api/security/turnstile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.is_active && data.site_key) {
+            setSiteKey(data.site_key);
+            
+            const renderWidget = () => {
+              if (window.turnstile && turnstileRef.current) {
+                try {
+                  window.turnstile.render(turnstileRef.current, {
+                    sitekey: data.site_key,
+                    callback: (token) => setTurnstileToken(token)
+                  });
+                } catch (e) {}
+              }
+            };
+
+            if (!document.getElementById('turnstile-script')) {
+              const script = document.createElement('script');
+              script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+              script.async = true;
+              script.defer = true;
+              script.id = 'turnstile-script';
+              script.onload = renderWidget;
+              document.body.appendChild(script);
+            } else {
+              setTimeout(renderWidget, 500);
+            }
+          }
+        })
+        .catch(() => {});
+    } else {
+      setTurnstileToken('');
+    }
+  }, [isAuthOpen, isRegister, isForgotPassword]);
 
   if (!isAuthOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (siteKey && !turnstileToken) {
+      setError('Please complete the CAPTCHA verification.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -46,7 +92,7 @@ export default function AuthModal({ setActivePage }) {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, turnstileToken })
       });
 
       const rawText = await res.text();
@@ -67,7 +113,18 @@ export default function AuthModal({ setActivePage }) {
 
       localStorage.setItem('token', data.token);
       setUser(data.user);
-      setActivePage('admin');
+      
+      const role = data.user.role;
+      if (['super_admin', 'admin', 'hr_manager', 'reviewer'].includes(role)) {
+        setActivePage('admin');
+      } else {
+        // Keep them on current page, or redirect to a safe default if they were on a restricted page
+        // For customers, let's refresh the current view or redirect to shop/portal
+        if (window.location.pathname === '/admin' || window.location.pathname === '/') {
+          setActivePage('shop');
+        }
+      }
+      
       showToast(isRegister ? 'Account created successfully! Welcome to your Portal.' : `Welcome back, ${data.user.name}!`, 'success');
       setIsAuthOpen(false);
     } catch (err) {
@@ -243,7 +300,8 @@ export default function AuthModal({ setActivePage }) {
           </div>
         )}
 
-        {/* Social SSO OAuth Buttons */}
+        {/* Social SSO OAuth Buttons - Currently Disabled per request */}
+        {/*
         {!isForgotPassword && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -304,7 +362,6 @@ export default function AuthModal({ setActivePage }) {
           </button>
             </div>
 
-            {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', margin: '1rem 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.725rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
               <span style={{ padding: '0 0.65rem' }}>or use email & password</span>
@@ -312,6 +369,7 @@ export default function AuthModal({ setActivePage }) {
             </div>
           </>
         )}
+        */
 
         {error && (
           <div style={{
@@ -472,6 +530,12 @@ export default function AuthModal({ setActivePage }) {
                   onChange={e => setFormData({ ...formData, company: e.target.value })}
                 />
               </div>
+            </div>
+          )}
+
+          {siteKey && (
+            <div style={{ margin: '1rem 0', display: 'flex', justifyContent: 'center' }}>
+              <div ref={turnstileRef}></div>
             </div>
           )}
 

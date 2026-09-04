@@ -154,7 +154,11 @@ export default function ShopCheckoutModal() {
     );
   };
 
-  const filteredProducts = availableProducts.filter(p => {
+  const productListToFilter = (directCheckoutItems && directCheckoutItems.length > 0) 
+    ? directCheckoutItems 
+    : availableProducts;
+
+  const filteredProducts = productListToFilter.filter(p => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
