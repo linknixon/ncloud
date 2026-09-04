@@ -5547,7 +5547,7 @@ const normalizeTabName = (rawTab) => {
 
                   {/* Multi-Selection Bulk Action Toolbar */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', padding: '0.85rem 1.25rem', background: selectedForensicsLogs.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-main)', border: `1px solid ${selectedForensicsLogs.length > 0 ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'}`, borderRadius: '12px', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
                         <input
                           type="checkbox"
@@ -5562,8 +5562,30 @@ const normalizeTabName = (rawTab) => {
                             }
                           }}
                         />
-                        <span>Select All on Page ({paginatedLogs.length})</span>
+                        <span>Select Page ({paginatedLogs.length})</span>
                       </label>
+
+                      {filteredLogs.length > paginatedLogs.length && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allFilteredIds = filteredLogs.map(l => l.id);
+                            const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedForensicsLogs.includes(id));
+                            if (allSelected) {
+                              setSelectedForensicsLogs([]);
+                            } else {
+                              setSelectedForensicsLogs(allFilteredIds);
+                            }
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem', fontWeight: '700', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                        >
+                          {filteredLogs.length > 0 && filteredLogs.every(l => selectedForensicsLogs.includes(l.id))
+                            ? 'Deselect All System Logs'
+                            : `Select All ${filteredLogs.length} Records in System`}
+                        </button>
+                      )}
+
                       {selectedForensicsLogs.length > 0 && (
                         <span className="badge-tag" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontWeight: '800', fontSize: '0.8rem' }}>
                           {selectedForensicsLogs.length} Records Selected
@@ -5581,7 +5603,7 @@ const normalizeTabName = (rawTab) => {
                         style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', background: '#ef4444', borderColor: '#ef4444' }}
                         title="Generate official PDF report of selected forensic audit records"
                       >
-                        <Printer size={15} /> Print / Export Selected Logs PDF
+                        <Printer size={15} /> Export Selected ({selectedForensicsLogs.length > 0 ? selectedForensicsLogs.length : paginatedLogs.length}) PDF
                       </button>
 
                       <button
@@ -5590,7 +5612,16 @@ const normalizeTabName = (rawTab) => {
                         style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px' }}
                         title="Export all currently filtered audit records to PDF"
                       >
-                        <Download size={15} /> Export All Filtered Logs ({filteredLogs.length})
+                        <Download size={15} /> Export Filtered ({filteredLogs.length})
+                      </button>
+
+                      <button
+                        onClick={() => handleExportForensicsSelectedPDF(logs)}
+                        className="btn-secondary"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                        title="Export all audit logs across the entire system database"
+                      >
+                        <ShieldAlert size={15} /> Export All in System ({logs.length})
                       </button>
 
                       {selectedForensicsLogs.length > 0 && (
@@ -5632,6 +5663,7 @@ const normalizeTabName = (rawTab) => {
                           <th style={{ padding: '0.85rem 1.1rem' }}>Client IP Address</th>
                           <th style={{ padding: '0.85rem 1.1rem' }}>Device Footprint</th>
                           <th style={{ padding: '0.85rem 1.1rem' }}>Event Details</th>
+                          <th style={{ padding: '0.85rem 1.1rem', textAlign: 'center', width: '120px' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5690,8 +5722,42 @@ const normalizeTabName = (rawTab) => {
                                 {(log.device_type || '').includes('Mobile') ? <Smartphone size={12} style={{ display: 'inline', marginRight: '3px' }} /> : <Laptop size={12} style={{ display: 'inline', marginRight: '3px' }} />}
                                 {log.device_type}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', maxWidth: '300px' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', maxWidth: '280px' }}>
                                 {log.details}
+                              </td>
+                              <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                  <button
+                                    onClick={() => handleExportForensicsSelectedPDF([log])}
+                                    title="Export Official PDF Audit Certificate for this event"
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                  >
+                                    <Download size={12} /> PDF
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`[${log.timestamp}] ${log.action} | User: ${log.user_name} (${log.user_email}) | IP: ${log.ip_address} | Ref: ${log.resource_id} | ${log.details}`);
+                                      showToast('Audit event copied to clipboard', 'info');
+                                    }}
+                                    title="Copy event record details to clipboard"
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.45rem', fontSize: '0.72rem' }}
+                                  >
+                                    <Copy size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setForensicsSearch(log.user_email || log.user_name);
+                                      setForensicsPage(1);
+                                    }}
+                                    title={`Filter logs for user ${log.user_name}`}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.45rem', fontSize: '0.72rem' }}
+                                  >
+                                    <Filter size={12} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -10926,13 +10992,24 @@ const normalizeTabName = (rawTab) => {
               }
               const categoryBreakdown = Object.keys(expCatMap).map(cat => ({ category: cat, total_amount: expCatMap[cat] }));
 
-              // Product performance mapping from live customer invoices
+              // Product performance mapping from live customer invoices (including all line items)
               const pSalesMap = {};
               const pRevMap = {};
               rawInvoices.forEach(inv => {
-                const name = inv.item_name || 'Standard Cloud Offering';
-                pSalesMap[name] = (pSalesMap[name] || 0) + (Number(inv.quantity) || 1);
-                pRevMap[name] = (pRevMap[name] || 0) + Number(inv.subtotal || inv.amount || 0);
+                if (Array.isArray(inv.items) && inv.items.length > 0) {
+                  inv.items.forEach(it => {
+                    const name = it.name || it.description || inv.item_name || 'Cloud Offering';
+                    const qty = Number(it.quantity) || 1;
+                    const itAmt = Number(it.amount || (Number(it.unit_price || 0) * qty) || 0);
+                    pSalesMap[name] = (pSalesMap[name] || 0) + qty;
+                    pRevMap[name] = (pRevMap[name] || 0) + itAmt;
+                  });
+                } else {
+                  const name = inv.item_name || 'Standard Cloud Offering';
+                  const qty = Number(inv.quantity) || 1;
+                  pSalesMap[name] = (pSalesMap[name] || 0) + qty;
+                  pRevMap[name] = (pRevMap[name] || 0) + Number(inv.subtotal || inv.amount || 0);
+                }
               });
 
               const allCatalog = [...rawProducts, ...rawServices];
@@ -10961,8 +11038,8 @@ const normalizeTabName = (rawTab) => {
               const pushItems = computedPush;
               const isProfitable = (metrics.net_profit_loss || 0) >= 0;
 
-              // Construct payload for PDF generators using live database information
-              const activeAnalyticsPayload = analyticsData || {
+              // Construct payload for PDF generators using live database information with all system items
+              const activeAnalyticsPayload = {
                 metrics,
                 expense_category_breakdown: categoryBreakdown,
                 expensesByCategory: expCatMap,
@@ -10973,8 +11050,21 @@ const normalizeTabName = (rawTab) => {
                 companyExpenses: rawExpenses,
                 recentExpenses: rawExpenses,
                 recentInvoices: rawInvoices,
-                recentPayments: rawPayments
+                recentPayments: rawPayments,
+                allInvoices: rawInvoices,
+                allExpenses: rawExpenses,
+                allPayments: rawPayments,
+                allPayroll: rawPayroll,
+                allQuotations: Array.isArray(data?.quotations) ? data.quotations : quotationsList,
+                allWorkOrders: Array.isArray(data?.work_orders) ? data.work_orders : workOrdersList,
+                ...(analyticsData || {})
               };
+              if (rawInvoices.length > (activeAnalyticsPayload.allInvoices?.length || 0)) {
+                activeAnalyticsPayload.allInvoices = rawInvoices;
+              }
+              if (rawExpenses.length > (activeAnalyticsPayload.companyExpenses?.length || 0)) {
+                activeAnalyticsPayload.companyExpenses = rawExpenses;
+              }
 
               return (
                 <div>
@@ -11211,7 +11301,7 @@ const normalizeTabName = (rawTab) => {
 
                     {/* Filter & Export Controls Bar */}
                     {(() => {
-                      // Build full ledger array
+                      // Build full ledger array incorporating all items across the entire system
                       const fullLedger = [
                         ...rawInvoices.map(inv => {
                           const invAmt = Number(inv.amount || 0);
@@ -11228,7 +11318,8 @@ const normalizeTabName = (rawTab) => {
                             paidAmount: paidAmt,
                             balanceDue: balDue,
                             status: (inv.status || 'PENDING').toUpperCase(),
-                            isIncome: true
+                            isIncome: true,
+                            raw: inv
                           };
                         }),
                         ...rawExpenses.map(exp => ({
@@ -11241,7 +11332,8 @@ const normalizeTabName = (rawTab) => {
                           paidAmount: Number(exp.amount || 0),
                           balanceDue: 0,
                           status: (exp.status || 'APPROVED').toUpperCase(),
-                          isIncome: false
+                          isIncome: false,
+                          raw: exp
                         })),
                         ...rawPayments.map(p => ({
                           id: p.reference || `PAY-${p.id}`,
@@ -11253,7 +11345,47 @@ const normalizeTabName = (rawTab) => {
                           paidAmount: Number(p.amount_paid || 0),
                           balanceDue: 0,
                           status: (p.status || 'CLEARED').toUpperCase(),
-                          isIncome: p.payment_type === 'customer'
+                          isIncome: p.payment_type === 'customer',
+                          raw: p
+                        })),
+                        ...rawPayroll.map(p => ({
+                          id: p.reference || p.slip_number || p.payroll_number || `PAYROLL-${p.id || 'N/A'}`,
+                          type: 'STAFF PAYROLL',
+                          party: p.employee_name || p.staff_name || 'Staff Member',
+                          item: `Remuneration & Net Pay (${p.pay_period || p.month || 'Disbursement'})`,
+                          date: p.payment_date || (p.created_at ? p.created_at.split('T')[0] : '2026-08-25'),
+                          amount: Number(p.net_pay || p.base_salary || 0),
+                          paidAmount: Number(p.net_pay || p.base_salary || 0),
+                          balanceDue: 0,
+                          status: (p.status || 'PAID').toUpperCase(),
+                          isIncome: false,
+                          raw: p
+                        })),
+                        ...(Array.isArray(data?.quotations) ? data.quotations : (Array.isArray(quotationsList) ? quotationsList : [])).map(q => ({
+                          id: q.quotation_number || `QUO-${q.id || 'N/A'}`,
+                          type: 'SALES QUOTATION',
+                          party: q.customer_name || q.customer_email || 'Prospective Client',
+                          item: q.item_name || (Array.isArray(q.items) && q.items.length > 0 ? q.items.map(i => i.name).join(', ') : 'Quotation Proposal'),
+                          date: q.created_at ? q.created_at.split('T')[0] : '2026-08-25',
+                          amount: Number(q.total_amount || q.amount || 0),
+                          paidAmount: 0,
+                          balanceDue: Number(q.total_amount || q.amount || 0),
+                          status: (q.status || 'PENDING').toUpperCase(),
+                          isIncome: true,
+                          raw: q
+                        })),
+                        ...(Array.isArray(data?.work_orders) ? data.work_orders : (Array.isArray(workOrdersList) ? workOrdersList : [])).map(w => ({
+                          id: w.order_number || `WO-${w.id || 'N/A'}`,
+                          type: 'WORK ORDER',
+                          party: w.client_name || w.customer_name || 'Field Client',
+                          item: w.title || w.description || 'Engineering & Field Work Order',
+                          date: w.created_at ? w.created_at.split('T')[0] : '2026-08-25',
+                          amount: Number(w.total_cost || w.estimated_cost || w.cost || 0),
+                          paidAmount: Number(w.deposit_paid || 0),
+                          balanceDue: Math.max(0, Number(w.total_cost || w.estimated_cost || 0) - Number(w.deposit_paid || 0)),
+                          status: (w.status || 'IN PROGRESS').toUpperCase(),
+                          isIncome: false,
+                          raw: w
                         }))
                       ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -11411,11 +11543,14 @@ const normalizeTabName = (rawTab) => {
                                   className="form-input"
                                   style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', borderRadius: '8px', fontWeight: '700' }}
                                 >
-                                  <option value="ALL">All Ledger Types</option>
+                                  <option value="ALL">All Ledger Types ({fullLedger.length})</option>
                                   <option value="CUSTOMER INVOICE">Customer Invoices</option>
                                   <option value="COMPANY EXPENSE">Company Expenses</option>
                                   <option value="CUSTOMER PAYMENT">Customer Payments</option>
                                   <option value="STAFF DISBURSEMENT">Staff Disbursements</option>
+                                  <option value="STAFF PAYROLL">Staff Payroll</option>
+                                  <option value="SALES QUOTATION">Sales Quotations</option>
+                                  <option value="WORK ORDER">Work Orders</option>
                                 </select>
 
                                 <button
@@ -11462,12 +11597,13 @@ const normalizeTabName = (rawTab) => {
                                   <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.725rem', letterSpacing: '0.04em', textAlign: 'right', width: '140px' }}>Amount (UGX)</th>
                                   <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.725rem', letterSpacing: '0.04em', textAlign: 'right', width: '140px' }}>Balance Due (UGX)</th>
                                   <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.725rem', letterSpacing: '0.04em', textAlign: 'center', width: '120px' }}>Status</th>
+                                  <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.725rem', letterSpacing: '0.04em', textAlign: 'center', width: '150px' }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {filteredLedger.length === 0 ? (
                                   <tr>
-                                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                    <td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                                       No financial audit ledger entries match the selected date range and filter parameters.
                                     </td>
                                   </tr>
@@ -11531,6 +11667,80 @@ const normalizeTabName = (rawTab) => {
                                           <span className="badge-tag" style={{ background: statusBg, color: statusColor, fontSize: '0.7rem', fontWeight: '800', padding: '3px 8px', letterSpacing: '0.03em' }}>
                                             {row.status}
                                           </span>
+                                        </td>
+                                        <td style={{ padding: '0.75rem 0.85rem', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                            {row.type === 'CUSTOMER INVOICE' && (
+                                              <>
+                                                <button
+                                                  onClick={() => generateInvoicePDF(row.raw, { paidStamp, siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label, bankAccounts: bankAccountsList })}
+                                                  className="btn-secondary"
+                                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                  title="Download Official Corporate Invoice PDF"
+                                                >
+                                                  <Download size={12} /> Invoice
+                                                </button>
+                                                <button
+                                                  onClick={() => generatePaymentReceipt80mmPDF({ invoice_number: row.id, customer_name: row.party, amount_paid: row.paidAmount || row.amount, payment_method: 'Direct/E-Payment', reference: row.id, items: row.raw?.items || [{ name: row.item, amount: row.amount, quantity: 1 }] }, { siteLogo: logoInput || siteLogo })}
+                                                  className="btn-secondary"
+                                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                  title="Print 80mm Thermal Receipt"
+                                                >
+                                                  <Printer size={12} /> 80mm
+                                                </button>
+                                              </>
+                                            )}
+                                            {(row.type === 'CUSTOMER PAYMENT' || row.type === 'STAFF DISBURSEMENT') && (
+                                              <button
+                                                onClick={() => generatePaymentReceipt80mmPDF(row.raw, { siteLogo: logoInput || siteLogo })}
+                                                className="btn-secondary"
+                                                style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                title="Print 80mm Official Payment Receipt"
+                                              >
+                                                <Printer size={12} /> Receipt
+                                              </button>
+                                            )}
+                                            {row.type === 'STAFF PAYROLL' && (
+                                              <button
+                                                onClick={() => generatePayrollPayslipPDF(row.raw, { siteLogo: logoInput || siteLogo })}
+                                                className="btn-secondary"
+                                                style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                title="Download Official Executive Payslip PDF"
+                                              >
+                                                <Download size={12} /> Payslip
+                                              </button>
+                                            )}
+                                            {row.type === 'COMPANY EXPENSE' && (
+                                              <button
+                                                onClick={() => generateExpenseReportPDF({ companyExpenses: [row.raw], expense_category_breakdown: [{ category: row.raw?.category || 'Company Expense', total_amount: row.amount }], metrics: { total_expenditures: row.amount } }, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                                                className="btn-secondary"
+                                                style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                title="Export Audited Expense Voucher PDF"
+                                              >
+                                                <Download size={12} /> Voucher
+                                              </button>
+                                            )}
+                                            {row.type === 'SALES QUOTATION' && (
+                                              <button
+                                                onClick={() => generateQuotationPDF(row.raw, { siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label, bankAccounts: bankAccountsList })}
+                                                className="btn-secondary"
+                                                style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                title="Download Official Sales Quotation PDF"
+                                              >
+                                                <Download size={12} /> Quote
+                                              </button>
+                                            )}
+                                            {row.type === 'WORK ORDER' && (
+                                              <button
+                                                onClick={() => generateWorkOrderPOSReceiptPDF(row.raw, { siteLogo: logoInput || siteLogo })}
+                                                className="btn-secondary"
+                                                style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                                title="Print 80mm Work Order Receipt"
+                                              >
+                                                <Printer size={12} /> Order
+                                              </button>
+                                            )}
+                                          </div>
                                         </td>
                                       </tr>
                                     );

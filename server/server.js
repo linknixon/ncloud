@@ -3411,19 +3411,24 @@ app.get('/api/admin/customer-credits/:email', (req, res) => {
 app.get('/api/admin/reports/analytics', (req, res) => {
   const invoices = memoryStore.invoices || [];
   const payments = memoryStore.payments || [];
-  const expenses = memoryStore.staff_expenses || [];
+  const staffExpenses = memoryStore.staff_expenses || [];
+  const staffInvoices = memoryStore.staff_invoices || [];
+  const expenses = [...staffExpenses, ...staffInvoices];
   const payroll = memoryStore.payroll || [];
   const products = memoryStore.products || [];
   const services = memoryStore.services || [];
   const subscriptions = memoryStore.subscriptions || [];
   const credits = memoryStore.customer_credits || [];
+  const quotations = memoryStore.quotations || [];
+  const workOrders = memoryStore.work_orders || [];
+  const auditLogs = memoryStore.audit_logs || [];
 
-  // Invoiced sales metrics
+  // Invoiced sales metrics across all invoices
   const totalInvoicedSales = invoices.reduce((acc, i) => acc + Number(i.amount || 0), 0);
   const totalInvoicesCount = invoices.length;
-  const paidInvoices = invoices.filter(i => i.status === 'Paid' || i.status === '100% Paid');
+  const paidInvoices = invoices.filter(i => i.status === 'Paid' || i.status === '100% Paid' || i.status === 'Paid & Settled');
   const paidInvoicesCount = paidInvoices.length;
-  const pendingInvoices = invoices.filter(i => i.status !== 'Paid' && i.status !== '100% Paid' && i.status !== 'Cancelled');
+  const pendingInvoices = invoices.filter(i => i.status !== 'Paid' && i.status !== '100% Paid' && i.status !== 'Paid & Settled' && i.status !== 'Cancelled');
   const pendingInvoicesCount = pendingInvoices.length;
   const totalPendingReceivables = pendingInvoices.reduce((acc, i) => acc + (Number(i.amount || 0) - Number(i.paid_amount || 0)), 0);
 
@@ -3445,7 +3450,7 @@ app.get('/api/admin/reports/analytics', (req, res) => {
   const profitMargin = totalCashCollected > 0 ? ((netProfitLoss / totalCashCollected) * 100).toFixed(1) : '0.0';
   const totalExcessCredits = credits.reduce((acc, c) => acc + Number(c.available_credit || 0), 0);
 
-  // Category breakdown of expenditures
+  // Comprehensive Category breakdown of expenditures
   const expensesByCategory = {};
   expenses.forEach(e => {
     const cat = e.category || 'General Operations & Maintenance';
@@ -3459,16 +3464,39 @@ app.get('/api/admin/reports/analytics', (req, res) => {
     total_amount: expensesByCategory[cat]
   }));
 
-  // Sales count & revenue mapping from actual system invoices
+  // Sales count & revenue mapping across ALL individual items in all invoices
   const productSalesMap = {};
   const productRevenueMap = {};
   invoices.forEach(inv => {
-    const itemName = inv.item_name || 'Standard Cloud Offering';
-    productSalesMap[itemName] = (productSalesMap[itemName] || 0) + (Number(inv.quantity) || 1);
-    productRevenueMap[itemName] = (productRevenueMap[itemName] || 0) + Number(inv.subtotal || inv.amount || 0);
+    if (Array.isArray(inv.items) && inv.items.length > 0) {
+      inv.items.forEach(it => {
+        const itName = it.name || it.item_name || 'Standard Cloud Offering';
+        const itQty = Math.max(1, parseInt(it.quantity || it.qty) || 1);
+        const itAmt = Number(it.amount || (itQty * (Number(it.unit_price || it.price) || 0)));
+        productSalesMap[itName] = (productSalesMap[itName] || 0) + itQty;
+        productRevenueMap[itName] = (productRevenueMap[itName] || 0) + itAmt;
+      });
+    } else {
+      const itemName = inv.item_name || inv.plan_name || 'Standard Cloud Offering';
+      const itQty = Math.max(1, parseInt(inv.quantity) || 1);
+      const itAmt = Number(inv.subtotal || inv.amount || 0);
+      productSalesMap[itemName] = (productSalesMap[itemName] || 0) + itQty;
+      productRevenueMap[itemName] = (productRevenueMap[itemName] || 0) + itAmt;
+    }
   });
 
   const allProductList = [...products, ...services];
+  // Ensure any item that has been sold in any invoice is present in allProductList
+  Object.keys(productSalesMap).forEach(soldName => {
+    const exists = allProductList.some(p => (p.name || p.title || '').trim().toLowerCase() === soldName.trim().toLowerCase());
+    if (!exists) {
+      allProductList.push({
+        name: soldName,
+        category: 'Invoiced Products & Services',
+        price: productSalesMap[soldName] > 0 ? Math.round(productRevenueMap[soldName] / productSalesMap[soldName]) : 0
+      });
+    }
+  });
 
   const topSellingItems = [];
   const underperformingItems = [];
@@ -3484,7 +3512,7 @@ app.get('/api/admin/reports/analytics', (req, res) => {
       sales_count: salesCount,
       revenue: actualRevenue,
       total_revenue: actualRevenue,
-      status: salesCount > 0 ? 'High Performer' : 'Needs Selling Push'
+      status: salesCount > 0 ? 'Active Sales Performer' : 'Needs Selling Push'
     };
     if (salesCount > 0) {
       topSellingItems.push(itemData);
@@ -3526,9 +3554,27 @@ app.get('/api/admin/reports/analytics', (req, res) => {
     top_selling_items: topSellingItems,
     underperformingItems,
     items_needing_push: underperformingItems,
-    recentInvoices: invoices.slice(0, 10),
-    recentExpenses: expenses.slice(0, 10),
-    recentPayments: payments.slice(0, 10)
+    // Provide ALL items for complete action and reports without slicing
+    invoices,
+    allInvoices: invoices,
+    recentInvoices: invoices,
+    expenses,
+    allExpenses: expenses,
+    companyExpenses: expenses,
+    recentExpenses: expenses,
+    payments,
+    allPayments: payments,
+    recentPayments: payments,
+    payroll,
+    allPayroll: payroll,
+    subscriptions,
+    allSubscriptions: subscriptions,
+    quotations,
+    allQuotations: quotations,
+    workOrders,
+    allWorkOrders: workOrders,
+    auditLogs,
+    allAuditLogs: auditLogs
   });
 });
 
