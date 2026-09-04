@@ -369,7 +369,7 @@ export default function AuthModal({ setActivePage }) {
             </div>
           </>
         )}
-        */
+        */}
 
         {error && (
           <div style={{
