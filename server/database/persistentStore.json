@@ -1345,20 +1345,7 @@
       "created_at": "2026-09-01T12:03:49.605Z"
     }
   ],
-  "unifi_vouchers": [
-    {
-      "id": 1788251337589,
-      "token": "NOVA-WIFI-8866-6585",
-      "package_name": "Monthly (30 Days)",
-      "duration_hours": 720,
-      "data_limit_mb": 0,
-      "down_speed_mbps": 20,
-      "up_speed_mbps": 10,
-      "status": "active",
-      "customer_name": "Public WiFi Guest",
-      "created_at": "2026-09-01T08:28:57.589Z"
-    }
-  ],
+  "unifi_vouchers": [],
   "schedules": [
     {
       "id": 1,
@@ -2195,7 +2182,32 @@
       }
     }
   ],
-  "audit_logs": [],
+  "audit_logs": [
+    {
+      "id": 1788513507676,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-04T09:18:27.677Z"
+    },
+    {
+      "id": 1788511005930,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-04T08:36:45.932Z"
+    }
+  ],
   "smtp_settings": {
     "host": "webmail.ncedges.com",
     "port": 465,

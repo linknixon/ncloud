@@ -92,6 +92,7 @@ import {
   Landmark,
   Copy,
   Check,
+  AlertTriangle,
   Zap,
   Repeat,
   ShieldAlert,
@@ -100,6 +101,9 @@ import {
   Laptop,
   XCircle,
   RotateCcw,
+  Bell,
+  Shield,
+  Trash2,
   X
 } from 'lucide-react';
 
@@ -450,10 +454,9 @@ const normalizeTabName = (rawTab) => {
   const [unifiForm, setUnifiForm] = useState({
     count: 1,
     duration_hours: 24,
-    data_limit_mb: 5120,
-    package_name: '24 Hours High-Speed WiFi Guest Access (5GB)',
-    down_speed: 25,
-    up_speed: 10,
+    duration_label: '',
+    data_quota_mb: 0,
+    package_name: '',
     customer_name: '',
     customer_email: ''
   });
@@ -2512,9 +2515,52 @@ const normalizeTabName = (rawTab) => {
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message, 'success');
       setShowUnifiModal(false);
+      setUnifiForm({ count: 1, duration_hours: 24, duration_label: '', data_quota_mb: 0, package_name: '', customer_name: '', customer_email: '' });
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleDeleteWifiVoucher = async (id, token) => {
+    if (!window.confirm(`Delete voucher ${token}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/admin/wifi/vouchers/${id}`, { method: 'DELETE' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error);
+      showToast(resData.message, 'success');
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message || 'Failed to delete voucher', 'error');
+    }
+  };
+
+  const handleSuspendWifiVoucher = async (id, token) => {
+    if (!window.confirm(`Suspend voucher ${token}? It will be locked from use.`)) return;
+    try {
+      const res = await fetch(`/api/admin/wifi/vouchers/${id}/suspend`, { method: 'PUT' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error);
+      showToast('Voucher suspended successfully', 'success');
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message || 'Failed to suspend voucher', 'error');
+    }
+  };
+
+  const handleMarkVoucherBought = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/wifi/vouchers/${id}/mark-bought`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error);
+      showToast('Voucher marked as bought', 'success');
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message || 'Failed to update voucher', 'error');
     }
   };
 
@@ -8502,33 +8548,60 @@ const normalizeTabName = (rawTab) => {
             {/* INTERNET & UNIFI WIFI VOUCHER ENGINE */}
             {activeTab === 'internet' && (() => {
               const rawVouchers = unifiVouchersList && unifiVouchersList.length > 0 ? unifiVouchersList : [];
+
+              // Status filter
+              const [wifiStatusFilter, setWifiStatusFilter] = window.__wifiStatusFilter
+                ? [window.__wifiStatusFilter, window.__setWifiStatusFilter]
+                : (() => { window.__wifiStatusFilter = 'all'; window.__setWifiStatusFilter = v => { window.__wifiStatusFilter = v; }; return ['all', () => {}]; })();
+
               const filteredVouchers = rawVouchers.filter(v =>
-                !unifiSearch ||
-                v.token.toLowerCase().includes(unifiSearch.toLowerCase()) ||
-                (v.package_name || '').toLowerCase().includes(unifiSearch.toLowerCase()) ||
-                (v.customer_name || '').toLowerCase().includes(unifiSearch.toLowerCase())
+                (!unifiSearch ||
+                  v.token.toLowerCase().includes(unifiSearch.toLowerCase()) ||
+                  (v.package_name || '').toLowerCase().includes(unifiSearch.toLowerCase()) ||
+                  (v.customer_name || '').toLowerCase().includes(unifiSearch.toLowerCase())
+                )
               );
+
+              const availableCount = rawVouchers.filter(v => v.status === 'available').length;
+              const boughtCount = rawVouchers.filter(v => v.status === 'bought').length;
+              const suspendedCount = rawVouchers.filter(v => v.status === 'suspended').length;
 
               const V_PER_PAGE = 6;
               const totalVoucherPages = Math.ceil(filteredVouchers.length / V_PER_PAGE) || 1;
               const paginatedVouchers = filteredVouchers.slice((unifiPage - 1) * V_PER_PAGE, unifiPage * V_PER_PAGE);
 
+              const statusColor = (s) => s === 'available' ? '#10b981' : s === 'bought' ? '#0284c7' : s === 'suspended' ? '#ef4444' : '#94a3b8';
+              const statusBg = (s) => s === 'available' ? 'rgba(16,185,129,0.12)' : s === 'bought' ? 'rgba(2,132,199,0.12)' : s === 'suspended' ? 'rgba(239,68,68,0.12)' : 'rgba(148,163,184,0.12)';
+
               return (
                 <div>
+                  {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>Internet & UniFi WiFi Guest Access</h3>
+                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>WiFi Guest Voucher Management</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        UniFi Controller integration engine. Generate high-speed WiFi guest voucher tokens, manage speed profiles, and link vouchers to invoices (vouchers unlock upon 100% invoice settlement).
+                        Internal voucher pool — generate tokens, manage availability, and auto-dispatch on invoice payment.
                       </p>
                     </div>
-                    <button
-                      onClick={() => setShowUnifiModal(true)}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
-                    >
-                      <Plus size={16} /> Generate Guest WiFi Vouchers
-                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => setShowUnifiModal(true)}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
+                      >
+                        <Plus size={16} /> Generate WiFi Vouchers
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Stats bar */}
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                    {[{label:'Total',val:rawVouchers.length,color:'var(--primary)'},{label:'Available',val:availableCount,color:'#10b981'},{label:'Bought',val:boughtCount,color:'#0284c7'},{label:'Suspended',val:suspendedCount,color:'#ef4444'}].map(s => (
+                      <div key={s.label} className="glass-card" style={{ padding:'0.65rem 1.2rem', display:'flex', alignItems:'center', gap:'0.6rem', borderRadius:'10px' }}>
+                        <span style={{ fontSize:'1.4rem', fontWeight:'900', color:s.color }}>{s.val}</span>
+                        <span style={{ fontSize:'0.78rem', color:'var(--text-muted)', fontWeight:'600' }}>{s.label}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Search Bar */}
@@ -8538,99 +8611,134 @@ const normalizeTabName = (rawTab) => {
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Search WiFi vouchers by token code, package, or customer..."
+                        placeholder="Search by token, package, or customer name..."
                         value={unifiSearch}
                         onChange={e => { setUnifiSearch(e.target.value); setUnifiPage(1); }}
                         style={{ paddingLeft: '2.5rem', width: '100%' }}
                       />
                     </div>
                     <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                      Showing {paginatedVouchers.length} of {filteredVouchers.length} WiFi Vouchers (3 per row • 6 per page)
+                      {filteredVouchers.length} voucher{filteredVouchers.length !== 1 ? 's' : ''} found
                     </span>
                   </div>
 
-                  {/* 3 Records Per Row Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                    {paginatedVouchers.map(v => (
-                      <div
-                        key={v.id}
-                        className="glass-card"
-                        style={{
-                          padding: '1.25rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          borderRadius: '14px',
-                          border: '1px solid rgba(2, 132, 199, 0.35)',
-                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.04) 0%, var(--bg-card) 100%)'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#0284c7', fontWeight: '800' }}>
-                              <Wifi size={16} />
-                              <span style={{ fontSize: '0.85rem' }}>UniFi Guest Token</span>
+                  {/* Voucher Cards Grid */}
+                  {paginatedVouchers.length === 0 ? (
+                    <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                      <Wifi size={40} style={{ marginBottom: '1rem', opacity: 0.4 }} />
+                      <p style={{ fontWeight: '700' }}>No vouchers found.</p>
+                      <p style={{ fontSize: '0.85rem' }}>Generate new vouchers using the button above.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                      {paginatedVouchers.map(v => (
+                        <div
+                          key={v.id}
+                          className="glass-card"
+                          style={{
+                            padding: '1.25rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            borderRadius: '14px',
+                            border: `1px solid ${statusColor(v.status)}40`,
+                            background: `linear-gradient(135deg, ${statusBg(v.status)} 0%, var(--bg-card) 100%)`
+                          }}
+                        >
+                          <div>
+                            {/* Header row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#0284c7', fontWeight: '800', fontSize: '0.85rem' }}>
+                                <Wifi size={15} /> WiFi Guest Voucher
+                              </div>
+                              <span className="badge-tag" style={{ background: statusBg(v.status), color: statusColor(v.status), fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
+                                {v.status === 'available' ? '● Available' : v.status === 'bought' ? '✓ Bought' : v.status === 'suspended' ? '✕ Suspended' : v.status}
+                              </span>
                             </div>
-                            <span
-                              className="badge-tag"
-                              style={{
-                                background: v.status === 'active' ? 'rgba(16, 185, 129, 0.15)' : (v.status === 'dispatched' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.15)'),
-                                color: v.status === 'active' ? 'var(--accent-emerald)' : (v.status === 'dispatched' ? '#0ea5e9' : 'var(--text-muted)'),
-                                fontWeight: '800',
-                                fontSize: '0.75rem'
-                              }}
+
+                            {/* Token Code */}
+                            <div style={{ background: 'var(--bg-main)', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center', marginBottom: '0.85rem' }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.25rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Access Token</div>
+                              <code style={{ fontSize: '1.1rem', fontWeight: '900', letterSpacing: '2px', color: statusColor(v.status) }}>
+                                {v.token}
+                              </code>
+                            </div>
+
+                            {/* Package */}
+                            <div style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                              {v.package_name || 'WiFi Guest Pass'}
+                            </div>
+
+                            {/* Details */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.77rem', color: 'var(--text-muted)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Duration:</span>
+                                <strong style={{ color: 'var(--text-main)' }}>{v.duration_label || `${v.duration_hours}h`}</strong>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Data Quota:</span>
+                                <strong style={{ color: 'var(--text-main)' }}>{v.data_label || (v.data_quota_mb > 0 ? `${v.data_quota_mb} MB` : 'Unlimited')}</strong>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Created:</span>
+                                <strong style={{ color: 'var(--text-main)' }}>{new Date(v.created_at).toLocaleDateString()}</strong>
+                              </div>
+                              {v.customer_name && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-color)', paddingTop: '0.3rem', marginTop: '0.2rem' }}>
+                                  <span>Customer:</span>
+                                  <strong style={{ color: '#0284c7' }}>{v.customer_name}</strong>
+                                </div>
+                              )}
+                              {v.dispatched_at && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>Dispatched:</span>
+                                  <strong>{new Date(v.dispatched_at).toLocaleDateString()}</strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(v.token); showToast(`Token "${v.token}" copied!`, 'success'); }}
+                              className="btn-secondary"
+                              style={{ padding: '0.32rem 0.6rem', fontSize: '0.73rem', gap: '4px' }}
                             >
-                              {v.status.toUpperCase()}
-                            </span>
+                              <Copy size={12} /> Copy
+                            </button>
+                            {v.status === 'available' && isSuperAdmin && (
+                              <button
+                                onClick={() => handleMarkVoucherBought(v.id)}
+                                className="btn-secondary"
+                                style={{ padding: '0.32rem 0.6rem', fontSize: '0.73rem', gap: '4px', color: '#0284c7' }}
+                              >
+                                <Check size={12} /> Mark Bought
+                              </button>
+                            )}
+                            {v.status === 'available' && isSuperAdmin && (
+                              <button
+                                onClick={() => handleSuspendWifiVoucher(v.id, v.token)}
+                                className="btn-secondary"
+                                style={{ padding: '0.32rem 0.6rem', fontSize: '0.73rem', gap: '4px', color: '#f59e0b' }}
+                              >
+                                <AlertTriangle size={12} /> Suspend
+                              </button>
+                            )}
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => handleDeleteWifiVoucher(v.id, v.token)}
+                                className="btn-secondary"
+                                style={{ padding: '0.32rem 0.6rem', fontSize: '0.73rem', gap: '4px', color: '#ef4444' }}
+                              >
+                                <Trash2 size={12} /> Delete
+                              </button>
+                            )}
                           </div>
-
-                          {/* Token Code Display Box */}
-                          <div style={{ background: 'var(--bg-main)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center', marginBottom: '0.75rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>AUTHENTICATION ACCESS TOKEN:</div>
-                            <code style={{ fontSize: '1.15rem', fontWeight: '900', letterSpacing: '1px', color: 'var(--primary)' }}>
-                              {v.token}
-                            </code>
-                          </div>
-
-                          <div style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem' }}>
-                            {v.package_name}
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                            <span>Validity Duration:</span>
-                            <strong>{v.duration_hours} Hours</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                            <span>Data Quota Limit:</span>
-                            <strong>{Math.round(v.data_limit_mb / 1024)} GB</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                            <span>Speed Profile:</span>
-                            <strong>{v.down_speed_mbps || 25}M / {v.up_speed_mbps || 10}M</strong>
-                          </div>
-
-                          {v.customer_name && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '0.35rem' }}>
-                              Assigned Customer: <strong>{v.customer_name}</strong>
-                            </div>
-                          )}
                         </div>
-
-                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(v.token);
-                              showToast(`Token "${v.token}" copied to clipboard!`, 'success');
-                            }}
-                            className="btn-secondary"
-                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px' }}
-                          >
-                            <Copy size={13} /> Copy Token
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   {totalVoucherPages > 1 && (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
@@ -8640,7 +8748,7 @@ const normalizeTabName = (rawTab) => {
                         className="btn-secondary"
                         style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', opacity: unifiPage === 1 ? 0.5 : 1 }}
                       >
-                        ← Previous 6 Vouchers
+                        ← Previous
                       </button>
                       <span style={{ fontSize: '0.875rem', fontWeight: '700' }}>Page {unifiPage} of {totalVoucherPages}</span>
                       <button
@@ -8649,7 +8757,7 @@ const normalizeTabName = (rawTab) => {
                         className="btn-secondary"
                         style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', opacity: unifiPage === totalVoucherPages ? 0.5 : 1 }}
                       >
-                        Next 6 Vouchers →
+                        Next →
                       </button>
                     </div>
                   )}
@@ -13241,36 +13349,51 @@ const normalizeTabName = (rawTab) => {
         {showUnifiModal && (
           <div className="modal-overlay" onClick={() => setShowUnifiModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
-              <h3 style={{ fontSize: '1.35rem', marginBottom: '1rem', fontWeight: '800', color: '#0284c7' }}>
-                Generate UniFi WiFi Guest Access Tokens
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '0.35rem', fontWeight: '800', color: '#0284c7' }}>
+                Generate WiFi Guest Vouchers
               </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                Create new vouchers for the internal pool. Vouchers are dispatched automatically when a WiFi invoice is fully paid.
+              </p>
               <form onSubmit={handleGenerateUnifiVouchers}>
+
+                {/* Quick Preset Buttons */}
                 <div className="form-group">
-                  <label>Preset WiFi Package Profile *</label>
-                  <select
-                    className="form-input"
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '1h') setUnifiForm({ ...unifiForm, duration_hours: 1, data_limit_mb: 1024, package_name: '1 Hour Express WiFi (1GB Quota)' });
-                      else if (val === '24h') setUnifiForm({ ...unifiForm, duration_hours: 24, data_limit_mb: 5120, package_name: '24 Hours Daily WiFi (5GB Quota)' });
-                      else if (val === '7d') setUnifiForm({ ...unifiForm, duration_hours: 168, data_limit_mb: 20480, package_name: '7 Days Weekly WiFi (20GB Quota)' });
-                      else if (val === '30d') setUnifiForm({ ...unifiForm, duration_hours: 720, data_limit_mb: 102400, package_name: '30 Days Monthly WiFi (100GB Quota)' });
-                    }}
-                  >
-                    <option value="24h">24 Hours Daily Guest Pass (5GB Quota • 25M/10M)</option>
-                    <option value="1h">1 Hour Express Guest Pass (1GB Quota • 15M/5M)</option>
-                    <option value="7d">7 Days Weekly Guest Pass (20GB Quota • 30M/15M)</option>
-                    <option value="30d">30 Days Monthly Business Pass (100GB Quota • 50M/20M)</option>
-                  </select>
+                  <label>Quick Duration Preset</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {[
+                      { label: '8 Hours', hours: 8 },
+                      { label: '24 Hours', hours: 24 },
+                      { label: '1 Week', hours: 168 },
+                      { label: '1 Month', hours: 720 },
+                      { label: '3 Months', hours: 2160 },
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setUnifiForm({ ...unifiForm, duration_hours: preset.hours, duration_label: preset.label })}
+                        className="btn-secondary"
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.78rem',
+                          background: unifiForm.duration_hours === preset.hours ? '#0284c7' : 'transparent',
+                          color: unifiForm.duration_hours === preset.hours ? '#fff' : 'var(--text-main)',
+                          border: unifiForm.duration_hours === preset.hours ? 'none' : '1px solid var(--border-color)'
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div className="form-group">
-                    <label>Number of Tokens to Generate *</label>
+                    <label>Number of Vouchers *</label>
                     <input
                       type="number"
                       min="1"
-                      max="20"
+                      max="50"
                       className="form-input"
                       value={unifiForm.count}
                       onChange={e => setUnifiForm({ ...unifiForm, count: Math.max(1, parseInt(e.target.value) || 1) })}
@@ -13284,26 +13407,43 @@ const normalizeTabName = (rawTab) => {
                       min="1"
                       className="form-input"
                       value={unifiForm.duration_hours}
-                      onChange={e => setUnifiForm({ ...unifiForm, duration_hours: Number(e.target.value) })}
+                      onChange={e => setUnifiForm({ ...unifiForm, duration_hours: Number(e.target.value), duration_label: '' })}
                       required
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Package Name Description *</label>
+                  <label>Data Quota Limit (MB) — leave 0 for Unlimited</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    placeholder="0 = Unlimited data"
+                    value={unifiForm.data_quota_mb}
+                    onChange={e => setUnifiForm({ ...unifiForm, data_quota_mb: Number(e.target.value) })}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    {unifiForm.data_quota_mb > 0
+                      ? `Quota: ${unifiForm.data_quota_mb >= 1024 ? (unifiForm.data_quota_mb/1024).toFixed(1)+' GB' : unifiForm.data_quota_mb+' MB'}`
+                      : 'Unlimited data access'}
+                  </small>
+                </div>
+
+                <div className="form-group">
+                  <label>Custom Package Name (optional)</label>
                   <input
                     type="text"
                     className="form-input"
+                    placeholder="Auto-generated if left blank"
                     value={unifiForm.package_name}
                     onChange={e => setUnifiForm({ ...unifiForm, package_name: e.target.value })}
-                    required
                   />
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
                   <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#0284c7' }}>
-                    Generate Voucher Tokens
+                    <Plus size={16} /> Generate {unifiForm.count > 1 ? `${unifiForm.count} Vouchers` : 'Voucher'}
                   </button>
                   <button type="button" onClick={() => setShowUnifiModal(false)} className="btn-secondary">
                     Cancel
