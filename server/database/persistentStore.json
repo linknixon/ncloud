@@ -1314,7 +1314,7 @@
     }
   ],
   "announcement": {
-    "enabled": true,
+    "enabled": false,
     "badge": "NEW NOTICE",
     "text": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631",
     "link_text": "View Advisory",
@@ -1827,12 +1827,12 @@
     }
   ],
   "banner_settings": {
-    "message": "Major Datacenter Expansion: 20 New 1U/2U High-Density Colocation Server Racks now live with 10Gbps Cross-Connects!",
-    "enabled": true,
+    "message": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631",
+    "enabled": false,
     "timing_seconds": 15,
     "auto_dismiss_hours": 24,
     "bg_gradient": "linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)",
-    "updated_at": "2026-08-25T08:56:43.539Z"
+    "updated_at": "2026-09-05T07:46:03.916Z"
   },
   "roles": [
     {
@@ -2618,6 +2618,18 @@
   ],
   "audit_logs": [
     {
+      "id": 1788594133048,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T07:42:13.048Z"
+    },
+    {
       "id": 1788513507676,
       "user_email": "systems@ncloud.co.ug",
       "user_name": "Systems Admin",
@@ -2675,5 +2687,10 @@
       "description": "High-speed guest WiFi passes, temporary hotspot access tokens",
       "display_order": 4
     }
-  ]
+  ],
+  "notification_emails": {
+    "billing": "billing@ncloud.co.ug",
+    "sales": "sales@ncloud.co.ug",
+    "updated_at": "2026-09-05T07:46:12.309Z"
+  }
 }

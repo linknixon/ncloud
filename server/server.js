@@ -4552,634 +4552,675 @@ async function getServerQrDataUrl(url) {
   }
 }
 
-export async function generateServerInvoicePDFBuffer(inv, options = {}) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const invoiceNum = inv.invoice_number || `INV-${inv.id || '2026-0001'}`;
-  const cName = inv.customer_name || 'Valued Corporate Client';
-  const company = inv.company || cName;
-  const cEmail = inv.customer_email || 'client@company.co.ug';
-  const cPhone = inv.customer_phone || '+256 700 000 000';
-  const cAddress = inv.customer_address || 'Kampala, Uganda';
-  const invDate = inv.created_at ? inv.created_at.split('T')[0] : '2026-09-05';
-  const dueDate = inv.due_date || '2026-09-30';
-  const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
-  const totalAmt = Number(inv.amount || 0);
-  const paidAmt = isPaid ? totalAmt : Number(inv.paid_amount || 0);
-  const balanceDue = Math.max(0, totalAmt - paidAmt);
-  const subAmt = Number(inv.subtotal || (inv.vat_exempt ? totalAmt : Math.round(totalAmt / 1.18)));
-  const vatAmt = Boolean(inv.vat_exempt) ? 0 : (inv.vat_amount !== undefined ? Number(inv.vat_amount) : Math.round(subAmt * 0.18));
-  const discountAmt = Number(inv.discount_amount || 0);
+// ============================================================================
+// INVOICENINJA EXACT PDF STYLING SYSTEM (3-TONE ACCENTS & CYAN HEADER BLOCK)
+// ============================================================================
 
-  const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`);
-  const activeLogo = options.logoDataUrl || memoryStore.site_logo;
+export function drawInvoiceNinja3ToneBar(doc, y, h = 4) {
+  // Cyan: 0 to 50mm
+  doc.setFillColor(0, 157, 176);
+  doc.rect(0, y, 50, h, 'F');
+  // Dark Navy/Charcoal: 50 to 155mm
+  doc.setFillColor(30, 41, 59);
+  doc.rect(50, y, 105, h, 'F');
+  // Golden Amber: 155 to 210mm
+  doc.setFillColor(245, 158, 11);
+  doc.rect(155, y, 55, h, 'F');
+}
 
-  // Top Accent Bar
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, 210, 6, 'F');
-  doc.setFillColor(2, 132, 199);
-  doc.rect(0, 6, 210, 1.5, 'F');
-
-  // Header Left
-  let textX = 14;
-  if (activeLogo) {
+export function drawInvoiceNinjaBurgundyLogo(doc, x = 14, y = 11, customLogoDataUrl = null) {
+  if (customLogoDataUrl && typeof customLogoDataUrl === 'string' && customLogoDataUrl.startsWith('data:image')) {
     try {
-      doc.addImage(activeLogo, 'PNG', 14, 13, 24, 20);
-      textX = 42;
+      doc.addImage(customLogoDataUrl, 'PNG', x, y - 2, 24, 20);
+      return;
     } catch {}
   }
 
+  // Signature burgundy cloud & arrows brandmark
+  doc.setFillColor(136, 19, 55); // #881337 burgundy
+  doc.roundedRect(x + 2, y + 8, 20, 8, 3, 3, 'F');
+  doc.circle(x + 8, y + 8, 5, 'F');
+  doc.circle(x + 15, y + 7, 6, 'F');
+  doc.circle(x + 19, y + 10, 4, 'F');
+
+  // White up arrow & Cyan down arrow
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x + 9, y + 7, 2, 7, 'F');
+  doc.triangle(x + 8, y + 7, x + 12, y + 7, x + 10, y + 4, 'F');
+
+  doc.setFillColor(0, 157, 176);
+  doc.rect(x + 14, y + 6, 2, 7, 'F');
+  doc.triangle(x + 13, y + 13, x + 17, y + 13, x + 15, y + 16, 'F');
+
+  // Brand Name
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(15, 23, 42);
-  doc.text('NOVA CLOUD EDGES', textX, 18);
-  doc.setFontSize(9);
-  doc.setTextColor(2, 132, 199);
-  doc.text('(U) LIMITED', textX + 62, 18);
+  doc.setFontSize(14.5);
+  doc.setTextColor(136, 19, 55);
+  doc.text('NOVA CLOUD', x + 26, y + 10);
+  doc.setFontSize(10);
+  doc.text('EDGES (U) LTD', x + 26, y + 15);
+}
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(SERVER_BRAND.tagline, textX, 23);
-  doc.text(`${SERVER_BRAND.address} • TIN: ${SERVER_BRAND.tin}`, textX, 27.5);
-  doc.text(SERVER_BRAND.contact, textX, 32);
+function formatNinjaDate(dateInput) {
+  if (!dateInput) return '06/Jun/2026';
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput);
+    const day = String(d.getDate()).padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${day}/${months[d.getMonth()]}/${d.getFullYear()}`;
+  } catch {
+    return String(dateInput);
+  }
+}
 
-  // Header Right
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(15, 23, 42);
-  doc.text('TAX INVOICE', 196, 19, { align: 'right' });
+function formatNinjaUGX(num) {
+  return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' UGX';
+}
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text(invoiceNum, 196, 25, { align: 'right' });
+export async function generateServerInvoicePDFBuffer(inv, options = {}) {
+  const opts = Array.isArray(options) ? { bankAccounts: options } : (options || {});
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  // Status Stamp Box
-  const stampW = 38;
-  const stampH = 7;
-  const stampX = 196 - stampW;
-  const stampY = 28;
-  doc.setFillColor(isPaid ? 240 : 254, isPaid ? 253 : 243, isPaid ? 244 : 199);
-  doc.setDrawColor(isPaid ? 34 : 217, isPaid ? 197 : 119, isPaid ? 94 : 6);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(isPaid ? 22 : 180, isPaid ? 163 : 83, isPaid ? 74 : 9);
-  doc.text(isPaid ? 'PAID & SETTLED' : 'PAYMENT PENDING', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
+  const invoiceNum = inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`;
+  const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
+  const dueDate = formatNinjaDate(inv?.due_date || new Date(Date.now() + 14 * 86400000));
+  const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
+  const totalAmt = Number(inv?.amount || inv?.total || 0);
+  const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
+  const balanceDue = Math.max(0, totalAmt - paidAmt);
 
-  // Separator
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(14, 38, 196, 38);
+  // Customer & Shipping mapping
+  const cName = inv?.customer_name || inv?.company || inv?.party_name || 'Muhabura Shine SS';
+  const cCode = inv?.customer_code || inv?.client_id || (inv?.id ? String(inv.id) : '1602026');
+  const cAddr1 = inv?.customer_address || inv?.address || 'Bunagana Rd';
+  const cAddr2 = inv?.customer_city || inv?.city || 'Kisoro, Central Township 256';
+  const cCountry = inv?.customer_country || 'Uganda';
+  const cPhone = inv?.customer_phone || inv?.phone || '0772601695';
+  const cEmail = inv?.customer_email || inv?.party_email || inv?.email || 'info@ncedges.com';
 
-  // Cards
-  const metaY = 42;
-  const colW = 88;
+  const shipAddr1 = inv?.ship_to?.address1 || inv?.shipping_address || cAddr1;
+  const shipAddr2 = inv?.ship_to?.address2 || inv?.shipping_city || 'Kisoro Central Township 256';
+  const shipCountry = inv?.ship_to?.country || cCountry;
 
-  // Billed To Card
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, metaY, colW, 30, 2, 2, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text('BILLED TO (CLIENT DETAILS):', 18, metaY + 6);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  const compLines = doc.splitTextToSize(company, 80);
-  doc.text(compLines.slice(0, 1), 18, metaY + 11.5);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  if (company !== cName) {
-    doc.text(`Attention: ${cName}`, 18, metaY + 16.5);
-    doc.text(`Email: ${cEmail}`, 18, metaY + 21);
-    doc.text(`Phone: ${cPhone} • ${cAddress.substring(0, 28)}`, 18, metaY + 25.5);
+  // Normalized Line Items
+  let items = [];
+  if (Array.isArray(inv?.items) && inv.items.length > 0) {
+    items = inv.items.map(it => ({
+      name: it.name || it.item_name || 'Cloud Solution Service',
+      description: it.description || it.specs || it.short_desc || '',
+      unit_price: Number(it.unit_price || it.price || 0),
+      quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
+      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
+    }));
   } else {
-    doc.text(`Email: ${cEmail}`, 18, metaY + 16.5);
-    doc.text(`Phone: ${cPhone}`, 18, metaY + 21);
-    doc.text(`Address: ${cAddress.substring(0, 38)}`, 18, metaY + 25.5);
+    items = [{
+      name: inv?.item_name || 'Cloud Infrastructure & Managed Services',
+      description: inv?.description || 'Enterprise Cloud & Managed Systems Deployment and Configuration',
+      unit_price: totalAmt,
+      quantity: 1,
+      amount: totalAmt
+    }];
   }
 
-  // Ledger Metrics Card
-  const rX = 108;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(rX, metaY, colW, 30, 2, 2, 'FD');
+  // QR Code & Logo
+  const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`);
+  const activeLogo = opts.logoDataUrl || memoryStore.site_logo;
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text('TAX & BILLING LEDGER METRICS:', rX + 4, metaY + 6);
+  // Page 1 Top 3-Tone Accent Bar
+  drawInvoiceNinja3ToneBar(doc, 0, 4);
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Invoice Date:', rX + 4, metaY + 12);
-  doc.text('Payment Due Date:', rX + 4, metaY + 16.5);
-  doc.text('Tax Reg Status:', rX + 4, metaY + 21);
-  doc.text('Balance Due:', rX + 4, metaY + 25.5);
+  // Logo Left
+  drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(invDate, rX + 40, metaY + 12);
-  doc.text(dueDate, rX + 40, metaY + 16.5);
-  doc.text(inv.vat_exempt ? 'VAT 0% Exempt' : 'Standard 18% VAT (URA Compliant)', rX + 40, metaY + 21);
-  doc.setTextColor(balanceDue > 0 ? 217 : 22, balanceDue > 0 ? 119 : 163, balanceDue > 0 ? 6 : 74);
-  doc.text(`UGX ${balanceDue.toLocaleString()} ${isPaid ? '(Settled)' : ''}`, rX + 40, metaY + 25.5);
-
-  // Items Table Header
-  const tableY = 76;
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(14, tableY, 182, 8, 1, 1, 'F');
+  // Top Right Solid Cyan Rectangle
+  doc.setFillColor(0, 157, 176);
+  doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(255, 255, 255);
-  doc.text('#', 18, tableY + 5.5);
-  doc.text('DESCRIPTION / SCOPE OF SERVICES', 28, tableY + 5.5);
-  doc.text('QTY', 125, tableY + 5.5, { align: 'center' });
-  doc.text('UNIT RATE (UGX)', 155, tableY + 5.5, { align: 'right' });
-  doc.text('LINE TOTAL (UGX)', 192, tableY + 5.5, { align: 'right' });
 
-  let curY = tableY + 8;
-  const items = Array.isArray(inv.items) && inv.items.length > 0 ? inv.items : [
-    { name: inv.item_name || 'Enterprise Cloud VPS & Network Solutions', quantity: inv.quantity || 1, unit_price: inv.unit_price || totalAmt, amount: totalAmt }
+  const metaRows = [
+    { label: 'Invoice Number', val: invoiceNum },
+    { label: 'Invoice Date', val: invDate },
+    { label: 'Due Date', val: dueDate },
+    { label: 'Invoice Total', val: formatNinjaUGX(totalAmt) },
+    { label: 'Balance Due', val: formatNinjaUGX(balanceDue) }
   ];
 
-  items.forEach((it, idx) => {
-    const itName = it.name || it.description || 'Enterprise Solution';
-    const itQty = it.quantity || it.qty || 1;
-    const itRate = Number(it.unit_price || it.price || 0);
-    const itAmt = Number(it.amount || it.total || (itQty * itRate));
+  metaRows.forEach((r, idx) => {
+    const rowY = 13 + idx * 4.8;
+    doc.text(r.label, 128, rowY);
+    doc.text(r.val, 194, rowY, { align: 'right' });
+  });
 
-    const splitLines = doc.splitTextToSize(itName, 92);
-    const rowHeight = Math.max(8.5, splitLines.length * 4.2 + 4);
+  // Addresses Section
+  const addrY = 38;
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(0, 157, 176);
+  doc.text('From:', 14, addrY);
+  doc.text('To:', 88, addrY);
+  doc.text('Ship to:', 160, addrY);
 
-    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
-    doc.rect(14, curY, 182, rowHeight, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.line(14, curY + rowHeight, 196, curY + rowHeight);
+  // Underline for labels
+  doc.setDrawColor(0, 157, 176);
+  doc.setLineWidth(0.25);
+  doc.line(14, addrY + 2, 196, addrY + 2);
 
+  // From Sub-columns
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Nova Cloud Edges Ltd', 14, addrY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const fromLeftLines = [
+    'Stanbic Bank AC:',
+    '9030017809856',
+    'www.ncedges.com',
+    'info@ncedges.com',
+    '(+256) 790001631/33'
+  ];
+  fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
+
+  const fromRightLines = [
+    'MTN Merchant Code:',
+    '674859',
+    'Ndejje Division',
+    'Wakiso, Makidye P.O. Box',
+    '184226, Kampala',
+    'Uganda'
+  ];
+  fromRightLines.forEach((l, idx) => doc.text(l, 46, addrY + 6 + idx * 3.6));
+
+  // To Column
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text(cName, 88, addrY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const toLines = [
+    cCode,
+    cAddr1,
+    cAddr2,
+    cCountry,
+    cPhone,
+    cEmail
+  ].filter(Boolean);
+  toLines.forEach((l, idx) => doc.text(l, 88, addrY + 9.5 + idx * 3.6));
+
+  // Ship To Column
+  const shipLines = [
+    shipAddr1,
+    shipAddr2,
+    shipCountry
+  ].filter(Boolean);
+  shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
+
+  // Dark line separating addresses from table
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.35);
+  doc.line(14, addrY + 32, 196, addrY + 32);
+
+  // Table Setup
+  function drawTableHeader(y) {
+    doc.setFillColor(0, 157, 176);
+    doc.rect(14, y, 182, 7.5, 'F');
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text(String(idx + 1).padStart(2, '0'), 18, curY + 5.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Item', 17, y + 5);
+    doc.text('Description', 60, y + 5);
+    doc.text('Unit Cost', 145, y + 5, { align: 'right' });
+    doc.text('Quantity', 158, y + 5, { align: 'center' });
+    doc.text('Line Total', 193, y + 5, { align: 'right' });
+  }
 
+  let tableY = addrY + 36;
+  drawTableHeader(tableY);
+  tableY += 7.5;
+
+  items.forEach((it, idx) => {
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 40);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 62);
+    const maxLines = Math.max(nameLines.length, descLines.length, 1);
+    const rowH = Math.max(7.5, maxLines * 3.6 + 3.5);
+
+    // Multi-page overflow check at 250mm
+    if (tableY + rowH > 250) {
+      doc.addPage();
+      drawInvoiceNinja3ToneBar(doc, 0, 4);
+      tableY = 10;
+      drawTableHeader(tableY);
+      tableY += 7.5;
+    }
+
+    // Zebra striping
+    if (idx % 2 === 1) {
+      doc.setFillColor(245, 247, 250);
+      doc.rect(14, tableY, 182, rowH, 'F');
+    }
+
+    // Item (Cyan Bold)
     doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(15, 23, 42);
-    doc.text(splitLines, 28, curY + 5.5);
+    doc.setFontSize(7.2);
+    doc.setTextColor(0, 157, 176);
+    doc.text(nameLines, 17, tableY + 4.2);
 
+    // Description (Dark Charcoal Normal)
     doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(71, 85, 105);
-    doc.text(String(itQty), 125, curY + 5.5, { align: 'center' });
+    doc.setFontSize(6.8);
+    doc.setTextColor(30, 41, 59);
+    doc.text(descLines, 60, tableY + 4.2);
 
-    doc.text(itRate.toLocaleString(), 155, curY + 5.5, { align: 'right' });
-    doc.setFont('Helvetica', 'bold');
+    // Unit Cost
+    const uCost = Number(it.unit_price || 0);
+    doc.setFontSize(7.2);
     doc.setTextColor(15, 23, 42);
-    doc.text(itAmt.toLocaleString(), 192, curY + 5.5, { align: 'right' });
+    doc.text(formatNinjaUGX(uCost), 145, tableY + 4.2, { align: 'right' });
 
-    curY += rowHeight;
+    // Qty
+    const qVal = Number(it.quantity || 1);
+    doc.text(String(qVal), 158, tableY + 4.2, { align: 'center' });
+
+    // Line Total
+    const lTot = Number(it.amount || uCost * qVal);
+    doc.text(formatNinjaUGX(lTot), 193, tableY + 4.2, { align: 'right' });
+
+    // Subtle bottom border
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14, tableY + rowH, 196, tableY + rowH);
+
+    tableY += rowH;
   });
 
-  // Totals Section
-  curY += 4;
-  const totalsW = 86;
-  const totalsX = 196 - totalsW;
-
-  const printTotalLine = (label, val, isBold = false, color = [15, 23, 42]) => {
-    doc.setFont('Helvetica', isBold ? 'bold' : 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
-    doc.text(label, totalsX, curY + 4);
-    doc.setFont('Helvetica', 'bold');
-    doc.setTextColor(...color);
-    doc.text(val, 192, curY + 4, { align: 'right' });
-    curY += 5.2;
-  };
-
-  printTotalLine('Gross Subtotal:', `UGX ${subAmt.toLocaleString()}`);
-  if (discountAmt > 0) {
-    printTotalLine('Commercial Discount:', `- UGX ${discountAmt.toLocaleString()}`, false, [16, 185, 129]);
-  }
-  printTotalLine(inv.vat_exempt ? 'Value Added Tax (0% Exempt):' : 'Value Added Tax (18% VAT):', inv.vat_exempt ? 'EXEMPT (0%)' : `UGX ${vatAmt.toLocaleString()}`);
-
-  // Total Invoiced Pill
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(totalsX - 2, curY + 1, totalsW + 2, 8.5, 1, 1, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL INVOICED:', totalsX + 3, curY + 6.5);
-  doc.setFontSize(10);
-  doc.setTextColor(56, 189, 248);
-  doc.text(`UGX ${totalAmt.toLocaleString()}`, 192, curY + 6.5, { align: 'right' });
-  curY += 12;
-
-  if (isPaid || paidAmt > 0) {
-    printTotalLine('Amount Paid to Date:', `UGX ${paidAmt.toLocaleString()}`, true, [22, 163, 74]);
-    printTotalLine('Remaining Balance Due:', `UGX ${balanceDue.toLocaleString()}`, true, balanceDue > 0 ? [217, 119, 6] : [2, 132, 199]);
-    curY += 2;
+  // Check if Totals section fits on current page
+  if (tableY + 48 > 250) {
+    doc.addPage();
+    drawInvoiceNinja3ToneBar(doc, 0, 4);
+    tableY = 12;
   }
 
-  // Remittance Card
-  const bankCardY = Math.max(curY + 4, 158);
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, bankCardY, 182, 38, 2, 2, 'FD');
+  // Totals & Terms Section
+  const totalsY = tableY + 6;
 
+  // Invoice Terms on Left
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text('OFFICIAL SETTLEMENT & WIRE REMITTANCE INSTRUCTIONS', 18, bankCardY + 6);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Invoice Terms:', 14, totalsY);
 
-  const configuredBanks = Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0
-    ? memoryStore.bank_accounts
-    : [
-        { bank_name: 'Stanbic Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '9030018829401', branch: 'Forest Mall Lugogo Branch, Kampala', swift_code: 'SBICUGKX', currency: 'UGX' },
-        { bank_name: 'Absa Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '0341199482', branch: 'Hannington Road Branch, Kampala', swift_code: 'BARCUGKX', currency: 'USD' }
-      ];
-
-  configuredBanks.slice(0, 2).forEach((b, i) => {
-    const bX = i === 0 ? 18 : 108;
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(15, 23, 42);
-    doc.text(b.bank_name, bX, bankCardY + 12);
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`A/C Name: ${b.account_name || SERVER_BRAND.name}`, bX, bankCardY + 16.5);
-    doc.text(`A/C No (${b.currency || 'UGX'}): ${b.account_number}`, bX, bankCardY + 21);
-    doc.text(`Branch: ${b.branch} • SWIFT: ${b.swift_code || 'SBICUGKX'}`, bX, bankCardY + 25.5);
-  });
-
-  // Mobile Money Banner
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(18, bankCardY + 29, 174, 6.5, 1, 1, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(6.8);
-  doc.setTextColor(2, 132, 199);
-  doc.text('MOBILE MONEY MERCHANT REMITTANCE:', 22, bankCardY + 33.5);
   doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  doc.text(`MTN MoMo Pay: 628100  |  Airtel Money Merchant: 430192  |  Narration: Quote ${invoiceNum}`, 82, bankCardY + 33.5);
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const termsString = inv?.terms || 'This Invoice is valid for ONLY 2 weeks, and payment of at least 75% MUST be made before services are offered.';
+  const termsText = doc.splitTextToSize(termsString, 90);
+  doc.text(termsText, 14, totalsY + 4.2);
 
-  // Signatory & QR Verification Card
-  const signBlockY = bankCardY + 42;
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, signBlockY, 182, 34, 2, 2, 'FD');
-
+  // Digital Clearance Seal & QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 18, signBlockY + 4, 26, 26);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 16, 20, 20);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(15, 23, 42);
+      doc.text('OFFICIAL DIGITAL CLEARANCE', 38, totalsY + 21);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6.2);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger', 38, totalsY + 25.5);
+      doc.setTextColor(0, 157, 176);
+      doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 38, totalsY + 30);
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('DIGITAL SECURITY VERIFICATION', 48, signBlockY + 9);
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Scan the QR code with any smartphone camera to verify this invoice', 48, signBlockY + 14);
-  doc.text('authenticity directly on the official Nova Cloud cryptographic ledger.', 48, signBlockY + 18.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 48, signBlockY + 23);
+  // Totals Rows on Right
+  const totalRows = [
+    { label: 'Net', val: formatNinjaUGX(totalAmt) },
+    { label: 'Subtotal', val: formatNinjaUGX(totalAmt) },
+    { label: 'Total', val: formatNinjaUGX(totalAmt) },
+    { label: 'Paid to Date', val: formatNinjaUGX(paidAmt) },
+    { label: 'Balance Due', val: formatNinjaUGX(balanceDue) }
+  ];
 
-  // Authorized Signatory
-  doc.setDrawColor(203, 213, 225);
-  doc.line(135, signBlockY + 21, 190, signBlockY + 21);
+  totalRows.forEach((r, idx) => {
+    const rY = totalsY + idx * 4.8;
+    doc.setFont('Helvetica', r.label === 'Balance Due' ? 'bold' : 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(15, 23, 42);
+    doc.text(r.label, 155, rY, { align: 'right' });
+    doc.text(r.val, 194, rY, { align: 'right' });
+  });
 
-  doc.setFont('Helvetica', 'italic');
-  doc.setFontSize(8.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text(SERVER_BRAND.signatory, 162.5, signBlockY + 18, { align: 'center' });
+  // Footer & Page numbers on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(15, 23, 42);
-  doc.text('AUTHORIZED SIGNATORY', 162.5, signBlockY + 25, { align: 'center' });
+    // Bottom Dealings text
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(SERVER_BRAND.signatoryTitle, 162.5, signBlockY + 29, { align: 'center' });
+    // Page number in Cyan
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(0, 157, 176);
+    doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
-  // Footer
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(14, 282, 196, 282);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`This is a computer-generated Tax Document issued by ${SERVER_BRAND.name} • Certified URA Tax Compliant • Page 1 of 1`, 105, 287, { align: 'center' });
+    // Bottom 3-Tone Bar
+    drawInvoiceNinja3ToneBar(doc, 293, 4);
+  }
 
   return Buffer.from(doc.output('arraybuffer'));
 }
 
 export async function generateServerQuotationPDFBuffer(quote, options = {}) {
+  const opts = Array.isArray(options) ? { bankAccounts: options } : (options || {});
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const quoteNum = quote.quote_number || `QTN-${quote.id || '2026-0001'}`;
-  const cName = quote.customer_name || 'Valued Corporate Prospect';
-  const company = quote.company || cName;
-  const cEmail = quote.customer_email || 'procurement@client.co.ug';
-  const cPhone = quote.customer_phone || '+256 700 000 000';
-  const qDate = quote.created_at ? quote.created_at.split('T')[0] : '2026-09-05';
-  const validUntil = quote.valid_until || '2026-10-05';
-  const totalAmt = Number(quote.total_amount || 0);
-  const subAmt = Number(quote.subtotal || Math.round(totalAmt / 1.18));
-  const vatAmt = Boolean(quote.vat_exempt) ? 0 : (quote.vat_amount !== undefined ? Number(quote.vat_amount) : Math.round(subAmt * 0.18));
-  const isAccepted = quote.status === 'Accepted';
 
-  const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`);
-  const activeLogo = options.logoDataUrl || memoryStore.site_logo;
+  const quoteNum = quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`;
+  const qDate = formatNinjaDate(quote?.created_at || quote?.date || new Date());
+  const validUntil = formatNinjaDate(quote?.valid_until || new Date(Date.now() + 30 * 86400000));
+  const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
 
-  // Top Accent Bar
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, 210, 6, 'F');
-  doc.setFillColor(59, 130, 246);
-  doc.rect(0, 6, 210, 1.5, 'F');
+  // Customer & Shipping mapping
+  const cName = quote?.customer_name || quote?.company || quote?.party_name || 'Muhabura Shine SS';
+  const cCode = quote?.customer_code || quote?.client_id || (quote?.id ? String(quote.id) : '1602026');
+  const cAddr1 = quote?.customer_address || quote?.address || 'Bunagana Rd';
+  const cAddr2 = quote?.customer_city || quote?.city || 'Kisoro, Central Township 256';
+  const cCountry = quote?.customer_country || 'Uganda';
+  const cPhone = quote?.customer_phone || quote?.phone || '0772601695';
+  const cEmail = quote?.customer_email || quote?.party_email || quote?.email || 'info@ncedges.com';
 
-  // Header Left
-  let textX = 14;
-  if (activeLogo) {
-    try {
-      doc.addImage(activeLogo, 'PNG', 14, 13, 24, 20);
-      textX = 42;
-    } catch {}
+  const shipAddr1 = quote?.ship_to?.address1 || quote?.shipping_address || cAddr1;
+  const shipAddr2 = quote?.ship_to?.address2 || quote?.shipping_city || 'Kisoro Central Township 256';
+  const shipCountry = quote?.ship_to?.country || cCountry;
+
+  // Normalized Line Items
+  let items = [];
+  if (Array.isArray(quote?.items) && quote.items.length > 0) {
+    items = quote.items.map(it => ({
+      name: it.name || it.item_name || 'Cloud Solution Service',
+      description: it.description || it.specs || it.short_desc || '',
+      unit_price: Number(it.unit_price || it.price || 0),
+      quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
+      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
+    }));
+  } else {
+    items = [{
+      name: quote?.item_name || 'Cloud Infrastructure & Managed Services',
+      description: quote?.description || 'Enterprise Cloud & Managed Systems Deployment and Configuration',
+      unit_price: totalAmt,
+      quantity: 1,
+      amount: totalAmt
+    }];
   }
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(15, 23, 42);
-  doc.text('NOVA CLOUD EDGES', textX, 18);
-  doc.setFontSize(9);
-  doc.setTextColor(59, 130, 246);
-  doc.text('(U) LIMITED', textX + 62, 18);
+  // QR Code & Logo
+  const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`);
+  const activeLogo = opts.logoDataUrl || memoryStore.site_logo;
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(SERVER_BRAND.tagline, textX, 23);
-  doc.text(`${SERVER_BRAND.address} • TIN: ${SERVER_BRAND.tin}`, textX, 27.5);
-  doc.text(SERVER_BRAND.contact, textX, 32);
+  // Page 1 Top 3-Tone Accent Bar
+  drawInvoiceNinja3ToneBar(doc, 0, 4);
 
-  // Header Right
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(15, 23, 42);
-  doc.text('PRICE QUOTATION', 196, 19, { align: 'right' });
+  // Logo Left
+  drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text(quoteNum, 196, 25, { align: 'right' });
-
-  // Status Stamp Box
-  const stampW = 38;
-  const stampH = 7;
-  const stampX = 196 - stampW;
-  const stampY = 28;
-  doc.setFillColor(isAccepted ? 240 : 239, isAccepted ? 253 : 246, isAccepted ? 244 : 255);
-  doc.setDrawColor(isAccepted ? 34 : 59, isAccepted ? 197 : 130, isAccepted ? 94 : 246);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(isAccepted ? 22 : 37, isAccepted ? 163 : 99, isAccepted ? 74 : 235);
-  doc.text(isAccepted ? 'QUOTE ACCEPTED' : 'OFFICIAL PROPOSAL', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(14, 38, 196, 38);
-
-  // Cards
-  const metaY = 42;
-  const colW = 88;
-
-  // Prepared For Card
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, metaY, colW, 30, 2, 2, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text('PREPARED FOR (PROSPECT):', 18, metaY + 6);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  const compLines = doc.splitTextToSize(company, 80);
-  doc.text(compLines.slice(0, 1), 18, metaY + 11.5);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Attention: ${cName}`, 18, metaY + 16.5);
-  doc.text(`Email: ${cEmail}`, 18, metaY + 21);
-  doc.text(`Phone: ${cPhone}`, 18, metaY + 25.5);
-
-  // Proposal Validity Card
-  const rX = 108;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(rX, metaY, colW, 30, 2, 2, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text('PROPOSAL VALIDITY & TERMS:', rX + 4, metaY + 6);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Quotation Date:', rX + 4, metaY + 12);
-  doc.text('Valid Until (30 Days):', rX + 4, metaY + 16.5);
-  doc.text('Tax Classification:', rX + 4, metaY + 21);
-  doc.text('Currency of Quote:', rX + 4, metaY + 25.5);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(qDate, rX + 40, metaY + 12);
-  doc.text(validUntil, rX + 40, metaY + 16.5);
-  doc.text(quote.vat_exempt ? 'VAT 0% Exempt' : '18% VAT Inclusive', rX + 40, metaY + 21);
-  doc.text('Uganda Shillings (UGX)', rX + 40, metaY + 25.5);
-
-  // Table Header
-  const tableY = 76;
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(14, tableY, 182, 8, 1, 1, 'F');
+  // Top Right Solid Cyan Rectangle
+  doc.setFillColor(0, 157, 176);
+  doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(255, 255, 255);
-  doc.text('#', 18, tableY + 5.5);
-  doc.text('PROPOSED SCOPE / SOLUTION SPECIFICATION', 28, tableY + 5.5);
-  doc.text('QTY', 125, tableY + 5.5, { align: 'center' });
-  doc.text('UNIT PRICE (UGX)', 155, tableY + 5.5, { align: 'right' });
-  doc.text('LINE TOTAL (UGX)', 192, tableY + 5.5, { align: 'right' });
 
-  let curY = tableY + 8;
-  const items = Array.isArray(quote.items) && quote.items.length > 0 ? quote.items : [
-    { name: 'Enterprise Cloud Service Package', quantity: 1, unit_price: totalAmt, total: totalAmt }
+  const metaRows = [
+    { label: 'Quotation Number', val: quoteNum },
+    { label: 'Quotation Date', val: qDate },
+    { label: 'Valid Until', val: validUntil },
+    { label: 'Quotation Total', val: formatNinjaUGX(totalAmt) },
+    { label: 'Proposal Status', val: quote?.status || 'Active Proposal' }
   ];
 
-  items.forEach((it, idx) => {
-    const itName = it.name || it.description || 'Enterprise Solution';
-    const itQty = it.quantity || 1;
-    const itRate = Number(it.unit_price || 0);
-    const itAmt = Number(it.total || (itQty * itRate));
-
-    const splitLines = doc.splitTextToSize(itName, 92);
-    const rowHeight = Math.max(8.5, splitLines.length * 4.2 + 4);
-
-    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
-    doc.rect(14, curY, 182, rowHeight, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.2);
-    doc.line(14, curY + rowHeight, 196, curY + rowHeight);
-
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text(String(idx + 1).padStart(2, '0'), 18, curY + 5.5);
-
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(15, 23, 42);
-    doc.text(splitLines, 28, curY + 5.5);
-
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(71, 85, 105);
-    doc.text(String(itQty), 125, curY + 5.5, { align: 'center' });
-    doc.text(itRate.toLocaleString(), 155, curY + 5.5, { align: 'right' });
-
-    doc.setFont('Helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(itAmt.toLocaleString(), 192, curY + 5.5, { align: 'right' });
-
-    curY += rowHeight;
+  metaRows.forEach((r, idx) => {
+    const rowY = 13 + idx * 4.8;
+    doc.text(r.label, 128, rowY);
+    doc.text(r.val, 194, rowY, { align: 'right' });
   });
 
-  // Totals
-  curY += 4;
-  const totalsW = 86;
-  const totalsX = 196 - totalsW;
-
-  const printTotalLine = (label, val) => {
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text(label, totalsX, curY + 4);
-    doc.setFont('Helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(val, 192, curY + 4, { align: 'right' });
-    curY += 5.2;
-  };
-
-  printTotalLine('Net Subtotal:', `UGX ${subAmt.toLocaleString()}`);
-  printTotalLine(quote.vat_exempt ? 'VAT (0% Exempt):' : 'VAT (18% Statutory):', quote.vat_exempt ? 'EXEMPT (0%)' : `UGX ${vatAmt.toLocaleString()}`);
-
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(totalsX - 2, curY + 1, totalsW + 2, 8.5, 1, 1, 'F');
+  // Addresses Section
+  const addrY = 38;
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL QUOTED:', totalsX + 3, curY + 6.5);
-  doc.setFontSize(10);
-  doc.setTextColor(96, 165, 250);
-  doc.text(`UGX ${totalAmt.toLocaleString()}`, 192, curY + 6.5, { align: 'right' });
-  curY += 14;
+  doc.setFontSize(8);
+  doc.setTextColor(0, 157, 176);
+  doc.text('From:', 14, addrY);
+  doc.text('To:', 88, addrY);
+  doc.text('Ship to:', 160, addrY);
 
-  // Acceptance & Terms Card
-  const termsY = Math.max(curY + 4, 160);
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, termsY, 182, 36, 2, 2, 'FD');
+  // Underline for labels
+  doc.setDrawColor(0, 157, 176);
+  doc.setLineWidth(0.25);
+  doc.line(14, addrY + 2, 196, addrY + 2);
 
+  // From Sub-columns
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text('PROPOSAL TERMS & COMMERCIAL ACCEPTANCE INSTRUCTIONS', 18, termsY + 6);
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Nova Cloud Edges Ltd', 14, addrY + 6);
 
   doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`• Validity: This quotation is binding and valid for 30 calendar days from issue date.`, 18, termsY + 12);
-  doc.text(`• Scope Acceptance: Sign and return via email to sales@ncloud.co.ug or accept online at https://ncloud.co.ug/portal.`, 18, termsY + 17);
-  doc.text(`• Service Delivery: Upon commercial approval, deployment commences within 24–48 hours under our 99.98% SLA.`, 18, termsY + 22);
-  doc.text(`• Remittance Account: Stanbic Bank Uganda Ltd • Account No: 9030018829401 • Forest Mall Lugogo Branch, Kampala`, 18, termsY + 27);
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const fromLeftLines = [
+    'Stanbic Bank AC:',
+    '9030017809856',
+    'www.ncedges.com',
+    'info@ncedges.com',
+    '(+256) 790001631/33'
+  ];
+  fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
 
-  // Signatory & QR Verification Card
-  const signBlockY = termsY + 40;
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, signBlockY, 182, 34, 2, 2, 'FD');
+  const fromRightLines = [
+    'MTN Merchant Code:',
+    '674859',
+    'Ndejje Division',
+    'Wakiso, Makidye P.O. Box',
+    '184226, Kampala',
+    'Uganda'
+  ];
+  fromRightLines.forEach((l, idx) => doc.text(l, 46, addrY + 6 + idx * 3.6));
 
+  // To Column
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text(cName, 88, addrY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const toLines = [
+    cCode,
+    cAddr1,
+    cAddr2,
+    cCountry,
+    cPhone,
+    cEmail
+  ].filter(Boolean);
+  toLines.forEach((l, idx) => doc.text(l, 88, addrY + 9.5 + idx * 3.6));
+
+  // Ship To Column
+  const shipLines = [
+    shipAddr1,
+    shipAddr2,
+    shipCountry
+  ].filter(Boolean);
+  shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
+
+  // Dark line separating addresses from table
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.35);
+  doc.line(14, addrY + 32, 196, addrY + 32);
+
+  // Table Setup
+  function drawTableHeader(y) {
+    doc.setFillColor(0, 157, 176);
+    doc.rect(14, y, 182, 7.5, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Item', 17, y + 5);
+    doc.text('Description', 60, y + 5);
+    doc.text('Unit Cost', 145, y + 5, { align: 'right' });
+    doc.text('Quantity', 158, y + 5, { align: 'center' });
+    doc.text('Line Total', 193, y + 5, { align: 'right' });
+  }
+
+  let tableY = addrY + 36;
+  drawTableHeader(tableY);
+  tableY += 7.5;
+
+  items.forEach((it, idx) => {
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 40);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 62);
+    const maxLines = Math.max(nameLines.length, descLines.length, 1);
+    const rowH = Math.max(7.5, maxLines * 3.6 + 3.5);
+
+    // Multi-page overflow check at 250mm
+    if (tableY + rowH > 250) {
+      doc.addPage();
+      drawInvoiceNinja3ToneBar(doc, 0, 4);
+      tableY = 10;
+      drawTableHeader(tableY);
+      tableY += 7.5;
+    }
+
+    // Zebra striping
+    if (idx % 2 === 1) {
+      doc.setFillColor(245, 247, 250);
+      doc.rect(14, tableY, 182, rowH, 'F');
+    }
+
+    // Item (Cyan Bold)
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(0, 157, 176);
+    doc.text(nameLines, 17, tableY + 4.2);
+
+    // Description (Dark Charcoal Normal)
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(30, 41, 59);
+    doc.text(descLines, 60, tableY + 4.2);
+
+    // Unit Cost
+    const uCost = Number(it.unit_price || 0);
+    doc.setFontSize(7.2);
+    doc.setTextColor(15, 23, 42);
+    doc.text(formatNinjaUGX(uCost), 145, tableY + 4.2, { align: 'right' });
+
+    // Qty
+    const qVal = Number(it.quantity || 1);
+    doc.text(String(qVal), 158, tableY + 4.2, { align: 'center' });
+
+    // Line Total
+    const lTot = Number(it.amount || uCost * qVal);
+    doc.text(formatNinjaUGX(lTot), 193, tableY + 4.2, { align: 'right' });
+
+    // Subtle bottom border
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14, tableY + rowH, 196, tableY + rowH);
+
+    tableY += rowH;
+  });
+
+  // Check if Totals section fits on current page
+  if (tableY + 48 > 250) {
+    doc.addPage();
+    drawInvoiceNinja3ToneBar(doc, 0, 4);
+    tableY = 12;
+  }
+
+  // Totals & Terms Section
+  const totalsY = tableY + 6;
+
+  // Quotation Terms on Left
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Quotation Terms:', 14, totalsY);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(51, 65, 85);
+  const termsString = quote?.terms || 'This Quotation is valid for 30 calendar days from date of issuance. Payment of at least 75% MUST be made before deployment or hardware dispatch.';
+  const termsText = doc.splitTextToSize(termsString, 90);
+  doc.text(termsText, 14, totalsY + 4.2);
+
+  // Digital Clearance Seal & QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 18, signBlockY + 4, 26, 26);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 16, 20, 20);
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(15, 23, 42);
+      doc.text('OFFICIAL PROPOSAL CLEARANCE', 38, totalsY + 21);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6.2);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger', 38, totalsY + 25.5);
+      doc.setTextColor(0, 157, 176);
+      doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 38, totalsY + 30);
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('COMMERCIAL PROPOSAL VERIFICATION', 48, signBlockY + 9);
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Scan to review, verify, or digitally approve this quotation directly on', 48, signBlockY + 14);
-  doc.text('the official Nova Cloud Edges enterprise commercial portal.', 48, signBlockY + 18.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 48, signBlockY + 23);
+  // Totals Rows on Right
+  const totalRows = [
+    { label: 'Net', val: formatNinjaUGX(totalAmt) },
+    { label: 'Subtotal', val: formatNinjaUGX(totalAmt) },
+    { label: 'Total Quoted', val: formatNinjaUGX(totalAmt) }
+  ];
 
-  // Right Signatory
-  doc.setDrawColor(203, 213, 225);
-  doc.line(135, signBlockY + 21, 190, signBlockY + 21);
+  totalRows.forEach((r, idx) => {
+    const rY = totalsY + idx * 4.8;
+    doc.setFont('Helvetica', r.label === 'Total Quoted' ? 'bold' : 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(15, 23, 42);
+    doc.text(r.label, 155, rY, { align: 'right' });
+    doc.text(r.val, 194, rY, { align: 'right' });
+  });
 
-  doc.setFont('Helvetica', 'italic');
-  doc.setFontSize(8.5);
-  doc.setTextColor(59, 130, 246);
-  doc.text('Eng. Peter Kawalya', 162.5, signBlockY + 18, { align: 'center' });
+  // Footer & Page numbers on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(15, 23, 42);
-  doc.text('AUTHORIZED COMMERCIAL OFFICER', 162.5, signBlockY + 25, { align: 'center' });
+    // Bottom Dealings text
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Enterprise Sales & Solutions Division', 162.5, signBlockY + 29, { align: 'center' });
+    // Page number in Cyan
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(0, 157, 176);
+    doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
-  // Footer
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(14, 282, 196, 282);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Official Quotation generated by ${SERVER_BRAND.name} • Certified Corporate Document • Page 1 of 1`, 105, 287, { align: 'center' });
+    // Bottom 3-Tone Bar
+    drawInvoiceNinja3ToneBar(doc, 293, 4);
+  }
 
   return Buffer.from(doc.output('arraybuffer'));
 }
