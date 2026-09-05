@@ -814,7 +814,40 @@
     }
   ],
   "payroll": [],
-  "staff_expenses": [],
+  "staff_expenses": [
+    {
+      "id": 1788600859092,
+      "staff_name": "Marius Nshekanabo",
+      "staff_email": "nmarius@ncedges.com",
+      "supervisor_name": "Dr. Arthur Mukasa",
+      "category": "Field Infrastructure Deployment",
+      "description": "Labor Payout for Work Order WO-2026-0014: Website and Domain Migration Transfer (1 Days @ UGX 50,000)",
+      "amount": 50000,
+      "receipt_ref": "WO-EXP-WO-2026-0014",
+      "status": "Approved by Supervisor",
+      "approved_by": "System Labor Automation",
+      "approved_at": "2026-09-05T09:34:19.096Z",
+      "date": "2026-09-05",
+      "work_order_ref": "WO-2026-0014",
+      "created_at": "2026-09-05T09:34:19.096Z"
+    },
+    {
+      "id": 1788600832925,
+      "staff_name": "Nixon Kamugisha",
+      "staff_email": "nkamugisha@ncedges.com",
+      "supervisor_name": "Dr. Arthur Mukasa",
+      "category": "Field Infrastructure Deployment",
+      "description": "Labor Payout for Work Order WO-2026-0002: Service Delivery Execution for Child Care Ministry (Manishimwe Nelson) (INV-2026-0046) (undefined Hours @ UGX 20,000)",
+      "amount": null,
+      "receipt_ref": "WO-EXP-WO-2026-0002",
+      "status": "Approved by Supervisor",
+      "approved_by": "System Labor Automation",
+      "approved_at": "2026-09-05T09:33:53.001Z",
+      "date": "2026-09-05",
+      "work_order_ref": "WO-2026-0002",
+      "created_at": "2026-09-05T09:33:53.001Z"
+    }
+  ],
   "staff_invoices": [],
   "paid_stamp": null,
   "payments": [
@@ -1306,14 +1339,15 @@
       "assigned_staff_email": "nkamugisha@ncedges.com",
       "charging_mode": "per_hour",
       "service_description": "Domain Name Registration, Custom Technical Services / Infrastructure Support",
-      "status": "Assigned",
+      "status": "Completed",
       "priority": "High",
       "due_date": "2026-09-26",
       "notes": "Work order auto-generated upon customer 100% payment receipt.",
       "created_at": "2026-09-03T06:09:51.543Z",
       "rate": 20000,
       "total_cost": null,
-      "scheduled_date": "2026-09-11"
+      "scheduled_date": "2026-09-11",
+      "completion_date": "2026-09-05"
     },
     {
       "id": 1788264229605,
@@ -1327,8 +1361,8 @@
       "quantity": 1,
       "total_cost": 50000,
       "scheduled_date": "2026-09-05",
-      "completion_date": null,
-      "status": "Scheduled",
+      "completion_date": "2026-09-05",
+      "status": "Completed",
       "description": "Check If emails need to be migrated and Backups for all Databases. Do not delete anything at the source after.",
       "created_at": "2026-09-01T12:03:49.605Z"
     }
@@ -2634,5 +2668,27 @@
     "billing": "billing@ncloud.co.ug",
     "sales": "sales@ncloud.co.ug",
     "updated_at": "2026-09-05T07:46:12.309Z"
-  }
+  },
+  "email_dispatches": [
+    {
+      "id": 1788600859129,
+      "recipient_name": "Marius Nshekanabo",
+      "recipient_email": "nmarius@ncedges.com",
+      "subject": "Official Completed Work Order & Approved Labor Payout Voucher — #WO-2026-0014",
+      "body": "Dear Marius Nshekanabo,\n\nYour assigned Work Order #WO-2026-0014 (\"Website and Domain Migration Transfer\") at site location \"https://visitgorillasafaris.com\" has been verified and marked COMPLETED.\n\nA Company Expense Labor Payout Voucher of UGX 50,000 has been approved and credited to your payroll account.\n\nThe official Work Order PDF receipt has been compiled and attached to this email.\n\nBest Regards,\nNova Cloud Edges (U) Ltd — Field Operations & Labor Dispatch",
+      "attachment_name": "Work_Order_WO-2026-0014.pdf",
+      "sent_at": "2026-09-05T09:34:19.128Z",
+      "status": "Dispatched & Delivered"
+    },
+    {
+      "id": 1788600833125,
+      "recipient_name": "Nixon Kamugisha",
+      "recipient_email": "nkamugisha@ncedges.com",
+      "subject": "Official Completed Work Order & Approved Labor Payout Voucher — #WO-2026-0002",
+      "body": "Dear Nixon Kamugisha,\n\nYour assigned Work Order #WO-2026-0002 (\"Service Delivery Execution for Child Care Ministry (Manishimwe Nelson) (INV-2026-0046)\") at site location \"Busamba\" has been verified and marked COMPLETED.\n\nA Company Expense Labor Payout Voucher of UGX 0 has been approved and credited to your payroll account.\n\nThe official Work Order PDF receipt has been compiled and attached to this email.\n\nBest Regards,\nNova Cloud Edges (U) Ltd — Field Operations & Labor Dispatch",
+      "attachment_name": "Work_Order_WO-2026-0002.pdf",
+      "sent_at": "2026-09-05T09:33:53.124Z",
+      "status": "Dispatched & Delivered"
+    }
+  ]
 }

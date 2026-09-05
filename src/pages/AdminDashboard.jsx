@@ -1864,6 +1864,7 @@ const normalizeTabName = (rawTab) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...invoiceForm,
+          vat_exempt: false,
           items: formattedItems,
           item_name: itemSummary || 'Edge Virtual Private Server Infrastructure',
           quantity: formattedItems.reduce((sum, it) => sum + it.qty, 0),
@@ -2394,7 +2395,7 @@ const normalizeTabName = (rawTab) => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(quotationForm)
+        body: JSON.stringify({ ...quotationForm, vat_exempt: false })
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
@@ -12596,14 +12597,15 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontWeight: '700' }}>Tax Standard / Classification *</label>
+                  <label style={{ fontWeight: '700' }}>Tax Standard / Classification (Mandatory Compliance) *</label>
                   <select
                     className="form-input"
-                    value={invoiceForm.vat_exempt ? 'exempt' : 'standard'}
-                    onChange={e => setInvoiceForm({ ...invoiceForm, vat_exempt: e.target.value === 'exempt' })}
+                    value="standard"
+                    disabled={true}
+                    style={{ background: '#f8fafc', color: '#0f172a', fontWeight: '600', cursor: 'not-allowed', border: '1px solid #cbd5e1' }}
+                    title="Standard 18% Statutory VAT is mandatory for all official tax invoices and cannot be unselected."
                   >
-                    <option value="standard">Standard 18% Statutory VAT</option>
-                    <option value="exempt">VAT Exempt (0% Tax Rate / Exempt Client)</option>
+                    <option value="standard">Standard 18% Statutory VAT (Mandatory Selected)</option>
                   </select>
                 </div>
 
@@ -13298,14 +13300,15 @@ const normalizeTabName = (rawTab) => {
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label style={{ fontWeight: '700' }}>Tax Standard / Classification</label>
+                      <label style={{ fontWeight: '700' }}>Tax Standard / Classification (Mandatory Compliance)</label>
                       <select
                         className="form-input"
-                        value={quotationForm.vat_exempt ? 'exempt' : 'standard'}
-                        onChange={e => setQuotationForm({ ...quotationForm, vat_exempt: e.target.value === 'exempt' })}
+                        value="standard"
+                        disabled={true}
+                        style={{ background: '#f8fafc', color: '#0f172a', fontWeight: '600', cursor: 'not-allowed', border: '1px solid #cbd5e1' }}
+                        title="Standard 18% Statutory VAT is mandatory for all official commercial proposals and cannot be unselected."
                       >
-                        <option value="standard">Standard 18% Statutory VAT</option>
-                        <option value="exempt">VAT Exempt (0% Tax Rate / Exempt Client)</option>
+                        <option value="standard">Standard 18% Statutory VAT (Mandatory Selected)</option>
                       </select>
                     </div>
                   </div>

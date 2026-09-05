@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
+import { NOVA_LOGO_BASE64 } from './logoBase64.js';
 
 // ============================================================================
 // NOVA CLOUD EDGES (U) LIMITED — UNIFIED EXECUTIVE PDF DESIGN SYSTEM
@@ -260,37 +261,18 @@ export function drawInvoiceNinja3ToneBar(doc, y, h = 4) {
   doc.rect(155, y, 55, h, 'F');
 }
 
-export function drawInvoiceNinjaBurgundyLogo(doc, x = 14, y = 11, customLogoDataUrl = null) {
-  if (customLogoDataUrl && typeof customLogoDataUrl === 'string' && customLogoDataUrl.startsWith('data:image')) {
+export function drawInvoiceNinjaBurgundyLogo(doc, x = 14, y = 10, customLogoDataUrl = null) {
+  const effectiveLogo = customLogoDataUrl || NOVA_LOGO_BASE64;
+  if (effectiveLogo && typeof effectiveLogo === 'string' && effectiveLogo.startsWith('data:image')) {
     try {
-      doc.addImage(customLogoDataUrl, 'PNG', x, y - 2, 24, 20);
+      doc.addImage(effectiveLogo, 'PNG', x, y, 45, 15);
       return;
     } catch {}
   }
-
-  // Signature burgundy cloud & arrows brandmark
-  doc.setFillColor(136, 19, 55); // #881337 burgundy
-  doc.roundedRect(x + 2, y + 8, 20, 8, 3, 3, 'F');
-  doc.circle(x + 8, y + 8, 5, 'F');
-  doc.circle(x + 15, y + 7, 6, 'F');
-  doc.circle(x + 19, y + 10, 4, 'F');
-
-  // White up arrow & Dark Blue down arrow
-  doc.setFillColor(255, 255, 255);
-  doc.rect(x + 9, y + 7, 2, 7, 'F');
-  doc.triangle(x + 8, y + 7, x + 12, y + 7, x + 10, y + 4, 'F');
-
-  doc.setFillColor(30, 58, 138);
-  doc.rect(x + 14, y + 6, 2, 7, 'F');
-  doc.triangle(x + 13, y + 13, x + 17, y + 13, x + 15, y + 16, 'F');
-
-  // Brand Name in crisp system typography
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(14.5);
-  doc.setTextColor(136, 19, 55);
-  doc.text('NOVA CLOUD', x + 26, y + 10);
-  doc.setFontSize(9.5);
-  doc.text('EDGES (U) LTD', x + 26, y + 15);
+  doc.setFontSize(14);
+  doc.setTextColor(30, 58, 138);
+  doc.text('NOVA CLOUD EDGES (U) LTD', x, y + 8);
 }
 
 function formatNinjaDate(dateInput) {
@@ -318,14 +300,14 @@ export async function generateInvoicePDF(inv, options = {}) {
   const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
   const dueDate = formatNinjaDate(inv?.due_date || new Date(Date.now() + 14 * 86400000));
   const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
+
   const totalAmt = Number(inv?.amount || inv?.total || 0);
   const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
-  // VAT Breakdown from Database
-  const isVatExempt = Boolean(inv?.vat_exempt);
-  const subtotalAmt = Number(inv?.subtotal || (isVatExempt ? totalAmt : Math.round(totalAmt / 1.18)));
-  const vatAmt = isVatExempt ? 0 : (inv?.vat_amount !== undefined ? Number(inv?.vat_amount) : Math.round(subtotalAmt * 0.18));
+  // Mandatory 18% VAT Statutory Breakdown
+  const subtotalAmt = Math.round((totalAmt / 1.18) * 100) / 100;
+  const vatAmt = Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
   // Customer & Shipping mapping directly from database
   const cName = inv?.customer_name || inv?.company || inv?.party_name || 'Muhabura Shine SS';
@@ -360,22 +342,22 @@ export async function generateInvoicePDF(inv, options = {}) {
     }];
   }
 
-  // QR Code & Logo
+  // Assets & Stored Banks
   const siteLogo = opts?.siteLogo || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
-  const logoDataUrl = await getImageDataUrl(siteLogo || '/logo.png');
+  const logoDataUrl = await getImageDataUrl(siteLogo);
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
-  const activeLogo = logoDataUrl;
+  const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
   const storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
 
   // Page 1 Top 3-Tone Accent Bar
   drawInvoiceNinja3ToneBar(doc, 0, 4);
 
-  // Logo Left
-  drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
+  // Logo Left (Image Mode)
+  drawInvoiceNinjaBurgundyLogo(doc, 14, 10, activeLogo);
 
   // Top Right Solid Dark Blue Rectangle (Executive Navy #1e3a8a)
-  doc.setFillColor(30, 58, 138); // Dark Blue
+  doc.setFillColor(30, 58, 138);
   doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
@@ -400,9 +382,9 @@ export async function generateInvoicePDF(inv, options = {}) {
   const addrY = 38;
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138); // Dark Blue
+  doc.setTextColor(30, 58, 138);
   doc.text('From:', 14, addrY);
-  doc.text('To:', 88, addrY);
+  doc.text('To:', 94, addrY);
   doc.text('Ship to:', 160, addrY);
 
   // Underline for labels in Dark Blue
@@ -410,33 +392,32 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setLineWidth(0.3);
   doc.line(14, addrY + 2, 196, addrY + 2);
 
-  // From Sub-columns: Company Info & Strictly Stored Bank Accounts from Database
+  // FROM Details: Accurate Company Credentials as requested
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
-  doc.text('Nova Cloud Edges Ltd', 14, addrY + 6);
+  doc.text('Nova Cloud Edges (U) Limited', 14, addrY + 6);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
 
-  // Left sub-column: Company contact & website
   const fromLeftLines = [
-    'TIN: 1014892019',
-    'www.ncedges.com',
-    'info@ncedges.com',
-    '(+256) 790001631/33',
-    'Plot 14 Parliament Ave, Kampala'
+    'support@ncloud.co.ug',
+    'www.ncloud.co.ug',
+    'Plot 14 Parliament Ave, Kampala',
+    'Tel: (+256) 790 001631 / 33',
+    'TIN: 1014892019'
   ];
   fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
 
-  // Right sub-column: ONLY Stored Bank Accounts from Database (No hardcoded un-stored accounts!)
+  // Stored Bank Accounts strictly from Database
   let fromRightLines = [];
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     storedBanks.forEach(b => {
       fromRightLines.push(`${b.bank_name || 'Bank'}:`);
       fromRightLines.push(`A/C: ${b.account_number} (${b.currency || 'UGX'})`);
-      if (b.branch && b.branch !== 'Merchant Code') fromRightLines.push(b.branch);
+      if (b.branch) fromRightLines.push(b.branch);
     });
   } else {
     fromRightLines = [
@@ -448,14 +429,14 @@ export async function generateInvoicePDF(inv, options = {}) {
   fromRightLines.forEach((l, idx) => {
     doc.setFont('Helvetica', l.includes(':') ? 'bold' : 'normal');
     doc.setTextColor(l.includes(':') ? 30 : 51, l.includes(':') ? 58 : 65, l.includes(':') ? 138 : 85);
-    doc.text(l, 46, addrY + 6 + idx * 3.6);
+    doc.text(l, 52, addrY + 6 + idx * 3.6);
   });
 
   // To Column (Database values)
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
-  doc.text(cName, 88, addrY + 6);
+  doc.text(cName, 94, addrY + 6);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
@@ -478,14 +459,14 @@ export async function generateInvoicePDF(inv, options = {}) {
   ].filter(Boolean);
   shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
 
-  // Dark dividing line separating addresses from table
+  // Divider
   doc.setDrawColor(15, 23, 42);
   doc.setLineWidth(0.35);
-  doc.line(14, addrY + 32, 196, addrY + 32);
+  doc.line(14, addrY + 30, 196, addrY + 30);
 
-  // Table Setup in Dark Blue
+  // Table Setup
   function drawTableHeader(y) {
-    doc.setFillColor(30, 58, 138); // Executive Dark Blue
+    doc.setFillColor(30, 58, 138); // Dark Blue
     doc.rect(14, y, 182, 7.5, 'F');
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
@@ -497,70 +478,71 @@ export async function generateInvoicePDF(inv, options = {}) {
     doc.text('Line Total', 193, y + 5, { align: 'right' });
   }
 
-  let tableY = addrY + 36;
+  let tableY = addrY + 33;
   drawTableHeader(tableY);
   tableY += 7.5;
 
-  items.forEach((it, idx) => {
+  // Pre-calculate heights to balance single-page vs multi-page
+  const preparedItems = items.map(it => {
     const nameLines = doc.splitTextToSize(String(it.name || ''), 40);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 62);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 64);
     const maxLines = Math.max(nameLines.length, descLines.length, 1);
-    const rowH = Math.max(7.5, maxLines * 3.6 + 3.5);
+    const rowH = Math.max(7.2, maxLines * 3.5 + 2.8);
+    return { it, nameLines, descLines, rowH };
+  });
 
-    // Multi-page overflow check at 250mm
-    if (tableY + rowH > 250) {
+  const totalItemsHeight = preparedItems.reduce((acc, p) => acc + p.rowH, 0);
+  const fitsSinglePage = (tableY + totalItemsHeight + 50) <= 265;
+
+  let currentPage = 1;
+
+  preparedItems.forEach((p, idx) => {
+    const pageLimit = fitsSinglePage ? 265 : (currentPage === 1 ? 215 : 220);
+
+    if (tableY + p.rowH > pageLimit) {
       doc.addPage();
+      currentPage++;
       drawInvoiceNinja3ToneBar(doc, 0, 4);
-      tableY = 10;
+      tableY = 12;
       drawTableHeader(tableY);
       tableY += 7.5;
     }
 
-    // Zebra striping
     if (idx % 2 === 1) {
       doc.setFillColor(248, 250, 252);
-      doc.rect(14, tableY, 182, rowH, 'F');
+      doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    // Item (Dark Blue Bold)
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.2);
-    doc.setTextColor(30, 58, 138); // Dark Blue
-    doc.text(nameLines, 17, tableY + 4.2);
+    doc.setTextColor(30, 58, 138);
+    doc.text(p.nameLines, 17, tableY + 3.8);
 
-    // Description (Dark Charcoal Normal)
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(30, 41, 59);
-    doc.text(descLines, 60, tableY + 4.2);
+    doc.text(p.descLines, 60, tableY + 3.8);
 
-    // Unit Cost
-    const uCost = Number(it.unit_price || 0);
     doc.setFontSize(7.2);
     doc.setTextColor(15, 23, 42);
-    doc.text(formatNinjaUGX(uCost), 145, tableY + 4.2, { align: 'right' });
+    doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 3.8, { align: 'right' });
 
-    // Qty
-    const qVal = Number(it.quantity || 1);
-    doc.text(String(qVal), 158, tableY + 4.2, { align: 'center' });
+    doc.text(String(p.it.quantity || 1), 158, tableY + 3.8, { align: 'center' });
 
-    // Line Total
-    const lTot = Number(it.amount || uCost * qVal);
-    doc.text(formatNinjaUGX(lTot), 193, tableY + 4.2, { align: 'right' });
+    doc.text(formatNinjaUGX(p.it.amount), 193, tableY + 3.8, { align: 'right' });
 
-    // Subtle bottom border
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.2);
-    doc.line(14, tableY + rowH, 196, tableY + rowH);
+    doc.line(14, tableY + p.rowH, 196, tableY + p.rowH);
 
-    tableY += rowH;
+    tableY += p.rowH;
   });
 
   // Check if Totals section fits on current page
-  if (tableY + 50 > 250) {
+  if (tableY + 45 > 265) {
     doc.addPage();
     drawInvoiceNinja3ToneBar(doc, 0, 4);
-    tableY = 12;
+    tableY = 14;
   }
 
   // Totals & Terms Section
@@ -577,38 +559,38 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setTextColor(51, 65, 85);
   const termsString = inv?.terms || 'This Invoice is valid for ONLY 2 weeks, and payment of at least 75% MUST be made before services are offered.';
   const termsText = doc.splitTextToSize(termsString, 90);
-  doc.text(termsText, 14, totalsY + 4.2);
+  doc.text(termsText, 14, totalsY + 4);
 
   // Official Clearance notice under terms
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(30, 58, 138);
-  doc.text('OFFICIAL DIGITAL CLEARANCE & VERIFICATION', 14, totalsY + 18);
+  doc.text('OFFICIAL DIGITAL CLEARANCE & VERIFICATION', 14, totalsY + 16);
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.2);
   doc.setTextColor(100, 116, 139);
-  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 22.5);
+  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 20);
   doc.setTextColor(30, 58, 138);
-  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 14, totalsY + 26.5);
+  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 14, totalsY + 23.5);
 
-  // Digital Clearance Seal & QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 30, 18, 18);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 26, 16, 16);
     } catch {}
   }
 
-  // Totals Rows on Right WITH VAT INCLUDED
+  // Totals on Right with MANDATORY 18% STATUTORY VAT
   const totalRows = [
-    { label: 'Net Subtotal', val: formatNinjaUGX(subtotalAmt) },
-    { label: isVatExempt ? 'VAT (0% Exempt)' : 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
-    { label: 'Total Invoiced', val: formatNinjaUGX(totalAmt), bold: true },
+    { label: 'Net', val: formatNinjaUGX(subtotalAmt) },
+    { label: 'Subtotal', val: formatNinjaUGX(subtotalAmt) },
+    { label: 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
+    { label: 'Total', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Paid to Date', val: formatNinjaUGX(paidAmt) },
     { label: 'Balance Due', val: formatNinjaUGX(balanceDue), bold: true, color: [30, 58, 138] }
   ];
 
   totalRows.forEach((r, idx) => {
-    const rY = totalsY + idx * 4.8;
+    const rY = totalsY + idx * 4.6;
     doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(7.2);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
@@ -621,19 +603,16 @@ export async function generateInvoicePDF(inv, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    // Bottom Dealings text
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(71, 85, 105);
-    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
+    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    // Page number in Dark Blue
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
-    // Bottom 3-Tone Bar
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
@@ -650,10 +629,9 @@ export async function generateQuotationPDF(quote, options = {}) {
   const validUntil = formatNinjaDate(quote?.valid_until || new Date(Date.now() + 30 * 86400000));
   const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
 
-  // VAT Breakdown from Database
-  const isVatExempt = Boolean(quote?.vat_exempt);
-  const subtotalAmt = Number(quote?.subtotal || (isVatExempt ? totalAmt : Math.round(totalAmt / 1.18)));
-  const vatAmt = isVatExempt ? 0 : (quote?.vat_amount !== undefined ? Number(quote?.vat_amount) : Math.round(subtotalAmt * 0.18));
+  // Mandatory 18% VAT Statutory Breakdown
+  const subtotalAmt = Math.round((totalAmt / 1.18) * 100) / 100;
+  const vatAmt = Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
   // Customer & Shipping mapping directly from database
   const cName = quote?.customer_name || quote?.company || quote?.party_name || 'Muhabura Shine SS';
@@ -668,22 +646,22 @@ export async function generateQuotationPDF(quote, options = {}) {
   const shipAddr2 = quote?.ship_to?.address2 || quote?.shipping_city || cAddr2;
   const shipCountry = quote?.ship_to?.country || quote?.shipping_country || cCountry;
 
-  // Stored Bank Accounts strictly from system database
+  // Assets & Stored Banks
   const siteLogo = opts?.siteLogo || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
-  const logoDataUrl = await getImageDataUrl(siteLogo || '/logo.png');
+  const logoDataUrl = await getImageDataUrl(siteLogo);
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
-  const activeLogo = logoDataUrl;
+  const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
   const storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
 
   // Page 1 Top 3-Tone Accent Bar
   drawInvoiceNinja3ToneBar(doc, 0, 4);
 
-  // Logo Left
-  drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
+  // Logo Left (Image Mode)
+  drawInvoiceNinjaBurgundyLogo(doc, 14, 10, activeLogo);
 
-  // Top Right Solid Dark Blue Rectangle (Executive Navy #1e3a8a)
-  doc.setFillColor(30, 58, 138); // Dark Blue
+  // Top Right Solid Dark Blue Rectangle
+  doc.setFillColor(30, 58, 138);
   doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
@@ -710,39 +688,38 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('From:', 14, addrY);
-  doc.text('To:', 88, addrY);
+  doc.text('To:', 94, addrY);
   doc.text('Ship to:', 160, addrY);
 
-  // Underline for labels
   doc.setDrawColor(30, 58, 138);
   doc.setLineWidth(0.3);
   doc.line(14, addrY + 2, 196, addrY + 2);
 
-  // From Sub-columns
+  // FROM Details
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
-  doc.text('Nova Cloud Edges Ltd', 14, addrY + 6);
+  doc.text('Nova Cloud Edges (U) Limited', 14, addrY + 6);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
+
   const fromLeftLines = [
-    'TIN: 1014892019',
-    'www.ncedges.com',
-    'info@ncedges.com',
-    '(+256) 790001631/33',
-    'Plot 14 Parliament Ave, Kampala'
+    'support@ncloud.co.ug',
+    'www.ncloud.co.ug',
+    'Plot 14 Parliament Ave, Kampala',
+    'Tel: (+256) 790 001631 / 33',
+    'TIN: 1014892019'
   ];
   fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
 
-  // Right sub-column: strictly stored bank accounts
   let fromRightLines = [];
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     storedBanks.forEach(b => {
       fromRightLines.push(`${b.bank_name || 'Bank'}:`);
       fromRightLines.push(`A/C: ${b.account_number} (${b.currency || 'UGX'})`);
-      if (b.branch && b.branch !== 'Merchant Code') fromRightLines.push(b.branch);
+      if (b.branch) fromRightLines.push(b.branch);
     });
   } else {
     fromRightLines = [
@@ -754,14 +731,14 @@ export async function generateQuotationPDF(quote, options = {}) {
   fromRightLines.forEach((l, idx) => {
     doc.setFont('Helvetica', l.includes(':') ? 'bold' : 'normal');
     doc.setTextColor(l.includes(':') ? 30 : 51, l.includes(':') ? 58 : 65, l.includes(':') ? 138 : 85);
-    doc.text(l, 46, addrY + 6 + idx * 3.6);
+    doc.text(l, 52, addrY + 6 + idx * 3.6);
   });
 
   // To Column
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
-  doc.text(cName, 88, addrY + 6);
+  doc.text(cName, 94, addrY + 6);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
@@ -784,14 +761,12 @@ export async function generateQuotationPDF(quote, options = {}) {
   ].filter(Boolean);
   shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
 
-  // Dark line separating addresses from table
   doc.setDrawColor(15, 23, 42);
   doc.setLineWidth(0.35);
-  doc.line(14, addrY + 32, 196, addrY + 32);
+  doc.line(14, addrY + 30, 196, addrY + 30);
 
-  // Table Setup in Dark Blue
   function drawTableHeader(y) {
-    doc.setFillColor(30, 58, 138); // Dark Blue
+    doc.setFillColor(30, 58, 138);
     doc.rect(14, y, 182, 7.5, 'F');
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
@@ -803,11 +778,10 @@ export async function generateQuotationPDF(quote, options = {}) {
     doc.text('Line Total', 193, y + 5, { align: 'right' });
   }
 
-  let tableY = addrY + 36;
+  let tableY = addrY + 33;
   drawTableHeader(tableY);
   tableY += 7.5;
 
-  // Normalized items
   let items = [];
   if (Array.isArray(quote?.items) && quote.items.length > 0) {
     items = quote.items.map(it => ({
@@ -827,112 +801,110 @@ export async function generateQuotationPDF(quote, options = {}) {
     }];
   }
 
-  items.forEach((it, idx) => {
+  const preparedItems = items.map(it => {
     const nameLines = doc.splitTextToSize(String(it.name || ''), 40);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 62);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 64);
     const maxLines = Math.max(nameLines.length, descLines.length, 1);
-    const rowH = Math.max(7.5, maxLines * 3.6 + 3.5);
+    const rowH = Math.max(7.2, maxLines * 3.5 + 2.8);
+    return { it, nameLines, descLines, rowH };
+  });
 
-    // Multi-page overflow check at 250mm
-    if (tableY + rowH > 250) {
+  const totalItemsHeight = preparedItems.reduce((acc, p) => acc + p.rowH, 0);
+  const fitsSinglePage = (tableY + totalItemsHeight + 50) <= 265;
+
+  let currentPage = 1;
+
+  preparedItems.forEach((p, idx) => {
+    const pageLimit = fitsSinglePage ? 265 : (currentPage === 1 ? 215 : 220);
+
+    if (tableY + p.rowH > pageLimit) {
       doc.addPage();
+      currentPage++;
       drawInvoiceNinja3ToneBar(doc, 0, 4);
-      tableY = 10;
+      tableY = 12;
       drawTableHeader(tableY);
       tableY += 7.5;
     }
 
-    // Zebra striping
     if (idx % 2 === 1) {
       doc.setFillColor(248, 250, 252);
-      doc.rect(14, tableY, 182, rowH, 'F');
+      doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    // Item (Dark Blue Bold)
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.2);
     doc.setTextColor(30, 58, 138);
-    doc.text(nameLines, 17, tableY + 4.2);
+    doc.text(p.nameLines, 17, tableY + 3.8);
 
-    // Description (Dark Charcoal Normal)
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(30, 41, 59);
-    doc.text(descLines, 60, tableY + 4.2);
+    doc.text(p.descLines, 60, tableY + 3.8);
 
-    // Unit Cost
-    const uCost = Number(it.unit_price || 0);
     doc.setFontSize(7.2);
     doc.setTextColor(15, 23, 42);
-    doc.text(formatNinjaUGX(uCost), 145, tableY + 4.2, { align: 'right' });
+    doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 3.8, { align: 'right' });
 
-    // Qty
-    const qVal = Number(it.quantity || 1);
-    doc.text(String(qVal), 158, tableY + 4.2, { align: 'center' });
+    doc.text(String(p.it.quantity || 1), 158, tableY + 3.8, { align: 'center' });
 
-    // Line Total
-    const lTot = Number(it.amount || uCost * qVal);
-    doc.text(formatNinjaUGX(lTot), 193, tableY + 4.2, { align: 'right' });
+    doc.text(formatNinjaUGX(p.it.amount), 193, tableY + 3.8, { align: 'right' });
 
-    // Subtle bottom border
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.2);
-    doc.line(14, tableY + rowH, 196, tableY + rowH);
+    doc.line(14, tableY + p.rowH, 196, tableY + p.rowH);
 
-    tableY += rowH;
+    tableY += p.rowH;
   });
 
-  // Check if Totals section fits on current page
-  if (tableY + 50 > 250) {
+  if (tableY + 45 > 265) {
     doc.addPage();
     drawInvoiceNinja3ToneBar(doc, 0, 4);
-    tableY = 12;
+    tableY = 14;
   }
 
-  // Totals & Terms Section
   const totalsY = tableY + 6;
 
-  // Quotation Terms on Left
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('Quotation Terms:', 14, totalsY);
+  doc.text('Commercial Terms & Scope:', 14, totalsY);
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
-  const termsString = quote?.terms || 'This Quotation is valid for 30 calendar days from date of issuance. Payment of at least 75% MUST be made before deployment or hardware dispatch.';
+  const termsString = quote?.notes || 'Quotation valid for 30 days from date of issuance. Includes 24/7 priority support and enterprise SLA.';
   const termsText = doc.splitTextToSize(termsString, 90);
-  doc.text(termsText, 14, totalsY + 4.2);
+  doc.text(termsText, 14, totalsY + 4);
 
-  // Digital Clearance notice under terms
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(30, 58, 138);
-  doc.text('OFFICIAL COMMERCIAL PROPOSAL CLEARANCE', 14, totalsY + 18);
+  doc.text('OFFICIAL DIGITAL CLEARANCE & VERIFICATION', 14, totalsY + 16);
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.2);
   doc.setTextColor(100, 116, 139);
-  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 22.5);
+  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 20);
   doc.setTextColor(30, 58, 138);
-  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 14, totalsY + 26.5);
+  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 14, totalsY + 23.5);
 
-  // QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 30, 18, 18);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 26, 16, 16);
     } catch {}
   }
 
-  // Totals Rows on Right WITH VAT INCLUDED
+  // Totals on Right
   const totalRows = [
-    { label: 'Net Subtotal', val: formatNinjaUGX(subtotalAmt) },
-    { label: isVatExempt ? 'VAT (0% Exempt)' : 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
-    { label: 'Total Quoted', val: formatNinjaUGX(totalAmt), bold: true, color: [30, 58, 138] }
+    { label: 'Net', val: formatNinjaUGX(subtotalAmt) },
+    { label: 'Subtotal', val: formatNinjaUGX(subtotalAmt) },
+    { label: 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
+    { label: 'Total Estimated', val: formatNinjaUGX(totalAmt), bold: true },
+    { label: 'Payment Terms', val: '75% Advance, 25% Completion' },
+    { label: 'Amount Payable', val: formatNinjaUGX(totalAmt), bold: true, color: [30, 58, 138] }
   ];
 
   totalRows.forEach((r, idx) => {
-    const rY = totalsY + idx * 4.8;
+    const rY = totalsY + idx * 4.6;
     doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(7.2);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
@@ -940,34 +912,26 @@ export async function generateQuotationPDF(quote, options = {}) {
     doc.text(r.val, 194, rY, { align: 'right' });
   });
 
-  // Footer & Page numbers on all pages
   const totalPages = doc.internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    // Bottom Dealings text
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(71, 85, 105);
-    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
+    doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    // Page number in Dark Blue
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
-    // Bottom 3-Tone Bar
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
   openPdfInBrowser(doc, `Quotation_${quoteNum}.pdf`);
   return doc;
 }
-
-// ============================================================================
-// 3. GENERATE PAYROLL PAYSLIP PDF (A4 EXECUTIVE EMPLOYEE PAYSLIP)
-// ============================================================================
 
 export function generatePayrollPayslipPDF(payroll, options = {}) {
   const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
