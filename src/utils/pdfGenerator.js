@@ -403,7 +403,10 @@ export async function generateInvoicePDF(invoice, options = {}) {
 
   lineItems.forEach((it, idx) => {
     const hasDesc = Boolean(it.description && it.description.trim().length > 0);
-    const rowH = hasDesc ? 11 : 8.5;
+    const nameLines = pdf.splitTextToSize(String(it.name), 92);
+    const descLines = hasDesc ? pdf.splitTextToSize(String(it.description), 92) : [];
+    const totalLines = nameLines.length + (hasDesc ? descLines.length : 0);
+    const rowH = Math.max(8.5, totalLines * 4.2 + 4);
 
     // Check if we need to spill to next page
     const curMaxY = pdf.internal.getNumberOfPages() === 1 ? maxYPage1 : maxYSubsequent;
@@ -426,18 +429,18 @@ export async function generateInvoicePDF(invoice, options = {}) {
     pdf.setFont('Helvetica', 'normal');
     pdf.setFontSize(7.5);
     pdf.setTextColor(...BRAND.colors.textMuted);
-    pdf.text(String(it.no), 18, y + 5.2);
+    pdf.text(String(it.no).padStart(2, '0'), 18, y + 5.2);
 
     pdf.setFont('Helvetica', 'bold');
     pdf.setFontSize(8);
     pdf.setTextColor(...BRAND.colors.navyDark);
-    pdf.text(String(it.name).substring(0, 52), 27, y + 5.2);
+    pdf.text(nameLines, 27, y + 5.2);
 
-    if (hasDesc) {
+    if (hasDesc && descLines.length > 0) {
       pdf.setFont('Helvetica', 'normal');
-      docFontSizeSafe(pdf, 6.8);
+      pdf.setFontSize(7);
       pdf.setTextColor(...BRAND.colors.textMuted);
-      pdf.text(String(it.description).substring(0, 68), 27, y + 9.2);
+      pdf.text(descLines, 27, y + 5.2 + (nameLines.length * 4.2));
     }
 
     pdf.setFont('Helvetica', 'normal');
@@ -477,7 +480,7 @@ export async function generateInvoicePDF(invoice, options = {}) {
     pdf.setFont('Helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(...BRAND.colors.emerald);
-    pdf.text('✓ 100% PAID & DIGITALLY VERIFIED', 18, finBlockY + 6.5);
+    pdf.text('PAID & DIGITALLY VERIFIED', 18, finBlockY + 6.5);
 
     pdf.setFont('Helvetica', 'normal');
     pdf.setFontSize(7.2);
@@ -493,7 +496,7 @@ export async function generateInvoicePDF(invoice, options = {}) {
     pdf.setFont('Helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(...BRAND.colors.amber);
-    pdf.text('⚡ PAYMENT PENDING REMITTANCE', 18, finBlockY + 6.5);
+    pdf.text('PAYMENT PENDING REMITTANCE', 18, finBlockY + 6.5);
 
     pdf.setFont('Helvetica', 'normal');
     pdf.setFontSize(7.2);
@@ -726,7 +729,8 @@ export async function generateQuotationPDF(quotation, options = {}) {
     const unitPrice = Number(it.unit_price || it.price || 0);
     const discPct = Number(it.discount_pct || it.discount || 0);
     const lineTotal = Number(it.total || (lineQty * unitPrice * (1 - (discPct / 100))));
-    const rowH = 8.5;
+    const nameLines = pdf.splitTextToSize(String(it.name || it.item_name || 'Cloud Solution Item'), 84);
+    const rowH = Math.max(8.5, nameLines.length * 4.2 + 4);
 
     if (y + rowH > 195) {
       pdf.addPage();
@@ -744,11 +748,11 @@ export async function generateQuotationPDF(quotation, options = {}) {
     pdf.setFont('Helvetica', 'normal');
     pdf.setFontSize(7.5);
     pdf.setTextColor(...BRAND.colors.textMuted);
-    pdf.text(String(idx + 1), 18, y + 5.5);
+    pdf.text(String(idx + 1).padStart(2, '0'), 18, y + 5.5);
 
     pdf.setFont('Helvetica', 'bold');
     pdf.setTextColor(...BRAND.colors.navyDark);
-    pdf.text(String(it.name || it.item_name || 'Cloud Solution Item').substring(0, 48), 27, y + 5.5);
+    pdf.text(nameLines, 27, y + 5.5);
 
     pdf.setFont('Helvetica', 'normal');
     pdf.text(String(lineQty), 115, y + 5.5, { align: 'center' });
@@ -1085,7 +1089,7 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.emerald);
-  doc.text('✓ CLEARED & DISBURSED', 190, y + 12, { align: 'right' });
+  doc.text('[CLEARED & DISBURSED]', 190, y + 12, { align: 'right' });
 
   y += 28;
 
@@ -1195,7 +1199,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.colors.emerald);
-  doc.text('✓ ACCOUNTING EQUATION STRICTLY BALANCED: Total Assets = Total Liabilities + Shareholder Equity', 18, y + 6.5);
+  doc.text('ACCOUNTING EQUATION BALANCED: Total Assets = Total Liabilities + Shareholder Equity', 18, y + 6.5);
   doc.text(`UGX ${totalAssets.toLocaleString()}`, 192, y + 6.5, { align: 'right' });
 
   y += 14;
@@ -1956,7 +1960,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(isPaid ? 22 : 180, isPaid ? 163 : 83, isPaid ? 74 : 9);
-  doc.text(isPaid ? '✓ 100% PAYMENT CLEARED & SETTLED' : `PARTIAL PAYMENT — UGX ${balance.toLocaleString()} DUE`, 40, y + 4.8, { align: 'center' });
+  doc.text(isPaid ? '100% PAYMENT CLEARED & SETTLED' : `PARTIAL PAYMENT — UGX ${balance.toLocaleString()} DUE`, 40, y + 4.8, { align: 'center' });
   y += 11;
 
   // Verification QR
