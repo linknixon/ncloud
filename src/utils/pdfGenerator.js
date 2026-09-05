@@ -124,9 +124,10 @@ function drawA4ExecutiveHeader(doc, {
   doc.roundedRect(14, 12, 182, 26, 2, 2, 'FD');
 
   let textX = 18;
-  if (logoDataUrl) {
+  const effectiveLogo = logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
+  if (effectiveLogo && effectiveLogo.startsWith('data:image')) {
     try {
-      doc.addImage(logoDataUrl, 'PNG', 17, 14.5, 23, 21);
+      doc.addImage(effectiveLogo, 'PNG', 17, 14.5, 23, 21);
       textX = 43;
     } catch {
       textX = 18;
@@ -1874,6 +1875,13 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, receiptHeight] });
 
   let y = 6;
+  const effectiveLogo = options?.logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
+  if (effectiveLogo && effectiveLogo.startsWith('data:image')) {
+    try {
+      doc.addImage(effectiveLogo, 'PNG', 30, y, 20, 11);
+      y += 13;
+    } catch {}
+  }
 
   // Header
   doc.setFont('Helvetica', 'bold');
@@ -2000,6 +2008,13 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, receiptHeight] });
 
   let y = 6;
+  const effectiveLogo = options?.logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
+  if (effectiveLogo && effectiveLogo.startsWith('data:image')) {
+    try {
+      doc.addImage(effectiveLogo, 'PNG', 30, y, 20, 11);
+      y += 13;
+    } catch {}
+  }
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(10);

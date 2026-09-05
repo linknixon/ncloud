@@ -3012,7 +3012,7 @@ app.post('/api/admin/payments', (req, res) => {
 
   savePersistentStore();
 
-  // Dispatch automated payment receipt email to customer
+  // Dispatch automated payment receipt email to customer with official PDF attached
   const targetCustomerEmail = newPayment.party_email || party_email;
   const targetCustomerName = newPayment.party_name || party_name || 'Valued Client';
   if (targetCustomerEmail) {
@@ -3021,64 +3021,65 @@ app.post('/api/admin/payments', (req, res) => {
       ? `[OFFICIAL RECEIPT] ✓ 100% Clearance Payment Receipt for Invoice #${newPayment.invoice_number}`
       : `[PAYMENT RECEIPT] Partial Payment Receipt for Invoice #${newPayment.invoice_number}`;
 
-    const mailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #ffffff;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #0284c7; margin: 0; font-size: 20px;">NOVA CLOUD EDGES (U) LIMITED</h2>
-          <p style="font-size: 13px; color: #64748b; margin-top: 4px;">Plot 14 Parliament Avenue, Kampala • Email: support@ncloud.co.ug • Hotline: +256 790 001 631</p>
-        </div>
+    const pdfBuffer = generateServerPaymentReceiptPDFBuffer(newPayment, {
+      customerName: targetCustomerName,
+      customerEmail: targetCustomerEmail
+    });
 
-        <div style="background: ${isCleared ? '#f0fdf4' : '#fffbeb'}; border: 1px solid ${isCleared ? '#bbf7d0' : '#fef3c7'}; border-radius: 10px; padding: 16px; margin-bottom: 20px; text-align: center;">
-          <h3 style="color: ${isCleared ? '#15803d' : '#b45309'}; margin: 0 0 6px 0; font-size: 16px;">
-            ${isCleared ? '✓ 100% CLEARANCE PAID STAMP CONFIRMED' : 'PARTIAL PAYMENT RECEIPT RECORDED'}
-          </h3>
-          <p style="font-size: 14px; margin: 0; color: #334155;">
-            Dear <strong>${targetCustomerName}</strong>, we have received and recorded your payment for Invoice <strong>#${newPayment.invoice_number}</strong>.
-          </p>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px;">
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #64748b;">Transaction Reference:</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold; font-family: monospace;">${newPayment.reference}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #64748b;">Payment Method:</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold;">${newPayment.payment_method}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #64748b;">Amount Paid (This Installment):</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #16a34a; font-size: 15px;">UGX ${paid.toLocaleString()}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #64748b;">Timestamp:</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold;">${dateTimeStr}</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #64748b;">Clearance Status:</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold; color: ${isCleared ? '#16a34a' : '#d97706'};">
-              ${isCleared ? '✓ 100% Paid & Cleared' : 'Partially Paid'}
-            </td>
-          </tr>
-          ${excessAmount > 0 ? `
-          <tr style="border-bottom: 1px solid #f1f5f9;">
-            <td style="padding: 10px 0; color: #9333ea; font-weight: bold;">Overpayment Excess Credit:</td>
-            <td style="padding: 10px 0; text-align: right; font-weight: bold; color: #9333ea;">+ UGX ${excessAmount.toLocaleString()} (Credited to Customer Balance)</td>
-          </tr>
-          ` : ''}
-        </table>
-
-        <div style="text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-          <p style="margin: 0 0 4px 0;">Official payment receipt issued by Nova Cloud Edges Finance Department.</p>
-          <p style="margin: 0;">For billing inquiries, contact support@ncloud.co.ug or visit ncloud.co.ug/verify.</p>
-        </div>
-      </div>
-    `;
+    const mailHtml = generateCorporateEmailHtml({
+      title: isCleared ? 'Official 100% Clearance Payment Receipt' : 'Official Payment Installment Receipt',
+      badgeText: isCleared ? '100% Paid & Settled' : 'Payment Recorded',
+      recipientName: targetCustomerName,
+      attachmentName: `Payment_Receipt_${newPayment.reference}.pdf`,
+      introText: `Nova Cloud Edges Finance Department has received and confirmed your payment of <strong>UGX ${paid.toLocaleString()}</strong> towards Invoice <strong>#${newPayment.invoice_number}</strong> via <strong>${newPayment.payment_method}</strong>. Your digitally certified payment receipt is attached to this email.`,
+      itemsRows: `
+        <tr>
+          <td><strong>Transaction Reference</strong></td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: right; font-family: monospace; font-weight: bold;">${newPayment.reference}</td>
+        </tr>
+        <tr>
+          <td><strong>Payment Method</strong></td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: right; font-weight: bold;">${newPayment.payment_method}</td>
+        </tr>
+        <tr>
+          <td><strong>Settlement Timestamp</strong></td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: right;">${dateTimeStr}</td>
+        </tr>
+        <tr>
+          <td><strong>Invoice Clearance Status</strong></td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: right; font-weight: bold; color: ${isCleared ? '#16a34a' : '#d97706'};">${isCleared ? '✓ 100% Paid & Settled' : 'Partially Paid'}</td>
+        </tr>
+        ${excessAmount > 0 ? `
+        <tr>
+          <td style="color: #9333ea; font-weight: bold;">Overpayment Excess Credit</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: right; font-weight: bold; color: #9333ea;">+ UGX ${excessAmount.toLocaleString()}</td>
+        </tr>
+        ` : ''}
+      `,
+      subtotalText: `UGX ${paid.toLocaleString()}`,
+      vatText: 'Clearance Confirmed',
+      totalAmountText: `UGX ${paid.toLocaleString()}`,
+      shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`,
+      ctaText: 'Verify Receipt Online',
+      ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`
+    });
 
     sendMail({
       to: targetCustomerEmail,
       subject: mailSubject,
-      html: mailHtml
+      html: mailHtml,
+      attachments: [
+        {
+          filename: `Payment_Receipt_${newPayment.reference}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
     }).catch(err => console.error('[Payment Receipt Email Warning]', err.message));
   }
 
@@ -3303,28 +3304,29 @@ app.post('/api/admin/payments/:id/refund', async (req, res) => {
   });
 });
 
-// System Settings API - Persistent Site Logo
-let storedSiteLogo = '';
-let storedSiteFavicon = '';
-
+// System Settings API - Persistent Site Logo & Favicon
 app.get('/api/admin/settings/logo', (req, res) => {
-  res.json({ logoUrl: storedSiteLogo });
+  res.json({ logoUrl: memoryStore.site_logo || '' });
 });
 
 app.post('/api/admin/settings/logo', (req, res) => {
   const { logoUrl } = req.body;
-  storedSiteLogo = logoUrl || '';
-  res.json({ success: true, logoUrl: storedSiteLogo });
+  memoryStore.site_logo = logoUrl || '';
+  savePersistentStore();
+  console.log('[System Settings] Updated persistent site logo');
+  res.json({ success: true, logoUrl: memoryStore.site_logo });
 });
 
 app.get('/api/admin/settings/favicon', (req, res) => {
-  res.json({ faviconUrl: storedSiteFavicon });
+  res.json({ faviconUrl: memoryStore.site_favicon || '' });
 });
 
 app.post('/api/admin/settings/favicon', (req, res) => {
   const { faviconUrl } = req.body;
-  storedSiteFavicon = faviconUrl || '';
-  res.json({ success: true, faviconUrl: storedSiteFavicon });
+  memoryStore.site_favicon = faviconUrl || '';
+  savePersistentStore();
+  console.log('[System Settings] Updated persistent site favicon');
+  res.json({ success: true, faviconUrl: memoryStore.site_favicon });
 });
 
 // ----------------------------------------------------
@@ -3678,7 +3680,46 @@ app.post('/api/admin/quotations', (req, res) => {
 
   memoryStore.quotations.unshift(newQuote);
   savePersistentStore();
-  res.json({ message: `Quotation ${quoteNumber} generated successfully`, quotation: newQuote });
+
+  // Send official Quotation email with attached PDF
+  if (newQuote.customer_email) {
+    const pdfBuffer = generateServerQuotationPDFBuffer(newQuote);
+    const emailHtml = generateCorporateEmailHtml({
+      title: `Commercial Price Quotation #${quoteNumber}`,
+      badgeText: 'Official Quotation',
+      recipientName: newQuote.customer_name,
+      attachmentName: `Commercial_Quotation_${quoteNumber}.pdf`,
+      introText: `Thank you for your interest in Nova Cloud Edges enterprise infrastructure. Please find your official commercial quotation #${quoteNumber} attached to this email and summarized below.`,
+      itemsRows: quoteItems.map(it => `
+        <tr>
+          <td>${it.name || it.description}</td>
+          <td style="text-align: center;">${it.quantity || 1}</td>
+          <td style="text-align: right;">UGX ${Number(it.total || (it.quantity * it.unit_price) || 0).toLocaleString()}</td>
+        </tr>
+      `).join(''),
+      subtotalText: `UGX ${subtotal.toLocaleString()}`,
+      vatText: isExempt ? 'EXEMPT (0%)' : `UGX ${vatAmount.toLocaleString()}`,
+      totalAmountText: `UGX ${totalAmount.toLocaleString()}`,
+      shareLink: 'https://ncloud.co.ug/portal',
+      ctaText: 'View & Accept Quotation Online',
+      ctaLink: 'https://ncloud.co.ug/portal'
+    });
+
+    sendMail({
+      to: newQuote.customer_email,
+      subject: `Commercial Price Quotation #${quoteNumber} from Nova Cloud Edges`,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: `Commercial_Quotation_${quoteNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    }).catch(err => console.error('[Quotation Email Warning]:', err.message));
+  }
+
+  res.json({ message: `Quotation ${quoteNumber} generated and dispatched with official PDF attached!`, quotation: newQuote });
 });
 
 app.put('/api/admin/quotations/:id', (req, res) => {
@@ -3702,13 +3743,15 @@ app.put('/api/admin/quotations/:id', (req, res) => {
     }
     savePersistentStore();
 
-    // Send background email for quote update
+    // Send background email for quote update with attached PDF
     if (q.customer_email) {
+      const pdfBuffer = generateServerQuotationPDFBuffer(q);
       const emailHtml = generateCorporateEmailHtml({
         title: `Updated Commercial Quotation #${q.quote_number}`,
         badgeText: 'Quotation Updated',
         recipientName: q.customer_name,
-        introText: `Your Commercial Quotation #${q.quote_number} has been updated by our team. Please review the updated details below.`,
+        attachmentName: `Commercial_Quotation_${q.quote_number}.pdf`,
+        introText: `Your Commercial Quotation #${q.quote_number} has been updated by our team. Please inspect the attached official PDF document and details below.`,
         itemsRows: (q.items || []).map(it => `
           <tr>
             <td>${it.name || it.description}</td>
@@ -3726,11 +3769,18 @@ app.put('/api/admin/quotations/:id', (req, res) => {
       sendMail({
         to: q.customer_email,
         subject: `Updated Commercial Quotation #${q.quote_number} from Nova Cloud Edges`,
-        html: emailHtml
+        html: emailHtml,
+        attachments: [
+          {
+            filename: `Commercial_Quotation_${q.quote_number}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
       }).catch(err => console.error("Failed to send quote update email:", err));
     }
 
-    return res.json({ message: 'Quotation updated successfully', quotation: q });
+    return res.json({ message: 'Quotation updated successfully and revised PDF dispatched!', quotation: q });
   }
   res.status(404).json({ error: 'Quotation not found' });
 });
@@ -3765,14 +3815,16 @@ app.post('/api/admin/quotations/:id/convert-to-invoice', (req, res) => {
   q.converted_invoice_number = invoiceNumber;
   savePersistentStore();
 
-  // Send background email for quote converted to invoice
+  // Send background email for quote converted to invoice with attached invoice PDF
   if (newInvoice.customer_email) {
     const shareableUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNumber)}`;
+    const pdfBuffer = generateServerInvoicePDFBuffer(newInvoice);
     const emailHtml = generateCorporateEmailHtml({
       title: `Tax Invoice Issued #${invoiceNumber}`,
       badgeText: 'Quote Accepted & Invoiced',
       recipientName: newInvoice.customer_name,
-      introText: `Your Commercial Quotation #${q.quote_number} has been converted into an official Tax Invoice #${invoiceNumber}. Please find the invoice summary below.`,
+      attachmentName: `Tax_Invoice_${invoiceNumber}.pdf`,
+      introText: `Your Commercial Quotation #${q.quote_number} has been converted into an official Tax Invoice #${invoiceNumber}. Please find the invoice summary below and the certified PDF attached.`,
       itemsRows: (q.items || [{ name: newInvoice.item_name, quantity: newInvoice.quantity, total: newInvoice.amount }]).map(it => `
         <tr>
           <td>${it.name || it.description}</td>
@@ -3790,7 +3842,14 @@ app.post('/api/admin/quotations/:id/convert-to-invoice', (req, res) => {
     sendMail({
       to: newInvoice.customer_email,
       subject: `New Tax Invoice #${invoiceNumber} from Nova Cloud Edges`,
-      html: emailHtml
+      html: emailHtml,
+      attachments: [
+        {
+          filename: `Tax_Invoice_${invoiceNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
     }).catch(err => console.error("Failed to send quote converted to invoice email:", err));
   }
 
@@ -3932,13 +3991,37 @@ app.put('/api/admin/work-orders/:id/complete', (req, res) => {
   memoryStore.staff_expenses.unshift(newVoucher);
 
   // Email Notification & Attached PDF Log Record for Staff Member
+  const pdfBuffer = generateServerWorkOrderPDFBuffer(order);
+  const emailSubject = `Official Completed Work Order & Approved Labor Payout Voucher — #${order.order_number}`;
+  const emailHtml = generateCorporateEmailHtml({
+    title: `Work Order Completed #${order.order_number}`,
+    badgeText: 'Work Order Completed',
+    recipientName: order.assigned_staff_name,
+    attachmentName: `Work_Order_${order.order_number}.pdf`,
+    introText: `Your assigned Work Order <strong>#${order.order_number}</strong> ("${order.task_title}") at site location "${order.client_site}" has been verified and marked <strong>COMPLETED</strong>. A Company Expense Labor Payout Voucher of <strong>UGX ${Number(order.total_cost || 0).toLocaleString()}</strong> has been approved for your payroll account.`,
+    itemsRows: `
+      <tr>
+        <td>${order.task_title} (${order.charging_mode === 'per_hour' ? 'Hourly' : 'Daily Flat Rate'})</td>
+        <td style="text-align: center;">${order.quantity}</td>
+        <td style="text-align: right;">UGX ${Number(order.total_cost || 0).toLocaleString()}</td>
+      </tr>
+    `,
+    subtotalText: `UGX ${Number(order.total_cost || 0).toLocaleString()}`,
+    vatText: 'EXEMPT (0%)',
+    totalAmountText: `UGX ${Number(order.total_cost || 0).toLocaleString()}`,
+    shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(order.order_number)}`,
+    ctaText: 'View Work Order Online',
+    ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(order.order_number)}`,
+    hidePaymentMethods: true
+  });
+
   const emailLog = {
     id: Date.now() + 1,
     recipient_name: order.assigned_staff_name,
     recipient_email: staffEmail,
-    subject: `Official Completed Work Order & Approved Labor Payout Voucher — #${order.order_number}`,
-    body: `Dear ${order.assigned_staff_name},\n\nYour assigned Work Order #${order.order_number} ("${order.task_title}") at site location "${order.client_site}" has been verified and marked COMPLETED.\n\nA Company Expense Labor Payout Voucher of UGX ${Number(order.total_cost || 0).toLocaleString()} has been approved and credited to your payroll account.\n\nThe official 80mm Work Order PDF receipt has been compiled and attached to this email.\n\nBest Regards,\nNova Cloud Edges (U) Ltd — Field Operations & Labor Dispatch`,
-    attachment_name: `WorkOrder_POS_80mm_${order.order_number}.pdf`,
+    subject: emailSubject,
+    body: `Dear ${order.assigned_staff_name},\n\nYour assigned Work Order #${order.order_number} ("${order.task_title}") at site location "${order.client_site}" has been verified and marked COMPLETED.\n\nA Company Expense Labor Payout Voucher of UGX ${Number(order.total_cost || 0).toLocaleString()} has been approved and credited to your payroll account.\n\nThe official Work Order PDF receipt has been compiled and attached to this email.\n\nBest Regards,\nNova Cloud Edges (U) Ltd — Field Operations & Labor Dispatch`,
+    attachment_name: `Work_Order_${order.order_number}.pdf`,
     sent_at: new Date().toISOString(),
     status: 'Dispatched & Delivered'
   };
@@ -3947,8 +4030,23 @@ app.put('/api/admin/work-orders/:id/complete', (req, res) => {
   memoryStore.email_dispatches.unshift(emailLog);
   savePersistentStore();
 
+  if (staffEmail) {
+    sendMail({
+      to: staffEmail,
+      subject: emailSubject,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: `Work_Order_${order.order_number}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    }).catch(err => console.error('[Work Order Email Warning]:', err.message));
+  }
+
   res.json({
-    message: `Work Order ${order.order_number} marked COMPLETED! Email & 80mm Work Order PDF dispatched to ${order.assigned_staff_name} (${staffEmail}). Labor Payout Voucher of UGX ${Number(order.total_cost || 0).toLocaleString()} generated.`,
+    message: `Work Order ${order.order_number} marked COMPLETED! Email & certified Work Order PDF dispatched to ${order.assigned_staff_name} (${staffEmail}). Labor Payout Voucher of UGX ${Number(order.total_cost || 0).toLocaleString()} generated.`,
     work_order: order,
     expense_voucher: newVoucher,
     email_dispatch: emailLog
@@ -4526,50 +4624,859 @@ app.get('/api/admin/invoices', (req, res) => {
   res.json(memoryStore.invoices);
 });
 
-// Helper for corporate branded HTML email dispatch
-function generateCorporateEmailHtml({ title, preheader, recipientName, badgeText, introText, itemsRows, subtotalText, discountRowHtml, vatText, totalAmountText, shareLink, ctaText, ctaLink, footerNote, greeting, message, hideInvoiceHeaders }) {
-  const finalRecipient = recipientName || (greeting ? greeting.replace('Hello ', '').replace(',', '') : 'Customer');
+// ----------------------------------------------------
+// Server-Side Official PDF Buffer Generators (Executive A4 Branding)
+// ----------------------------------------------------
+const SERVER_BRAND = {
+  name: 'NOVA CLOUD EDGES (U) LIMITED',
+  address: 'Plot 14 Parliament Avenue, Kampala, Republic of Uganda',
+  contact: 'Email: billing@ncloud.co.ug | Hotline: +256 790 001 631',
+  tin: '1014892019'
+};
+
+function drawServerA4Header(doc, { title, refNumber, refLabel, dateStr, dueDateStr, status, isSuccess, logoDataUrl }) {
+  // Primary Navy Accent Header Stripe
+  doc.setDrawColor(2, 132, 199);
+  doc.setLineWidth(1.5);
+  doc.line(14, 10, 196, 10);
+
+  // Outer Header Card
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, 12, 182, 26, 2, 2, 'FD');
+
+  let textX = 18;
+  const activeLogo = logoDataUrl || memoryStore.site_logo;
+  if (activeLogo) {
+    try {
+      doc.addImage(activeLogo, 'PNG', 17, 14.5, 23, 21);
+      textX = 43;
+    } catch {
+      textX = 18;
+    }
+  }
+
+  // Company Name
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text(SERVER_BRAND.name, textX, 19);
+
+  // Document Title
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text(title, textX, 24);
+
+  // Company Contact & TIN
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${SERVER_BRAND.address} • TIN: ${SERVER_BRAND.tin}`, textX, 29);
+  doc.text(SERVER_BRAND.contact, textX, 33.5);
+
+  // Reference Metadata Pill
+  const pillW = 48;
+  const pillX = 196 - pillW - 4;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(pillX, 15, pillW, 20, 1.5, 1.5, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${refLabel || 'REF'} NUMBER`, pillX + pillW / 2, 19.5, { align: 'center' });
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(refNumber, pillX + pillW / 2, 24.5, { align: 'center' });
+
+  // Status Badge in Pill
+  const statusColor = isSuccess ? [22, 163, 74] : [217, 119, 6];
+  doc.setFillColor(isSuccess ? 220 : 254, isSuccess ? 252 : 243, isSuccess ? 231 : 199);
+  doc.roundedRect(pillX + 3, 27, pillW - 6, 5.5, 1, 1, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...statusColor);
+  doc.text(status || 'RECORDED', pillX + pillW / 2, 31, { align: 'center' });
+}
+
+function drawServerFooter(doc, refNumber, docType = 'Official Corporate Document') {
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.4);
+  doc.line(14, 280, 196, 280);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`${docType} certified by ${SERVER_BRAND.name} • URA Tax Compliant • Page 1 of 1`, 105, 285, { align: 'center' });
+  doc.text(`Official Verification & Audit: https://ncloud.co.ug/verify?doc=${encodeURIComponent(refNumber)}`, 105, 289, { align: 'center' });
+}
+
+export function generateServerInvoicePDFBuffer(inv, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const invoiceNum = inv.invoice_number || `INV-${inv.id || '2026-0001'}`;
+  const cName = inv.customer_name || 'Valued Customer';
+  const cEmail = inv.customer_email || 'client@company.co.ug';
+  const cPhone = inv.customer_phone || '+256 700 000 000';
+  const cAddress = inv.customer_address || 'Kampala, Uganda';
+  const invDate = inv.created_at ? inv.created_at.split('T')[0] : '2026-09-05';
+  const dueDate = inv.due_date || '2026-09-30';
+  const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
+  const totalAmt = Number(inv.amount || 0);
+  const paidAmt = isPaid ? totalAmt : Number(inv.paid_amount || 0);
+  const balanceDue = Math.max(0, totalAmt - paidAmt);
+  const subAmt = Number(inv.subtotal || (inv.vat_exempt ? totalAmt : Math.round(totalAmt / 1.18)));
+  const vatAmt = Boolean(inv.vat_exempt) ? 0 : (inv.vat_amount !== undefined ? Number(inv.vat_amount) : Math.round(subAmt * 0.18));
+  const discountAmt = Number(inv.discount_amount || 0);
+
+  drawServerA4Header(doc, {
+    title: 'OFFICIAL TAX INVOICE',
+    refNumber: invoiceNum,
+    refLabel: 'INVOICE',
+    dateStr: invDate,
+    dueDateStr: dueDate,
+    status: isPaid ? 'PAID & SETTLED' : 'PAYMENT PENDING',
+    isSuccess: isPaid,
+    logoDataUrl: options.logoDataUrl || memoryStore.site_logo
+  });
+
+  const metaY = 42;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, metaY, 88, 28, 2, 2, 'FD');
+  doc.roundedRect(108, metaY, 88, 28, 2, 2, 'FD');
+
+  // Customer Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('BILLED TO (CUSTOMER):', 18, metaY + 6);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(cName.substring(0, 36), 18, metaY + 12);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Email: ${cEmail}`, 18, metaY + 17);
+  doc.text(`Phone: ${cPhone}`, 18, metaY + 21.5);
+  doc.text(`Address: ${cAddress.substring(0, 36)}`, 18, metaY + 25.5);
+
+  // Timeline Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('INVOICE TIMELINE & STATUS:', 112, metaY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Issue Date:`, 112, metaY + 12);
+  doc.text(`Payment Due Date:`, 112, metaY + 16.5);
+  doc.text(`Currency:`, 112, metaY + 21);
+  doc.text(`Payment Status:`, 112, metaY + 25.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(invDate, 150, metaY + 12);
+  doc.text(dueDate, 150, metaY + 16.5);
+  doc.text('Uganda Shillings (UGX)', 150, metaY + 21);
+  doc.text(isPaid ? '100% Cleared (Verified)' : 'Pending Remittance', 150, metaY + 25.5);
+
+  // Items Table Header
+  const tableY = 74;
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, tableY, 182, 8, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('ITEM DESCRIPTION', 18, tableY + 5.5);
+  doc.text('QTY', 125, tableY + 5.5, { align: 'center' });
+  doc.text('RATE (UGX)', 155, tableY + 5.5, { align: 'right' });
+  doc.text('AMOUNT (UGX)', 192, tableY + 5.5, { align: 'right' });
+
+  let curY = tableY + 8;
+  const items = Array.isArray(inv.items) && inv.items.length > 0 ? inv.items : [
+    { name: inv.item_name || 'Enterprise Cloud Infrastructure & Managed Services', quantity: inv.quantity || 1, unit_price: inv.unit_price || totalAmt, amount: totalAmt }
+  ];
+
+  items.forEach((it, idx) => {
+    const itName = it.name || it.description || inv.item_name || 'Enterprise Solution';
+    const itQty = it.quantity || it.qty || 1;
+    const itRate = Number(it.unit_price || it.price || 0);
+    const itAmt = Number(it.amount || it.total || (itQty * itRate));
+
+    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+    doc.rect(14, curY, 182, 7.5, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14, curY + 7.5, 196, curY + 7.5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(itName.substring(0, 52), 18, curY + 5.2);
+    doc.text(String(itQty), 125, curY + 5.2, { align: 'center' });
+    doc.text(itRate.toLocaleString(), 155, curY + 5.2, { align: 'right' });
+    doc.text(itAmt.toLocaleString(), 192, curY + 5.2, { align: 'right' });
+
+    curY += 7.5;
+  });
+
+  curY += 4;
+  const totalsW = 88;
+  const totalsX = 196 - totalsW;
+
+  const printTotalRow = (lbl, val, bold = false, color = [15, 23, 42]) => {
+    doc.setFont('Helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(bold ? 15 : 100, bold ? 23 : 116, bold ? 42 : 139);
+    doc.text(lbl, totalsX, curY + 4);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(...color);
+    doc.text(val, 192, curY + 4, { align: 'right' });
+    curY += 5.5;
+  };
+
+  printTotalRow('Subtotal (Gross):', `UGX ${subAmt.toLocaleString()}`);
+  if (discountAmt > 0) {
+    printTotalRow('Commercial Discount:', `- UGX ${discountAmt.toLocaleString()}`, false, [16, 185, 129]);
+  }
+  printTotalRow(inv.vat_exempt ? 'Value Added Tax (VAT 0% Exempt):' : 'Value Added Tax (VAT 18%):', inv.vat_exempt ? 'EXEMPT (0%)' : `UGX ${vatAmt.toLocaleString()}`);
+
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(totalsX - 2, curY + 1, totalsW + 2, 8, 1, 1, 'FD');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL INVOICED:', totalsX + 2, curY + 6.2);
+  doc.setTextColor(2, 132, 199);
+  doc.text(`UGX ${totalAmt.toLocaleString()}`, 192, curY + 6.2, { align: 'right' });
+  curY += 12;
+
+  if (isPaid || paidAmt > 0) {
+    printTotalRow('Amount Paid to Date:', `UGX ${paidAmt.toLocaleString()}`, true, [22, 163, 74]);
+    printTotalRow('Remaining Balance Due:', `UGX ${balanceDue.toLocaleString()}`, true, balanceDue > 0 ? [217, 119, 6] : [2, 132, 199]);
+  }
+
+  // Remittance Bank Details
+  const bankY = Math.max(curY + 4, 175);
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, bankY, 182, 34, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('OFFICIAL BANK WIRE & REMITTANCE INSTRUCTIONS', 18, bankY + 6);
+
+  const banks = Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0
+    ? memoryStore.bank_accounts
+    : [
+        { bank_name: 'Stanbic Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '9030018829401', branch: 'Forest Mall Lugogo Branch, Kampala', swift_code: 'SBICUGKX', currency: 'UGX' },
+        { bank_name: 'Absa Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '0341199482', branch: 'Hannington Road Branch, Kampala', swift_code: 'BARCUGKX', currency: 'USD' }
+      ];
+
+  banks.slice(0, 2).forEach((b, i) => {
+    const colX = i === 0 ? 18 : 108;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(b.bank_name, colX, bankY + 12);
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Account Name: ${b.account_name}`, colX, bankY + 16.5);
+    doc.text(`Account No (${b.currency || 'UGX'}): ${b.account_number}`, colX, bankY + 21);
+    doc.text(`Branch: ${b.branch} • SWIFT: ${b.swift_code}`, colX, bankY + 25.5);
+  });
+
+  doc.setFont('Helvetica', 'italic');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`* Reference Narration: Please quote Invoice #${invoiceNum} on payment remittance description.`, 18, bankY + 31);
+
+  drawServerFooter(doc, invoiceNum, 'Official Tax Invoice');
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
+export function generateServerQuotationPDFBuffer(quote, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const quoteNum = quote.quote_number || `QTN-${quote.id || '2026-0001'}`;
+  const cName = quote.customer_name || 'Valued Corporate Prospect';
+  const cEmail = quote.customer_email || 'procurement@client.co.ug';
+  const cPhone = quote.customer_phone || '+256 700 000 000';
+  const company = quote.company || cName;
+  const qDate = quote.created_at ? quote.created_at.split('T')[0] : '2026-09-05';
+  const validUntil = quote.valid_until || '2026-10-05';
+  const totalAmt = Number(quote.total_amount || 0);
+  const subAmt = Number(quote.subtotal || Math.round(totalAmt / 1.18));
+  const vatAmt = Boolean(quote.vat_exempt) ? 0 : (quote.vat_amount !== undefined ? Number(quote.vat_amount) : Math.round(subAmt * 0.18));
+
+  drawServerA4Header(doc, {
+    title: 'COMMERCIAL PRICE QUOTATION & PROPOSAL',
+    refNumber: quoteNum,
+    refLabel: 'QUOTATION',
+    dateStr: qDate,
+    dueDateStr: validUntil,
+    status: quote.status ? quote.status.toUpperCase() : 'ISSUED & VALID',
+    isSuccess: quote.status === 'Accepted',
+    logoDataUrl: options.logoDataUrl || memoryStore.site_logo
+  });
+
+  const metaY = 42;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, metaY, 88, 28, 2, 2, 'FD');
+  doc.roundedRect(108, metaY, 88, 28, 2, 2, 'FD');
+
+  // Prospect Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('PREPARED FOR (PROSPECT):', 18, metaY + 6);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(company.substring(0, 36), 18, metaY + 12);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Attention: ${cName}`, 18, metaY + 17);
+  doc.text(`Email: ${cEmail}`, 18, metaY + 21.5);
+  doc.text(`Phone: ${cPhone}`, 18, metaY + 25.5);
+
+  // Validity Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('PROPOSAL VALIDITY & TERMS:', 112, metaY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Quotation Date:`, 112, metaY + 12);
+  doc.text(`Valid Until:`, 112, metaY + 16.5);
+  doc.text(`Pricing Currency:`, 112, metaY + 21);
+  doc.text(`Acceptance Status:`, 112, metaY + 25.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(qDate, 150, metaY + 12);
+  doc.text(validUntil, 150, metaY + 16.5);
+  doc.text('Uganda Shillings (UGX)', 150, metaY + 21);
+  doc.text(quote.status || 'Valid (Pending Acceptance)', 150, metaY + 25.5);
+
+  // Items Table Header
+  const tableY = 74;
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, tableY, 182, 8, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('SCOPE / SPECIFICATION', 18, tableY + 5.5);
+  doc.text('QTY', 125, tableY + 5.5, { align: 'center' });
+  doc.text('UNIT PRICE (UGX)', 155, tableY + 5.5, { align: 'right' });
+  doc.text('TOTAL (UGX)', 192, tableY + 5.5, { align: 'right' });
+
+  let curY = tableY + 8;
+  const items = Array.isArray(quote.items) && quote.items.length > 0 ? quote.items : [
+    { name: 'Enterprise Cloud Service Package', quantity: 1, unit_price: totalAmt, total: totalAmt }
+  ];
+
+  items.forEach((it, idx) => {
+    const itName = it.name || it.description || 'Enterprise Solution';
+    const itQty = it.quantity || 1;
+    const itRate = Number(it.unit_price || 0);
+    const itAmt = Number(it.total || (itQty * itRate));
+
+    doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+    doc.rect(14, curY, 182, 7.5, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14, curY + 7.5, 196, curY + 7.5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(itName.substring(0, 52), 18, curY + 5.2);
+    doc.text(String(itQty), 125, curY + 5.2, { align: 'center' });
+    doc.text(itRate.toLocaleString(), 155, curY + 5.2, { align: 'right' });
+    doc.text(itAmt.toLocaleString(), 192, curY + 5.2, { align: 'right' });
+
+    curY += 7.5;
+  });
+
+  curY += 4;
+  const totalsW = 88;
+  const totalsX = 196 - totalsW;
+
+  const printTotalRow = (lbl, val) => {
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(lbl, totalsX, curY + 4);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(val, 192, curY + 4, { align: 'right' });
+    curY += 5.5;
+  };
+
+  printTotalRow('Net Subtotal:', `UGX ${subAmt.toLocaleString()}`);
+  printTotalRow(quote.vat_exempt ? 'VAT (0% Exempt):' : 'VAT (18% Statutory):', quote.vat_exempt ? 'EXEMPT (0%)' : `UGX ${vatAmt.toLocaleString()}`);
+
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(totalsX - 2, curY + 1, totalsW + 2, 8, 1, 1, 'FD');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL QUOTED:', totalsX + 2, curY + 6.2);
+  doc.setTextColor(2, 132, 199);
+  doc.text(`UGX ${totalAmt.toLocaleString()}`, 192, curY + 6.2, { align: 'right' });
+  curY += 14;
+
+  const notesY = Math.max(curY + 4, 180);
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, notesY, 182, 32, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('PROPOSAL TERMS & ACCEPTANCE INSTRUCTIONS', 18, notesY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`• ${quote.notes || 'This quotation is valid for 30 calendar days from issue date.'}`, 18, notesY + 11.5);
+  doc.text('• To accept this quotation, please sign, stamp, and return to sales@ncloud.co.ug or approve via your client portal.', 18, notesY + 16.5);
+  doc.text('• Settlement Bank: Stanbic Bank Uganda Ltd | Acc: 9030018829401 | Forest Mall Lugogo Branch, Kampala', 18, notesY + 21.5);
+  doc.text('• All cloud services subject to Nova Cloud Edges standard Service Level Agreement (SLA 99.98%).', 18, notesY + 26.5);
+
+  drawServerFooter(doc, quoteNum, 'Commercial Quotation');
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
+export function generateServerWorkOrderPDFBuffer(wo, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const woNum = wo.order_number || `WO-${wo.id || '2026-0001'}`;
+  const staffName = wo.assigned_staff_name || 'Field Support Specialist';
+  const siteLocation = wo.client_site || 'Nova Primary Datacenter';
+  const taskTitle = wo.task_title || 'Edge Network & Fiber Infrastructure Maintenance';
+  const mode = wo.charging_mode === 'per_hour' ? 'Hours' : 'Days';
+  const rate = Number(wo.rate || 0);
+  const qty = Number(wo.quantity || 1);
+  const totalCost = Number(wo.total_cost || rate * qty);
+  const isCompleted = wo.status === 'Completed';
+
+  drawServerA4Header(doc, {
+    title: 'OFFICIAL FIELD OPERATIONS WORK ORDER',
+    refNumber: woNum,
+    refLabel: 'ORDER',
+    dateStr: wo.scheduled_date || wo.completion_date || '2026-09-05',
+    status: isCompleted ? 'COMPLETED & VERIFIED' : (wo.status ? wo.status.toUpperCase() : 'SCHEDULED'),
+    isSuccess: isCompleted,
+    logoDataUrl: options.logoDataUrl || memoryStore.site_logo
+  });
+
+  const metaY = 42;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, metaY, 88, 30, 2, 2, 'FD');
+  doc.roundedRect(108, metaY, 88, 30, 2, 2, 'FD');
+
+  // Staff Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('FIELD ENGINEER / TECHNICIAN:', 18, metaY + 6);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(staffName.substring(0, 36), 18, metaY + 12);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Department: Field Systems Operations`, 18, metaY + 17);
+  doc.text(`Deployment Site: ${siteLocation.substring(0, 32)}`, 18, metaY + 21.5);
+  doc.text(`Dispatch Supervisor: Dr. Arthur Mukasa`, 18, metaY + 26);
+
+  // Task Details Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('DEPLOYMENT TIMELINE & STATUS:', 112, metaY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Scheduled Date:`, 112, metaY + 12);
+  doc.text(`Completion Date:`, 112, metaY + 16.5);
+  doc.text(`Work Order Status:`, 112, metaY + 21);
+  doc.text(`Labor Reimbursement:`, 112, metaY + 25.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(wo.scheduled_date || 'Immediate', 150, metaY + 12);
+  doc.text(wo.completion_date || (isCompleted ? 'Completed' : 'Pending'), 150, metaY + 16.5);
+  doc.text(wo.status || 'Active', 150, metaY + 21);
+  doc.text(`UGX ${totalCost.toLocaleString()}`, 150, metaY + 25.5);
+
+  // Scope Card
+  const scopeY = 76;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, scopeY, 182, 34, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(2, 132, 199);
+  doc.text('ASSIGNED TASK TITLE & TECHNICAL SCOPE', 18, scopeY + 6.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text(taskTitle, 18, scopeY + 12.5);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  const desc = wo.description || 'Deliver scheduled technical deployment, cabling, server rack assembly, or optical fiber splicing as per corporate engineering guidelines and environmental safety specifications.';
+  const splitDesc = doc.splitTextToSize(desc, 174);
+  doc.text(splitDesc, 18, scopeY + 18);
+
+  // Labor Table
+  const tableY = 114;
+  doc.setFillColor(15, 23, 42);
+  doc.rect(14, tableY, 182, 8, 'F');
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('LABOR ITEM SPECIFICATION', 18, tableY + 5.5);
+  doc.text('UNITS / LOGGED', 125, tableY + 5.5, { align: 'center' });
+  doc.text('RATE (UGX)', 155, tableY + 5.5, { align: 'right' });
+  doc.text('TOTAL PAYOUT', 192, tableY + 5.5, { align: 'right' });
+
+  const rowY = tableY + 8;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(14, rowY, 182, 8, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.line(14, rowY + 8, 196, rowY + 8);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Field Deployment Labor (${wo.charging_mode === 'per_hour' ? 'Hourly Rate' : 'Daily Flat Rate'})`, 18, rowY + 5.5);
+  doc.text(`${qty} ${mode}`, 125, rowY + 5.5, { align: 'center' });
+  doc.text(rate.toLocaleString(), 155, rowY + 5.5, { align: 'right' });
+  doc.setFont('Helvetica', 'bold');
+  doc.text(totalCost.toLocaleString(), 192, rowY + 5.5, { align: 'right' });
+
+  // Payout Summary Card
+  const payY = 136;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(108, payY, 88, 16, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text('TOTAL LABOR PAYOUT:', 112, payY + 6.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(2, 132, 199);
+  doc.text(`UGX ${totalCost.toLocaleString()}`, 192, payY + 11.5, { align: 'right' });
+
+  // Verification & Sign-off Box
+  const signY = 180;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, signY, 182, 40, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('ENGINEERING QUALITY SIGN-OFF & FIELD ACCEPTANCE', 18, signY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Assigned Technician Sign-off:', 20, signY + 16);
+  doc.text('Client Site Representative / Supervisor:', 110, signY + 16);
+
+  doc.setDrawColor(203, 213, 225);
+  doc.line(20, signY + 30, 85, signY + 30);
+  doc.line(110, signY + 30, 175, signY + 30);
+
+  doc.setFont('Helvetica', 'italic');
+  doc.setFontSize(6.5);
+  doc.text(`${staffName} (Date: ${wo.scheduled_date || '2026-09-05'})`, 20, signY + 34);
+  doc.text('Dr. Arthur Mukasa / Site Manager', 110, signY + 34);
+
+  drawServerFooter(doc, woNum, 'Field Work Order');
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
+export function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pmtRef = pmt.reference || `PAY-${pmt.id || '2026-0001'}`;
+  const invNum = pmt.invoice_number || 'INV-2026-0001';
+  const cName = pmt.party_name || options.customerName || 'Valued Corporate Customer';
+  const cEmail = pmt.party_email || options.customerEmail || 'billing@client.co.ug';
+  const paidAmt = Number(pmt.amount || 0);
+  const pmtMethod = pmt.payment_method || 'Bank Wire Transfer';
+  const pmtDate = pmt.payment_date || pmt.timestamp || '2026-09-05';
+  const isCleared = pmt.status === '100% Paid' || pmt.status === 'Paid & Settled';
+
+  drawServerA4Header(doc, {
+    title: 'OFFICIAL ELECTRONIC PAYMENT RECEIPT',
+    refNumber: pmtRef,
+    refLabel: 'RECEIPT',
+    dateStr: pmtDate.split('T')[0],
+    status: isCleared ? '100% CLEARED & SETTLED' : 'PARTIAL PAYMENT RECORDED',
+    isSuccess: isCleared,
+    logoDataUrl: options.logoDataUrl || memoryStore.site_logo
+  });
+
+  const metaY = 42;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, metaY, 88, 28, 2, 2, 'FD');
+  doc.roundedRect(108, metaY, 88, 28, 2, 2, 'FD');
+
+  // Customer Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('RECEIVED FROM (PAYEE):', 18, metaY + 6);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(cName.substring(0, 36), 18, metaY + 12);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Email: ${cEmail}`, 18, metaY + 17);
+  doc.text(`Payment Type: ${pmt.payment_type === 'staff' ? 'Staff Payroll / Payout' : 'Customer Account Settlement'}`, 18, metaY + 21.5);
+  doc.text(`Target Invoice: #${invNum}`, 18, metaY + 25.5);
+
+  // Settlement Card
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('SETTLEMENT METRICS:', 112, metaY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Transaction Reference:`, 112, metaY + 12);
+  doc.text(`Payment Instrument:`, 112, metaY + 16.5);
+  doc.text(`Date & Time:`, 112, metaY + 21);
+  doc.text(`Audit Status:`, 112, metaY + 25.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(pmtRef, 150, metaY + 12);
+  doc.text(pmtMethod, 150, metaY + 16.5);
+  doc.text(pmtDate.replace('T', ' ').substring(0, 19), 150, metaY + 21);
+  doc.text(isCleared ? '100% Verified Clearance' : 'Partial Clearance Recorded', 150, metaY + 25.5);
+
+  // Prominent Payment Received Stamp Box
+  const stampY = 74;
+  doc.setFillColor(isCleared ? 240 : 254, isCleared ? 253 : 243, isCleared ? 244 : 199);
+  doc.setDrawColor(isCleared ? 34 : 217, isCleared ? 197 : 119, isCleared ? 94 : 6);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(14, stampY, 182, 34, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(isCleared ? 21 : 180, isCleared ? 128 : 83, isCleared ? 61 : 9);
+  doc.text(isCleared ? '✓ OFFICIAL 100% CLEARANCE CONFIRMATION' : '✓ PARTIAL REMITTANCE RECORDED', 18, stampY + 9);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Nova Cloud Edges Finance confirms receipt of UGX ${paidAmt.toLocaleString()} credited against Invoice #${invNum}.`, 18, stampY + 16);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(isCleared ? 22 : 217, isCleared ? 163 : 119, isCleared ? 74 : 6);
+  doc.text(`AMOUNT RECEIVED: UGX ${paidAmt.toLocaleString()}`, 18, stampY + 27);
+
+  // Audit Information Box
+  const auditY = 114;
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, auditY, 182, 32, 2, 2, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text('FINANCIAL VERIFICATION & AUDIT AUDIT TRAIL', 18, auditY + 6);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`• Processed By: Official Finance Automation Subsystem`, 18, auditY + 12);
+  doc.text(`• Statutory Reference ID: ${pmtRef}`, 18, auditY + 17);
+  doc.text(`• Settled through verified banking gateway / remittance channel (${pmtMethod})`, 18, auditY + 22);
+  doc.text(`• This electronic receipt constitutes an official legal discharge for the amount stated above.`, 18, auditY + 27);
+
+  drawServerFooter(doc, pmtRef, 'Official Payment Receipt');
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
+// Helper to render dynamically configured bank accounts in email templates
+function renderConfiguredBankAccountsHtml() {
+  const banks = Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0
+    ? memoryStore.bank_accounts
+    : [
+        { bank_name: 'Stanbic Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '9030018829401', branch: 'Forest Mall Lugogo Branch, Kampala', swift_code: 'SBICUGKX', currency: 'UGX' },
+        { bank_name: 'Absa Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '0341199482', branch: 'Hannington Road Branch, Kampala', swift_code: 'BARCUGKX', currency: 'USD' }
+      ];
+
+  const banksHtml = banks.map(b => `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;">
+      <div style="margin-bottom: 4px;">
+        <strong style="color: #0f172a; font-size: 13px;">${b.bank_name}</strong>
+        <span style="display: inline-block; background: #e0f2fe; color: #0284c7; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-left: 6px;">${b.currency || 'UGX'}</span>
+      </div>
+      <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+        <div>Account Name: <strong>${b.account_name || SERVER_BRAND.name}</strong></div>
+        <div>Account Number: <strong style="color: #0f172a; font-family: monospace; font-size: 13px;">${b.account_number}</strong></div>
+        <div style="color: #64748b; font-size: 11px;">Branch: ${b.branch || 'Main Branch'} ${b.swift_code ? `• SWIFT: ${b.swift_code}` : ''}</div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <div style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+        💳 Approved Settlement & Payment Methods
+      </div>
+      ${banksHtml}
+      <div style="background: #f1f5f9; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #475569; margin-top: 8px; line-height: 1.5;">
+        <strong>Mobile Money Merchant Remittance:</strong> MTN MoMo Pay Merchant Code: <strong>628100</strong> • Airtel Money Merchant Pay: <strong>430192</strong><br/>
+        <em>* Please quote your Document Number on your remittance transaction reference.</em>
+      </div>
+    </div>
+  `;
+}
+
+// Executive corporate HTML email generator with dynamic logo and payment methods
+function generateCorporateEmailHtml({
+  title,
+  preheader,
+  recipientName,
+  badgeText,
+  introText,
+  itemsRows,
+  subtotalText,
+  discountRowHtml,
+  vatText,
+  totalAmountText,
+  shareLink,
+  ctaText,
+  ctaLink,
+  footerNote,
+  greeting,
+  message,
+  hideInvoiceHeaders,
+  hidePaymentMethods,
+  attachmentName
+}) {
+  const finalRecipient = recipientName || (greeting ? greeting.replace('Hello ', '').replace(',', '') : 'Valued Customer');
   const finalIntro = introText || message || '';
   const isInvoice = !!subtotalText && subtotalText !== '-' && !hideInvoiceHeaders;
+  const siteLogo = memoryStore.site_logo || '';
 
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title || 'Nova Cloud Edges Official Notification'}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-    .header { background: linear-gradient(135deg, #0284c7 0%, #3b82f6 50%, #4f46e5 100%); padding: 25px; text-align: center; border-bottom: 2px solid #93c5fd; }
-    .logo-text { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
-    .logo-sub { font-size: 11px; color: #e0f2fe; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
-    .content { padding: 25px; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; background: rgba(59, 130, 246, 0.1); color: #2563eb; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px; }
-    .title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0; }
-    .text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 18px; }
-    .invoice-box { background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 20px; }
-    .table { width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; }
-    .table th { text-align: left; padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; text-transform: uppercase; }
-    .table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
-    .btn { display: inline-block; background: #6366f1; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; font-size: 14px; text-align: center; margin: 10px 0; }
-    .footer { background: #f8fafc; padding: 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; border-top: 1px solid #e2e8f0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; padding: 24px 12px; }
+    .email-wrapper { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06); }
+    .email-header { background: #0f172a; padding: 24px; text-align: center; border-bottom: 3px solid #0284c7; }
+    .email-logo-img { max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px; }
+    .company-title { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; margin: 0; text-transform: uppercase; }
+    .company-subtitle { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+    .email-body { padding: 28px 24px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 16px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+    .doc-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; line-height: 1.3; }
+    .salutation { font-size: 14px; color: #334155; margin-bottom: 12px; }
+    .intro-paragraph { font-size: 14px; line-height: 1.65; color: #475569; margin-bottom: 20px; }
+    .attachment-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin: 18px 0; }
+    .table-container { background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; padding: 14px; margin-bottom: 20px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; }
+    .data-table th { text-align: left; padding: 8px 4px; border-bottom: 1.5px solid #cbd5e1; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    .data-table td { padding: 9px 4px; border-bottom: 1px solid #f1f5f9; }
+    .btn-container { text-align: center; margin: 24px 0 16px 0; }
+    .primary-btn { display: inline-block; background: #0284c7; color: #ffffff !important; text-decoration: none; padding: 13px 28px; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: 0.2px; }
+    .email-footer { background: #f8fafc; padding: 22px 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; border-top: 1px solid #e2e8f0; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="logo-text">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>
-      <div class="logo-sub">Enterprise Cloud Infrastructure & IT Solutions</div>
+  <div class="email-wrapper">
+    <div class="email-header">
+      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" /><br/>` : ''}
+      <div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>
+      <div class="company-subtitle">Enterprise Cloud Infrastructure & IT Solutions</div>
     </div>
-    <div class="content">
+    <div class="email-body">
       ${badgeText ? `<div class="badge">${badgeText}</div>` : ''}
-      <h2 class="title">${title}</h2>
-      <p class="text">Dear <strong>${finalRecipient}</strong>,</p>
-      <div class="text" style="margin-bottom: 20px;">${finalIntro}</div>
-      
+      <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
+      <p class="salutation">Dear <strong>${finalRecipient}</strong>,</p>
+      <div class="intro-paragraph">${finalIntro}</div>
+
+      ${attachmentName !== false ? `
+      <div class="attachment-card">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 28px; vertical-align: middle; font-size: 20px;">📎</td>
+            <td style="vertical-align: middle;">
+              <div style="font-weight: 700; font-size: 13px; color: #1e40af;">Official Verifiable PDF Attached</div>
+              <div style="font-size: 11.5px; color: #3b82f6;">${attachmentName || 'Official PDF Document'} generated & digitally certified for your accounting and statutory audit records.</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+      ` : ''}
+
       ${itemsRows ? `
-      <div class="invoice-box">
-        <table class="table">
+      <div class="table-container">
+        <table class="data-table">
           ${isInvoice ? `
           <thead>
             <tr>
@@ -4580,20 +5487,20 @@ function generateCorporateEmailHtml({ title, preheader, recipientName, badgeText
           </thead>
           ` : ''}
           <tbody>
-            ${itemsRows || ''}
+            ${itemsRows}
             ${isInvoice ? `
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #94a3b8;">Subtotal:</td>
-              <td style="text-align: right; font-weight: 700;">${subtotalText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #64748b; padding-top: 10px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a; padding-top: 10px;">${subtotalText || ''}</td>
             </tr>
             ${discountRowHtml || ''}
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #94a3b8;">VAT (18% / Clearance):</td>
-              <td style="text-align: right; font-weight: 700;">${vatText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #64748b;">VAT (18% Statutory / Clearance):</td>
+              <td style="text-align: right; font-weight: 700; color: #0f172a;">${vatText || ''}</td>
             </tr>
             <tr style="border-top: 2px solid #cbd5e1;">
-              <td colspan="2" style="font-size: 15px; font-weight: 900; color: #0f172a; padding-top: 10px;">Total Amount:</td>
-              <td style="text-align: right; font-size: 16px; font-weight: 900; color: #2563eb; padding-top: 10px;">${totalAmountText || ''}</td>
+              <td colspan="2" style="font-size: 14px; font-weight: 900; color: #0f172a; padding-top: 10px;">Total Amount:</td>
+              <td style="text-align: right; font-size: 15px; font-weight: 900; color: #0284c7; padding-top: 10px;">${totalAmountText || ''}</td>
             </tr>
             ` : ''}
           </tbody>
@@ -4601,26 +5508,44 @@ function generateCorporateEmailHtml({ title, preheader, recipientName, badgeText
       </div>
       ` : ''}
 
-      <div style="text-align: center; margin: 20px 0;">
-        <a href="${ctaLink || shareLink || 'https://ncloud.co.ug'}" class="btn">${ctaText || 'View & Pay Invoice Online'} →</a>
+      ${!hidePaymentMethods ? renderConfiguredBankAccountsHtml() : ''}
+
+      ${(ctaLink || shareLink) ? `
+      <div class="btn-container">
+        <a href="${ctaLink || shareLink || 'https://ncloud.co.ug'}" class="primary-btn">${ctaText || 'Access Client Portal Online'} →</a>
       </div>
+      ` : ''}
 
       ${shareLink ? `
-      <p class="text" style="font-size: 12px; color: #94a3b8;">
-        <strong>Direct Shareable Document Link:</strong><br/>
-        <a href="${shareLink}" style="color: #38bdf8; word-break: break-all;">${shareLink}</a>
+      <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 14px; word-break: break-all;">
+        <strong>Direct Verification Link:</strong><br/>
+        <a href="${shareLink}" style="color: #0284c7;">${shareLink}</a>
       </p>
       ` : ''}
     </div>
-    <div class="footer">
-      <strong>Nova Cloud Edges (U) Limited</strong> • Plot 14/16 Jinja Road, Kampala, Uganda<br/>
-      TIN: 1009827461 • URA Tax Compliant • Tel: +256 790 001 631 • Email: billing@ncloud.co.ug<br/>
-      ${footerNote || 'This is an official automated transaction notice. Please keep this for your financial records.'}
+    <div class="email-footer">
+      <strong>Nova Cloud Edges (U) Limited</strong> • Plot 14 Parliament Avenue, Kampala, Republic of Uganda<br/>
+      TIN: 1014892019 • URA Tax Compliant • Hotline: +256 790 001 631 • Email: billing@ncloud.co.ug<br/>
+      ${footerNote || 'This is an official automated transaction dispatch. All attached documents carry digital certification.'}
     </div>
   </div>
 </body>
 </html>
   `;
+}
+
+// System email template wrapper for subscription lifecycles
+function generateEmailTemplate({ title, subtitle, bodyContent, ctaText, ctaLink }) {
+  return generateCorporateEmailHtml({
+    title,
+    badgeText: 'System Advisory',
+    introText: bodyContent,
+    preheader: subtitle,
+    ctaText,
+    ctaLink,
+    hidePaymentMethods: false,
+    attachmentName: false
+  });
 }
 
 // System Notification Emails Endpoints
@@ -4990,12 +5915,14 @@ app.post('/api/admin/invoices', (req, res) => {
 
   savePersistentStore();
 
-  // Automated Corporate Email Dispatch to Customer with CC to Sales Admin
+  // Automated Corporate Email Dispatch to Customer with attached official PDF & CC to Sales Admin
+  const pdfBuffer = generateServerInvoicePDFBuffer(newInvoice);
   const emailHtml = generateCorporateEmailHtml({
     title: `Official Tax Invoice #${newInvoice.invoice_number}`,
     badgeText: 'Official Invoice Issued',
     recipientName: newInvoice.customer_name,
-    introText: `Your official Nova Cloud Edges Tax Invoice #${newInvoice.invoice_number} has been generated. Please find the summary below and access your verifiable invoice document using the direct link.`,
+    attachmentName: `Tax_Invoice_${newInvoice.invoice_number}.pdf`,
+    introText: `Your official Nova Cloud Edges Tax Invoice #${newInvoice.invoice_number} has been generated. Please find the summary below and inspect the official certified PDF attached to this email.`,
     itemsRows: `
       <tr>
         <td>${newInvoice.item_name}</td>
@@ -5013,11 +5940,26 @@ app.post('/api/admin/invoices', (req, res) => {
     vatText: isExempt ? 'EXEMPT (0%)' : `UGX ${vatAmount.toLocaleString()}`,
     totalAmountText: `UGX ${newInvoice.amount.toLocaleString()}`,
     shareLink: shareableUrl,
-    ctaText: 'View & Download Official Invoice PDF',
+    ctaText: 'View & Verify Invoice Online',
     ctaLink: shareableUrl
   });
 
-  console.log(`[Automated Invoice Email] Sent Tax Invoice ${newInvoice.invoice_number} to ${newInvoice.customer_email} (CC: sales@ncloud.co.ug, systems@ncloud.co.ug)`);
+  if (newInvoice.customer_email) {
+    sendMail({
+      to: newInvoice.customer_email,
+      subject: `Official Tax Invoice #${newInvoice.invoice_number} from Nova Cloud Edges`,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: `Tax_Invoice_${newInvoice.invoice_number}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    }).catch(err => console.error('[Invoice Email Send Warning]:', err.message));
+  }
+
+  console.log(`[Automated Invoice Email] Dispatched Tax Invoice ${newInvoice.invoice_number} with PDF attachment to ${newInvoice.customer_email}`);
 
   // Log Forensics Audit Event
   if (memoryStore.audit_logs) {
@@ -5029,7 +5971,7 @@ app.post('/api/admin/invoices', (req, res) => {
       action: 'INVOICE_CREATED',
       resource_type: 'Invoices',
       resource_id: newInvoice.invoice_number,
-      details: `Generated Tax Invoice #${newInvoice.invoice_number} for ${newInvoice.customer_name} (UGX ${newInvoice.amount.toLocaleString()}). Email dispatched to ${newInvoice.customer_email} with CC to sales team.`,
+      details: `Generated Tax Invoice #${newInvoice.invoice_number} for ${newInvoice.customer_name} (UGX ${newInvoice.amount.toLocaleString()}). Email with attached PDF dispatched to ${newInvoice.customer_email}.`,
       ip_address: req.ip || '197.239.4.18',
       device_type: 'Desktop Console',
       status: 'SUCCESS',
@@ -5038,7 +5980,7 @@ app.post('/api/admin/invoices', (req, res) => {
   }
 
   res.json({
-    message: `Tax Invoice ${newInvoice.invoice_number} created and dispatched via email to ${newInvoice.customer_email} with CC to Sales Admin!`,
+    message: `Tax Invoice ${newInvoice.invoice_number} created and dispatched with official PDF attached to ${newInvoice.customer_email}!`,
     invoice: newInvoice,
     email_dispatched: true
   });
@@ -5051,13 +5993,15 @@ app.post('/api/admin/invoices/:id/send-email', async (req, res) => {
   if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
   const shareableUrl = inv.shareable_url || `https://ncloud.co.ug/verify?doc=${encodeURIComponent(inv.invoice_number)}`;
+  const pdfBuffer = generateServerInvoicePDFBuffer(inv);
 
-  // Push real Tax Invoice email via SMTP
+  // Push real Tax Invoice email via SMTP with PDF attachment
   const emailHtml = generateCorporateEmailHtml({
     title: `Tax Invoice #${inv.invoice_number}`,
     badgeText: 'Invoice Issued',
     recipientName: inv.customer_name,
-    introText: 'Please find details of your official invoice below:',
+    attachmentName: `Tax_Invoice_${inv.invoice_number}.pdf`,
+    introText: 'Please find details of your official invoice below and find the official PDF document attached to this notice.',
     itemsRows: (inv.items || [{ name: inv.item_name, quantity: inv.quantity, amount: inv.amount }]).map(it => `
       <tr>
         <td>${it.name || it.description || inv.item_name}</td>
@@ -5076,12 +6020,19 @@ app.post('/api/admin/invoices/:id/send-email', async (req, res) => {
   await sendMail({
     to: inv.customer_email,
     subject: `Tax Invoice #${inv.invoice_number} from Nova Cloud Edges`,
-    html: emailHtml
+    html: emailHtml,
+    attachments: [
+      {
+        filename: `Tax_Invoice_${inv.invoice_number}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    ]
   });
 
-  console.log(`[Invoice Mailer] Dispatched official invoice ${inv.invoice_number} to ${inv.customer_email} (CC: sales@ncloud.co.ug)`);
+  console.log(`[Invoice Mailer] Dispatched official invoice ${inv.invoice_number} with PDF attachment to ${inv.customer_email}`);
   res.json({
-    message: `Invoice #${inv.invoice_number} and official PDF link sent to ${inv.customer_email} and sales team!`,
+    message: `Invoice #${inv.invoice_number} and official PDF attachment sent to ${inv.customer_email}!`,
     recipient: inv.customer_email,
     shareable_url: shareableUrl
   });
@@ -6070,10 +7021,19 @@ const processOverdueInvoiceDemandNotices = async () => {
             footerNote: `Settlement Bank Wire & Electronic Remittance Details:<br/>Bank Name: Stanbic Bank Uganda / Centenary Bank<br/>Account Name: Nova Cloud Edges (U) Limited<br/>Account Number: 9030018274910<br/>Mobile Money Merchant: MTN MoMo Pay Code 628100 / Airtel Money 430192`
           });
 
+          const demandPdfBuffer = generateServerInvoicePDFBuffer(inv);
+
           await sendMail({
             to: inv.customer_email,
             subject: `${isOverdue ? 'URGENT STATUTORY DEMAND NOTICE' : 'PAYMENT REQUISITION ALERT'}: Tax Invoice #${inv.invoice_number} (Due: ${inv.due_date})`,
-            html: emailHtml
+            html: emailHtml,
+            attachments: [
+              {
+                filename: `Statutory_Notice_Tax_Invoice_${inv.invoice_number}.pdf`,
+                content: demandPdfBuffer,
+                contentType: 'application/pdf'
+              }
+            ]
           });
 
           inv.demand_notice_sent = true;
@@ -6099,7 +7059,7 @@ const processOverdueInvoiceDemandNotices = async () => {
               action: 'DEMAND_NOTICE_DISPATCHED',
               resource_type: 'Invoices',
               resource_id: inv.invoice_number,
-              details: `Dispatched ${noticeType} for invoice #${inv.invoice_number} to ${inv.customer_email} (UGX ${remainingDue.toLocaleString()} due on ${inv.due_date}, ${daysOverdue} days overdue).`,
+              details: `Dispatched ${noticeType} with PDF attachment for invoice #${inv.invoice_number} to ${inv.customer_email} (UGX ${remainingDue.toLocaleString()} due on ${inv.due_date}, ${daysOverdue} days overdue).`,
               ip_address: '127.0.0.1',
               device_type: 'System Cron',
               status: 'SUCCESS',
@@ -6142,6 +7102,7 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
         title: 'FINAL STATUTORY DEMAND NOTICE',
         badgeText: 'FINAL NOTICE',
         recipientName: inv.customer_name,
+        attachmentName: `Demand_Notice_Tax_Invoice_${inv.invoice_number}.pdf`,
         introText: `This is an official <strong>Statutory Demand Notice</strong> regarding your outstanding payment requisition for Tax Invoice <strong>#${inv.invoice_number}</strong> which was due on <strong>${inv.due_date}</strong>.`,
         itemsRows: `
           <tr>
@@ -6159,10 +7120,19 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
         footerNote: `Please remit full payment immediately to prevent automated service interruption, cloud resource freeze, or statutory legal recovery proceedings.<br/><br/>Settlement Bank Wire & Electronic Remittance Details:<br/>Bank Name: Stanbic Bank Uganda / Centenary Bank<br/>Account Name: Nova Cloud Edges (U) Limited<br/>Account Number: 9030018274910<br/>Mobile Money Merchant: MTN MoMo Pay Code 628100 / Airtel Money 430192`
       });
 
+      const pdfBuffer = generateServerInvoicePDFBuffer(inv);
+
       await sendMail({
         to: inv.customer_email,
         subject: `URGENT STATUTORY DEMAND NOTICE: Tax Invoice #${inv.invoice_number} (Due: ${inv.due_date})`,
-        html: emailHtml
+        html: emailHtml,
+        attachments: [
+          {
+            filename: `Demand_Notice_Tax_Invoice_${inv.invoice_number}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
       });
 
       inv.demand_notice_sent = true;
@@ -6170,7 +7140,7 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
       inv.reminder_count = (inv.reminder_count || 0) + 1;
 
       return res.json({
-        message: `Statutory Demand Notice dispatched to ${inv.customer_email} for Invoice #${inv.invoice_number}`,
+        message: `Statutory Demand Notice with attached PDF dispatched to ${inv.customer_email} for Invoice #${inv.invoice_number}`,
         invoice: inv
       });
     } catch (e) {
@@ -6181,13 +7151,61 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
   res.status(400).json({ error: 'Customer email not available for this invoice.' });
 });
 
-app.post('/api/admin/invoices/:id/remind', (req, res) => {
+app.post('/api/admin/invoices/:id/remind', async (req, res) => {
   const { id } = req.params;
-  const invoice = memoryStore.invoices.find(i => i.id == id);
-  if (invoice) {
-    return res.json({ message: `Payment reminder sent successfully to ${invoice.customer_email} for Invoice ${invoice.invoice_number}` });
+  const invoice = memoryStore.invoices.find(i => i.id == id || i.invoice_number === id);
+  if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+  if (invoice.customer_email) {
+    try {
+      const remainingDue = Number(invoice.amount || 0) - Number(invoice.paid_amount || 0);
+      const emailHtml = generateCorporateEmailHtml({
+        title: `Friendly Payment Reminder: Tax Invoice #${invoice.invoice_number}`,
+        badgeText: 'Payment Reminder',
+        recipientName: invoice.customer_name,
+        attachmentName: `Tax_Invoice_${invoice.invoice_number}.pdf`,
+        introText: `This is a courteous reminder that payment for Tax Invoice <strong>#${invoice.invoice_number}</strong> (UGX ${remainingDue.toLocaleString()}) is currently pending. Please find the official invoice attached for your accounts department.`,
+        itemsRows: `
+          <tr>
+            <td>${invoice.item_name || 'Enterprise Cloud Infrastructure'}</td>
+            <td style="text-align: center;">${invoice.quantity || 1}</td>
+            <td style="text-align: right;">UGX ${remainingDue.toLocaleString()}</td>
+          </tr>
+        `,
+        subtotalText: `UGX ${Number(invoice.subtotal || invoice.amount).toLocaleString()}`,
+        vatText: invoice.vat_exempt ? 'EXEMPT (0%)' : `UGX ${Number(invoice.vat_amount || 0).toLocaleString()}`,
+        totalAmountText: `UGX ${remainingDue.toLocaleString()}`,
+        shareLink: invoice.shareable_url || `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoice.invoice_number)}`,
+        ctaText: 'View Invoice Online',
+        ctaLink: invoice.shareable_url || `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoice.invoice_number)}`
+      });
+
+      const pdfBuffer = generateServerInvoicePDFBuffer(invoice);
+
+      await sendMail({
+        to: invoice.customer_email,
+        subject: `Payment Reminder: Tax Invoice #${invoice.invoice_number} from Nova Cloud Edges`,
+        html: emailHtml,
+        attachments: [
+          {
+            filename: `Tax_Invoice_${invoice.invoice_number}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      invoice.reminder_count = (invoice.reminder_count || 0) + 1;
+      return res.json({
+        message: `Payment reminder email with attached official PDF sent successfully to ${invoice.customer_email} for Invoice ${invoice.invoice_number}`,
+        invoice
+      });
+    } catch (err) {
+      return res.status(500).json({ error: `Failed to dispatch reminder: ${err.message}` });
+    }
   }
-  res.status(404).json({ error: 'Invoice not found' });
+
+  res.json({ message: `Invoice #${invoice.invoice_number} has no customer email on record.` });
 });
 
 app.get('/api/sliders', (req, res) => {

@@ -1,6 +1,19 @@
 {
   "users": [
     {
+      "id": 1788586430725,
+      "name": "Ronnie Namasagari",
+      "email": "rnam@gmail.com",
+      "passwordHash": "$2b$10$5wes260.ApEKccisH3Oc2eR.yoC2t1IjTwTsdZAeFp2rUh5YYl7j.",
+      "password_hash": "$2b$10$5wes260.ApEKccisH3Oc2eR.yoC2t1IjTwTsdZAeFp2rUh5YYl7j.",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "‭+256 753 385 014‬",
+      "company": "Namasagali",
+      "status": "Active"
+    },
+    {
       "id": 1788264028640,
       "name": "Marius Nshekanabo",
       "email": "nmarius@ncedges.com",
@@ -623,10 +636,46 @@
       "start_date": "2026-09-03",
       "expiry_date": "2027-09-03",
       "invoice_number": "INV-2026-0046",
-      "created_at": "2026-09-03T06:09:51.541Z"
+      "created_at": "2026-09-03T06:09:51.541Z",
+      "reminders_sent": {}
     }
   ],
   "invoices": [
+    {
+      "id": 1788586463659,
+      "invoice_number": "INV-2026-7863",
+      "customer_name": "Ronnie Namasagari",
+      "customer_email": "rnam@gmail.com",
+      "customer_phone": "‭+256 753 385 014‬",
+      "customer_address": "Kamuli Namasagali",
+      "company": "Namasagali",
+      "item_name": "Network Cable Cat 6E (Qty: 1)",
+      "plan_name": "Network Cable Cat 6E (Qty: 1)",
+      "amount": 590000,
+      "paid_amount": 0,
+      "balance": 590000,
+      "status": "Pending",
+      "due_date": "2026-09-05",
+      "duration": "Flat Rate / Direct Purchase",
+      "reference": "NV-SUB-5128",
+      "payment_method": "Direct Shop Order & Tax Invoice",
+      "include_vat": true,
+      "vat_exempt": false,
+      "vat_amount": 90000,
+      "items": [
+        {
+          "name": "Network Cable Cat 6E",
+          "description": "Network Cable Cat 6E",
+          "quantity": 1,
+          "qty": 1,
+          "unit_price": 500000,
+          "price": 500000,
+          "amount": 500000
+        }
+      ],
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-7863",
+      "created_at": "2026-09-05T05:34:23.658Z"
+    },
     {
       "id": 1788267276178,
       "invoice_number": "INV-2026-6368",
