@@ -341,21 +341,65 @@ export default function HomePage({ setActivePage }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.75rem', justifyContent: 'center' }}>
             {(partners.length > 0 ? partners : [
-              { name: 'Google Cloud', category: 'Premier Cloud Partner' },
-              { name: 'Microsoft', category: 'Gold Cloud Solutions Provider' },
-              { name: 'RENU Uganda', category: 'Research & Education Network' },
-              { name: 'Raxio Data Centre', category: 'Tier III Colocation Facility' },
-              { name: 'Liquid Intelligent Technologies', category: 'Cross-Border Fiber Transit' },
-              { name: 'MTN Business Uganda', category: 'Enterprise Telecom & MPLS' }
-            ]).map((p, idx) => (
-              <div key={p.id || idx} className="glass-card" style={{ textAlign: 'center', padding: '1.75rem', borderRadius: '16px' }}>
-                <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(30,58,138,0.1)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
-                  <Building size={28} />
+              { name: 'Google Cloud', category: 'Premier Cloud Partner', logo_url: 'https://www.gstatic.com/devrel-devsite/prod/v3e2bb97f1f91b7d5ee7d354bf5644781df52bd66bce68532ee81f62c01d4a896/cloud/images/cloud-logo.svg' },
+              { name: 'Microsoft', category: 'Gold Cloud Solutions Provider', logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
+              { name: 'RENU Uganda', category: 'Research & Education Network', logo_url: 'https://renu.ac.ug/wp-content/uploads/2021/08/cropped-renu-logo-1.png' },
+              { name: 'Raxio Data Centre', category: 'Tier III Colocation Facility', logo_url: 'https://raxio.co.ug/wp-content/uploads/2021/04/Raxio-logo.png' },
+              { name: 'Liquid Intelligent Technologies', category: 'Cross-Border Fiber Transit', logo_url: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Liquid_Intelligent_Technologies_logo.png' },
+              { name: 'MTN Business Uganda', category: 'Enterprise Telecom & MPLS', logo_url: 'https://upload.wikimedia.org/wikipedia/commons/9/93/New-mtn-logo.jpg' }
+            ]).map((p, idx) => {
+              const partnerLogo = p.logo_url || p.logo;
+              return (
+                <div key={p.id || idx} className="glass-card" style={{ textAlign: 'center', padding: '1.75rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{
+                    width: '74px',
+                    height: '74px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(226, 232, 240, 0.8)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '1rem',
+                    overflow: 'hidden',
+                    padding: '10px'
+                  }}>
+                    {partnerLogo ? (
+                      <img
+                        src={partnerLogo}
+                        alt={p.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          borderRadius: '50%'
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(30, 58, 138, 0.15))',
+                      display: partnerLogo ? 'none' : 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--primary)',
+                      fontWeight: '800',
+                      fontSize: '1.35rem'
+                    }}>
+                      {(p.name || 'P').charAt(0)}
+                    </div>
+                  </div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.3rem' }}>{p.name}</h3>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>{p.category}</div>
                 </div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.3rem' }}>{p.name}</h3>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>{p.category}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

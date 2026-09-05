@@ -630,7 +630,8 @@ const normalizeTabName = (rawTab) => {
     name: '',
     category: 'Premier Cloud Partner',
     website: '',
-    logo_text: ''
+    logo_text: '',
+    logo_url: ''
   });
 
   // News & Updates State (Web Admin & Super Admin)
@@ -1682,9 +1683,13 @@ const normalizeTabName = (rawTab) => {
     try {
       const method = editingPartner ? 'PUT' : 'POST';
       const url = editingPartner ? `/api/admin/partners/${editingPartner.id}` : '/api/admin/partners';
+      const token = localStorage.getItem('token');
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify(partnerForm)
       });
       const resData = await res.json();
@@ -1696,7 +1701,8 @@ const normalizeTabName = (rawTab) => {
         name: '',
         category: 'Premier Cloud Partner',
         website: '',
-        logo_text: ''
+        logo_text: '',
+        logo_url: ''
       });
       fetch('/api/partners').then(r => r.json()).then(data => Array.isArray(data) && setPartnersList(data));
     } catch (err) {
@@ -1707,7 +1713,11 @@ const normalizeTabName = (rawTab) => {
   const handleDeletePartner = async (id, name) => {
     if (!window.confirm(`Are you sure you want to remove partner "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/partners/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/admin/partners/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message || 'Partner removed!', 'success');
@@ -2145,22 +2155,31 @@ const normalizeTabName = (rawTab) => {
   const [savingSecurity, setSavingSecurity] = useState(false);
 
   const handleSaveSecuritySettings = async (e) => {
-    if (e) e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (savingSecurity) return;
     setSavingSecurity(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('/api/admin/security-settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify(securitySettings)
       });
       const resData = await res.json().catch(() => ({}));
-      if (res.ok) {
+      if (res.ok && resData.success !== false) {
         showToast('Cloudflare Security Settings saved successfully!', 'success');
+        if (resData.settings) {
+          setSecuritySettings(prev => ({ ...prev, ...resData.settings }));
+        }
       } else {
-        throw new Error(resData.error || 'Failed to save security settings');
+        throw new Error(resData.error || resData.message || 'Failed to save security settings');
       }
-    } catch (e) {
-      showToast(e.message, 'error');
+    } catch (err) {
+      console.error('Security save error:', err);
+      showToast(err.message || 'Error saving security settings', 'error');
     } finally {
       setSavingSecurity(false);
     }
@@ -6839,8 +6858,44 @@ const normalizeTabName = (rawTab) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                   {partnersList.filter(p => !partnerSearch || (p.name || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.website || '').toLowerCase().includes(partnerSearch.toLowerCase())).map((p, idx) => (
                     <div key={p.id || idx} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '14px' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
-                        <Building size={28} />
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: '#ffffff',
+                        boxShadow: '0 3px 12px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(226, 232, 240, 0.8)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '0.75rem',
+                        overflow: 'hidden',
+                        padding: '8px'
+                      }}>
+                        {p.logo_url || p.logo ? (
+                          <img
+                            src={p.logo_url || p.logo}
+                            alt={p.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(30, 58, 138, 0.15))',
+                          display: (p.logo_url || p.logo) ? 'none' : 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#0284c7',
+                          fontWeight: '800',
+                          fontSize: '1.25rem'
+                        }}>
+                          {(p.name || 'P').charAt(0)}
+                        </div>
                       </div>
                       <h4 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.2rem' }}>{p.name}</h4>
                       <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.4rem' }}>{p.category}</div>
@@ -6857,7 +6912,8 @@ const normalizeTabName = (rawTab) => {
                               name: p.name,
                               category: p.category || '',
                               website: p.website || '',
-                              logo_text: p.logo_text || ''
+                              logo_text: p.logo_text || '',
+                              logo_url: p.logo_url || p.logo || ''
                             });
                             setShowPartnerModal(true);
                           }}
@@ -10552,57 +10608,63 @@ const normalizeTabName = (rawTab) => {
                         <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <Shield size={18} color="var(--accent-orange)" /> Cloudflare Turnstile Security
                         </h4>
-                        <select
-                          className="form-input"
-                          style={{
-                            padding: '0.2rem 0.5rem',
-                            fontSize: '0.75rem',
-                            fontWeight: '800',
-                            width: 'auto',
-                            background: securitySettings.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            color: securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444',
-                            border: `1px solid ${securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444'}`
-                          }}
-                          value={securitySettings.is_active ? 'true' : 'false'}
-                          onChange={e => setSecuritySettings({ ...securitySettings, is_active: e.target.value === 'true' })}
-                        >
-                          <option value="true">● CAPTCHA Active</option>
-                          <option value="false">○ Disabled (Off)</option>
-                        </select>
                       </div>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                         Protect all public forms (Login, Registration, Contact) from bots and spam using Cloudflare Turnstile.
                       </p>
 
                       <form onSubmit={handleSaveSecuritySettings}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', background: 'var(--bg-main)', padding: '0.65rem 0.85rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                          <div>
+                            <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>Turnstile CAPTCHA Protection Status</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {securitySettings.is_active ? 'Status: Active and actively verifying form submissions' : 'Status: Disabled (Forms submit without CAPTCHA challenge)'}
+                            </div>
+                          </div>
+                          <select
+                            className="form-input"
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              fontSize: '0.8rem',
+                              fontWeight: '800',
+                              width: 'auto',
+                              background: securitySettings.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                              color: securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444',
+                              border: `1px solid ${securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444'}`
+                            }}
+                            value={securitySettings.is_active ? 'true' : 'false'}
+                            onChange={e => setSecuritySettings({ ...securitySettings, is_active: e.target.value === 'true' })}
+                          >
+                            <option value="true">● CAPTCHA Active</option>
+                            <option value="false">○ Disabled (Off)</option>
+                          </select>
+                        </div>
+
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
-                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Site Key *</label>
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Site Key</label>
                             <input
                               type="text"
                               className="form-input"
                               placeholder="0x4AAAAAA..."
                               value={securitySettings.turnstile_site_key || ''}
                               onChange={e => setSecuritySettings({ ...securitySettings, turnstile_site_key: e.target.value })}
-                              required={securitySettings.is_active}
                             />
                           </div>
                           <div className="form-group">
-                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Secret Key *</label>
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Secret Key</label>
                             <input
                               type="password"
                               className="form-input"
                               placeholder="0x4AAAAAA..."
                               value={securitySettings.turnstile_secret_key || ''}
                               onChange={e => setSecuritySettings({ ...securitySettings, turnstile_secret_key: e.target.value })}
-                              required={securitySettings.is_active}
                             />
                           </div>
                         </div>
 
                         <button
                           type="submit"
-                          onClick={handleSaveSecuritySettings}
                           disabled={savingSecurity}
                           className="btn-primary"
                           style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.65rem' }}
@@ -17075,6 +17137,103 @@ const normalizeTabName = (rawTab) => {
                 {editingPartner ? 'Edit Technology Partner' : 'Add Technology Partner'}
               </h3>
               <form onSubmit={handleSavePartner}>
+                {/* Circular Logo Live Preview */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.15rem', padding: '0.85rem', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Circular Logo Live Preview
+                  </span>
+                  <div style={{
+                    width: '76px',
+                    height: '76px',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(226, 232, 240, 0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    padding: '8px'
+                  }}>
+                    {partnerForm.logo_url ? (
+                      <img
+                        src={partnerForm.logo_url}
+                        alt={partnerForm.name || 'Partner'}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(30, 58, 138, 0.15))',
+                      display: partnerForm.logo_url ? 'none' : 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0284c7',
+                      fontWeight: '800',
+                      fontSize: '1.4rem'
+                    }}>
+                      {(partnerForm.name || 'P').charAt(0)}
+                    </div>
+                  </div>
+                  {partnerForm.logo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setPartnerForm({ ...partnerForm, logo_url: '' })}
+                      style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: '600' }}
+                    >
+                      Remove Logo Image
+                    </button>
+                  )}
+                </div>
+
+                {/* File Upload for Partner Logo */}
+                <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Upload Partner Logo (Image File)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="form-input"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          showToast('Logo image must be under 5MB', 'error');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setPartnerForm(prev => ({ ...prev, logo_url: reader.result }));
+                          showToast('Logo uploaded! Preview updated in circle.', 'info');
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem', display: 'block', marginTop: '0.2rem' }}>
+                    Upload PNG, SVG, JPG, or WEBP (Max 5MB). Displays in a circular icon on front end.
+                  </small>
+                </div>
+
+                <div style={{ textAlign: 'center', margin: '0.5rem 0', color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.04em' }}>
+                  — OR DIRECT LOGO WEB URL —
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Partner Logo Web URL</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://example.com/partner_logo.png"
+                    value={partnerForm.logo_url || ''}
+                    onChange={e => setPartnerForm({ ...partnerForm, logo_url: e.target.value })}
+                  />
+                </div>
+
                 <div className="form-group">
                   <label style={{ fontWeight: '700' }}>Partner Organization Name *</label>
                   <input

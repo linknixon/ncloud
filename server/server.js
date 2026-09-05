@@ -780,14 +780,17 @@ app.get('/api/partners', (req, res) => {
 });
 
 app.post('/api/admin/partners', (req, res) => {
-  const { name, category, website, logo_text } = req.body;
+  const { name, category, website, logo_text, logo_url, logo } = req.body;
   if (!name) return res.status(400).json({ error: 'Partner name is required' });
+  const finalLogoUrl = logo_url || logo || '';
   const newPartner = {
     id: Date.now(),
     name,
     category: category || 'Technology Partner',
     website: website || '',
-    logo_text: logo_text || name
+    logo_text: logo_text || name,
+    logo_url: finalLogoUrl,
+    logo: finalLogoUrl
   };
   memoryStore.partners.push(newPartner);
   savePersistentStore();
@@ -796,7 +799,8 @@ app.post('/api/admin/partners', (req, res) => {
 
 app.put('/api/admin/partners/:id', (req, res) => {
   const { id } = req.params;
-  const { name, category, website, logo_text } = req.body;
+  const { name, category, website, logo_text, logo_url, logo } = req.body;
+  const finalLogoUrl = logo_url !== undefined ? logo_url : (logo !== undefined ? logo : undefined);
   const p = memoryStore.partners.find(item => 
     String(item.id) === String(id) || 
     Number(item.id) === Number(id) || 
@@ -807,6 +811,10 @@ app.put('/api/admin/partners/:id', (req, res) => {
     if (category) p.category = category;
     if (website !== undefined) p.website = website;
     if (logo_text !== undefined) p.logo_text = logo_text;
+    if (finalLogoUrl !== undefined) {
+      p.logo_url = finalLogoUrl;
+      p.logo = finalLogoUrl;
+    }
     savePersistentStore();
     return res.json({ message: 'Partner updated successfully', partner: p });
   }
@@ -815,7 +823,9 @@ app.put('/api/admin/partners/:id', (req, res) => {
     name: name || 'Technology Partner',
     category: category || 'Technology Partner',
     website: website || '',
-    logo_text: logo_text || name
+    logo_text: logo_text || name,
+    logo_url: finalLogoUrl || '',
+    logo: finalLogoUrl || ''
   };
   memoryStore.partners.push(newPartner);
   savePersistentStore();
@@ -1205,7 +1215,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const requireCRUDAS = (req, res, next) => {
-  if (req.userRole === 'super_admin' || req.userRole === 'admin') return next();
+  if (['super_admin', 'admin', 'web_admin'].includes(req.userRole)) return next();
 
   const role = memoryStore.roles.find(r => r.code === req.userRole);
   if (!role || !role.permissions) return res.status(403).json({ error: 'Role permissions not found.' });
@@ -1223,7 +1233,7 @@ const requireCRUDAS = (req, res, next) => {
   else if (path.includes('/roles') || path.includes('/users')) module = 'roles';
   else if (path.includes('/store') || path.includes('/product-categories')) module = 'store';
   else if (path.includes('/subscriptions') || path.includes('/customer-credits')) module = 'subscriptions';
-  else if (path.includes('/settings') || path.includes('/overview') || path.includes('/forensics') || path.includes('/sliders') || path.includes('/banner-settings') || path.includes('/notification-emails') || path.includes('/smtp-settings') || path.includes('/reports/analytics')) module = 'settings';
+  else if (path.includes('settings') || path.includes('security') || path.includes('/overview') || path.includes('/forensics') || path.includes('/sliders') || path.includes('/banner-settings') || path.includes('/notification-emails') || path.includes('/smtp-settings') || path.includes('/partners') || path.includes('/reports/analytics')) module = 'settings';
   
   if (!module) return res.status(403).json({ error: 'Module access restricted.' });
 
@@ -6221,22 +6231,26 @@ app.get('/api/security/turnstile', (req, res) => {
   }
 });
 
-app.put('/api/admin/security-settings', (req, res) => {
-  let { turnstile_site_key, turnstile_secret_key, is_active } = req.body;
+const handleSaveSecuritySettingsRoute = (req, res) => {
+  let { turnstile_site_key, turnstile_secret_key, is_active } = req.body || {};
   if (!memoryStore.security_settings) memoryStore.security_settings = {};
   
-  if (turnstile_site_key !== undefined) memoryStore.security_settings.turnstile_site_key = turnstile_site_key.trim();
-  if (turnstile_secret_key !== undefined) memoryStore.security_settings.turnstile_secret_key = turnstile_secret_key.trim();
-  if (is_active !== undefined) memoryStore.security_settings.is_active = Boolean(is_active);
+  if (turnstile_site_key !== undefined) memoryStore.security_settings.turnstile_site_key = String(turnstile_site_key || '').trim();
+  if (turnstile_secret_key !== undefined) memoryStore.security_settings.turnstile_secret_key = String(turnstile_secret_key || '').trim();
+  if (is_active !== undefined) memoryStore.security_settings.is_active = is_active === true || is_active === 'true' || is_active === 1;
   memoryStore.security_settings.updated_at = new Date().toISOString();
 
   savePersistentStore();
 
-  res.json({ 
+  return res.json({ 
+    success: true,
     message: 'Cloudflare Security Settings saved successfully!', 
     settings: memoryStore.security_settings 
   });
-});
+};
+
+app.put('/api/admin/security-settings', handleSaveSecuritySettingsRoute);
+app.post('/api/admin/security-settings', handleSaveSecuritySettingsRoute);
 
 // SMTP Settings Endpoints
 app.get('/api/admin/smtp-settings', (req, res) => {
