@@ -6501,9 +6501,9 @@ const normalizeTabName = (rawTab) => {
                                   onClick={() => generateExpenseVoucher80mmPDF(e, { siteLogo: logoInput || siteLogo })}
                                   className="btn-secondary"
                                   style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#1e3a8a', borderColor: 'rgba(30, 58, 138, 0.4)', gap: '3px' }}
-                                  title="Print / Download Official 80mm Expenditure Voucher PDF"
+                                  title="Download Official 80mm Expenditure Voucher PDF"
                                 >
-                                  <Printer size={12} /> Voucher (80mm)
+                                  <Download size={12} /> Download
                                 </button>
                                 <button
                                   onClick={() => handleDuplicateExpense(e)}
@@ -11825,7 +11825,7 @@ const normalizeTabName = (rawTab) => {
                                                 style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
                                                 title="Print / Export 80mm Audited Expense Voucher PDF"
                                               >
-                                                <Printer size={12} /> Voucher (80mm)
+                                                <Download size={12} /> Download
                                               </button>
                                             )}
                                             {row.type === 'SALES QUOTATION' && (
