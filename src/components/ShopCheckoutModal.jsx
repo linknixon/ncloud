@@ -26,7 +26,7 @@ export default function ShopCheckoutModal() {
     if (user) {
       const userPhone = user.phone || user.phone_number || user.telephone || user.mobile || '';
       const userComp = user.company || user.organization || '';
-      const userAddr = user.physical_address || user.billing_address || user.address || user.location || user.street_address || user.city || 'Plot 14, Parliament Avenue, Kampala, Uganda';
+      const userAddr = user.physical_address || user.billing_address || user.address || user.location || user.street_address || user.city || 'Lugga Zone, Ndejje, Wakiso, Uganda';
       return {
         name: user.name || user.full_name || '',
         email: user.email || '',
@@ -73,7 +73,7 @@ export default function ShopCheckoutModal() {
     if (user && isDirectCheckoutOpen) {
       const userPhone = user.phone || user.phone_number || user.telephone || user.mobile || '';
       const userComp = user.company || user.organization || '';
-      const userAddr = user.physical_address || user.billing_address || user.address || user.location || user.street_address || user.city || 'Plot 14, Parliament Avenue, Kampala, Uganda';
+      const userAddr = user.physical_address || user.billing_address || user.address || user.location || user.street_address || user.city || 'Lugga Zone, Ndejje, Wakiso, Uganda';
 
       setCustomerInfo({
         name: user.name || user.full_name || '',
@@ -552,7 +552,7 @@ export default function ShopCheckoutModal() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Plot 14, Parliament Avenue, Kampala, Uganda"
+                  placeholder="e.g. Lugga Zone, Ndejje, Wakiso, Uganda"
                   value={customerInfo.address || ''}
                   onChange={e => setCustomerInfo({ ...customerInfo, address: e.target.value })}
                   required

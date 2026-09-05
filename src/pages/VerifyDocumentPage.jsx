@@ -288,7 +288,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     </div>
                   )}
                   <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', lineHeight: '1.4' }}>
-                    Plot 14 Parliament Avenue, Kampala, Republic of Uganda
+                    Lugga Zone, Ndejje, Wakiso, Republic of Uganda
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', lineHeight: '1.4' }}>
                     TIN: 1014892019 • Email: billing@ncloud.co.ug • Tel: +256 790 001 631
@@ -607,7 +607,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
             {/* Bottom Footer Bar */}
             <div style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '0.75rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b' }}>
               <div>
-                Plot 14 Parliament Avenue, Kampala • TIN: 1014892019 • billing@ncloud.co.ug
+                Lugga Zone, Ndejje, Wakiso, Kampala • TIN: 1014892019 • billing@ncloud.co.ug
               </div>
               <div style={{ fontWeight: '700', color: '#0f172a' }}>
                 Page 1 of 1 • Official Legal Instrument

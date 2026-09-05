@@ -41,7 +41,7 @@ export default function EditProfileModal() {
         email: user.email || '',
         phone: user.phone || prev.phone || '+256 700 123 456',
         company: user.company || prev.company || 'Nova Cloud Edges',
-        address: user.physical_address || user.billing_address || user.address || user.location || 'Plot 14, Parliament Avenue, Kampala, Uganda',
+        address: user.physical_address || user.billing_address || user.address || user.location || 'Lugga Zone, Ndejje, Wakiso, Uganda',
         title: user.role === 'customer' ? 'Customer' : (user.title || user.position || (user.role === 'super_admin' ? 'Super Administrator' : 'Account Manager')),
         avatar: prev.avatar || user.avatar || '',
         gradient: prev.gradient || user.gradient || 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)',
@@ -511,7 +511,7 @@ export default function EditProfileModal() {
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="e.g. Plot 14, Parliament Avenue, Kampala, Uganda"
+                  placeholder="e.g. Lugga Zone, Ndejje, Wakiso, Uganda"
                   style={{
                     width: '100%',
                     padding: '0.65rem 0.85rem 0.65rem 2.3rem',

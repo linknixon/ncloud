@@ -177,5 +177,5 @@ sudo systemctl start nova-cloud
 
 - **Email**: `support@ncloud.co.ug`
 - **Phone**: `0790001631`
-- **Address**: Plot 14 Parliament Avenue, Kampala, Uganda
+- **Address**: Lugga Zone, Ndejje, Wakiso, Uganda
 - **Company**: Nova Cloud Edges (U) Limited

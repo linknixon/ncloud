@@ -2582,6 +2582,18 @@
   ],
   "audit_logs": [
     {
+      "id": 1788602853230,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T10:07:33.231Z"
+    },
+    {
       "id": 1788597486048,
       "user_email": "systems@ncloud.co.ug",
       "user_name": "Systems Admin",

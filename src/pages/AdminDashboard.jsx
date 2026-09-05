@@ -12497,7 +12497,7 @@ const normalizeTabName = (rawTab) => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Plot 14, Jinja Road, Kampala, Uganda"
+                    placeholder="Lugga Zone, Ndejje, Wakiso, Uganda"
                     value={invoiceForm.customer_address || ''}
                     onChange={e => setInvoiceForm({ ...invoiceForm, customer_address: e.target.value })}
                   />
@@ -14081,7 +14081,7 @@ const normalizeTabName = (rawTab) => {
                           customer_name: foundUser.company || foundUser.name,
                           customer_email: foundUser.email,
                           customer_phone: foundUser.phone || foundUser.phone_number || '',
-                          customer_address: userAddr || 'Plot 14, Parliament Avenue, Kampala, Uganda'
+                          customer_address: userAddr || 'Lugga Zone, Ndejje, Wakiso, Uganda'
                         }));
                       }
                     }}
@@ -14149,7 +14149,7 @@ const normalizeTabName = (rawTab) => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Plot 14, Parliament Avenue, Kampala, Uganda"
+                    placeholder="Lugga Zone, Ndejje, Wakiso, Uganda"
                     value={subModalForm.customer_address}
                     onChange={e => setSubModalForm({ ...subModalForm, customer_address: e.target.value })}
                     required
@@ -14730,7 +14730,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     )}
                     <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
-                      Plot 14 Parliament Avenue, Kampala, Republic of Uganda
+                      Lugga Zone, Ndejje, Wakiso, Republic of Uganda
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
                       TIN: 1014892019 • Email: billing@ncloud.co.ug • Tel: +256 790 001 631

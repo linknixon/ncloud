@@ -768,7 +768,7 @@ app.get('/api/info', (req, res) => {
   res.json(seed ? seed.companyInfo : {
     name: 'Nova Cloud Edges (U) Limited',
     tagline: 'Empowering Technology Solutions',
-    address: 'Plot 14 Ndejje, Wakiso, Uganda',
+    address: 'Lugga Zone, Ndejje, Wakiso, Uganda',
     phone: '0790001631',
     email: 'support@ncloud.co.ug'
   });
@@ -2244,7 +2244,7 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
     const dur = duration || 'Monthly';
     const inputEmail = (customer_email || user_email || 'client@ncloud.co.ug').trim();
     const inputName = customer_name || (user_email ? user_email.split('@')[0] : 'Corporate Client');
-    const inputAddress = customer_address || 'Plot 14 Parliament Avenue, Kampala, Uganda';
+    const inputAddress = customer_address || 'Lugga Zone, Ndejje, Wakiso, Uganda';
     const inputPhone = customer_phone || '';
     const inputCompany = company || '';
 
@@ -2530,7 +2530,7 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
     shareLink: 'https://ncloud.co.ug',
     ctaText: 'Visit Our Website',
     ctaLink: 'https://ncloud.co.ug',
-    footerNote: 'Nova Cloud Edges (U) Limited • Plot 14/16 Jinja Road, Kampala, Uganda'
+    footerNote: 'Nova Cloud Edges (U) Limited • Lugga Zone, Ndejje, Wakiso, Uganda'
   });
 
   await sendMail({
@@ -2577,7 +2577,7 @@ app.post('/api/admin/contacts/:id/reply', async (req, res) => {
     shareLink: 'https://ncloud.co.ug',
     ctaText: 'Visit Our Website',
     ctaLink: 'https://ncloud.co.ug',
-    footerNote: 'Nova Cloud Edges (U) Limited • Plot 14/16 Jinja Road, Kampala, Uganda'
+    footerNote: 'Nova Cloud Edges (U) Limited • Lugga Zone, Ndejje, Wakiso, Uganda'
   });
 
   await sendMail({
@@ -4558,7 +4558,7 @@ app.get('/api/admin/invoices', (req, res) => {
 const SERVER_BRAND = {
   name: 'NOVA CLOUD EDGES (U) LIMITED',
   tagline: 'Enterprise Cloud Infrastructure & IT Solutions',
-  address: 'Plot 14 Parliament Avenue, Kampala, Republic of Uganda',
+  address: 'Lugga Zone, Ndejje, Wakiso, Republic of Uganda',
   tin: '1014892019',
   contact: 'billing@ncloud.co.ug | Hotline: +256 790 001 631 | https://ncloud.co.ug',
   signatory: 'Dr. Arthur Mukasa',
@@ -4720,7 +4720,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const fromLeftLines = [
     'support@ncloud.co.ug',
     'www.ncloud.co.ug',
-    'Plot 14 Parliament Ave, Kampala',
+    'Lugga Zone, Ndejje, Wakiso',
     'Tel: (+256) 790 001631 / 33',
     'TIN: 1014892019'
   ];
@@ -5013,7 +5013,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const fromLeftLines = [
     'support@ncloud.co.ug',
     'www.ncloud.co.ug',
-    'Plot 14 Parliament Ave, Kampala',
+    'Lugga Zone, Ndejje, Wakiso',
     'Tel: (+256) 790 001631 / 33',
     'TIN: 1014892019'
   ];
@@ -5915,7 +5915,7 @@ function generateCorporateEmailHtml({
       ` : ''}
     </div>
     <div class="email-footer">
-      <strong>Nova Cloud Edges (U) Limited</strong> • Plot 14 Parliament Avenue, Kampala, Republic of Uganda<br/>
+      <strong>Nova Cloud Edges (U) Limited</strong> • Lugga Zone, Ndejje, Wakiso, Republic of Uganda<br/>
       TIN: 1014892019 • URA Tax Compliant • Hotline: +256 790 001 631 • Email: billing@ncloud.co.ug<br/>
       ${footerNote || 'This is an official automated transaction dispatch. All attached documents carry digital certification.'}
     </div>
@@ -7285,7 +7285,7 @@ app.post('/api/admin/subscriptions', (req, res) => {
     customer_name,
     customer_email: customer_email || 'client@company.co.ug',
     customer_phone: customer_phone || '+256 700 000 000',
-    customer_address: customer_address || 'Plot 14 Parliament Avenue, Kampala, Uganda',
+    customer_address: customer_address || 'Lugga Zone, Ndejje, Wakiso, Uganda',
     amount: Number(amount) || 1200000,
     currency: 'UGX',
     duration: dur,
@@ -7318,7 +7318,7 @@ app.post('/api/admin/subscriptions', (req, res) => {
       customer_name,
       customer_email: customer_email || 'client@company.co.ug',
       customer_phone: customer_phone || '+256 700 000 000',
-      customer_address: customer_address || 'Plot 14 Parliament Avenue, Kampala, Uganda',
+      customer_address: customer_address || 'Lugga Zone, Ndejje, Wakiso, Uganda',
       amount: Number(amount) || 1200000,
       paid_amount: Number(amount) || 1200000,
       balance: 0,

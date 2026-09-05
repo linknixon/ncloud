@@ -86,7 +86,7 @@ export default function Footer({ setActivePage }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem', color: '#cbd5e1', fontSize: '0.925rem', lineHeight: '1.5' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
                 <MapPin size={18} color="var(--secondary)" style={{ marginTop: '3px', flexShrink: 0 }} />
-                <span>Plot 14 Parliament Avenue, Kampala, Uganda</span>
+                <span>Lugga Zone, Ndejje, Wakiso, Uganda</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <Phone size={18} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />

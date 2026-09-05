@@ -9,7 +9,7 @@ import { NOVA_LOGO_BASE64 } from './logoBase64.js';
 export const BRAND = {
   companyName: 'NOVA CLOUD EDGES (U) LIMITED',
   tagline: 'Sovereign Cloud, Enterprise Software & Edge Network Infrastructure',
-  address: 'Plot 14 Parliament Avenue, Kampala, Republic of Uganda',
+  address: 'Lugga Zone, Ndejje, Wakiso, Republic of Uganda',
   contact: 'Tel: +256 790 001 631 • Email: support@ncloud.co.ug • Web: ncloud.co.ug',
   tin: 'TIN: 1014892019',
   country: 'Republic of Uganda',
@@ -405,7 +405,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   const fromLeftLines = [
     'support@ncloud.co.ug',
     'www.ncloud.co.ug',
-    'Plot 14 Parliament Ave, Kampala',
+    'Lugga Zone, Ndejje, Wakiso',
     'Tel: (+256) 790 001631 / 33',
     'TIN: 1014892019'
   ];
@@ -708,7 +708,7 @@ export async function generateQuotationPDF(quote, options = {}) {
   const fromLeftLines = [
     'support@ncloud.co.ug',
     'www.ncloud.co.ug',
-    'Plot 14 Parliament Ave, Kampala',
+    'Lugga Zone, Ndejje, Wakiso',
     'Tel: (+256) 790 001631 / 33',
     'TIN: 1014892019'
   ];
@@ -1966,7 +1966,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6);
   doc.setTextColor(100, 116, 139);
-  doc.text('Plot 14 Parliament Ave, Kampala • Tel: +256 790 001 631', 40, y, { align: 'center' });
+  doc.text('Lugga Zone, Ndejje, Wakiso • Tel: +256 790 001 631', 40, y, { align: 'center' });
   y += 3.2;
   doc.text('TIN: 1014892019 • support@ncloud.co.ug • ncloud.co.ug', 40, y, { align: 'center' });
   y += 4;
@@ -2098,7 +2098,7 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6);
   doc.setTextColor(100, 116, 139);
-  doc.text('Plot 14 Parliament Ave, Kampala • Tel: +256 790 001 631', 40, y, { align: 'center' });
+  doc.text('Lugga Zone, Ndejje, Wakiso • Tel: +256 790 001 631', 40, y, { align: 'center' });
   y += 4;
 
   doc.setLineDashPattern([1.5, 1.5], 0);

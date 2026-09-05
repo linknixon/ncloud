@@ -198,7 +198,7 @@ export default function PrivacyPage({ setActivePage }) {
               <div><strong>Data Protection Officer:</strong> Legal & Information Security Office</div>
               <div><strong>Official Email:</strong> <a href="mailto:support@ncloud.co.ug" style={{ color: 'var(--primary)', fontWeight: '700' }}>support@ncloud.co.ug</a></div>
               <div><strong>Direct Support Hotline:</strong> <strong style={{ color: 'var(--primary)' }}>0790001631</strong></div>
-              <div><strong>Physical Address:</strong> Plot 14 Ndejje, Wakiso, Kampala Uganda</div>
+              <div><strong>Physical Address:</strong> Lugga Zone, Ndejje, Wakiso, Uganda</div>
             </div>
           </div>
 

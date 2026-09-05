@@ -130,7 +130,7 @@ export default function ContactPage() {
               <div>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: '700' }}>Physical Location</h4>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
-                  Plot 14 Parliament Avenue, Kampala, Uganda
+                  Lugga Zone, Ndejje, Wakiso, Uganda
                 </p>
               </div>
             </div>
