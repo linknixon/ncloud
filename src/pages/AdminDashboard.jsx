@@ -1092,6 +1092,7 @@ const normalizeTabName = (rawTab) => {
       handleFetchNotificationEmails();
       handleFetchSmtpSettings();
       handleFetchSecuritySettings();
+      handleFetchAnnouncement();
     }
   }, [activeTab]);
 
@@ -1608,9 +1609,38 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
-  // Top Announcement Banner Handler (Web Admin / Super Admin)
+  // Top Announcement Banner Fetcher & Handler (Web Admin / Super Admin)
+  const handleFetchAnnouncement = async () => {
+    try {
+      const res = await fetch('/api/announcement');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data.enabled !== 'undefined') {
+          setAnnouncementForm(prev => ({
+            ...prev,
+            enabled: Boolean(data.enabled),
+            badge: data.badge || data.badge_text || prev.badge,
+            badge_text: data.badge_text || data.badge || prev.badge_text,
+            text: data.text || data.message || prev.text,
+            link_text: data.link_text || data.btn_text || prev.link_text,
+            btn_text: data.btn_text || data.link_text || prev.btn_text,
+            link_url: data.link_url || data.link || prev.link_url,
+            link: data.link || data.link_url || prev.link,
+            schedule_type: data.schedule_type || 'always',
+            start_date: data.start_date || '',
+            end_date: data.end_date || '',
+            bg_gradient: data.bg_gradient || prev.bg_gradient,
+            theme: data.theme || 'rose'
+          }));
+          if (data.timing_seconds !== undefined) setBannerTimingSeconds(Number(data.timing_seconds) || 0);
+          if (data.auto_dismiss_hours !== undefined) setBannerAutoDismissHours(Number(data.auto_dismiss_hours) || 24);
+        }
+      }
+    } catch {}
+  };
+
   const handleSaveAnnouncement = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       const res = await fetch('/api/admin/announcement', {
         method: 'PUT',
@@ -1621,18 +1651,10 @@ const normalizeTabName = (rawTab) => {
           auto_dismiss_hours: bannerAutoDismissHours
         })
       });
-      await fetch('/api/admin/banner-settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: announcementForm.text,
-          timing_seconds: bannerTimingSeconds,
-          auto_dismiss_hours: bannerAutoDismissHours,
-          enabled: announcementForm.enabled
-        })
-      });
       const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
+      if (!res.ok) throw new Error(resData.error || 'Failed to update announcement banner');
+      localStorage.removeItem('nova_banner_custom_msg');
+      localStorage.removeItem('nova_banner_dismissed_until');
       showToast(resData.message || 'Announcement banner settings and timing updated!', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -3521,7 +3543,7 @@ const normalizeTabName = (rawTab) => {
         </div>
 
         {/* Primary Module Navigation Tab Bar — Sticky on scroll below header */}
-        <div style={{
+        <div className="admin-tab-bar" style={{
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
@@ -10245,7 +10267,21 @@ const normalizeTabName = (rawTab) => {
                           type="submit"
                           disabled={savingNotificationEmails}
                           className="btn-primary"
-                          style={{ width: '100%', justifyContent: 'center', fontWeight: '800', padding: '0.65rem', background: 'var(--accent-blue)' }}
+                          style={{
+                            width: '100%',
+                            justifyContent: 'center',
+                            fontWeight: '800',
+                            padding: '0.75rem 1.25rem',
+                            marginTop: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            background: 'var(--primary)',
+                            color: '#ffffff',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)'
+                          }}
                         >
                           <Check size={16} /> {savingNotificationEmails ? 'Saving...' : 'Save Notification Emails'}
                         </button>

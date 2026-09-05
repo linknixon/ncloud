@@ -82,38 +82,26 @@ export default function Navbar({ activePage, setActivePage }) {
   });
 
   useEffect(() => {
-    // Check for custom banner settings from API or localStorage
-    const savedCustomMsg = localStorage.getItem('nova_banner_custom_msg');
-    const savedCustomGrad = localStorage.getItem('nova_banner_bg_gradient');
-
-    fetch('/api/admin/banner-settings')
+    fetch('/api/announcement')
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.enabled !== 'undefined') {
-          setAnnouncement(prev => ({
-            ...prev,
-            enabled: data.enabled,
-            text: data.message || prev.text,
-            timing_seconds: data.timing_seconds || 0,
-            auto_dismiss_hours: data.auto_dismiss_hours || 24,
-            bg_gradient: data.bg_gradient || prev.bg_gradient
-          }));
+          setAnnouncement({
+            enabled: Boolean(data.enabled),
+            badge: data.badge_text || data.badge || 'NEW NOTICE',
+            text: data.text || data.message || '',
+            link_text: data.btn_text || data.link_text || '',
+            link_url: data.link || data.link_url || '',
+            schedule_type: data.schedule_type || 'always',
+            timing_seconds: Number(data.timing_seconds) || 0,
+            auto_dismiss_hours: Number(data.auto_dismiss_hours) || 24,
+            start_date: data.start_date || '',
+            end_date: data.end_date || '',
+            bg_gradient: data.bg_gradient || 'linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)'
+          });
         }
       })
-      .catch(() => {
-        fetch('/api/announcement')
-          .then(res => res.json())
-          .then(data => {
-            if (data && typeof data.enabled !== 'undefined') {
-              setAnnouncement(prev => ({ ...prev, ...data }));
-            }
-          })
-          .catch(() => {});
-      });
-
-    if (savedCustomMsg) {
-      setAnnouncement(prev => ({ ...prev, text: savedCustomMsg, bg_gradient: savedCustomGrad || prev.bg_gradient }));
-    }
+      .catch(() => {});
   }, []);
 
   // Optional timing auto-dismiss timer if configured

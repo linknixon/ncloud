@@ -16,6 +16,7 @@
   --primary: #1e3a8a;
   --primary-hover: #1e40af;
   --secondary: #0284c7;
+  --accent-blue: #0284c7;
   --accent-cyan: #06b6d4;
   --accent-emerald: #10b981;
   --gradient-brand: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%);
@@ -37,6 +38,7 @@
   --border-color: #1e2e4a;
   --primary: #2563eb;
   --primary-hover: #3b82f6;
+  --accent-blue: #38bdf8;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.7);
@@ -570,5 +572,37 @@ select option {
     overflow-x: auto !important;
     white-space: nowrap !important;
     max-width: 100% !important;
+  }
+
+  /* Form Inputs & Multi-Column Grids Mobile Optimization */
+  .responsive-2col,
+  form [style*="gridTemplateColumns"],
+  div[style*="gridTemplateColumns: '1fr 1fr'"],
+  div[style*="gridTemplateColumns: 1fr 1fr"],
+  div[style*="gridTemplateColumns: '1fr 1fr 1fr'"],
+  div[style*="gridTemplateColumns: 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-input, input, select, textarea {
+    font-size: 16px !important; /* Prevents iOS auto-zoom on mobile focus */
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Mobile Module Tab Bar (Smooth Touch Scroll) */
+  .admin-tab-bar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.5rem !important;
+  }
+  .admin-tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-tab-bar button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
   }
 }

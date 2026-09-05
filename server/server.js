@@ -3377,17 +3377,38 @@ app.get('/api/announcement', (req, res) => {
 });
 
 app.put('/api/admin/announcement', (req, res) => {
-  const { enabled, badge, text, link_text, link_url, schedule_type, start_date, end_date, bg_gradient } = req.body;
+  const {
+    enabled, badge, badge_text, text, message, link_text, btn_text, link_url, link,
+    schedule_type, start_date, end_date, bg_gradient, theme, timing_seconds, auto_dismiss_hours
+  } = req.body;
+
   if (!memoryStore.announcement) memoryStore.announcement = {};
   if (enabled !== undefined) memoryStore.announcement.enabled = Boolean(enabled);
-  if (badge !== undefined) memoryStore.announcement.badge = badge;
-  if (text !== undefined) memoryStore.announcement.text = text;
-  if (link_text !== undefined) memoryStore.announcement.link_text = link_text;
-  if (link_url !== undefined) memoryStore.announcement.link_url = link_url;
+  if (badge !== undefined || badge_text !== undefined) memoryStore.announcement.badge = badge_text || badge;
+  if (badge_text !== undefined) memoryStore.announcement.badge_text = badge_text;
+  if (text !== undefined || message !== undefined) memoryStore.announcement.text = text || message;
+  if (message !== undefined) memoryStore.announcement.message = message;
+  if (link_text !== undefined || btn_text !== undefined) memoryStore.announcement.link_text = btn_text || link_text;
+  if (btn_text !== undefined) memoryStore.announcement.btn_text = btn_text;
+  if (link_url !== undefined || link !== undefined) memoryStore.announcement.link_url = link || link_url;
+  if (link !== undefined) memoryStore.announcement.link = link;
   if (schedule_type !== undefined) memoryStore.announcement.schedule_type = schedule_type;
   if (start_date !== undefined) memoryStore.announcement.start_date = start_date;
   if (end_date !== undefined) memoryStore.announcement.end_date = end_date;
   if (bg_gradient !== undefined) memoryStore.announcement.bg_gradient = bg_gradient;
+  if (theme !== undefined) memoryStore.announcement.theme = theme;
+  if (timing_seconds !== undefined) memoryStore.announcement.timing_seconds = Number(timing_seconds) || 0;
+  if (auto_dismiss_hours !== undefined) memoryStore.announcement.auto_dismiss_hours = Number(auto_dismiss_hours) || 24;
+  memoryStore.announcement.updated_at = new Date().toISOString();
+
+  // Sync banner_settings as well
+  memoryStore.banner_settings = {
+    ...memoryStore.announcement,
+    message: memoryStore.announcement.text,
+    enabled: memoryStore.announcement.enabled
+  };
+
+  savePersistentStore();
 
   res.json({
     message: 'Announcement banner settings updated successfully!',
@@ -4553,18 +4574,18 @@ async function getServerQrDataUrl(url) {
 }
 
 // ============================================================================
-// INVOICENINJA EXACT PDF STYLING SYSTEM (3-TONE ACCENTS & CYAN HEADER BLOCK)
+// EXECUTIVE DARK BLUE PDF STYLING SYSTEM (VAT-INCLUSIVE & DATABASE-DRIVEN)
 // ============================================================================
 
 export function drawInvoiceNinja3ToneBar(doc, y, h = 4) {
-  // Cyan: 0 to 50mm
-  doc.setFillColor(0, 157, 176);
+  // Dark Blue (Primary Brand): 0 to 50mm
+  doc.setFillColor(30, 58, 138); // #1e3a8a
   doc.rect(0, y, 50, h, 'F');
-  // Dark Navy/Charcoal: 50 to 155mm
-  doc.setFillColor(30, 41, 59);
+  // Deep Navy: 50 to 155mm
+  doc.setFillColor(15, 23, 42); // #0f172a
   doc.rect(50, y, 105, h, 'F');
   // Golden Amber: 155 to 210mm
-  doc.setFillColor(245, 158, 11);
+  doc.setFillColor(245, 158, 11); // #f59e0b
   doc.rect(155, y, 55, h, 'F');
 }
 
@@ -4583,21 +4604,21 @@ export function drawInvoiceNinjaBurgundyLogo(doc, x = 14, y = 11, customLogoData
   doc.circle(x + 15, y + 7, 6, 'F');
   doc.circle(x + 19, y + 10, 4, 'F');
 
-  // White up arrow & Cyan down arrow
+  // White up arrow & Dark Blue down arrow
   doc.setFillColor(255, 255, 255);
   doc.rect(x + 9, y + 7, 2, 7, 'F');
   doc.triangle(x + 8, y + 7, x + 12, y + 7, x + 10, y + 4, 'F');
 
-  doc.setFillColor(0, 157, 176);
+  doc.setFillColor(30, 58, 138);
   doc.rect(x + 14, y + 6, 2, 7, 'F');
   doc.triangle(x + 13, y + 13, x + 17, y + 13, x + 15, y + 16, 'F');
 
-  // Brand Name
+  // Brand Name in crisp system typography
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(14.5);
   doc.setTextColor(136, 19, 55);
   doc.text('NOVA CLOUD', x + 26, y + 10);
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.text('EDGES (U) LTD', x + 26, y + 15);
 }
 
@@ -4630,18 +4651,23 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
-  // Customer & Shipping mapping
+  // VAT Breakdown from Database
+  const isVatExempt = Boolean(inv?.vat_exempt);
+  const subtotalAmt = Number(inv?.subtotal || (isVatExempt ? totalAmt : Math.round(totalAmt / 1.18)));
+  const vatAmt = isVatExempt ? 0 : (inv?.vat_amount !== undefined ? Number(inv?.vat_amount) : Math.round(subtotalAmt * 0.18));
+
+  // Customer & Shipping mapping directly from database
   const cName = inv?.customer_name || inv?.company || inv?.party_name || 'Muhabura Shine SS';
-  const cCode = inv?.customer_code || inv?.client_id || (inv?.id ? String(inv.id) : '1602026');
+  const cCode = inv?.customer_code || inv?.client_id || (inv?.id ? String(inv.id) : '');
   const cAddr1 = inv?.customer_address || inv?.address || 'Bunagana Rd';
   const cAddr2 = inv?.customer_city || inv?.city || 'Kisoro, Central Township 256';
   const cCountry = inv?.customer_country || 'Uganda';
-  const cPhone = inv?.customer_phone || inv?.phone || '0772601695';
-  const cEmail = inv?.customer_email || inv?.party_email || inv?.email || 'info@ncedges.com';
+  const cPhone = inv?.customer_phone || inv?.phone || '';
+  const cEmail = inv?.customer_email || inv?.party_email || inv?.email || '';
 
   const shipAddr1 = inv?.ship_to?.address1 || inv?.shipping_address || cAddr1;
-  const shipAddr2 = inv?.ship_to?.address2 || inv?.shipping_city || 'Kisoro Central Township 256';
-  const shipCountry = inv?.ship_to?.country || cCountry;
+  const shipAddr2 = inv?.ship_to?.address2 || inv?.shipping_city || cAddr2;
+  const shipCountry = inv?.ship_to?.country || inv?.shipping_country || cCountry;
 
   // Normalized Line Items
   let items = [];
@@ -4666,6 +4692,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   // QR Code & Logo
   const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`);
   const activeLogo = opts.logoDataUrl || memoryStore.site_logo;
+  const storedBanks = Array.isArray(opts.bankAccounts) ? opts.bankAccounts : (Array.isArray(memoryStore.bank_accounts) ? memoryStore.bank_accounts : []);
 
   // Page 1 Top 3-Tone Accent Bar
   drawInvoiceNinja3ToneBar(doc, 0, 4);
@@ -4673,8 +4700,8 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   // Logo Left
   drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
 
-  // Top Right Solid Cyan Rectangle
-  doc.setFillColor(0, 157, 176);
+  // Top Right Solid Dark Blue Rectangle (Executive Navy #1e3a8a)
+  doc.setFillColor(30, 58, 138); // Dark Blue
   doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
@@ -4695,21 +4722,21 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     doc.text(r.val, 194, rowY, { align: 'right' });
   });
 
-  // Addresses Section
+  // Addresses Section in Dark Blue
   const addrY = 38;
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
-  doc.setTextColor(0, 157, 176);
+  doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('From:', 14, addrY);
   doc.text('To:', 88, addrY);
   doc.text('Ship to:', 160, addrY);
 
-  // Underline for labels
-  doc.setDrawColor(0, 157, 176);
-  doc.setLineWidth(0.25);
+  // Underline for labels in Dark Blue
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.3);
   doc.line(14, addrY + 2, 196, addrY + 2);
 
-  // From Sub-columns
+  // From Sub-columns: Company Info & Strictly Stored Bank Accounts from Database
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
@@ -4718,26 +4745,39 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
+
+  // Left sub-column: Company contact & website
   const fromLeftLines = [
-    'Stanbic Bank AC:',
-    '9030017809856',
+    'TIN: 1014892019',
     'www.ncedges.com',
     'info@ncedges.com',
-    '(+256) 790001631/33'
+    '(+256) 790001631/33',
+    'Plot 14 Parliament Ave, Kampala'
   ];
   fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
 
-  const fromRightLines = [
-    'MTN Merchant Code:',
-    '674859',
-    'Ndejje Division',
-    'Wakiso, Makidye P.O. Box',
-    '184226, Kampala',
-    'Uganda'
-  ];
-  fromRightLines.forEach((l, idx) => doc.text(l, 46, addrY + 6 + idx * 3.6));
+  // Right sub-column: ONLY Stored Bank Accounts from Database (No hardcoded un-stored accounts!)
+  let fromRightLines = [];
+  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
+    storedBanks.forEach(b => {
+      fromRightLines.push(`${b.bank_name || 'Bank'}:`);
+      fromRightLines.push(`A/C: ${b.account_number} (${b.currency || 'UGX'})`);
+      if (b.branch && b.branch !== 'Merchant Code') fromRightLines.push(b.branch);
+    });
+  } else {
+    fromRightLines = [
+      'Official Settlement Account:',
+      'Verified Electronic Remittance',
+      'Kampala, Uganda'
+    ];
+  }
+  fromRightLines.forEach((l, idx) => {
+    doc.setFont('Helvetica', l.includes(':') ? 'bold' : 'normal');
+    doc.setTextColor(l.includes(':') ? 30 : 51, l.includes(':') ? 58 : 65, l.includes(':') ? 138 : 85);
+    doc.text(l, 46, addrY + 6 + idx * 3.6);
+  });
 
-  // To Column
+  // To Column (Database values)
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.2);
   doc.setTextColor(15, 23, 42);
@@ -4747,16 +4787,16 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
   const toLines = [
-    cCode,
+    cCode ? `Account ID: ${cCode}` : null,
     cAddr1,
     cAddr2,
     cCountry,
-    cPhone,
-    cEmail
+    cPhone ? `Tel: ${cPhone}` : null,
+    cEmail ? `Email: ${cEmail}` : null
   ].filter(Boolean);
   toLines.forEach((l, idx) => doc.text(l, 88, addrY + 9.5 + idx * 3.6));
 
-  // Ship To Column
+  // Ship To Column (Database values)
   const shipLines = [
     shipAddr1,
     shipAddr2,
@@ -4764,14 +4804,14 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   ].filter(Boolean);
   shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
 
-  // Dark line separating addresses from table
-  doc.setDrawColor(30, 41, 59);
+  // Dark dividing line separating addresses from table
+  doc.setDrawColor(15, 23, 42);
   doc.setLineWidth(0.35);
   doc.line(14, addrY + 32, 196, addrY + 32);
 
-  // Table Setup
+  // Table Setup in Dark Blue
   function drawTableHeader(y) {
-    doc.setFillColor(0, 157, 176);
+    doc.setFillColor(30, 58, 138); // Executive Dark Blue
     doc.rect(14, y, 182, 7.5, 'F');
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
@@ -4804,14 +4844,14 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
     // Zebra striping
     if (idx % 2 === 1) {
-      doc.setFillColor(245, 247, 250);
+      doc.setFillColor(248, 250, 252);
       doc.rect(14, tableY, 182, rowH, 'F');
     }
 
-    // Item (Cyan Bold)
+    // Item (Dark Blue Bold)
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.2);
-    doc.setTextColor(0, 157, 176);
+    doc.setTextColor(30, 58, 138); // Dark Blue
     doc.text(nameLines, 17, tableY + 4.2);
 
     // Description (Dark Charcoal Normal)
@@ -4843,7 +4883,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   });
 
   // Check if Totals section fits on current page
-  if (tableY + 48 > 250) {
+  if (tableY + 50 > 250) {
     doc.addPage();
     drawInvoiceNinja3ToneBar(doc, 0, 4);
     tableY = 12;
@@ -4865,37 +4905,39 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const termsText = doc.splitTextToSize(termsString, 90);
   doc.text(termsText, 14, totalsY + 4.2);
 
+  // Official Clearance notice under terms
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('OFFICIAL DIGITAL CLEARANCE & VERIFICATION', 14, totalsY + 18);
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 22.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 14, totalsY + 26.5);
+
   // Digital Clearance Seal & QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 16, 20, 20);
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(6.8);
-      doc.setTextColor(15, 23, 42);
-      doc.text('OFFICIAL DIGITAL CLEARANCE', 38, totalsY + 21);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6.2);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger', 38, totalsY + 25.5);
-      doc.setTextColor(0, 157, 176);
-      doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`, 38, totalsY + 30);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 30, 18, 18);
     } catch {}
   }
 
-  // Totals Rows on Right
+  // Totals Rows on Right WITH VAT INCLUDED
   const totalRows = [
-    { label: 'Net', val: formatNinjaUGX(totalAmt) },
-    { label: 'Subtotal', val: formatNinjaUGX(totalAmt) },
-    { label: 'Total', val: formatNinjaUGX(totalAmt) },
+    { label: 'Net Subtotal', val: formatNinjaUGX(subtotalAmt) },
+    { label: isVatExempt ? 'VAT (0% Exempt)' : 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
+    { label: 'Total Invoiced', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Paid to Date', val: formatNinjaUGX(paidAmt) },
-    { label: 'Balance Due', val: formatNinjaUGX(balanceDue) }
+    { label: 'Balance Due', val: formatNinjaUGX(balanceDue), bold: true, color: [30, 58, 138] }
   ];
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 4.8;
-    doc.setFont('Helvetica', r.label === 'Balance Due' ? 'bold' : 'normal');
+    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(7.2);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 155, rY, { align: 'right' });
     doc.text(r.val, 194, rY, { align: 'right' });
   });
@@ -4911,10 +4953,10 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
 
-    // Page number in Cyan
-    doc.setFont('Helvetica', 'normal');
+    // Page number in Dark Blue
+    doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.setTextColor(0, 157, 176);
+    doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
     // Bottom 3-Tone Bar
@@ -4933,42 +4975,28 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const validUntil = formatNinjaDate(quote?.valid_until || new Date(Date.now() + 30 * 86400000));
   const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
 
-  // Customer & Shipping mapping
+  // VAT Breakdown from Database
+  const isVatExempt = Boolean(quote?.vat_exempt);
+  const subtotalAmt = Number(quote?.subtotal || (isVatExempt ? totalAmt : Math.round(totalAmt / 1.18)));
+  const vatAmt = isVatExempt ? 0 : (quote?.vat_amount !== undefined ? Number(quote?.vat_amount) : Math.round(subtotalAmt * 0.18));
+
+  // Customer & Shipping mapping directly from database
   const cName = quote?.customer_name || quote?.company || quote?.party_name || 'Muhabura Shine SS';
-  const cCode = quote?.customer_code || quote?.client_id || (quote?.id ? String(quote.id) : '1602026');
+  const cCode = quote?.customer_code || quote?.client_id || (quote?.id ? String(quote.id) : '');
   const cAddr1 = quote?.customer_address || quote?.address || 'Bunagana Rd';
   const cAddr2 = quote?.customer_city || quote?.city || 'Kisoro, Central Township 256';
   const cCountry = quote?.customer_country || 'Uganda';
-  const cPhone = quote?.customer_phone || quote?.phone || '0772601695';
-  const cEmail = quote?.customer_email || quote?.party_email || quote?.email || 'info@ncedges.com';
+  const cPhone = quote?.customer_phone || quote?.phone || '';
+  const cEmail = quote?.customer_email || quote?.party_email || quote?.email || '';
 
   const shipAddr1 = quote?.ship_to?.address1 || quote?.shipping_address || cAddr1;
-  const shipAddr2 = quote?.ship_to?.address2 || quote?.shipping_city || 'Kisoro Central Township 256';
-  const shipCountry = quote?.ship_to?.country || cCountry;
+  const shipAddr2 = quote?.ship_to?.address2 || quote?.shipping_city || cAddr2;
+  const shipCountry = quote?.ship_to?.country || quote?.shipping_country || cCountry;
 
-  // Normalized Line Items
-  let items = [];
-  if (Array.isArray(quote?.items) && quote.items.length > 0) {
-    items = quote.items.map(it => ({
-      name: it.name || it.item_name || 'Cloud Solution Service',
-      description: it.description || it.specs || it.short_desc || '',
-      unit_price: Number(it.unit_price || it.price || 0),
-      quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
-      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
-    }));
-  } else {
-    items = [{
-      name: quote?.item_name || 'Cloud Infrastructure & Managed Services',
-      description: quote?.description || 'Enterprise Cloud & Managed Systems Deployment and Configuration',
-      unit_price: totalAmt,
-      quantity: 1,
-      amount: totalAmt
-    }];
-  }
-
-  // QR Code & Logo
+  // Stored Bank Accounts strictly from system database
   const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`);
   const activeLogo = opts.logoDataUrl || memoryStore.site_logo;
+  const storedBanks = Array.isArray(opts.bankAccounts) ? opts.bankAccounts : (Array.isArray(memoryStore.bank_accounts) ? memoryStore.bank_accounts : []);
 
   // Page 1 Top 3-Tone Accent Bar
   drawInvoiceNinja3ToneBar(doc, 0, 4);
@@ -4976,8 +5004,8 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   // Logo Left
   drawInvoiceNinjaBurgundyLogo(doc, 14, 11, activeLogo);
 
-  // Top Right Solid Cyan Rectangle
-  doc.setFillColor(0, 157, 176);
+  // Top Right Solid Dark Blue Rectangle (Executive Navy #1e3a8a)
+  doc.setFillColor(30, 58, 138); // Dark Blue
   doc.rect(126, 8.5, 70, 27, 'F');
 
   doc.setFont('Helvetica', 'bold');
@@ -4998,18 +5026,18 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     doc.text(r.val, 194, rowY, { align: 'right' });
   });
 
-  // Addresses Section
+  // Addresses Section in Dark Blue
   const addrY = 38;
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
-  doc.setTextColor(0, 157, 176);
+  doc.setTextColor(30, 58, 138);
   doc.text('From:', 14, addrY);
   doc.text('To:', 88, addrY);
   doc.text('Ship to:', 160, addrY);
 
   // Underline for labels
-  doc.setDrawColor(0, 157, 176);
-  doc.setLineWidth(0.25);
+  doc.setDrawColor(30, 58, 138);
+  doc.setLineWidth(0.3);
   doc.line(14, addrY + 2, 196, addrY + 2);
 
   // From Sub-columns
@@ -5022,23 +5050,34 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
   const fromLeftLines = [
-    'Stanbic Bank AC:',
-    '9030017809856',
+    'TIN: 1014892019',
     'www.ncedges.com',
     'info@ncedges.com',
-    '(+256) 790001631/33'
+    '(+256) 790001631/33',
+    'Plot 14 Parliament Ave, Kampala'
   ];
   fromLeftLines.forEach((l, idx) => doc.text(l, 14, addrY + 9.5 + idx * 3.6));
 
-  const fromRightLines = [
-    'MTN Merchant Code:',
-    '674859',
-    'Ndejje Division',
-    'Wakiso, Makidye P.O. Box',
-    '184226, Kampala',
-    'Uganda'
-  ];
-  fromRightLines.forEach((l, idx) => doc.text(l, 46, addrY + 6 + idx * 3.6));
+  // Right sub-column: strictly stored bank accounts
+  let fromRightLines = [];
+  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
+    storedBanks.forEach(b => {
+      fromRightLines.push(`${b.bank_name || 'Bank'}:`);
+      fromRightLines.push(`A/C: ${b.account_number} (${b.currency || 'UGX'})`);
+      if (b.branch && b.branch !== 'Merchant Code') fromRightLines.push(b.branch);
+    });
+  } else {
+    fromRightLines = [
+      'Official Settlement Account:',
+      'Verified Electronic Remittance',
+      'Kampala, Uganda'
+    ];
+  }
+  fromRightLines.forEach((l, idx) => {
+    doc.setFont('Helvetica', l.includes(':') ? 'bold' : 'normal');
+    doc.setTextColor(l.includes(':') ? 30 : 51, l.includes(':') ? 58 : 65, l.includes(':') ? 138 : 85);
+    doc.text(l, 46, addrY + 6 + idx * 3.6);
+  });
 
   // To Column
   doc.setFont('Helvetica', 'bold');
@@ -5050,12 +5089,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFontSize(6.8);
   doc.setTextColor(51, 65, 85);
   const toLines = [
-    cCode,
+    cCode ? `Account ID: ${cCode}` : null,
     cAddr1,
     cAddr2,
     cCountry,
-    cPhone,
-    cEmail
+    cPhone ? `Tel: ${cPhone}` : null,
+    cEmail ? `Email: ${cEmail}` : null
   ].filter(Boolean);
   toLines.forEach((l, idx) => doc.text(l, 88, addrY + 9.5 + idx * 3.6));
 
@@ -5068,13 +5107,13 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   shipLines.forEach((l, idx) => doc.text(l, 160, addrY + 6 + idx * 3.6));
 
   // Dark line separating addresses from table
-  doc.setDrawColor(30, 41, 59);
+  doc.setDrawColor(15, 23, 42);
   doc.setLineWidth(0.35);
   doc.line(14, addrY + 32, 196, addrY + 32);
 
-  // Table Setup
+  // Table Setup in Dark Blue
   function drawTableHeader(y) {
-    doc.setFillColor(0, 157, 176);
+    doc.setFillColor(30, 58, 138); // Dark Blue
     doc.rect(14, y, 182, 7.5, 'F');
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
@@ -5089,6 +5128,26 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   let tableY = addrY + 36;
   drawTableHeader(tableY);
   tableY += 7.5;
+
+  // Normalized items
+  let items = [];
+  if (Array.isArray(quote?.items) && quote.items.length > 0) {
+    items = quote.items.map(it => ({
+      name: it.name || it.item_name || 'Cloud Solution Service',
+      description: it.description || it.specs || it.short_desc || '',
+      unit_price: Number(it.unit_price || it.price || 0),
+      quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
+      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
+    }));
+  } else {
+    items = [{
+      name: quote?.item_name || 'Cloud Infrastructure & Managed Services',
+      description: quote?.description || 'Enterprise Cloud & Managed Systems Deployment and Configuration',
+      unit_price: totalAmt,
+      quantity: 1,
+      amount: totalAmt
+    }];
+  }
 
   items.forEach((it, idx) => {
     const nameLines = doc.splitTextToSize(String(it.name || ''), 40);
@@ -5107,14 +5166,14 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
     // Zebra striping
     if (idx % 2 === 1) {
-      doc.setFillColor(245, 247, 250);
+      doc.setFillColor(248, 250, 252);
       doc.rect(14, tableY, 182, rowH, 'F');
     }
 
-    // Item (Cyan Bold)
+    // Item (Dark Blue Bold)
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.2);
-    doc.setTextColor(0, 157, 176);
+    doc.setTextColor(30, 58, 138);
     doc.text(nameLines, 17, tableY + 4.2);
 
     // Description (Dark Charcoal Normal)
@@ -5146,7 +5205,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   });
 
   // Check if Totals section fits on current page
-  if (tableY + 48 > 250) {
+  if (tableY + 50 > 250) {
     doc.addPage();
     drawInvoiceNinja3ToneBar(doc, 0, 4);
     tableY = 12;
@@ -5168,35 +5227,37 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const termsText = doc.splitTextToSize(termsString, 90);
   doc.text(termsText, 14, totalsY + 4.2);
 
-  // Digital Clearance Seal & QR
+  // Digital Clearance notice under terms
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('OFFICIAL COMMERCIAL PROPOSAL CLEARANCE', 14, totalsY + 18);
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.2);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger:', 14, totalsY + 22.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 14, totalsY + 26.5);
+
+  // QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 16, 20, 20);
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(6.8);
-      doc.setTextColor(15, 23, 42);
-      doc.text('OFFICIAL PROPOSAL CLEARANCE', 38, totalsY + 21);
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6.2);
-      doc.setTextColor(100, 116, 139);
-      doc.text('Cryptographically verifiable on Nova Cloud Edges Ledger', 38, totalsY + 25.5);
-      doc.setTextColor(0, 157, 176);
-      doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`, 38, totalsY + 30);
+      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 30, 18, 18);
     } catch {}
   }
 
-  // Totals Rows on Right
+  // Totals Rows on Right WITH VAT INCLUDED
   const totalRows = [
-    { label: 'Net', val: formatNinjaUGX(totalAmt) },
-    { label: 'Subtotal', val: formatNinjaUGX(totalAmt) },
-    { label: 'Total Quoted', val: formatNinjaUGX(totalAmt) }
+    { label: 'Net Subtotal', val: formatNinjaUGX(subtotalAmt) },
+    { label: isVatExempt ? 'VAT (0% Exempt)' : 'VAT (18% Statutory)', val: formatNinjaUGX(vatAmt) },
+    { label: 'Total Quoted', val: formatNinjaUGX(totalAmt), bold: true, color: [30, 58, 138] }
   ];
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 4.8;
-    doc.setFont('Helvetica', r.label === 'Total Quoted' ? 'bold' : 'normal');
+    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(7.2);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 155, rY, { align: 'right' });
     doc.text(r.val, 194, rY, { align: 'right' });
   });
@@ -5212,10 +5273,10 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 278, { align: 'center' });
 
-    // Page number in Cyan
-    doc.setFont('Helvetica', 'normal');
+    // Page number in Dark Blue
+    doc.setFont('Helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.setTextColor(0, 157, 176);
+    doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
 
     // Bottom 3-Tone Bar

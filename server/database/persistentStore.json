@@ -677,41 +677,6 @@
       "created_at": "2026-09-05T05:34:23.658Z"
     },
     {
-      "id": 1788267276178,
-      "invoice_number": "INV-2026-6368",
-      "customer_name": "James Brian Otunu",
-      "customer_email": "info@ncedges.com",
-      "customer_phone": "0790001631",
-      "customer_address": "Plot 14, Parliament Avenue, Kampala, Uganda",
-      "company": "Legit Hotel",
-      "item_name": "Transport Facilitation (Qty: 1)",
-      "plan_name": "Transport Facilitation (Qty: 1)",
-      "amount": 590000,
-      "paid_amount": 0,
-      "balance": 590000,
-      "status": "Pending",
-      "due_date": "2026-09-01",
-      "duration": "Flat Rate / Direct Purchase",
-      "reference": "NV-SUB-7578",
-      "payment_method": "Direct Shop Order & Tax Invoice",
-      "include_vat": true,
-      "vat_exempt": false,
-      "vat_amount": 90000,
-      "items": [
-        {
-          "name": "Transport Facilitation",
-          "description": "Transport Facilitation",
-          "quantity": 1,
-          "qty": 1,
-          "unit_price": 500000,
-          "price": 500000,
-          "amount": 500000
-        }
-      ],
-      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-6368",
-      "created_at": "2026-09-01T12:54:36.177Z"
-    },
-    {
       "id": 1787853997304,
       "invoice_number": "INV-2026-0046",
       "customer_name": "Child Care Ministry (Manishimwe Nelson)",
@@ -849,42 +814,7 @@
     }
   ],
   "payroll": [],
-  "staff_expenses": [
-    {
-      "id": 2,
-      "staff_id": 1788264028640,
-      "staff_name": "Marius Nshekanabo",
-      "staff_email": "nmarius@ncedges.com",
-      "supervisor_name": "Nixon Kamugisha",
-      "category": "Datacenter Server Hardware & Cabling",
-      "description": "Server Installation",
-      "amount": 450000,
-      "receipt_ref": "EXP-REC-4461",
-      "status": "Approved",
-      "date": "2026-09-03",
-      "attachment_url": "",
-      "attachment_name": "",
-      "created_by": "Systems Admin (Super Admin Authority)",
-      "created_at": "2026-09-03T08:46:10.709Z"
-    },
-    {
-      "id": 1,
-      "staff_id": null,
-      "staff_name": "Marius Nshekanabo",
-      "staff_email": "nmarius@ncedges.com",
-      "supervisor_name": "Dr. Arthur Mukasa (Managing Director)",
-      "category": "Datacenter Server Hardware & Cabling",
-      "description": "Procurement of Server Mounting Rack Accessories & Patch Cables",
-      "amount": 236000,
-      "receipt_ref": "EXP-REC-1720",
-      "status": "Approved",
-      "date": "2026-08-27",
-      "attachment_url": "",
-      "attachment_name": "",
-      "created_by": "Systems Admin (Sales & Invoicing Scope)",
-      "created_at": "2026-08-27T09:23:11.609Z"
-    }
-  ],
+  "staff_expenses": [],
   "staff_invoices": [],
   "paid_stamp": null,
   "payments": [
@@ -2617,6 +2547,18 @@
     }
   ],
   "audit_logs": [
+    {
+      "id": 1788597486048,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T08:38:06.049Z"
+    },
     {
       "id": 1788594133048,
       "user_email": "systems@ncloud.co.ug",
