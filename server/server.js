@@ -4344,7 +4344,7 @@ app.get(['/api/public/verify/:type/:id', '/api/public/verify/:type'], (req, res)
 });
 
 // HTTP Route to serve clean PDF document without blob: prefix
-app.get('/api/invoices/pdf/:invoiceNum', (req, res) => {
+app.get('/api/invoices/pdf/:invoiceNum', async (req, res) => {
   const { invoiceNum } = req.params;
 
   let inv = (memoryStore.invoices || []).find(i => i.invoice_number === invoiceNum || String(i.id) === String(invoiceNum));
@@ -4352,123 +4352,29 @@ app.get('/api/invoices/pdf/:invoiceNum', (req, res) => {
     inv = (memoryStore.staff_invoices || []).find(i => i.invoice_number === invoiceNum || String(i.id) === String(invoiceNum));
   }
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const cName = inv ? (inv.customer_name || inv.party_name || inv.staff_name || 'Valued Customer') : 'Corporate Client';
-  const cEmail = inv ? (inv.customer_email || inv.party_email || inv.staff_email || 'client@ncloud.co.ug') : 'billing@client.com';
-  const cAddress = inv ? (inv.customer_address || inv.address || 'Kampala, Uganda') : 'Kampala, Uganda';
-  const itemDesc = inv ? (inv.item_name || inv.plan_name || (Array.isArray(inv.items) && inv.items[0] ? inv.items[0].name : '') || inv.description || 'Cloud Infrastructure & Managed Services') : 'Cloud Compute & Managed Edge Services';
-  
-  const totalAmt = inv ? Number(inv.amount || inv.amount_due || 720000) : 720000;
-  const isVatExempt = Boolean(inv?.vat_exempt || inv?.vat_type === 'exempt');
-  const subAmt = inv?.subtotal ? Number(inv.subtotal) : (isVatExempt ? totalAmt : Math.round(totalAmt / 1.18));
-  const vatAmt = isVatExempt ? 0 : (inv?.vat_amount !== undefined ? Number(inv.vat_amount) : totalAmt - subAmt);
-  const invStatus = (inv?.status || 'Paid').toUpperCase();
-  const invDueDate = inv?.due_date || '2026-09-30';
-
-  // Header Navy Accent
-  doc.setLineWidth(1.5);
-  doc.setDrawColor(30, 58, 138);
-  doc.line(14, 12, 196, 12);
-
-  // Address lines
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(30, 58, 138);
-  doc.text('NOVA CLOUD EDGES (U) LIMITED', 14, 20);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Plot 14 Parliament Avenue, Kampala, Republic of Uganda', 14, 26);
-  doc.text('Email: support@ncloud.co.ug | Tel: +256 790 001 631', 14, 31);
-
-  // Header Badge
-  doc.setFillColor(220, 252, 231);
-  doc.roundedRect(138, 16, 58, 8, 2, 2, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(21, 128, 61);
-  doc.text('OFFICIAL TAX INVOICE', 142, 21.5);
-
-  doc.setFontSize(13);
-  doc.setTextColor(30, 58, 138);
-  doc.text(invoiceNum || 'INV-2026-0041', 138, 31);
-
-  // Line
-  doc.setLineWidth(0.4);
-  doc.setDrawColor(226, 232, 240);
-  doc.line(14, 44, 196, 44);
-
-  // Billed To Box
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(14, 50, 88, 32, 2, 2, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138);
-  doc.text('BILLED TO CUSTOMER:', 18, 56);
-  doc.setFontSize(10.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(cName.substring(0, 32), 18, 63);
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 41, 59);
-  doc.text(cEmail.substring(0, 35), 18, 70);
-  doc.text(cAddress.substring(0, 35), 18, 75);
-
-  // Metadata Box
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(108, 50, 88, 32, 2, 2, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138);
-  doc.text('INVOICE METADATA:', 112, 56);
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 41, 59);
-  doc.text(`Payment Due Date: ${invDueDate}`, 112, 63);
-  doc.text(`Payment Status: ${invStatus}`, 112, 70);
-
-  // Table
-  const tableTop = 90;
-  doc.setFillColor(30, 58, 138);
-  doc.rect(14, tableTop, 182, 9, 'F');
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('Service / Package Description', 18, tableTop + 6);
-  doc.text('Qty', 122, tableTop + 6);
-  doc.text('Unit Rate (UGX)', 140, tableTop + 6);
-  doc.text('Amount (UGX)', 172, tableTop + 6);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(itemDesc.substring(0, 48), 18, tableTop + 16);
-  doc.text('1', 124, tableTop + 16);
-  doc.text(subAmt.toLocaleString(), 140, tableTop + 16);
-  doc.text(subAmt.toLocaleString(), 172, tableTop + 16);
-
-  // Subtotal & Total
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Subtotal: UGX ${subAmt.toLocaleString()}`, 135, tableTop + 28);
-  if (vatAmt > 0) {
-    doc.text(`VAT (18%): UGX ${vatAmt.toLocaleString()}`, 135, tableTop + 34);
+  if (!inv) {
+    inv = {
+      invoice_number: invoiceNum,
+      customer_name: 'Valued Customer',
+      customer_email: 'billing@client.com',
+      customer_address: 'Kampala, Uganda',
+      item_name: 'Cloud Infrastructure & Managed Services',
+      amount: 720000,
+      status: 'Paid',
+      due_date: '2026-09-30',
+      created_at: new Date().toISOString()
+    };
   }
-  doc.setFontSize(11);
-  doc.setTextColor(30, 58, 138);
-  // Footer Page Number
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Page 1 of 1', 105, 287, { align: 'center' });
 
-  const pdfArrayBuffer = doc.output('arraybuffer');
-  const pdfBuffer = Buffer.from(pdfArrayBuffer);
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="Tax_Invoice_${invoiceNum}.pdf"`);
-  res.send(pdfBuffer);
+  try {
+    const pdfBuffer = await generateServerInvoicePDFBuffer(inv, memoryStore.bank_accounts);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Tax_Invoice_${invoiceNum}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Error generating PDF stream:', err);
+    res.status(500).json({ error: 'Failed to generate PDF document' });
+  }
 });
 
 // Admin & Role Management API Endpoints

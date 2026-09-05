@@ -13825,68 +13825,76 @@ const normalizeTabName = (rawTab) => {
         {/* PUBLIC QR VERIFICATION RESULT MODAL */}
         {showVerifyModal && verifyData && (
           <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px' }}>
-              <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#16a34a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
-                  <ShieldCheck size={32} />
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', padding: 0, overflow: 'hidden', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
+              <div style={{ height: '6px', background: '#0f172a', width: '100%' }} />
+              <div style={{ height: '3px', background: '#0284c7', width: '100%' }} />
+              
+              <div style={{ padding: '2rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#16a34a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                    <ShieldCheck size={32} />
+                  </div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#16a34a', margin: 0 }}>
+                    Official Document Verified Authentic
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    Nova Cloud Edges Cryptographic Clearance Seal
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#16a34a', margin: 0 }}>
-                  Official Document Verified Authentic
-                </h3>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Nova Cloud Edges Digital Verification
-                </div>
-              </div>
 
-              <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1rem', marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Document Type:</span>
-                  <strong>{verifyData.document_type}</strong>
+                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '1.15rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.45rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Document Type:</span>
+                    <strong style={{ color: '#0f172a' }}>{verifyData.document_type}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.45rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Reference Number:</span>
+                    <strong style={{ color: '#0284c7', fontFamily: 'monospace' }}>{verifyData.document_number}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.45rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Issued To:</span>
+                    <strong style={{ color: '#0f172a' }}>{verifyData.customer_name} {verifyData.company ? `(${verifyData.company})` : ''}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.45rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Total Amount:</span>
+                    <strong style={{ fontSize: '1.05rem', color: '#16a34a' }}>UGX {Number(verifyData.total_amount).toLocaleString()}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.45rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Status:</span>
+                    <span style={{ background: verifyData.status === 'Paid' ? '#dcfce7' : '#fef3c7', color: verifyData.status === 'Paid' ? '#15803d' : '#b45309', padding: '0.2rem 0.65rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '800' }}>
+                      ● {verifyData.status}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: '#64748b', fontWeight: '600' }}>Legal Entity:</span>
+                    <strong style={{ color: '#0f172a' }}>{verifyData.issuer || 'Nova Cloud Edges (U) Limited'}</strong>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Reference Number:</span>
-                  <strong style={{ color: 'var(--primary)' }}>{verifyData.document_number}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Issued To:</span>
-                  <strong>{verifyData.customer_name} {verifyData.company ? `(${verifyData.company})` : ''}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Total Amount:</span>
-                  <strong style={{ fontSize: '1.05rem', color: '#16a34a' }}>UGX {Number(verifyData.total_amount).toLocaleString()}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Status:</span>
-                  <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#16a34a' }}>
-                    {verifyData.status}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Issued By:</span>
-                  <strong>{verifyData.issuer}</strong>
-                </div>
-              </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => {
-                    setShowVerifyModal(false);
-                    if (setActivePage) {
-                      setActivePage('verify');
-                    }
-                  }}
-                  className="btn-secondary"
-                  style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', gap: '6px' }}
-                >
-                  <ExternalLink size={15} /> Open Public Portal
-                </button>
-                <button
-                  onClick={() => setShowVerifyModal(false)}
-                  className="btn-primary"
-                  style={{ padding: '0.6rem 1.5rem', fontSize: '0.85rem' }}
-                >
-                  Close Verification Window
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => {
+                      setShowVerifyModal(false);
+                      window.history.pushState({}, '', `/verify?doc=${encodeURIComponent(verifyData.document_number)}`);
+                      if (setActivePage) {
+                        setActivePage('verify');
+                      } else {
+                        window.location.href = `/verify?doc=${encodeURIComponent(verifyData.document_number)}`;
+                      }
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: '0.65rem 1.25rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <ExternalLink size={15} /> View Full Corporate Sheet
+                  </button>
+                  <button
+                    onClick={() => setShowVerifyModal(false)}
+                    className="btn-primary"
+                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.85rem' }}
+                  >
+                    Close Window
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -14665,52 +14673,71 @@ const normalizeTabName = (rawTab) => {
         {/* OFFICIAL TAX INVOICE PDF VIEWER MODAL */}
         {selectedInvoice && (
           <div className="modal-overlay" onClick={() => setSelectedInvoice(null)} style={{ alignItems: 'flex-start', paddingTop: '2.5rem', paddingBottom: '2.5rem' }}>
-            <div className="modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '2.5rem', background: '#ffffff', color: '#0f172a', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="modal-content animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '780px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: 0, background: '#ffffff', color: '#0f172a', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)' }}>
               
-              {/* PDF Header & Tax Details */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                <div>
-                  {siteLogo ? (
-                    <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ maxHeight: '54px', maxWidth: '240px', objectFit: 'contain', marginBottom: '0.6rem', display: 'block' }} />
-                  ) : (
-                    <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#1e3a8a', letterSpacing: '-0.02em', marginBottom: '0.4rem' }}>
-                      NOVA CLOUD EDGES (U) LIMITED
+              {/* Dual Accent Corporate Top Bar */}
+              <div style={{ height: '8px', background: '#0f172a', width: '100%' }} />
+              <div style={{ height: '4px', background: '#0284c7', width: '100%' }} />
+
+              <div style={{ padding: '2.25rem' }}>
+                {/* PDF Header & Tax Details */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '1.25rem', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    {siteLogo ? (
+                      <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ maxHeight: '52px', maxWidth: '240px', objectFit: 'contain', marginBottom: '0.6rem', display: 'block' }} />
+                    ) : (
+                      <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '0.4rem' }}>
+                        NOVA CLOUD EDGES (U) LIMITED
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
+                      Plot 14 Parliament Avenue, Kampala, Republic of Uganda
                     </div>
-                  )}
-                  <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
-                    Plot 14 Parliament Avenue, Kampala, Republic of Uganda
+                    <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
+                      TIN: 1014892019 • Email: billing@ncloud.co.ug • Tel: +256 790 001 631
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
-                    Email: support@ncloud.co.ug | Tel: +256 790 001 631
+
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ background: '#0f172a', color: '#ffffff', padding: '0.35rem 0.85rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'inline-block', marginBottom: '0.4rem' }}>
+                      OFFICIAL TAX INVOICE
+                    </span>
+                    <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#0f172a', fontFamily: 'monospace' }}>
+                      {selectedInvoice.invoice_number}
+                    </div>
+                    <div style={{ marginTop: '0.35rem' }}>
+                      <span style={{ 
+                        background: (selectedInvoice.status === 'Paid' || selectedInvoice.status === '100% Paid') ? '#dcfce7' : '#fef3c7', 
+                        color: (selectedInvoice.status === 'Paid' || selectedInvoice.status === '100% Paid') ? '#15803d' : '#b45309', 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '999px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: '800' 
+                      }}>
+                        ● {selectedInvoice.status || 'Active'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                    OFFICIAL TAX INVOICE
-                  </span>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#1e3a8a', marginTop: '0.5rem' }}>
-                    {selectedInvoice.invoice_number}
+                {/* Invoice Info Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+                  <div style={{ background: '#f8fafc', padding: '1.1rem', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#0284c7', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.04em' }}>Billed To:</div>
+                    <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#0f172a', marginBottom: '0.2rem' }}>{selectedInvoice.customer_name}</div>
+                    {selectedInvoice.company && <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '0.2rem' }}>{selectedInvoice.company}</div>}
+                    <div style={{ color: '#475569', fontWeight: '600', fontSize: '0.825rem' }}>{selectedInvoice.customer_email}</div>
+                    <div style={{ color: '#475569', fontSize: '0.825rem', marginTop: '2px' }}>{selectedInvoice.customer_address || 'Kampala, Uganda'}</div>
+                  </div>
+
+                  <div style={{ background: '#f8fafc', padding: '1.1rem', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#0284c7', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.04em' }}>Invoice Details:</div>
+                    <div style={{ color: '#334155', fontSize: '0.825rem', marginBottom: '3px' }}><strong style={{ color: '#0f172a' }}>Date Issued:</strong> {new Date(selectedInvoice.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                    <div style={{ color: '#334155', fontSize: '0.825rem', marginBottom: '3px' }}><strong style={{ color: '#0f172a' }}>Payment Due:</strong> {selectedInvoice.due_date || 'Due Upon Receipt'}</div>
+                    <div style={{ color: '#334155', fontSize: '0.825rem', marginBottom: '3px' }}><strong style={{ color: '#0f172a' }}>Currency:</strong> UGX (Uganda Shillings)</div>
+                    <div style={{ color: '#334155', fontSize: '0.825rem' }}><strong style={{ color: '#0f172a' }}>Fiscal Clearance:</strong> <span style={{ color: '#16a34a', fontWeight: '800' }}>✓ EFRIS Digital Seal</span></div>
                   </div>
                 </div>
-              </div>
-
-              {/* Invoice Info Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-                <div style={{ background: 'rgba(30, 58, 138, 0.05)', padding: '1.1rem', borderRadius: '10px', border: '1.5px solid #cbd5e1' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '900', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.04em' }}>Billed To:</div>
-                  <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#0f172a', marginBottom: '0.2rem' }}>{selectedInvoice.customer_name}</div>
-                  <div style={{ color: '#1e293b', fontWeight: '600' }}>{selectedInvoice.customer_email}</div>
-                  <div style={{ color: '#1e293b', fontWeight: '600' }}>Kampala, Uganda</div>
-                </div>
-
-                <div style={{ background: 'rgba(30, 58, 138, 0.05)', padding: '1.1rem', borderRadius: '10px', border: '1.5px solid #cbd5e1' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '900', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.04em' }}>Invoice Details:</div>
-                  <div style={{ color: '#1e293b' }}><strong style={{ color: '#0f172a' }}>Date Issued:</strong> {new Date(selectedInvoice.created_at || Date.now()).toLocaleDateString()}</div>
-                  <div style={{ color: '#1e293b' }}><strong style={{ color: '#0f172a' }}>Payment Due Date:</strong> {selectedInvoice.due_date}</div>
-                  <div style={{ color: '#1e293b' }}><strong style={{ color: '#0f172a' }}>Payment Status:</strong> <span style={{ color: selectedInvoice.status === 'Paid' ? '#16a34a' : '#d97706', fontWeight: '900' }}>{selectedInvoice.status}</span></div>
-                </div>
-              </div>
 
               {/* Itemized Line Items Table */}
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '1.5rem', fontSize: '0.875rem', color: '#0f172a' }}>
@@ -14960,6 +14987,28 @@ const normalizeTabName = (rawTab) => {
                 </div>
               </div>
 
+              {/* Corporate Signatory & Authorized Approval Block */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: '1.45', maxWidth: '380px' }}>
+                  This official document is generated by Nova Cloud Edges (U) Limited automated billing gateway. Valid without physical handwritten signature when digitally sealed.
+                </div>
+
+                <div style={{ textAlign: 'right', minWidth: '200px' }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.15rem', color: '#0f172a', fontWeight: 'bold', marginBottom: '2px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px', display: 'inline-block' }}>
+                    Dr. Arthur Mukasa
+                  </div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f172a' }}>
+                    Dr. Arthur Mukasa
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
+                    Director of Cloud Systems & Regional Operations
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
+                    Nova Cloud Edges (U) Limited
+                  </div>
+                </div>
+              </div>
+
               {/* Modal Footer with Page Number */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
@@ -15071,6 +15120,13 @@ const normalizeTabName = (rawTab) => {
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button
+                  onClick={() => window.print()}
+                  className="btn-secondary"
+                  style={{ padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <Printer size={17} /> Print Sheet
+                </button>
+                <button
                   onClick={() => generateInvoicePDF(selectedInvoice, {
                     paidStamp,
                     siteLogo: logoInput || siteLogo,
@@ -15078,7 +15134,7 @@ const normalizeTabName = (rawTab) => {
                     userRole: getRoleBadgeStyle(currentRole).label
                   })}
                   className="btn-primary"
-                  style={{ padding: '0.75rem 1.25rem', gap: '0.5rem' }}
+                  style={{ padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                 >
                   <Download size={18} /> Download Tax Invoice PDF
                 </button>
@@ -15091,6 +15147,7 @@ const normalizeTabName = (rawTab) => {
                 </button>
               </div>
 
+              </div>
             </div>
           </div>
         )}

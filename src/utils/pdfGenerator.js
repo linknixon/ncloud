@@ -112,109 +112,104 @@ function drawA4ExecutiveHeader(doc, {
   logoDataUrl,
   accentColor = BRAND.colors.deepSapphire
 }) {
-  // Top Corporate Accent Bar
-  doc.setDrawColor(...accentColor);
-  doc.setLineWidth(1.2);
-  doc.line(14, 10, 196, 10);
+  // Top Corporate Accent Bar (Full-bleed dual bar)
+  doc.setFillColor(...BRAND.colors.navyDark);
+  doc.rect(0, 0, 210, 6, 'F');
+  doc.setFillColor(...accentColor);
+  doc.rect(0, 6, 210, 1.5, 'F');
 
-  // Outer Header Card
-  doc.setFillColor(...BRAND.colors.bgSoft);
-  doc.setDrawColor(...BRAND.colors.borderLight);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, 12, 182, 26, 2, 2, 'FD');
-
-  let textX = 18;
+  let textX = 14;
   const effectiveLogo = logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
   if (effectiveLogo && effectiveLogo.startsWith('data:image')) {
     try {
-      doc.addImage(effectiveLogo, 'PNG', 17, 14.5, 23, 21);
-      textX = 43;
+      doc.addImage(effectiveLogo, 'PNG', 14, 13, 24, 20);
+      textX = 42;
     } catch {
-      textX = 18;
+      textX = 14;
     }
   }
 
-  // Company Name
+  // Company Name & Tagline
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(14);
   doc.setTextColor(...BRAND.colors.navyDark);
-  doc.text(BRAND.companyName, textX, 19);
-
-  // Document Title
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.text('NOVA CLOUD EDGES', textX, 18);
+  doc.setFontSize(9);
   doc.setTextColor(...accentColor);
-  doc.text((title || 'OFFICIAL DOCUMENT').toUpperCase(), textX, 24);
+  doc.text('(U) LIMITED', textX + 62, 18);
 
-  // Address, Tax & Contact Details
   doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(6.8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.textMuted);
-  doc.text(`${BRAND.address} • ${BRAND.tin}`, textX, 29);
-  doc.text(BRAND.contact, textX, 33.5);
+  doc.text(BRAND.tagline, textX, 23);
+  doc.text(`${BRAND.address} • ${BRAND.tin}`, textX, 27.5);
+  doc.text(BRAND.contact, textX, 32);
 
-  // Right-hand Side: Reference Pill & Dates
-  const rightBoxX = 142;
-  doc.setFillColor(...BRAND.colors.white);
+  // Header Right: Document Title & Reference
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(...BRAND.colors.navyDark);
+  doc.text((title || 'OFFICIAL DOCUMENT').toUpperCase(), 196, 19, { align: 'right' });
+
+  if (refNumber) {
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...accentColor);
+    doc.text(`${refLabel ? `${refLabel}: ` : ''}#${refNumber}`, 196, 25, { align: 'right' });
+  }
+
+  // Status Stamp Box
+  if (status) {
+    const stampW = 40;
+    const stampH = 6.8;
+    const stampX = 196 - stampW;
+    const stampY = refNumber ? 28 : 23;
+    const sLower = status.toLowerCase();
+    const isPaid = sLower.includes('paid') || sLower.includes('settled') || sLower.includes('approved') || sLower.includes('active') || sLower.includes('cleared') || sLower.includes('accepted');
+    const isOverdue = sLower.includes('overdue') || sLower.includes('rejected') || sLower.includes('failed');
+    const badgeBg = isPaid ? [240, 253, 244] : isOverdue ? [254, 242, 242] : [254, 243, 199];
+    const badgeBorder = isPaid ? [34, 197, 94] : isOverdue ? [239, 68, 68] : [217, 119, 6];
+    const badgeText = isPaid ? BRAND.colors.emerald : isOverdue ? BRAND.colors.crimson : BRAND.colors.amber;
+
+    doc.setFillColor(...badgeBg);
+    doc.setDrawColor(...badgeBorder);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(6.8);
+    doc.setTextColor(...badgeText);
+    doc.text(status.toUpperCase(), stampX + stampW / 2, stampY + 4.7, { align: 'center' });
+  }
+
+  // Separator Rule
   doc.setDrawColor(...BRAND.colors.borderLight);
   doc.setLineWidth(0.3);
-  doc.roundedRect(rightBoxX, 15, 50, 7.5, 2, 2, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...accentColor);
-  doc.text(`${refLabel}: #${refNumber || 'N/A'}`, rightBoxX + 25, 20, { align: 'center' });
-
-  // Dates
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.setTextColor(...BRAND.colors.textMuted);
-  if (dateStr && dueDateStr) {
-    doc.text(`Issued: ${dateStr}`, 192, 27.5, { align: 'right' });
-    doc.text(`Due: ${dueDateStr}`, 192, 32.5, { align: 'right' });
-  } else if (dateStr) {
-    doc.text(`Date: ${dateStr}`, 192, 29, { align: 'right' });
-  }
-
-  // Status Badge if available
-  if (status) {
-    const sLower = status.toLowerCase();
-    const isPaid = sLower.includes('paid') || sLower.includes('settled') || sLower.includes('approved') || sLower.includes('active');
-    const isOverdue = sLower.includes('overdue') || sLower.includes('rejected') || sLower.includes('failed');
-    const badgeBg = isPaid ? [220, 252, 231] : isOverdue ? [254, 226, 226] : [254, 243, 199];
-    const badgeText = isPaid ? BRAND.colors.emerald : isOverdue ? BRAND.colors.crimson : BRAND.colors.amber;
-    
-    doc.setFillColor(...badgeBg);
-    doc.roundedRect(rightBoxX - 32, 16.5, 28, 5, 1.5, 1.5, 'F');
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...badgeText);
-    doc.text(status.toUpperCase(), rightBoxX - 18, 20, { align: 'center' });
-  }
+  doc.line(14, 38, 196, 38);
 }
 
 /**
  * Draws a compact continuation header on Page 2+.
  */
 function drawA4ContinuationHeader(doc, { title, refNumber, accentColor = BRAND.colors.deepSapphire }) {
-  doc.setDrawColor(...accentColor);
-  doc.setLineWidth(0.8);
-  doc.line(14, 10, 196, 10);
+  doc.setFillColor(...BRAND.colors.navyDark);
+  doc.rect(0, 0, 210, 4, 'F');
+  doc.setFillColor(...accentColor);
+  doc.rect(0, 4, 210, 1, 'F');
 
   doc.setFillColor(...BRAND.colors.bgSoft);
   doc.setDrawColor(...BRAND.colors.borderLight);
   doc.setLineWidth(0.2);
-  doc.roundedRect(14, 12, 182, 11, 1.5, 1.5, 'FD');
+  doc.roundedRect(14, 8, 182, 11, 1.5, 1.5, 'FD');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.navyDark);
-  doc.text(`${BRAND.companyName} — ${(title || 'DOCUMENT').toUpperCase()} (CONTINUED)`, 18, 19);
+  doc.text(`${BRAND.companyName} — ${(title || 'DOCUMENT').toUpperCase()} (CONTINUED)`, 18, 15);
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...accentColor);
-  doc.text(`REF: #${refNumber || 'N/A'}`, 192, 19, { align: 'right' });
+  doc.text(`REF: #${refNumber || 'N/A'}`, 192, 15, { align: 'right' });
 }
 
 /**
