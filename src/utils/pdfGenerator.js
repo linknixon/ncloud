@@ -1538,117 +1538,446 @@ export function generateProfitLossPDF(data = {}, options = {}) {
 
 
 // ============================================================================
-// 6. GENERATE EXPENSE REPORT PDF (A4 CORPORATE EXPENDITURES)
+// 6. GENERATE EXPENSE VOUCHER & EXPENDITURE AUDIT ROLL 80MM
 // ============================================================================
 
-export function generateExpenseReportPDF(data = {}, options = {}) {
-  const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const refNum = `EXP-${dateStr}`;
+export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
+  const voucherNum = sanitizePdfText(exp?.receipt_ref || (exp?.id ? `EXP-#${exp.id}` : 'EXP-2026-0001'));
+  const staffName = sanitizePdfText(exp?.staff_name || exp?.beneficiary || 'Internal Staff Beneficiary');
+  const staffEmail = sanitizePdfText(exp?.staff_email || '');
+  const category = sanitizePdfText(exp?.category || 'Company Operational Expense');
+  const desc = sanitizePdfText(exp?.description || exp?.purpose || 'Official corporate disbursement voucher.');
+  const amount = Number(exp?.amount || 0);
+  const status = sanitizePdfText(exp?.status || 'Approved');
+  const dateVal = exp?.date || (exp?.created_at ? new Date(exp.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
-  const expenses = data?.companyExpenses || data?.recentExpenses || [];
-  const totalExpenseAmt = expenses.reduce((acc, it) => acc + Number(it.amount || 0), 0);
+  const siteLogo = options?.siteLogo || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
+  const logoDataUrl = await getImageDataUrl(siteLogo);
+  const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
+  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(voucherNum)}`;
+  const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  const descLines = dummyDoc.splitTextToSize(desc, 68);
+  const catLines = dummyDoc.splitTextToSize(category, 68);
+  const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
-  drawA4ExecutiveHeader(doc, {
-    title: 'OFFICIAL COMPANY EXPENDITURE AUDIT REPORT',
-    refNumber: refNum,
-    refLabel: 'REPORT',
-    dateStr,
-    status: `${expenses.length} VOUCHERS RECORDED`,
-    accentColor: BRAND.colors.crimson
-  });
+  const calculatedHeight = Math.max(160, 175 + (descLines.length * 3.8) + (catLines.length * 3.8) + (staffLines.length > 1 ? staffLines.length * 3.8 : 0));
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
 
-  let y = 43;
+  let y = 6;
 
-  const drawExpHeader = (curY) => {
-    doc.setFillColor(...BRAND.colors.crimson);
-    doc.roundedRect(14, curY, 182, 7.5, 1.5, 1.5, 'F');
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...BRAND.colors.white);
-    doc.text('VOUCHER #', 18, curY + 5);
-    doc.text('STAFF BENEFICIARY', 45, curY + 5);
-    doc.text('CATEGORY & PURPOSE', 92, curY + 5);
-    doc.text('DATE', 152, curY + 5);
-    doc.text('AMOUNT (UGX)', 192, curY + 5, { align: 'right' });
-    return curY + 7.5;
-  };
-
-  y = drawExpHeader(y);
-
-  if (expenses.length === 0) {
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(...BRAND.colors.textMuted);
-    doc.text('No expenditure records found in corporate ledger.', 18, y + 8);
-    y += 14;
-  } else {
-    expenses.forEach((exp, idx) => {
-      const rowH = 8.5;
-      if (y + rowH > 265) {
-        doc.addPage();
-        drawA4ContinuationHeader(doc, { title: 'EXPENDITURE AUDIT REPORT', refNumber: refNum, accentColor: BRAND.colors.crimson });
-        y = drawExpHeader(26);
-      }
-
-      doc.setFillColor(idx % 2 === 1 ? BRAND.colors.bgZebra[0] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[1] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[2] : 255);
-      doc.rect(14, y, 182, rowH, 'F');
-
-      doc.setDrawColor(...BRAND.colors.borderLight);
-      doc.setLineWidth(0.2);
-      doc.line(14, y + rowH, 196, y + rowH);
-
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(7.2);
-      doc.setTextColor(...BRAND.colors.navyDark);
-      doc.text(String(exp.voucher_number || exp.id || `EXP-${idx + 1}`), 18, y + 5.2);
-
-      doc.setFont('Helvetica', 'normal');
-      doc.text(String(exp.staff_name || exp.beneficiary || 'Internal Staff').substring(0, 22), 45, y + 5.2);
-      doc.text(String(exp.category || exp.purpose || 'Operational Expense').substring(0, 32), 92, y + 5.2);
-      doc.text(exp.date ? new Date(exp.date).toISOString().split('T')[0] : dateStr, 152, y + 5.2);
-
-      doc.setFont('Helvetica', 'bold');
-      doc.setTextColor(...BRAND.colors.crimson);
-      doc.text(Number(exp.amount || 0).toLocaleString(), 192, y + 5.2, { align: 'right' });
-
-      y += rowH;
-    });
+  // Header Logo (Centered)
+  if (activeLogo) {
+    try {
+      doc.addImage(activeLogo, 'PNG', 24, y, 32, 10.67);
+      y += 13;
+    } catch {
+      y += 2;
+    }
   }
 
-  // Summary Box at bottom
-  if (y > 230) {
-    doc.addPage();
-    drawA4ContinuationHeader(doc, { title: 'EXPENDITURE AUDIT REPORT — SUMMARY', refNumber: refNum, accentColor: BRAND.colors.crimson });
-    y = 26;
-  } else {
-    y += 6;
-  }
-
-  doc.setFillColor(...BRAND.colors.bgSoft);
-  doc.setDrawColor(...BRAND.colors.borderLight);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, y, 182, 22, 2, 2, 'FD');
+  // Header Titles
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
+  y += 4.5;
 
   doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.colors.navyDark);
-  doc.text('TOTAL RECONCILED EXPENDITURES:', 20, y + 9);
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138); // Dark Blue
+  doc.text('OFFICIAL EXPENDITURE PAYMENT VOUCHER', 40, y, { align: 'center' });
+  y += 4;
 
-  doc.setFontSize(11);
-  doc.setTextColor(...BRAND.colors.crimson);
-  doc.text(`UGX ${totalExpenseAmt.toLocaleString()}`, 192, y + 9, { align: 'right' });
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
+  y += 3.5;
+  doc.text('Tel: (+256) 790 001631 / 33 • finance@ncloud.co.ug', 40, y, { align: 'center' });
+  y += 4;
+
+  // Dashed divider
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Voucher Ref Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('VOUCHER REF:', 8, y + 4.8);
+  doc.setFontSize(8.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text(`#${voucherNum}`, 72, y + 4.8, { align: 'right' });
 
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(...BRAND.colors.textMuted);
-  doc.text(`Total Vouchers Audited: ${expenses.length} • Auditor: ${opts?.userName || 'Internal Audit Desk'}`, 20, y + 16);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Disbursed Date:', 8, y + 9.5);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(dateVal, 72, y + 9.5, { align: 'right' });
 
-  applyA4Footers(doc, { docRef: refNum, title: 'Expenditure Report' });
-  openPdfInBrowser(doc, `Expense_Report_${dateStr}.pdf`);
+  doc.setFont('Helvetica', 'normal');
+  doc.text('Voucher Status:', 8, y + 13.5);
+  doc.setFont('Helvetica', 'bold');
+  const isPaidOrApp = status === 'Paid' || status === 'Approved' || status === 'Approved by Supervisor';
+  doc.setTextColor(isPaidOrApp ? 22 : 217, isPaidOrApp ? 163 : 119, isPaidOrApp ? 74 : 6);
+  doc.text(`[ ${status} ]`, 72, y + 13.5, { align: 'right' });
+
+  y += 18;
+
+  // Beneficiary Staff Details
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text('STAFF BENEFICIARY & CLAIMANT:', 5, y);
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  staffLines.forEach(line => {
+    doc.text(line, 5, y);
+    y += 4;
+  });
+
+  if (staffEmail) {
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(71, 85, 105);
+    doc.text(staffEmail, 5, y);
+    y += 4;
+  }
+
+  // Dashed divider
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Category & Purpose Details (Carefully wrapped without clipping)
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text('EXPENSE CLASSIFICATION & PURPOSE:', 5, y);
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  catLines.forEach(line => {
+    doc.text(line, 5, y);
+    y += 3.8;
+  });
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  descLines.forEach(line => {
+    doc.text(line, 5, y);
+    y += 3.6;
+  });
+
+  // Dashed divider
+  y += 2;
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Disbursed Amount Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('TOTAL DISBURSED AMOUNT:', 8, y + 4.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 58, 138); // Dark Blue
+  doc.text(formatNinjaUGX(amount), 72, y + 10, { align: 'right' });
+
+  y += 18;
+
+  // Verification Section
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('Verify the Document here:', 40, y, { align: 'center' });
+  y += 3.8;
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text(verifyUrl, 40, y, { align: 'center' });
+  y += 4;
+
+  if (qrDataUrl) {
+    try {
+      doc.addImage(qrDataUrl, 'PNG', 30, y, 20, 20);
+      y += 22;
+    } catch {}
+  }
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Authorized Corporate Expenditure Disbursement', 40, y, { align: 'center' });
+  y += 3.2;
+  doc.text('Nova Cloud Edges (U) Limited • Finance Division', 40, y, { align: 'center' });
+
+  openPdfInBrowser(doc, `Expense_Voucher_${voucherNum}.pdf`);
+  return doc;
+}
+
+export async function generateExpenseReportPDF(data = {}, options = {}) {
+  const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
+  const expenses = data?.companyExpenses || data?.recentExpenses || (Array.isArray(data) ? data : []);
+
+  // If single expense passed, generate the 80mm single voucher directly
+  if (expenses.length === 1) {
+    return generateExpenseVoucher80mmPDF(expenses[0], opts);
+  }
+  if (!expenses.length && (data?.staff_name || data?.amount)) {
+    return generateExpenseVoucher80mmPDF(data, opts);
+  }
+
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const totalExpenseAmt = expenses.reduce((acc, it) => acc + Number(it.amount || 0), 0);
+
+  // If caller explicitly requested A4, render A4; otherwise render standard 80mm continuous audit roll
+  if (opts.format === 'a4') {
+    const refNum = `EXP-${dateStr}`;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    drawA4ExecutiveHeader(doc, {
+      title: 'OFFICIAL COMPANY EXPENDITURE AUDIT REPORT',
+      refNumber: refNum,
+      refLabel: 'REPORT',
+      dateStr,
+      status: `${expenses.length} VOUCHERS RECORDED`,
+      accentColor: BRAND.colors.crimson
+    });
+
+    let y = 43;
+    const drawExpHeader = (curY) => {
+      doc.setFillColor(...BRAND.colors.crimson);
+      doc.roundedRect(14, curY, 182, 7.5, 1.5, 1.5, 'F');
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BRAND.colors.white);
+      doc.text('VOUCHER #', 18, curY + 5);
+      doc.text('STAFF BENEFICIARY', 45, curY + 5);
+      doc.text('CATEGORY & PURPOSE', 92, curY + 5);
+      doc.text('DATE', 152, curY + 5);
+      doc.text('AMOUNT (UGX)', 192, curY + 5, { align: 'right' });
+      return curY + 7.5;
+    };
+
+    y = drawExpHeader(y);
+
+    if (expenses.length === 0) {
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...BRAND.colors.textMuted);
+      doc.text('No expenditure records found in corporate ledger.', 18, y + 8);
+      y += 14;
+    } else {
+      expenses.forEach((exp, idx) => {
+        const rowH = 8.5;
+        if (y + rowH > 265) {
+          doc.addPage();
+          drawA4ContinuationHeader(doc, { title: 'EXPENDITURE AUDIT REPORT', refNumber: refNum, accentColor: BRAND.colors.crimson });
+          y = drawExpHeader(26);
+        }
+
+        doc.setFillColor(idx % 2 === 1 ? BRAND.colors.bgZebra[0] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[1] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[2] : 255);
+        doc.rect(14, y, 182, rowH, 'F');
+
+        doc.setDrawColor(...BRAND.colors.borderLight);
+        doc.setLineWidth(0.2);
+        doc.line(14, y + rowH, 196, y + rowH);
+
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(7.2);
+        doc.setTextColor(...BRAND.colors.navyDark);
+        doc.text(String(exp.voucher_number || exp.receipt_ref || exp.id || `EXP-${idx + 1}`), 18, y + 5.2);
+
+        doc.setFont('Helvetica', 'normal');
+        doc.text(String(exp.staff_name || exp.beneficiary || 'Internal Staff').substring(0, 22), 45, y + 5.2);
+        doc.text(String(exp.category || exp.purpose || 'Operational Expense').substring(0, 32), 92, y + 5.2);
+        doc.text(exp.date ? new Date(exp.date).toISOString().split('T')[0] : dateStr, 152, y + 5.2);
+
+        doc.setFont('Helvetica', 'bold');
+        doc.setTextColor(...BRAND.colors.crimson);
+        doc.text(Number(exp.amount || 0).toLocaleString(), 192, y + 5.2, { align: 'right' });
+
+        y += rowH;
+      });
+    }
+
+    if (y > 230) {
+      doc.addPage();
+      drawA4ContinuationHeader(doc, { title: 'EXPENDITURE AUDIT REPORT — SUMMARY', refNumber: refNum, accentColor: BRAND.colors.crimson });
+      y = 26;
+    } else {
+      y += 6;
+    }
+
+    doc.setFillColor(...BRAND.colors.bgSoft);
+    doc.setDrawColor(...BRAND.colors.borderLight);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(14, y, 182, 22, 2, 2, 'FD');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BRAND.colors.navyDark);
+    doc.text('TOTAL RECONCILED EXPENDITURES:', 20, y + 9);
+
+    doc.setFontSize(11);
+    doc.setTextColor(...BRAND.colors.crimson);
+    doc.text(`UGX ${totalExpenseAmt.toLocaleString()}`, 192, y + 9, { align: 'right' });
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRAND.colors.textMuted);
+    doc.text(`Total Vouchers Audited: ${expenses.length} • Auditor: ${opts?.userName || 'Internal Audit Desk'}`, 20, y + 16);
+
+    applyA4Footers(doc, { docRef: refNum, title: 'Expenditure Report' });
+    openPdfInBrowser(doc, `Expense_Report_${dateStr}.pdf`);
+    return doc;
+  }
+
+  // Default: 80mm Continuous Corporate Expenditure Audit Roll
+  const siteLogo = opts?.siteLogo || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
+  const logoDataUrl = await getImageDataUrl(siteLogo);
+  const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
+
+  const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 2000] });
+  let itemHeights = 0;
+  const processedItems = expenses.map(exp => {
+    const vRef = sanitizePdfText(exp.receipt_ref || exp.voucher_number || `EXP-#${exp.id || 'AUTO'}`);
+    const sName = sanitizePdfText(exp.staff_name || 'Staff Member');
+    const cat = sanitizePdfText(exp.category || 'Expense');
+    const desc = sanitizePdfText(exp.description || exp.purpose || '');
+    const catLines = dummyDoc.splitTextToSize(cat, 68);
+    const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
+    const itemH = 14 + (catLines.length * 3.6) + (descLines.length * 3.4);
+    itemHeights += itemH;
+    return { vRef, sName, catLines, descLines, amount: Number(exp.amount || 0), date: exp.date || dateStr, status: exp.status || 'Disbursed' };
+  });
+
+  const calculatedHeight = Math.max(160, 105 + itemHeights + 50);
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+
+  let y = 6;
+  if (activeLogo) {
+    try {
+      doc.addImage(activeLogo, 'PNG', 24, y, 32, 10.67);
+      y += 13;
+    } catch {
+      y += 2;
+    }
+  }
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('EXPENDITURES AUDIT ROLL (80MM)', 40, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
+  y += 3.5;
+  doc.text(`Audit Date: ${dateStr} • Vouchers: ${expenses.length}`, 40, y, { align: 'center' });
+  y += 4;
+
+  // Summary box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(5, y, 70, 13, 1.5, 1.5, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('TOTAL RECONCILED DISBURSEMENTS:', 8, y + 4.5);
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text(formatNinjaUGX(totalExpenseAmt), 72, y + 10, { align: 'right' });
+  y += 17;
+
+  // Items
+  processedItems.forEach(item => {
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(30, 58, 138);
+    doc.text(`#${item.vRef}`, 5, y);
+    doc.setTextColor(15, 23, 42);
+    doc.text(formatNinjaUGX(item.amount), 75, y, { align: 'right' });
+    y += 3.8;
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`${item.date} • ${item.sName}`, 5, y);
+    doc.text(`[ ${item.status} ]`, 75, y, { align: 'right' });
+    y += 3.6;
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    item.catLines.forEach(l => {
+      doc.text(l, 5, y);
+      y += 3.5;
+    });
+
+    if (item.descLines.length > 0) {
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      item.descLines.forEach(l => {
+        doc.text(l, 5, y);
+        y += 3.2;
+      });
+    }
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(5, y + 1, 75, y + 1);
+    doc.setLineDashPattern([], 0);
+    y += 4;
+  });
+
+  // Footer
+  y += 2;
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Official Reconciled Corporate Expenditures', 40, y, { align: 'center' });
+  y += 3.2;
+  doc.text('Nova Cloud Edges (U) Limited • Finance Desk', 40, y, { align: 'center' });
+
+  openPdfInBrowser(doc, `Expense_Audit_Roll_${dateStr}.pdf`);
   return doc;
 }
 
@@ -1997,8 +2326,6 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 // ============================================================================
 
 export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
   const orderNum = sanitizePdfText(workOrder?.order_number || `WO-${workOrder?.id || '2026-0001'}`);
   const staffName = sanitizePdfText(workOrder?.assigned_staff_name || 'Field Support Specialist');
   const siteLocation = sanitizePdfText(workOrder?.client_site || 'Nova Primary Datacenter');
@@ -2015,208 +2342,222 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(orderNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
 
-  drawInvoiceNinja3ToneBar(doc, 0, 4);
-  drawInvoiceNinjaBurgundyLogo(doc, 14, 10, activeLogo);
+  // Measure wrapped lines using a dummy document so no words ever go away or clip off
+  const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
+  const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
+  const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
 
-  // Top Right Solid Dark Blue Box
-  doc.setFillColor(30, 58, 138);
-  doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
+  const calculatedHeight = Math.max(160, 175 + (taskLines.length * 4.2) + (descLines.length * 3.8) + (siteLines.length * 3.8));
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
+  let y = 6;
 
-  const metaRows = [
-    { label: 'OFFICIAL WORK ORDER', val: `#${orderNum}` },
-    { label: 'Scheduled Date:', val: workOrder?.scheduled_date || 'Immediate' },
-    { label: 'Execution Status:', val: workOrder?.status || 'Active' },
-    { label: 'Charging Method:', val: modeLabel },
-    { label: 'Approved Payout:', val: formatNinjaUGX(totalCost) }
-  ];
-
-  metaRows.forEach((r, idx) => {
-    const rowY = 13 + idx * 5;
-    doc.text(r.label, 127, rowY);
-    doc.text(r.val, 193, rowY, { align: 'right' });
-  });
-
-  // TWO EXECUTIVE CARDS
-  const cardY = 43;
-  const cardW = 88;
-  const cardH = 34;
-
-  // Card 1: ISSUING ENTITY
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138);
-  doc.text('ISSUING SERVICE ENTITY', 18, cardY + 5.5);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
-  doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
-  doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
-  doc.text('Corporate Field Engineering Division', 18, cardY + 29);
-
-  // Card 2: DEPLOYMENT SITE & ENGINEER
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138);
-  doc.text('DEPLOYMENT SITE & ASSIGNED STAFF', 112, cardY + 5.5);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(staffName, 112, cardY + 11);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Target Site / Client:', 112, cardY + 16);
-  doc.setFont('Helvetica', 'bold');
-  doc.text(siteLocation.substring(0, 42), 112, cardY + 20.5);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.text(`Scheduled Date: ${workOrder?.scheduled_date || 'Immediate'}`, 112, cardY + 25);
-  doc.text(`Operations Status: ${workOrder?.status || 'Active Dispatch'}`, 112, cardY + 29.5);
-
-  // Scope Card
-  const scopeY = cardY + cardH + 6;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(14, scopeY, 182, 30, 1.5, 1.5, 'FD');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138);
-  doc.text('ASSIGNED TASK TITLE & TECHNICAL SCOPE OF WORK', 18, scopeY + 6);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(taskTitle, 18, scopeY + 12);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  const splitDesc = doc.splitTextToSize(desc, 174);
-  doc.text(splitDesc.slice(0, 3), 18, scopeY + 17.5);
-
-  // Operations Table
-  const tableY = scopeY + 35;
-  doc.setFillColor(30, 58, 138);
-  doc.roundedRect(14, tableY, 182, 8, 1, 1, 'F');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(255, 255, 255);
-  doc.text('#', 17, tableY + 5.5);
-  doc.text('Service Operation Specification', 24, tableY + 5.5);
-  doc.text('Charging Mode', 95, tableY + 5.5);
-  doc.text('Unit Rate', 146, tableY + 5.5, { align: 'right' });
-  doc.text('Units', 156, tableY + 5.5, { align: 'center' });
-  doc.text('Approved Payout', 193, tableY + 5.5, { align: 'right' });
-
-  const rowY = tableY + 8;
-  doc.setFillColor(255, 255, 255);
-  doc.rect(14, rowY, 182, 10, 'F');
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text('01', 17, rowY + 6.5);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text(taskTitle.substring(0, 44), 24, rowY + 6.5);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(modeLabel, 95, rowY + 6.5);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text(formatNinjaUGX(rateVal), 146, rowY + 6.5, { align: 'right' });
-
-  const unitStr = `${qtyVal} ${workOrder?.charging_mode === 'per_hour' ? (qtyVal > 1 ? 'Hours' : 'Hour') : (qtyVal > 1 ? 'Days' : 'Day')}`;
-  doc.setFont('Helvetica', 'normal');
-  doc.text(unitStr, 156, rowY + 6.5, { align: 'center' });
-
-  doc.setFont('Helvetica', 'bold');
-  doc.text(formatNinjaUGX(totalCost), 193, rowY + 6.5, { align: 'right' });
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.2);
-  doc.line(14, rowY + 10, 196, rowY + 10);
-
-  // Totals & Verification
-  const totalsY = rowY + 18;
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text('Verify the Document here:', 14, totalsY);
-
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text(verifyUrl, 14, totalsY + 4.5);
-
-  if (qrDataUrl) {
+  // Header Logo (Centered)
+  if (activeLogo) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 14, totalsY + 7.5, 20, 20);
-    } catch {}
+      doc.addImage(activeLogo, 'PNG', 24, y, 32, 10.67);
+      y += 13;
+    } catch {
+      y += 2;
+    }
   }
 
-  // Right Total Card
-  doc.setFillColor(248, 250, 252);
+  // Header Titles
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138); // Dark Blue
+  doc.text('FIELD SERVICE WORK ORDER', 40, y, { align: 'center' });
+  y += 4;
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
+  y += 3.5;
+  doc.text('Tel: (+256) 790 001631 / 33 • support@ncloud.co.ug', 40, y, { align: 'center' });
+  y += 4;
+
+  // Dashed divider
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(120, totalsY - 2, 76, 28, 1.5, 1.5, 'FD');
+  doc.setLineWidth(0.3);
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Work Order Ref & Status Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('TOTAL APPROVED WORK ORDER VALUE:', 124, totalsY + 6);
-
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.text('WORK ORDER REF:', 8, y + 4.8);
+  doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
-  doc.text(formatNinjaUGX(totalCost), 124, totalsY + 14);
+  doc.text(`#${orderNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('✓ Authorized Field Operations Deployment', 124, totalsY + 22);
-
-  // Footer
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
-  doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
+  doc.text('Scheduled Date:', 8, y + 9.5);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(workOrder?.scheduled_date || 'Immediate', 72, y + 9.5, { align: 'right' });
 
+  doc.setFont('Helvetica', 'normal');
+  doc.text('Status:', 8, y + 13.5);
+  doc.setFont('Helvetica', 'bold');
+  const isCompleted = workOrder?.status === 'Completed';
+  doc.setTextColor(isCompleted ? 22 : 217, isCompleted ? 163 : 119, isCompleted ? 74 : 6);
+  doc.text(`[ ${workOrder?.status || 'Active Dispatch'} ]`, 72, y + 13.5, { align: 'right' });
+
+  y += 18;
+
+  // Deployment Site & Staff Details
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text('DISPATCH & TARGET SITE DETAILS:', 5, y);
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Assigned Engineer:', 5, y);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(staffName, 75, y, { align: 'right' });
+  y += 4.2;
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Deployment Site / Client:', 5, y);
+  y += 3.8;
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  siteLines.forEach(line => {
+    doc.text(line, 5, y);
+    y += 3.8;
+  });
+
+  // Dashed divider
+  y += 1;
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Scope & Task Section (Dynamic from Database)
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text('ASSIGNED TECHNICAL SCOPE OF WORK:', 5, y);
+  y += 4.5;
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  taskLines.forEach(line => {
+    doc.text(line, 5, y);
+    y += 4;
+  });
+
+  if (descLines.length > 0 && descLines[0] !== '') {
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    descLines.forEach(line => {
+      doc.text(line, 5, y);
+      y += 3.6;
+    });
+  }
+
+  // Dashed divider
+  y += 2;
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(5, y, 75, y);
+  doc.setLineDashPattern([], 0);
+  y += 5;
+
+  // Operations & Charging Schedule
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 58, 138);
+  doc.text('OPERATIONS & BILLING SCHEDULE:', 5, y);
+  y += 4.5;
+
+  const printMetric = (label, val) => {
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, 5, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(String(val), 75, y, { align: 'right' });
+    y += 4.2;
+  };
+
+  printMetric('Charging Method:', modeLabel);
+  printMetric('Operational Unit Rate:', formatNinjaUGX(rateVal));
+  const unitStr = `${qtyVal} ${workOrder?.charging_mode === 'per_hour' ? (qtyVal > 1 ? 'Hours' : 'Hour') : (qtyVal > 1 ? 'Days' : 'Day')}`;
+  printMetric('Time / Units Logged:', unitStr);
+
+  y += 1;
+
+  // Approved Job Cost Card (Prominent & High-Contrast)
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('TOTAL APPROVED JOB VALUE:', 8, y + 4.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 58, 138); // Dark Blue
+  doc.text(formatNinjaUGX(totalCost), 72, y + 10, { align: 'right' });
+
+  y += 18;
+
+  // Verification Section (Centered without overflowing)
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
-  doc.text('Page 1 of 1', 105, 288, { align: 'center' });
+  doc.text('Verify the Document here:', 40, y, { align: 'center' });
+  y += 3.8;
 
-  drawInvoiceNinja3ToneBar(doc, 293, 4);
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(2, 132, 199);
+  doc.text(verifyUrl, 40, y, { align: 'center' });
+  y += 4;
+
+  if (qrDataUrl) {
+    try {
+      doc.addImage(qrDataUrl, 'PNG', 30, y, 20, 20);
+      y += 22;
+    } catch {}
+  }
+
+  // Bottom text
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Official Field Operations Deployment Voucher', 40, y, { align: 'center' });
+  y += 3.2;
+  doc.text('Nova Cloud Edges (U) Limited • ncloud.co.ug', 40, y, { align: 'center' });
 
   openPdfInBrowser(doc, `Work_Order_${orderNum}.pdf`);
   return doc;

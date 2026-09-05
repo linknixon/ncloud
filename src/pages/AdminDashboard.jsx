@@ -9,6 +9,7 @@ import {
   generateBalanceSheetPDF,
   generateProfitLossPDF,
   generateExpenseReportPDF,
+  generateExpenseVoucher80mmPDF,
   generateSalesReportPDF,
   generateForensicsAuditPDF,
   generateWorkOrderPOSReceiptPDF
@@ -6478,6 +6479,14 @@ const normalizeTabName = (rawTab) => {
 
                               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', flexWrap: 'wrap' }}>
                                 <button
+                                  onClick={() => generateExpenseVoucher80mmPDF(e, { siteLogo: logoInput || siteLogo })}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#1e3a8a', borderColor: 'rgba(30, 58, 138, 0.4)', gap: '3px' }}
+                                  title="Print / Download Official 80mm Expenditure Voucher PDF"
+                                >
+                                  <Printer size={12} /> Voucher (80mm)
+                                </button>
+                                <button
                                   onClick={() => handleDuplicateExpense(e)}
                                   className="btn-secondary"
                                   style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
@@ -11749,12 +11758,12 @@ const normalizeTabName = (rawTab) => {
                                             )}
                                             {row.type === 'COMPANY EXPENSE' && (
                                               <button
-                                                onClick={() => generateExpenseReportPDF({ companyExpenses: [row.raw], expense_category_breakdown: [{ category: row.raw?.category || 'Company Expense', total_amount: row.amount }], metrics: { total_expenditures: row.amount } }, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                                                onClick={() => generateExpenseVoucher80mmPDF(row.raw, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                                                 className="btn-secondary"
                                                 style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
-                                                title="Export Audited Expense Voucher PDF"
+                                                title="Print / Export 80mm Audited Expense Voucher PDF"
                                               >
-                                                <Download size={12} /> Voucher
+                                                <Printer size={12} /> Voucher (80mm)
                                               </button>
                                             )}
                                             {row.type === 'SALES QUOTATION' && (

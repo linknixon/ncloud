@@ -1,17 +1,17 @@
 {
   "users": [
     {
-      "id": 1788586430725,
-      "name": "Ronnie Namasagari",
-      "email": "rnam@gmail.com",
-      "passwordHash": "$2b$10$5wes260.ApEKccisH3Oc2eR.yoC2t1IjTwTsdZAeFp2rUh5YYl7j.",
-      "password_hash": "$2b$10$5wes260.ApEKccisH3Oc2eR.yoC2t1IjTwTsdZAeFp2rUh5YYl7j.",
+      "id": 1788606507876,
+      "name": "Olato Emmanuel",
+      "email": "linknixon@gmail.com",
+      "phone": "0788102946",
+      "company": "Corporate Client",
       "role": "customer",
       "position": "Customer",
       "title": "Customer",
-      "phone": "‭+256 753 385 014‬",
-      "company": "Namasagali",
-      "status": "Active"
+      "status": "Active",
+      "created_at": "2026-09-05T11:08:27.876Z",
+      "last_login": "2026-09-05T11:08:27.876Z"
     },
     {
       "id": 1788264028640,
@@ -37,14 +37,23 @@
       "id": 1788262157265,
       "name": "James Brian Otunu",
       "email": "info@ncedges.com",
-      "passwordHash": "$2b$10$/yb9yvp3HZF9YGxyMothxemq4lRJr6w1RNi5D73TretXtUMGz0dCi",
+      "passwordHash": "$2b$10$6jRgat8r8/Q9VTJoHJHHNOaURmCmy/LwHGnc991Qd2G5as2uSRs6O",
       "role": "customer",
       "position": "Customer",
       "title": "Customer",
       "phone": "0790001631",
       "company": "Legit Hotel",
       "status": "Active",
-      "password_hash": "$2b$10$/yb9yvp3HZF9YGxyMothxemq4lRJr6w1RNi5D73TretXtUMGz0dCi"
+      "password_hash": "$2b$10$6jRgat8r8/Q9VTJoHJHHNOaURmCmy/LwHGnc991Qd2G5as2uSRs6O",
+      "department": "Client Corporate",
+      "salary": 0,
+      "location": "Kampala, Uganda",
+      "notes": "",
+      "avatar_url": "",
+      "supervisor_id": 1,
+      "supervisor_name": "Dr. Arthur Mukasa",
+      "password_changed_at": "2026-09-05T10:59:20.125Z",
+      "updated_at": "2026-09-05T10:59:20.125Z"
     },
     {
       "id": 1787853881019,
@@ -641,6 +650,41 @@
     }
   ],
   "invoices": [
+    {
+      "id": 1788606507889,
+      "invoice_number": "INV-2026-4571",
+      "customer_name": "Olato Emmanuel",
+      "customer_email": "linknixon@gmail.com",
+      "customer_phone": "0788102946",
+      "customer_address": "Otucopi",
+      "company": "",
+      "item_name": "WiFi Voucher - 12 Hours (Qty: 1)",
+      "plan_name": "WiFi Voucher - 12 Hours (Qty: 1)",
+      "amount": 944,
+      "paid_amount": 0,
+      "balance": 944,
+      "status": "Pending",
+      "due_date": "2026-09-05",
+      "duration": "Flat Rate / Direct Purchase",
+      "reference": "NV-SUB-6450",
+      "payment_method": "Direct Shop Order & Tax Invoice",
+      "include_vat": true,
+      "vat_exempt": false,
+      "vat_amount": 144,
+      "items": [
+        {
+          "name": "WiFi Voucher - 12 Hours",
+          "description": "WiFi Voucher - 12 Hours",
+          "quantity": 1,
+          "qty": 1,
+          "unit_price": 800,
+          "price": 800,
+          "amount": 800
+        }
+      ],
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-4571",
+      "created_at": "2026-09-05T11:08:27.888Z"
+    },
     {
       "id": 1788586463659,
       "invoice_number": "INV-2026-7863",
@@ -2581,6 +2625,82 @@
     }
   ],
   "audit_logs": [
+    {
+      "id": 1788606764547,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T11:12:44.547Z"
+    },
+    {
+      "id": 10,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "USER_PROFILE_UPDATED",
+      "resource_type": "System Users",
+      "resource_id": "USER-1788262157265",
+      "details": "Updated user profile & data for James Brian Otunu (info@ncedges.com)",
+      "ip_address": "::1",
+      "device_type": "Desktop Console",
+      "status": "SUCCESS",
+      "timestamp": "2026-09-05T10:59:20.127Z"
+    },
+    {
+      "id": 1788605841614,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T10:57:21.614Z"
+    },
+    {
+      "id": 1788605803074,
+      "user_email": "rnam@gmail.com",
+      "user_name": "Ronnie Namasagari",
+      "user_role": "customer",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1788586430725,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T10:56:43.074Z"
+    },
+    {
+      "id": 7,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "USER_PROFILE_UPDATED",
+      "resource_type": "System Users",
+      "resource_id": "USER-1788586430725",
+      "details": "Updated user profile & data for Ronnie Namasagari (rnam@gmail.com)",
+      "ip_address": "::1",
+      "device_type": "Desktop Console",
+      "status": "SUCCESS",
+      "timestamp": "2026-09-05T10:56:33.788Z"
+    },
+    {
+      "id": 1788604847261,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T10:40:47.262Z"
+    },
     {
       "id": 1788602853230,
       "user_email": "systems@ncloud.co.ug",
