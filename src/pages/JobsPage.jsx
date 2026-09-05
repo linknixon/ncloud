@@ -129,13 +129,15 @@ export default function JobsPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+    <div className="animate-fade-in" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
       <div className="container">
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Current Job Openings</h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2.0rem)', marginTop: '0.5rem', lineHeight: '1.25', wordBreak: 'break-word' }}>
+            Current Job Openings
+          </h1>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0', fontSize: 'clamp(0.9rem, 2.5vw, 1.0rem)', lineHeight: '1.6' }}>
             Discover rewarding career opportunities at Nova Cloud Edges (U) Limited. Build your career with our talented team of technology professionals in Kampala.
           </p>
         </div>
@@ -150,7 +152,11 @@ export default function JobsPage() {
             No open vacancies at the moment. Please check back soon!
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '2rem' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', 
+            gap: '1.5rem' 
+          }}>
             {jobs.map(job => {
               const reqs = Array.isArray(job.requirements)
                 ? job.requirements
@@ -167,12 +173,14 @@ export default function JobsPage() {
                   key={job.id}
                   className="glass-card"
                   style={{
-                    padding: '2rem',
+                    padding: 'clamp(1.25rem, 3.5vw, 2rem)',
                     borderRadius: '18px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    opacity: isExpired ? 0.88 : 1
+                    opacity: isExpired ? 0.88 : 1,
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word'
                   }}
                 >
                   <div>
@@ -186,46 +194,48 @@ export default function JobsPage() {
                           </span>
                         )}
                       </div>
-                      <h2 style={{ fontSize: '1.45rem', fontWeight: '800', lineHeight: '1.3', margin: 0 }}>{job.title}</h2>
+                      <h2 style={{ fontSize: 'clamp(1.2rem, 3.8vw, 1.45rem)', fontWeight: '800', lineHeight: '1.3', margin: 0, wordBreak: 'break-word' }}>
+                        {job.title}
+                      </h2>
                     </div>
 
                     {/* Metadata Chips */}
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <MapPin size={15} color="var(--primary)" /> {job.location || 'Kampala, Uganda'}
+                        <MapPin size={15} color="var(--primary)" style={{ flexShrink: 0 }} /> {job.location || 'Kampala, Uganda'}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Clock size={15} color={isExpired ? '#ef4444' : 'var(--accent-cyan)'} /> 
+                        <Clock size={15} color={isExpired ? '#ef4444' : 'var(--accent-cyan)'} style={{ flexShrink: 0 }} /> 
                         {isExpired ? `Deadline Ended (${job.deadline})` : `Deadline: ${job.deadline || 'Open Until Filled'}`}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Users size={15} color="var(--accent-emerald)" /> Vacancies: {job.vacancies || 1}
+                        <Users size={15} color="var(--accent-emerald)" style={{ flexShrink: 0 }} /> Vacancies: {job.vacancies || 1}
                       </div>
                     </div>
 
-                    <p style={{ color: 'var(--text-main)', fontSize: '0.925rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+                    <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '1.25rem', wordBreak: 'break-word' }}>
                       {job.description}
                     </p>
 
                     {/* Requirements & Responsibilities Split */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                       gap: '1.25rem',
                       background: 'var(--bg-main)',
-                      padding: '1.15rem',
+                      padding: '1rem',
                       borderRadius: '12px',
                       border: '1px solid var(--border-color)',
                       marginBottom: '1.5rem'
                     }}>
                       {/* Requirements */}
                       <div>
-                        <h4 style={{ fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--primary)' }}>
                           Key Requirements:
                         </h4>
                         <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: 0, margin: 0 }}>
                           {reqs.slice(0, 4).map((req, rIdx) => (
-                            <li key={rIdx} style={{ fontSize: '0.825rem', display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
+                            <li key={rIdx} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'flex-start', gap: '0.45rem', lineHeight: '1.4', wordBreak: 'break-word' }}>
                               <CheckCircle2 size={15} color="var(--accent-emerald)" style={{ marginTop: '2px', flexShrink: 0 }} />
                               <span>{req}</span>
                             </li>
@@ -236,12 +246,12 @@ export default function JobsPage() {
                       {/* Responsibilities */}
                       {resps.length > 0 && (
                         <div>
-                          <h4 style={{ fontSize: '0.875rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--secondary)' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--secondary)' }}>
                             Core Duties:
                           </h4>
                           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.35rem', padding: 0, margin: 0 }}>
                             {resps.slice(0, 4).map((resp, pIdx) => (
-                              <li key={pIdx} style={{ fontSize: '0.825rem', display: 'flex', alignItems: 'flex-start', gap: '0.45rem' }}>
+                              <li key={pIdx} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'flex-start', gap: '0.45rem', lineHeight: '1.4', wordBreak: 'break-word' }}>
                                 <CheckCircle2 size={15} color="var(--accent-cyan)" style={{ marginTop: '2px', flexShrink: 0 }} />
                                 <span>{resp}</span>
                               </li>
@@ -282,17 +292,17 @@ export default function JobsPage() {
 
         {/* Application Modal */}
         {applyModalJob && (
-          <div className="modal-overlay" onClick={() => setApplyModalJob(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px' }}>
+          <div className="modal-overlay" onClick={() => setApplyModalJob(null)} style={{ padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(1.25rem, 4vw, 2rem)', position: 'relative' }}>
               
               <button
                 onClick={() => setApplyModalJob(null)}
-                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', color: 'var(--text-muted)' }}
+                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
 
-              <h2 style={{ fontSize: '1.4rem', marginBottom: '0.25rem' }}>
+              <h2 style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.4rem)', marginBottom: '0.25rem', paddingRight: '1.5rem', wordBreak: 'break-word' }}>
                 Job Application: {applyModalJob.title}
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
@@ -312,7 +322,7 @@ export default function JobsPage() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
                   <div className="form-group">
                     <label>Email Address *</label>
                     <input

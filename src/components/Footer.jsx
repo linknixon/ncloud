@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { MapPin, Phone, Mail, Clock, ArrowRight } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function Footer({ setActivePage }) {
   const { siteLogo } = useApp();
@@ -127,6 +127,23 @@ export default function Footer({ setActivePage }) {
             <span style={{ color: '#475569' }}>•</span>
             <button onClick={() => setActivePage('privacy')} style={{ background: 'none', color: '#cbd5e1', fontSize: '0.875rem', cursor: 'pointer' }}>
               Privacy Policy
+            </button>
+            <span style={{ color: '#475569' }}>•</span>
+            <button 
+              onClick={() => setActivePage('verify')} 
+              style={{ 
+                background: 'none', 
+                color: '#38bdf8', 
+                fontSize: '0.875rem', 
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontWeight: '600'
+              }}
+              title="Official Document Verification & Digital Clearance"
+            >
+              <ShieldCheck size={16} color="#38bdf8" /> Verify Document
             </button>
           </div>
         </div>

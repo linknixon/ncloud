@@ -56,22 +56,22 @@ export default function ServicesPage({ setActivePage }) {
   const paginatedServices = filteredServices.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+    <div className="animate-fade-in" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
       <SEO title="Our Services & Solutions | Nova Cloud" description="Explore our premium ISP and IT solutions tailored for your business." keywords="dedicated internet, cloud hosting, managed IT services, structured cabling" />
       <div className="container">
         
         {/* Page Header */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ fontSize: '2.1rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2.1rem)', marginTop: '0.5rem', marginBottom: '0.75rem', lineHeight: '1.25', wordBreak: 'break-word' }}>
             Our Core Services & Technical Capabilities
           </h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '1.0rem' }}>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: 'clamp(0.9rem, 2.5vw, 1.0rem)', lineHeight: '1.6' }}>
             We provide localized edge server hosting, enterprise ERP implementations, corporate email administration, cybersecurity defense, IoT edge gateways, and custom software engineering.
           </p>
         </div>
 
         {/* Search Bar */}
-        <div style={{ maxWidth: '440px', margin: '0 auto 3rem', position: 'relative' }}>
+        <div style={{ maxWidth: '440px', width: '100%', margin: '0 auto 2.5rem', position: 'relative' }}>
           <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
@@ -94,8 +94,12 @@ export default function ServicesPage({ setActivePage }) {
           </div>
         ) : (
           <>
-            {/* 2 Services Per Row Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '2rem' }}>
+            {/* Mobile-Optimized Responsive Services Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', 
+              gap: '1.5rem' 
+            }}>
               {paginatedServices.map((srv, idx) => {
                 const IconComponent = getIcon(srv.icon);
                 const features = Array.isArray(srv.features) 
@@ -107,59 +111,62 @@ export default function ServicesPage({ setActivePage }) {
                     key={srv.id || idx}
                     className="glass-card"
                     style={{
-                      padding: '2rem',
+                      padding: 'clamp(1.25rem, 3.5vw, 2rem)',
                       borderRadius: '18px',
                       display: 'flex',
                       flexDirection: 'column',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      height: '100%',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word'
                     }}
                   >
                     <div>
                       {/* Icon & Title Header */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.25rem' }}>
                         <div style={{
-                          width: '56px',
-                          height: '56px',
-                          borderRadius: '14px',
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '12px',
                           background: 'var(--gradient-brand)',
                           color: '#fff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
-                          boxShadow: '0 6px 18px rgba(79, 70, 229, 0.3)'
+                          boxShadow: '0 6px 18px rgba(79, 70, 229, 0.25)'
                         }}>
-                          <IconComponent size={28} />
+                          <IconComponent size={24} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h2 style={{ fontSize: '1.35rem', fontWeight: '800', margin: '0 0 0.35rem', lineHeight: '1.3' }}>
+                          <h2 style={{ fontSize: 'clamp(1.15rem, 3.5vw, 1.35rem)', fontWeight: '800', margin: '0 0 0.35rem', lineHeight: '1.3', wordBreak: 'break-word' }}>
                             {srv.title}
                           </h2>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', lineHeight: '1.4' }}>
+                          <div style={{ fontSize: '0.825rem', color: 'var(--primary)', fontWeight: '700', lineHeight: '1.4', wordBreak: 'break-word' }}>
                             {srv.summary}
                           </div>
                         </div>
                       </div>
 
                       {/* Description */}
-                      <p style={{ fontSize: '0.925rem', color: 'var(--text-main)', lineHeight: '1.65', marginBottom: '1.25rem' }}>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.65', marginBottom: '1.25rem', wordBreak: 'break-word' }}>
                         {srv.description}
                       </p>
 
                       {/* Key Features Checkmark Grid */}
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
                         gap: '0.65rem',
                         marginBottom: '1.5rem',
                         background: 'var(--bg-main)',
-                        padding: '1rem',
+                        padding: '0.85rem 1rem',
                         borderRadius: '12px',
                         border: '1px solid var(--border-color)'
                       }}>
                         {features.map((feat, fIdx) => (
-                          <div key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', fontWeight: '600' }}>
-                            <CheckCircle2 size={16} color="var(--accent-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <div key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem', fontWeight: '600', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                            <CheckCircle2 size={15} color="var(--accent-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
                             <span>{feat}</span>
                           </div>
                         ))}
@@ -171,7 +178,7 @@ export default function ServicesPage({ setActivePage }) {
                       <button
                         onClick={() => setActivePage('contact')}
                         className="btn-primary"
-                        style={{ padding: '0.65rem 1.1rem', fontSize: '0.875rem' }}
+                        style={{ padding: '0.65rem 1.1rem', fontSize: '0.85rem', flexGrow: 1, justifyContent: 'center' }}
                       >
                         <PhoneCall size={16} /> Request Quote
                       </button>
@@ -179,7 +186,7 @@ export default function ServicesPage({ setActivePage }) {
                         <button
                           onClick={() => setActivePage('shop')}
                           className="btn-secondary"
-                          style={{ padding: '0.65rem 1.1rem', fontSize: '0.875rem' }}
+                          style={{ padding: '0.65rem 1.1rem', fontSize: '0.85rem', flexGrow: 1, justifyContent: 'center' }}
                         >
                           Order Online <ArrowRight size={16} />
                         </button>
@@ -191,27 +198,27 @@ export default function ServicesPage({ setActivePage }) {
               })}
             </div>
 
-            {/* Pagination Controls (10 services per page) */}
+            {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '3.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '3rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                   className="btn-secondary"
-                  style={{ opacity: currentPage === 1 ? 0.5 : 1, padding: '0.6rem 1.25rem' }}
+                  style={{ opacity: currentPage === 1 ? 0.5 : 1, padding: '0.55rem 1rem', fontSize: '0.85rem' }}
                 >
-                  <ChevronLeft size={18} /> Previous
+                  <ChevronLeft size={16} /> Previous
                 </button>
-                <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>
+                <span style={{ fontWeight: '700', fontSize: '0.875rem' }}>
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                   className="btn-secondary"
-                  style={{ opacity: currentPage === totalPages ? 0.5 : 1, padding: '0.6rem 1.25rem' }}
+                  style={{ opacity: currentPage === totalPages ? 0.5 : 1, padding: '0.55rem 1rem', fontSize: '0.85rem' }}
                 >
-                  Next <ChevronRight size={18} />
+                  Next <ChevronRight size={16} />
                 </button>
               </div>
             )}
