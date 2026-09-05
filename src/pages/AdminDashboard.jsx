@@ -559,7 +559,7 @@ const normalizeTabName = (rawTab) => {
     salary: 3500000,
     company: 'Nova Cloud Edges (U) Ltd',
     supervisor_id: 1,
-    supervisor_name: 'Dr. Arthur Mukasa'
+    supervisor_name: ''
   });
 
   // Product & Categories Modal State
@@ -658,7 +658,7 @@ const normalizeTabName = (rawTab) => {
     receipt_ref: 'EXP-REC-8841',
     status: 'Approved',
     date: new Date().toISOString().split('T')[0],
-    supervisor_name: 'Dr. Arthur Mukasa',
+    supervisor_name: '',
     attachment_url: '',
     attachment_name: ''
   });
@@ -859,7 +859,7 @@ const normalizeTabName = (rawTab) => {
     location: 'Kampala, Uganda',
     notes: '',
     supervisor_id: 1,
-    supervisor_name: 'Dr. Arthur Mukasa',
+    supervisor_name: '',
     avatar_url: '',
     password: ''
   });
@@ -3041,7 +3041,7 @@ const normalizeTabName = (rawTab) => {
       location: 'Kampala, Uganda',
       notes: '',
       supervisor_id: 1,
-      supervisor_name: 'Dr. Arthur Mukasa',
+      supervisor_name: '',
       avatar_url: '',
       password: ''
     });
@@ -3064,7 +3064,7 @@ const normalizeTabName = (rawTab) => {
       location: u.location || 'Kampala, Uganda',
       notes: u.notes || '',
       supervisor_id: u.supervisor_id || 1,
-      supervisor_name: u.supervisor_name || 'Dr. Arthur Mukasa',
+      supervisor_name: u.supervisor_name || '',
       avatar_url: u.avatar_url || '',
       password: ''
     });
@@ -7662,7 +7662,7 @@ const normalizeTabName = (rawTab) => {
                             location: 'Kampala, Uganda',
                             notes: 'Account created by Sales Department.',
                             supervisor_id: 1,
-                            supervisor_name: 'Arthur Mukasa',
+                            supervisor_name: '',
                             avatar_url: '',
                             password: ''
                           });
@@ -12243,25 +12243,31 @@ const normalizeTabName = (rawTab) => {
                         Each selected product is added as a separate line item with its own rate, quantity, and amount.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const current = invoiceForm.items || [];
-                        const next = [
-                          ...current,
-                          { id: 'item-' + Date.now() + '-' + Math.random(), name: 'Custom Cloud Edge Support & Maintenance', quantity: 1, unit_price: 500000 }
-                        ];
-                        setInvoiceForm({
-                          ...invoiceForm,
-                          items: next,
-                          item_name: next.map(it => (it.quantity > 1 ? `${it.quantity}x ${it.name}` : it.name)).join(', ')
-                        });
-                      }}
-                      className="btn-secondary"
-                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '0.3rem' }}
-                    >
-                      <Plus size={14} /> Add Line Item
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = invoiceForm.items || [];
+                          const next = [
+                            ...current,
+                            { id: 'custom-' + Date.now() + '-' + Math.random(), name: '', quantity: 1, unit_price: 0, is_custom: true }
+                          ];
+                          setInvoiceForm({
+                            ...invoiceForm,
+                            items: next,
+                            item_name: next.map(it => (it.quantity > 1 ? `${it.quantity}x ${it.name}` : it.name)).filter(Boolean).join(', ')
+                          });
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', gap: '0.4rem', background: '#0284c7', borderColor: '#0284c7' }}
+                        title="Add an ad-hoc custom product or service not stored in the shop catalog"
+                      >
+                        <Plus size={15} /> Add Custom Product (Not in Store)
+                      </button>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        * Custom items are document-only and not saved to the store catalog.
+                      </span>
+                    </div>
                   </div>
 
                   {/* Line Items Rows */}
@@ -13161,21 +13167,27 @@ const normalizeTabName = (rawTab) => {
                       <span style={{ fontWeight: '800', fontSize: '0.875rem', color: '#0d9488' }}>
                         Quoted Line Items ({(quotationForm.items || []).length})
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const current = quotationForm.items || [];
-                          const next = [
-                            ...current,
-                            { name: 'Custom Cloud Architecture & Managed Support', quantity: 1, unit_price: 1500000, discount_pct: 0, total: 1500000 }
-                          ];
-                          setQuotationForm({ ...quotationForm, items: next });
-                        }}
-                        className="btn-secondary"
-                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '0.3rem' }}
-                      >
-                        <Plus size={14} /> Add Line Item
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = quotationForm.items || [];
+                            const next = [
+                              ...current,
+                              { name: '', quantity: 1, unit_price: 0, discount_pct: 0, total: 0, is_custom: true }
+                            ];
+                            setQuotationForm({ ...quotationForm, items: next });
+                          }}
+                          className="btn-primary"
+                          style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', gap: '0.4rem', background: '#0d9488', borderColor: '#0d9488' }}
+                          title="Add an ad-hoc custom product or service not stored in the shop catalog"
+                        >
+                          <Plus size={15} /> Add Custom Item (Not in Store)
+                        </button>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          * Custom items are quoted for this document only and not added to store.
+                        </span>
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -15038,18 +15050,18 @@ const normalizeTabName = (rawTab) => {
               {/* Corporate Signatory & Authorized Approval Block */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: '1.45', maxWidth: '380px' }}>
-                  This official document is generated by Nova Cloud Edges (U) Limited automated billing gateway. Valid without physical handwritten signature when digitally sealed.
+                  Official business invoice issued by Nova Cloud Edges (U) Limited. Verification records are maintained on our secure system.
                 </div>
 
                 <div style={{ textAlign: 'right', minWidth: '200px' }}>
                   <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.15rem', color: '#0f172a', fontWeight: 'bold', marginBottom: '2px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px', display: 'inline-block' }}>
-                    Dr. Arthur Mukasa
+                    {previewInvoiceData?.signatory || previewInvoiceData?.created_by || 'Authorized Management'}
                   </div>
                   <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f172a' }}>
-                    Dr. Arthur Mukasa
+                    {previewInvoiceData?.signatory || previewInvoiceData?.created_by || 'Authorized Management'}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
-                    Director of Cloud Systems & Regional Operations
+                    Finance & Regional Operations
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
                     Nova Cloud Edges (U) Limited
@@ -16657,7 +16669,7 @@ const normalizeTabName = (rawTab) => {
                           ...companyExpenseForm,
                           staff_name: staffFound.name,
                           staff_email: staffFound.email,
-                          supervisor_name: staffFound.supervisor_name || 'Dr. Arthur Mukasa'
+                          supervisor_name: staffFound.supervisor_name || ''
                         });
                       }
                     }}
@@ -16999,7 +17011,7 @@ const normalizeTabName = (rawTab) => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Dr. Arthur Mukasa"
+                    placeholder="e.g. Operations Manager"
                     value={teamForm.name}
                     onChange={e => setTeamForm({ ...teamForm, name: e.target.value })}
                     required
@@ -17374,7 +17386,7 @@ const normalizeTabName = (rawTab) => {
                     <label style={{ fontWeight: '700' }}>Assigned Supervisor *</label>
                     <select
                       className="form-input"
-                      value={hireForm.supervisor_name || 'Dr. Arthur Mukasa'}
+                      value={hireForm.supervisor_name || ''}
                       onChange={e => {
                         const sName = e.target.value;
                         const supObj = (data?.users || []).find(u => u.name === sName);

@@ -1,3 +1,4 @@
+import { registerTrebuchetFont } from './trebuchetFont.js';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { NOVA_LOGO_BASE64 } from './logoBase64.js';
@@ -131,7 +132,7 @@ function drawA4ExecutiveHeader(doc, {
   }
 
   // Company Name & Tagline
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('NOVA CLOUD EDGES', textX, 18);
@@ -139,7 +140,7 @@ function drawA4ExecutiveHeader(doc, {
   doc.setTextColor(...accentColor);
   doc.text('(U) LIMITED', textX + 62, 18);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text(BRAND.tagline, textX, 23);
@@ -147,13 +148,13 @@ function drawA4ExecutiveHeader(doc, {
   doc.text(BRAND.contact, textX, 32);
 
   // Header Right: Document Title & Reference
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text((title || 'OFFICIAL DOCUMENT').toUpperCase(), 196, 19, { align: 'right' });
 
   if (refNumber) {
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(9.5);
     doc.setTextColor(...accentColor);
     doc.text(`${refLabel ? `${refLabel}: ` : ''}#${refNumber}`, 196, 25, { align: 'right' });
@@ -176,7 +177,7 @@ function drawA4ExecutiveHeader(doc, {
     doc.setDrawColor(...badgeBorder);
     doc.setLineWidth(0.4);
     doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(6.8);
     doc.setTextColor(...badgeText);
     doc.text(status.toUpperCase(), stampX + stampW / 2, stampY + 4.7, { align: 'center' });
@@ -202,12 +203,12 @@ function drawA4ContinuationHeader(doc, { title, refNumber, accentColor = BRAND.c
   doc.setLineWidth(0.2);
   doc.roundedRect(14, 8, 182, 11, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(`${BRAND.companyName} — ${(title || 'DOCUMENT').toUpperCase()} (CONTINUED)`, 18, 15);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...accentColor);
   doc.text(`REF: #${refNumber || 'N/A'}`, 192, 15, { align: 'right' });
@@ -227,13 +228,13 @@ function applyA4Footers(doc, { docRef = '', title = 'Official Document' } = {}) 
     doc.line(14, 282, 196, 282);
 
     // Left: Official ledger notice
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text('Nova Cloud Edges (U) Ltd • Verification: ncloud.co.ug/verify • Confidential & Legally Binding', 14, 286.5);
 
     // Right: Page X of Y
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...BRAND.colors.navyDark);
     doc.text(`Page ${p} of ${totalPages}`, 196, 286.5, { align: 'right' });
@@ -271,7 +272,7 @@ export function drawInvoiceNinjaBurgundyLogo(doc, x = 14, y = 10, customLogoData
       return;
     } catch {}
   }
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(30, 58, 138);
   doc.text('NOVA CLOUD EDGES (U) LTD', x, y + 8);
@@ -297,6 +298,7 @@ function formatNinjaUGX(num) {
 export async function generateInvoicePDF(inv, options = {}) {
   const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
   const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
@@ -355,7 +357,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -384,17 +386,17 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -407,7 +409,7 @@ export async function generateInvoicePDF(inv, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -416,17 +418,17 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('BILLED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Registered Client', 112, cardY + 15.5);
@@ -438,7 +440,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -484,7 +486,7 @@ export async function generateInvoicePDF(inv, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -494,12 +496,12 @@ export async function generateInvoicePDF(inv, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -524,12 +526,12 @@ export async function generateInvoicePDF(inv, options = {}) {
   const totalsY = tableY + 6;
 
   // Invoice Terms on Left (Width restricted to 85mm so no overlap with right totals)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Invoice Terms:', 14, totalsY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = inv?.terms || 'This Invoice is valid for ONLY 2 weeks, and payment of at least 75% MUST be made before services are offered.';
@@ -538,12 +540,12 @@ export async function generateInvoicePDF(inv, options = {}) {
 
   // Digital Verification section (Accurate as requested)
   const verifyY = totalsY + 16;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -565,7 +567,7 @@ export async function generateInvoicePDF(inv, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 150, rY, { align: 'right' });
@@ -576,12 +578,12 @@ export async function generateInvoicePDF(inv, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -596,6 +598,7 @@ export async function generateInvoicePDF(inv, options = {}) {
 export async function generateQuotationPDF(quote, options = {}) {
   const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   const quoteNum = sanitizePdfText(quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`);
   const qDate = formatNinjaDate(quote?.created_at || quote?.date || new Date());
@@ -625,7 +628,7 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -654,17 +657,17 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -676,7 +679,7 @@ export async function generateQuotationPDF(quote, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -685,17 +688,17 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('PROPOSED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Enterprise Prospect', 112, cardY + 15.5);
@@ -706,7 +709,7 @@ export async function generateQuotationPDF(quote, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -770,7 +773,7 @@ export async function generateQuotationPDF(quote, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -780,12 +783,12 @@ export async function generateQuotationPDF(quote, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -809,12 +812,12 @@ export async function generateQuotationPDF(quote, options = {}) {
 
   const totalsY = tableY + 6;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Commercial Terms & Scope:', 14, totalsY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = quote?.notes || 'Quotation valid for 30 days from date of issuance. Includes 24/7 priority support and enterprise SLA.';
@@ -822,12 +825,12 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.text(termsText, 14, totalsY + 4.5);
 
   const verifyY = totalsY + 16;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -848,7 +851,7 @@ export async function generateQuotationPDF(quote, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 150, rY, { align: 'right' });
@@ -859,12 +862,12 @@ export async function generateQuotationPDF(quote, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -900,6 +903,7 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   const netPay = Math.max(0, grossPay - totalDeductions);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   // Page 1 Header (Guaranteed single-page corporate fit)
   drawA4ExecutiveHeader(doc, {
@@ -919,64 +923,64 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, y, 182, 30, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('EMPLOYEE PERSONNEL & REMUNERATION RECORD:', 18, y + 6);
 
   // Left Details
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Employee Name:', 18, y + 12);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(staffName, 52, y + 12);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Job Designation:', 18, y + 17);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(position, 52, y + 17);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Department:', 18, y + 22);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(department, 52, y + 22);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Corporate Email:', 18, y + 27);
   doc.setTextColor(...BRAND.colors.textBody);
   doc.text(email, 52, y + 27);
 
   // Right Details
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Pay Period:', 115, y + 12);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(payPeriod, 150, y + 12);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Disbursement Method:', 115, y + 17);
   doc.setTextColor(...BRAND.colors.textBody);
   doc.text('Bank Wire Remittance', 150, y + 17);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('TIN Registration:', 115, y + 22);
   doc.setTextColor(...BRAND.colors.textBody);
   doc.text('1014892019 (Verified)', 150, y + 22);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Disbursement Status:', 115, y + 27);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(...BRAND.colors.emerald);
   doc.text('100% Cleared & Paid', 150, y + 27);
 
@@ -988,7 +992,7 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   // Header 1: Earnings
   doc.setFillColor(...BRAND.colors.deepSapphire);
   doc.roundedRect(14, y, colW, 7, 1.5, 1.5, 'F');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.white);
   doc.text('GROSS EARNINGS & ALLOWANCES', 18, y + 4.8);
@@ -997,7 +1001,7 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   // Header 2: Deductions
   doc.setFillColor(...BRAND.colors.crimson);
   doc.roundedRect(107, y, colW, 7, 1.5, 1.5, 'F');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.white);
   doc.text('STATUTORY & VOLUNTARY DEDUCTIONS', 111, y + 4.8);
@@ -1032,21 +1036,21 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
 
     // Left row
     if (earn) {
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...BRAND.colors.textBody);
       doc.text(earn.label, 18, y + 5);
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.text(earn.val.toLocaleString(), 100, y + 5, { align: 'right' });
     }
 
     // Right row
     if (ded) {
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...BRAND.colors.textBody);
       doc.text(ded.label, 111, y + 5);
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.text(ded.val > 0 ? ded.val.toLocaleString() : '0', 193, y + 5, { align: 'right' });
     }
 
@@ -1064,7 +1068,7 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.rect(14, y, colW, 8, 'F');
   doc.rect(107, y, colW, 8, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('TOTAL GROSS EARNINGS:', 18, y + 5.5);
@@ -1082,17 +1086,17 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.setFillColor(...BRAND.colors.deepSapphire);
   doc.roundedRect(14, y, 182, 22, 2.5, 2.5, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(191, 219, 254);
   doc.text('NET TAKE-HOME PAYABLE SALARY (BANK REMITTANCE):', 20, y + 7);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(...BRAND.colors.white);
   doc.text(`UGX ${netPay.toLocaleString()}`, 20, y + 17);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.emerald);
   doc.text('[CLEARED & DISBURSED]', 190, y + 12, { align: 'right' });
@@ -1105,12 +1109,12 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, y, 182, 18, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('UGANDA STATUTORY EMPLOYER CONTRIBUTIONS & COMPLIANCE:', 18, y + 5.5);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(...BRAND.colors.textBody);
   const nssfEmployer = Math.round(baseSalary * 0.10);
@@ -1126,32 +1130,32 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
   doc.roundedRect(14, y, 182, 22, 2, 2, 'FD');
 
   // Left Signatory
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('PREPARED & VERIFIED BY:', 20, y + 6);
-  doc.setFont('Helvetica', 'oblique');
+  doc.setFont('TrebuchetMS', 'oblique');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('Head of Human Capital & Payroll', 20, y + 12);
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text('Nova Cloud Edges Executive Bureau', 20, y + 17);
 
   // Right Signatory
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('CHIEF FINANCIAL OFFICER (CFO):', 115, y + 6);
-  doc.setFont('Helvetica', 'oblique');
+  doc.setFont('TrebuchetMS', 'oblique');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('Director of Corporate Finance', 115, y + 12);
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...BRAND.colors.textMuted);
-  doc.text('Electronic Ledger Authorization Code: SHA256-CLEARANCE', 115, y + 17);
+  doc.text('Official Corporate Document • Nova Cloud Edges (U) Ltd', 115, y + 17);
 
   applyA4Footers(doc, { docRef: paySlipId, title: 'Payroll Payslip' });
   openPdfInBrowser(doc, `Payslip_${staffName.replace(/\s+/g, '_')}_${payPeriod.replace(/\s+/g, '_')}.pdf`);
@@ -1184,6 +1188,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   const totalLiabilitiesAndEquity = totalLiabilities + shareholderEquity;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   drawA4ExecutiveHeader(doc, {
     title: 'STATEMENT OF FINANCIAL POSITION (BALANCE SHEET)',
@@ -1202,7 +1207,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   doc.setLineWidth(0.4);
   doc.roundedRect(14, y, 182, 10, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.colors.emerald);
   doc.text('ACCOUNTING EQUATION BALANCED: Total Assets = Total Liabilities + Shareholder Equity', 18, y + 6.5);
@@ -1216,7 +1221,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   // SECTION 1: ASSETS
   doc.setFillColor(...BRAND.colors.deepSapphire);
   doc.roundedRect(14, y, colW, 7, 1.5, 1.5, 'F');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.white);
   doc.text('1. ASSETS & LIQUIDITY RESOURCES', 18, y + 4.8);
@@ -1225,7 +1230,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   // SECTION 2: LIABILITIES & EQUITY
   doc.setFillColor(...BRAND.colors.navySlate);
   doc.roundedRect(107, y, colW, 7, 1.5, 1.5, 'F');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.white);
   doc.text('2. LIABILITIES & EQUITY', 111, y + 4.8);
@@ -1255,16 +1260,16 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
     doc.rect(14, y, colW, 11, 'F');
     doc.rect(107, y, colW, 11, 'F');
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7.2);
     doc.setTextColor(...BRAND.colors.textBody);
     doc.text(ast.label, 18, y + 5);
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.text(ast.val.toLocaleString(), 100, y + 5, { align: 'right' });
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.text(lib.label, 111, y + 5);
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.text(lib.val.toLocaleString(), 193, y + 5, { align: 'right' });
 
     doc.setDrawColor(...BRAND.colors.borderLight);
@@ -1280,7 +1285,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   doc.rect(14, y, colW, 10, 'F');
   doc.rect(107, y, colW, 10, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('TOTAL ASSETS:', 18, y + 6.5);
@@ -1300,7 +1305,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, y, 182, 28, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('LIQUIDITY & SOLVENCY ANALYSIS (EXECUTIVE METRICS):', 18, y + 6);
@@ -1308,7 +1313,7 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   const currentRatio = (totalAssets / Math.max(1, totalLiabilities)).toFixed(2);
   const debtToEquity = ((totalLiabilities / Math.max(1, shareholderEquity)) * 100).toFixed(1);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.2);
   doc.setTextColor(...BRAND.colors.textBody);
   doc.text(`• Current Liquidity Ratio: ${currentRatio}x (Healthy buffer > 1.5x)`, 18, y + 12);
@@ -1323,17 +1328,17 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, y, 182, 20, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('AUDIT & REGULATORY CERTIFICATION:', 20, y + 6);
 
-  doc.setFont('Helvetica', 'oblique');
+  doc.setFont('TrebuchetMS', 'oblique');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('Certified by Head of Financial Accounting & Compliance', 20, y + 12);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text(`Generated by: ${opts?.userName || 'Corporate Controller'} • As of: ${asOfDate}`, 20, y + 16.5);
@@ -1379,6 +1384,7 @@ export function generateProfitLossPDF(data = {}, options = {}) {
   const netMargin = cashRevenue > 0 ? ((netIncome / cashRevenue) * 100).toFixed(1) : '0.0';
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   drawA4ExecutiveHeader(doc, {
     title: 'STATEMENT OF PROFIT & LOSS (INCOME STATEMENT)',
@@ -1406,7 +1412,7 @@ export function generateProfitLossPDF(data = {}, options = {}) {
     doc.setLineWidth(0.3);
     doc.roundedRect(cX, y, cardW, 16, 2, 2, 'FD');
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(6.8);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text(card.label, cX + 4, y + 5);
@@ -1459,7 +1465,7 @@ export function generateProfitLossPDF(data = {}, options = {}) {
   sections.forEach((sec) => {
     doc.setFillColor(...sec.accent);
     doc.roundedRect(14, y, 182, 6.5, 1.5, 1.5, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...BRAND.colors.white);
     doc.text(sec.title, 18, y + 4.5);
@@ -1470,12 +1476,12 @@ export function generateProfitLossPDF(data = {}, options = {}) {
       doc.setFillColor(rIdx % 2 === 1 ? BRAND.colors.bgZebra[0] : 255, rIdx % 2 === 1 ? BRAND.colors.bgZebra[1] : 255, rIdx % 2 === 1 ? BRAND.colors.bgZebra[2] : 255);
       doc.rect(14, y, 182, 6.5, 'F');
 
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setFontSize(7.2);
       doc.setTextColor(...BRAND.colors.textBody);
       doc.text(r.label, 18, y + 4.5);
 
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.text(r.amount.toLocaleString(), 192, y + 4.5, { align: 'right' });
 
       doc.setDrawColor(...BRAND.colors.borderLight);
@@ -1487,7 +1493,7 @@ export function generateProfitLossPDF(data = {}, options = {}) {
     // Subtotal
     doc.setFillColor(...BRAND.colors.bgSoft);
     doc.rect(14, y, 182, 7, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...BRAND.colors.navyDark);
     doc.text(sec.totalLabel, 18, y + 4.8);
@@ -1499,7 +1505,7 @@ export function generateProfitLossPDF(data = {}, options = {}) {
   doc.setFillColor(...(netIncome >= 0 ? BRAND.colors.emerald : BRAND.colors.crimson));
   doc.roundedRect(14, y, 182, 16, 2, 2, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
   doc.text('NET OPERATING INCOME BEFORE TAX (EBITDA):', 18, y + 5.5);
@@ -1516,17 +1522,17 @@ export function generateProfitLossPDF(data = {}, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, y, 182, 18, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text('EXECUTIVE FINANCIAL CLEARANCE & CERTIFICATION:', 20, y + 5.5);
 
-  doc.setFont('Helvetica', 'oblique');
+  doc.setFont('TrebuchetMS', 'oblique');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.colors.deepSapphire);
   doc.text('Certified by Head of Financial Accounting & Audits', 20, y + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.8);
   doc.setTextColor(...BRAND.colors.textMuted);
   doc.text(`Reporting Officer: ${opts?.userName || 'Financial Controller'} • Standard: IFRS for SMEs`, 20, y + 15);
@@ -1558,12 +1564,14 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  registerTrebuchetFont(dummyDoc);
   const descLines = dummyDoc.splitTextToSize(desc, 68);
   const catLines = dummyDoc.splitTextToSize(category, 68);
   const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
   const calculatedHeight = Math.max(160, 175 + (descLines.length * 3.8) + (catLines.length * 3.8) + (staffLines.length > 1 ? staffLines.length * 3.8 : 0));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -1578,19 +1586,19 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('OFFICIAL EXPENDITURE PAYMENT VOUCHER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -1611,7 +1619,7 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('VOUCHER REF:', 8, y + 4.8);
@@ -1619,17 +1627,17 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${voucherNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Disbursed Date:', 8, y + 9.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(dateVal, 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.text('Voucher Status:', 8, y + 13.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   const isPaidOrApp = status === 'Paid' || status === 'Approved' || status === 'Approved by Supervisor';
   doc.setTextColor(isPaidOrApp ? 22 : 217, isPaidOrApp ? 163 : 119, isPaidOrApp ? 74 : 6);
   doc.text(`[ ${status} ]`, 72, y + 13.5, { align: 'right' });
@@ -1637,13 +1645,13 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   y += 18;
 
   // Beneficiary Staff Details
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('STAFF BENEFICIARY & CLAIMANT:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   staffLines.forEach(line => {
@@ -1652,7 +1660,7 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   });
 
   if (staffEmail) {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(71, 85, 105);
     doc.text(staffEmail, 5, y);
@@ -1666,13 +1674,13 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   y += 5;
 
   // Category & Purpose Details (Carefully wrapped without clipping)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('EXPENSE CLASSIFICATION & PURPOSE:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   catLines.forEach(line => {
@@ -1680,7 +1688,7 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
     y += 3.8;
   });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   descLines.forEach(line => {
@@ -1700,12 +1708,12 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL DISBURSED AMOUNT:', 8, y + 4.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(amount), 72, y + 10, { align: 'right' });
@@ -1713,13 +1721,13 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
   y += 18;
 
   // Verification Section
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -1732,7 +1740,7 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Authorized Corporate Expenditure Disbursement', 40, y, { align: 'center' });
@@ -1763,6 +1771,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
   if (opts.format === 'a4') {
     const refNum = `EXP-${dateStr}`;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
     drawA4ExecutiveHeader(doc, {
       title: 'OFFICIAL COMPANY EXPENDITURE AUDIT REPORT',
       refNumber: refNum,
@@ -1776,7 +1785,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     const drawExpHeader = (curY) => {
       doc.setFillColor(...BRAND.colors.crimson);
       doc.roundedRect(14, curY, 182, 7.5, 1.5, 1.5, 'F');
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(...BRAND.colors.white);
       doc.text('VOUCHER #', 18, curY + 5);
@@ -1790,7 +1799,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     y = drawExpHeader(y);
 
     if (expenses.length === 0) {
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(...BRAND.colors.textMuted);
       doc.text('No expenditure records found in corporate ledger.', 18, y + 8);
@@ -1811,17 +1820,17 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
         doc.setLineWidth(0.2);
         doc.line(14, y + rowH, 196, y + rowH);
 
-        doc.setFont('Helvetica', 'bold');
+        doc.setFont('TrebuchetMS', 'bold');
         doc.setFontSize(7.2);
         doc.setTextColor(...BRAND.colors.navyDark);
         doc.text(String(exp.voucher_number || exp.receipt_ref || exp.id || `EXP-${idx + 1}`), 18, y + 5.2);
 
-        doc.setFont('Helvetica', 'normal');
+        doc.setFont('TrebuchetMS', 'normal');
         doc.text(String(exp.staff_name || exp.beneficiary || 'Internal Staff').substring(0, 22), 45, y + 5.2);
         doc.text(String(exp.category || exp.purpose || 'Operational Expense').substring(0, 32), 92, y + 5.2);
         doc.text(exp.date ? new Date(exp.date).toISOString().split('T')[0] : dateStr, 152, y + 5.2);
 
-        doc.setFont('Helvetica', 'bold');
+        doc.setFont('TrebuchetMS', 'bold');
         doc.setTextColor(...BRAND.colors.crimson);
         doc.text(Number(exp.amount || 0).toLocaleString(), 192, y + 5.2, { align: 'right' });
 
@@ -1842,7 +1851,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     doc.setLineWidth(0.3);
     doc.roundedRect(14, y, 182, 22, 2, 2, 'FD');
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(...BRAND.colors.navyDark);
     doc.text('TOTAL RECONCILED EXPENDITURES:', 20, y + 9);
@@ -1851,7 +1860,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     doc.setTextColor(...BRAND.colors.crimson);
     doc.text(`UGX ${totalExpenseAmt.toLocaleString()}`, 192, y + 9, { align: 'right' });
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text(`Total Vouchers Audited: ${expenses.length} • Auditor: ${opts?.userName || 'Internal Audit Desk'}`, 20, y + 16);
@@ -1867,6 +1876,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
   const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 2000] });
+  registerTrebuchetFont(dummyDoc);
   let itemHeights = 0;
   const processedItems = expenses.map(exp => {
     const vRef = sanitizePdfText(exp.receipt_ref || exp.voucher_number || `EXP-#${exp.id || 'AUTO'}`);
@@ -1882,6 +1892,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
 
   const calculatedHeight = Math.max(160, 105 + itemHeights + 50);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
   if (activeLogo) {
@@ -1893,19 +1904,19 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     }
   }
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('EXPENDITURES AUDIT ROLL (80MM)', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -1918,7 +1929,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 13, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL RECONCILED DISBURSEMENTS:', 8, y + 4.5);
@@ -1929,7 +1940,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
 
   // Items
   processedItems.forEach(item => {
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(30, 58, 138);
     doc.text(`#${item.vRef}`, 5, y);
@@ -1937,14 +1948,14 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     doc.text(formatNinjaUGX(item.amount), 75, y, { align: 'right' });
     y += 3.8;
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text(`${item.date} • ${item.sName}`, 5, y);
     doc.text(`[ ${item.status} ]`, 75, y, { align: 'right' });
     y += 3.6;
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setTextColor(15, 23, 42);
     item.catLines.forEach(l => {
       doc.text(l, 5, y);
@@ -1952,7 +1963,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     });
 
     if (item.descLines.length > 0) {
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setTextColor(100, 116, 139);
       item.descLines.forEach(l => {
         doc.text(l, 5, y);
@@ -1970,7 +1981,7 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
 
   // Footer
   y += 2;
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Official Reconciled Corporate Expenditures', 40, y, { align: 'center' });
@@ -1999,6 +2010,7 @@ export function generateSalesReportPDF(data = {}, options = {}) {
   const totalReceivables = Number(metrics.total_pending_receivables ?? metrics.totalPendingReceivables ?? 0);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   drawA4ExecutiveHeader(doc, {
     title: 'COMMERCIAL SALES PERFORMANCE & BILLING AUDIT',
@@ -2026,7 +2038,7 @@ export function generateSalesReportPDF(data = {}, options = {}) {
     doc.setLineWidth(0.3);
     doc.roundedRect(cX, y, cardW, 16, 2, 2, 'FD');
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(6.8);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text(card.label, cX + 4, y + 5);
@@ -2042,7 +2054,7 @@ export function generateSalesReportPDF(data = {}, options = {}) {
   const drawSalesHeader = (curY) => {
     doc.setFillColor(...BRAND.colors.novaBlue);
     doc.roundedRect(14, curY, 182, 7.5, 1.5, 1.5, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(...BRAND.colors.white);
     doc.text('PRODUCT / SERVICE OFFERING', 18, curY + 5);
@@ -2055,7 +2067,7 @@ export function generateSalesReportPDF(data = {}, options = {}) {
   y = drawSalesHeader(y);
 
   if (topItems.length === 0) {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text('No product-specific sales transactions logged yet.', 18, y + 8);
@@ -2076,16 +2088,16 @@ export function generateSalesReportPDF(data = {}, options = {}) {
       doc.setLineWidth(0.2);
       doc.line(14, y + rowH, 196, y + rowH);
 
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(...BRAND.colors.navyDark);
       doc.text(String(it.name || 'Cloud Offering').substring(0, 42), 18, y + 5.2);
 
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setTextColor(...BRAND.colors.textBody);
       doc.text(String(it.category || 'General').substring(0, 24), 90, y + 5.2);
 
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.text(String(it.sales_count || it.qty || 1), 140, y + 5.2, { align: 'center' });
 
       doc.setTextColor(...BRAND.colors.novaBlue);
@@ -2112,6 +2124,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
   const refNum = `AUDIT-${dateStr}`;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   drawA4ExecutiveHeader(doc, {
     title: 'CERTIFIED CYBERSECURITY & FORENSIC AUDIT TRAIL',
@@ -2127,7 +2140,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
   const drawAuditHeader = (curY) => {
     doc.setFillColor(...BRAND.colors.deepSapphire);
     doc.roundedRect(14, curY, 182, 7.5, 1.5, 1.5, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(7.2);
     doc.setTextColor(...BRAND.colors.white);
     doc.text('TIMESTAMP (EAT)', 18, curY + 5);
@@ -2140,7 +2153,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
   y = drawAuditHeader(y);
 
   if (logs.length === 0) {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...BRAND.colors.textMuted);
     doc.text('No security audit events logged in repository.', 18, y + 8);
@@ -2161,20 +2174,20 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
       doc.setLineWidth(0.2);
       doc.line(14, y + rowH, 196, y + rowH);
 
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setFontSize(6.8);
       doc.setTextColor(...BRAND.colors.textMuted);
       doc.text(String(log.timestamp || log.created_at || dateStr).substring(0, 20), 18, y + 5.2);
 
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('TrebuchetMS', 'bold');
       doc.setTextColor(...BRAND.colors.navyDark);
       doc.text(String(log.userName || log.user_email || 'System Daemon').substring(0, 24), 54, y + 5.2);
 
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.setTextColor(...BRAND.colors.textBody);
       doc.text(String(log.ip || log.ip_address || '127.0.0.1'), 94, y + 5.2);
 
-      doc.setFont('Helvetica', 'normal');
+      doc.setFont('TrebuchetMS', 'normal');
       doc.text(String(log.action || log.event || 'Authorized State Mutation').substring(0, 36), 130, y + 5.2);
 
       y += rowH;
@@ -2212,6 +2225,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   // Calculate dynamic roll height based on contents
   const receiptHeight = 175;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, receiptHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
   const effectiveLogo = options?.logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
@@ -2223,19 +2237,19 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   }
 
   // Header
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(15, 23, 42);
   doc.text(BRAND.companyName, 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text('OFFICIAL PAYMENT RECEIPT', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso • Tel: +256 790 001 631', 40, y, { align: 'center' });
@@ -2253,11 +2267,11 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 
   // Transaction Info
   const printRow = (label, val, boldVal = false) => {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
     doc.text(label, 6, y);
-    doc.setFont('Helvetica', boldVal ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', boldVal ? 'bold' : 'normal');
     doc.setTextColor(15, 23, 42);
     doc.text(String(val), 74, y, { align: 'right' });
     y += 4.2;
@@ -2279,7 +2293,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 
   // Financial Figures
   printRow('Total Invoice Billed:', `UGX ${totalBilled.toLocaleString()}`);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(22, 163, 74);
   doc.text('AMOUNT PAID CLEARED:', 6, y);
@@ -2292,7 +2306,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   y += 2;
   doc.setFillColor(isPaid ? 240 : 254, isPaid ? 253 : 243, isPaid ? 244 : 199);
   doc.roundedRect(6, y, 68, 7, 1.5, 1.5, 'F');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(isPaid ? 22 : 180, isPaid ? 163 : 83, isPaid ? 74 : 9);
   doc.text(isPaid ? '100% PAYMENT CLEARED & SETTLED' : `PARTIAL PAYMENT — UGX ${balance.toLocaleString()} DUE`, 40, y + 4.8, { align: 'center' });
@@ -2306,14 +2320,14 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(5.8);
   doc.setTextColor(100, 116, 139);
-  doc.text('Scan QR Code to verify authenticity on Nova Ledger', 40, y, { align: 'center' });
+  doc.text('Scan QR Code to verify document online', 40, y, { align: 'center' });
   y += 3.2;
   doc.text(`Cashier / Admin: ${options?.userName || 'Corporate POS Desk'}`, 40, y, { align: 'center' });
   y += 3.2;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.text('Thank you for choosing Nova Cloud Edges!', 40, y, { align: 'center' });
 
   openPdfInBrowser(doc, `Payment_Receipt_80mm_${invNum}.pdf`);
@@ -2344,12 +2358,14 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
 
   // Measure wrapped lines using a dummy document so no words ever go away or clip off
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  registerTrebuchetFont(dummyDoc);
   const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
   const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
   const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
 
   const calculatedHeight = Math.max(160, 175 + (taskLines.length * 4.2) + (descLines.length * 3.8) + (siteLines.length * 3.8));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -2364,19 +2380,19 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('FIELD SERVICE WORK ORDER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -2397,7 +2413,7 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('WORK ORDER REF:', 8, y + 4.8);
@@ -2405,17 +2421,17 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${orderNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Scheduled Date:', 8, y + 9.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(workOrder?.scheduled_date || 'Immediate', 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.text('Status:', 8, y + 13.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   const isCompleted = workOrder?.status === 'Completed';
   doc.setTextColor(isCompleted ? 22 : 217, isCompleted ? 163 : 119, isCompleted ? 74 : 6);
   doc.text(`[ ${workOrder?.status || 'Active Dispatch'} ]`, 72, y + 13.5, { align: 'right' });
@@ -2423,27 +2439,27 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   y += 18;
 
   // Deployment Site & Staff Details
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('DISPATCH & TARGET SITE DETAILS:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Assigned Engineer:', 5, y);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(staffName, 75, y, { align: 'right' });
   y += 4.2;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Deployment Site / Client:', 5, y);
   y += 3.8;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   siteLines.forEach(line => {
     doc.text(line, 5, y);
@@ -2458,13 +2474,13 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   y += 5;
 
   // Scope & Task Section (Dynamic from Database)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('ASSIGNED TECHNICAL SCOPE OF WORK:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   taskLines.forEach(line => {
@@ -2473,7 +2489,7 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   });
 
   if (descLines.length > 0 && descLines[0] !== '') {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     descLines.forEach(line => {
@@ -2490,18 +2506,18 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   y += 5;
 
   // Operations & Charging Schedule
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('OPERATIONS & BILLING SCHEDULE:', 5, y);
   y += 4.5;
 
   const printMetric = (label, val) => {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text(label, 5, y);
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setTextColor(15, 23, 42);
     doc.text(String(val), 75, y, { align: 'right' });
     y += 4.2;
@@ -2519,12 +2535,12 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL APPROVED JOB VALUE:', 8, y + 4.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(totalCost), 72, y + 10, { align: 'right' });
@@ -2532,13 +2548,13 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   y += 18;
 
   // Verification Section (Centered without overflowing)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -2552,7 +2568,7 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   }
 
   // Bottom text
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Official Field Operations Deployment Voucher', 40, y, { align: 'center' });

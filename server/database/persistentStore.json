@@ -1,6 +1,32 @@
 {
   "users": [
     {
+      "id": 1788610426579,
+      "name": "Ronald Namasagari",
+      "email": "rnam@gmail.com",
+      "phone": "+256 753 385 014",
+      "company": "Corporate Client",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "status": "Active",
+      "created_at": "2026-09-05T12:13:46.579Z",
+      "last_login": "2026-09-05T12:13:46.579Z"
+    },
+    {
+      "id": 1788610185490,
+      "name": "Instant Order Test Client",
+      "email": "testcheckout@ncloud.co.ug",
+      "phone": "+256 700 123 456",
+      "company": "Corporate Client",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "status": "Active",
+      "created_at": "2026-09-05T12:09:45.490Z",
+      "last_login": "2026-09-05T12:09:45.490Z"
+    },
+    {
       "id": 1788606507876,
       "name": "Olato Emmanuel",
       "email": "linknixon@gmail.com",
@@ -59,13 +85,16 @@
       "id": 1787853881019,
       "name": "Manishimwe Nelson",
       "email": "nelsonmanishimwe@gmail.com",
-      "passwordHash": "$2b$10$Q9rARkMa498BYGu3pd6HsOMfTOPLulZEJhgCYw6U.4U3TGn7wFyAy",
+      "passwordHash": "$2b$10$h.kWE3kSYE5W9JnmWWB62.o7dzOt7yRPc2Pk0tjZ3xP2sXUy/Pcgy",
       "role": "customer",
       "position": "Customer",
       "title": "Customer",
       "phone": "+256 786 833219",
       "company": "Child Care Ministry",
-      "status": "Active"
+      "status": "Active",
+      "password_hash": "$2b$10$h.kWE3kSYE5W9JnmWWB62.o7dzOt7yRPc2Pk0tjZ3xP2sXUy/Pcgy",
+      "password_reset_at": "2026-09-05T12:13:46.430Z",
+      "password_changed_at": "2026-09-05T12:13:46.430Z"
     },
     {
       "id": 1787816516992,
@@ -570,13 +599,6 @@
       "website": "https://cloud.google.com"
     },
     {
-      "id": 2,
-      "name": "Microsoft",
-      "category": "Gold Cloud Solutions Provider",
-      "logoText": "Microsoft",
-      "website": "https://microsoft.com"
-    },
-    {
       "id": 3,
       "name": "RENU Uganda",
       "category": "Research & Education Network",
@@ -602,11 +624,12 @@
   "news": [
     {
       "id": 1,
-      "title": "Nova Cloud Edges Achieves ISO/IEC 27001 Certification",
+      "title": "Nova Cloud Edges Practices ISO/IEC 27001 ",
       "date": "2026-08-10",
       "category": "Corporate Security",
       "summary": "We are proud to announce our official ISO 27001 accreditation, reinforcing our commitment to enterprise data security and cloud compliance.",
-      "image": "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80"
+      "image": "https://www.lexzur.com/wp-content/uploads/2023/01/ISOArtboard-12.png",
+      "content": "Nova Cloud Edges Practices ISO/IEC 27001 to follow the certification paths and regulations"
     },
     {
       "id": 2,
@@ -650,6 +673,76 @@
     }
   ],
   "invoices": [
+    {
+      "id": 1788610426584,
+      "invoice_number": "INV-2026-9428",
+      "customer_name": "Ronald Namasagari",
+      "customer_email": "rnam@gmail.com",
+      "customer_phone": "+256 753 385 014",
+      "customer_address": "Kamuli Namasagali, Kisoro, Uganda",
+      "company": "",
+      "item_name": "Edge VPS - Direct Purchase",
+      "plan_name": "Edge VPS - Direct Purchase",
+      "amount": 650000,
+      "paid_amount": 0,
+      "balance": 650000,
+      "status": "Pending",
+      "due_date": "2026-09-05",
+      "duration": "Monthly",
+      "reference": "NV-SUB-5872",
+      "payment_method": "Direct Subscription Multi-Checkout",
+      "include_vat": true,
+      "vat_exempt": false,
+      "vat_amount": 99153,
+      "items": [
+        {
+          "name": "Edge VPS - Direct Purchase",
+          "description": "Edge VPS - Direct Purchase",
+          "quantity": 1,
+          "qty": 1,
+          "unit_price": 650000,
+          "price": 650000,
+          "amount": 650000
+        }
+      ],
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-9428",
+      "created_at": "2026-09-05T12:13:46.583Z"
+    },
+    {
+      "id": 1788610185494,
+      "invoice_number": "INV-2026-3211",
+      "customer_name": "Instant Order Test Client",
+      "customer_email": "testcheckout@ncloud.co.ug",
+      "customer_phone": "+256 700 123 456",
+      "customer_address": "Lugga Zone, Ndejje, Wakiso",
+      "company": "",
+      "item_name": "Edge Virtual Private Server - Rapid Test",
+      "plan_name": "Edge Virtual Private Server - Rapid Test",
+      "amount": 650000,
+      "paid_amount": 0,
+      "balance": 650000,
+      "status": "Pending",
+      "due_date": "2026-09-05",
+      "duration": "Monthly",
+      "reference": "NV-SUB-2838",
+      "payment_method": "Direct Subscription Multi-Checkout",
+      "include_vat": true,
+      "vat_exempt": false,
+      "vat_amount": 99153,
+      "items": [
+        {
+          "name": "Edge Virtual Private Server - Rapid Test",
+          "description": "Edge Virtual Private Server - Rapid Test",
+          "quantity": 1,
+          "qty": 1,
+          "unit_price": 650000,
+          "price": 650000,
+          "amount": 650000
+        }
+      ],
+      "shareable_url": "https://ncloud.co.ug/verify?doc=INV-2026-3211",
+      "created_at": "2026-09-05T12:09:45.493Z"
+    },
     {
       "id": 1788606507889,
       "invoice_number": "INV-2026-4571",
@@ -1358,10 +1451,10 @@
   "bank_accounts": [
     {
       "id": 3,
-      "bank_name": "MTN Mobile Money Merchant Code",
+      "bank_name": "MTN Uganda",
       "account_name": "Nova Cloud Edges (U) Limited",
       "account_number": "674859",
-      "branch": "Merchant Code",
+      "branch": "MTN Merchant Code",
       "swift_code": "MTN Merchant",
       "currency": "UGX",
       "is_primary": false
@@ -1369,30 +1462,6 @@
   ],
   "quotations": [],
   "work_orders": [
-    {
-      "id": 2,
-      "order_number": "WO-2026-0002",
-      "invoice_number": "INV-2026-0046",
-      "customer_name": "Child Care Ministry (Manishimwe Nelson)",
-      "customer_email": "nelsonmanishimwe@gmail.com",
-      "customer_phone": "+256 786 833219",
-      "task_title": "Service Delivery Execution for Child Care Ministry (Manishimwe Nelson) (INV-2026-0046)",
-      "client_site": "Busamba",
-      "assigned_staff_id": 2,
-      "assigned_staff_name": "Nixon Kamugisha",
-      "assigned_staff_email": "nkamugisha@ncedges.com",
-      "charging_mode": "per_hour",
-      "service_description": "Domain Name Registration, Custom Technical Services / Infrastructure Support",
-      "status": "Completed",
-      "priority": "High",
-      "due_date": "2026-09-26",
-      "notes": "Work order auto-generated upon customer 100% payment receipt.",
-      "created_at": "2026-09-03T06:09:51.543Z",
-      "rate": 20000,
-      "total_cost": null,
-      "scheduled_date": "2026-09-11",
-      "completion_date": "2026-09-05"
-    },
     {
       "id": 1788264229605,
       "order_number": "WO-2026-0014",
@@ -2625,6 +2694,30 @@
     }
   ],
   "audit_logs": [
+    {
+      "id": 1788610426505,
+      "user_email": "nelsonmanishimwe@gmail.com",
+      "user_name": "Manishimwe Nelson",
+      "user_role": "customer",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1787853881019,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T12:13:46.506Z"
+    },
+    {
+      "id": 1788608766649,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-05T11:46:06.650Z"
+    },
     {
       "id": 1788606764547,
       "user_email": "systems@ncloud.co.ug",

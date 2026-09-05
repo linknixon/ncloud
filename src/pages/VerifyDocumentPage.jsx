@@ -41,25 +41,37 @@ export default function VerifyDocumentPage({ setActivePage }) {
     }
   }, [verifyResult]);
 
-  const performVerification = async (type = 'invoice', refId) => {
+  const performVerification = async (type = 'document', refId) => {
     if (!refId) return;
     setLoading(true);
     setError(null);
     try {
-      let inferredType = type || 'invoice';
-      const cleanRef = refId.trim().toUpperCase();
-      if (cleanRef.startsWith('QTN') || cleanRef.startsWith('QUO')) {
+      let inferredType = type || 'document';
+      const cleanRef = refId.trim().replace(/^#+/, '');
+      const upperRef = cleanRef.toUpperCase();
+
+      if (upperRef.startsWith('QTN') || upperRef.startsWith('QUO')) {
         inferredType = 'quote';
-      } else if (cleanRef.startsWith('TXN') || cleanRef.startsWith('PAY') || type === 'payment') {
+      } else if (upperRef.startsWith('TXN') || upperRef.startsWith('PAY') || type === 'payment') {
         inferredType = 'payment';
-      } else if (cleanRef.startsWith('INV')) {
+      } else if (upperRef.startsWith('WO') || upperRef.startsWith('WORK')) {
+        inferredType = 'work_order';
+      } else if (upperRef.startsWith('EXP')) {
+        inferredType = 'expense';
+      } else if (upperRef.startsWith('INV')) {
         inferredType = 'invoice';
       }
 
-      const res = await fetch(`/api/public/verify/${inferredType}/${encodeURIComponent(refId.trim())}`);
-      const data = await res.json();
-      if (!res.ok || !data.verified) {
-        throw new Error(data.error || 'Tax invoice or official document clearance certificate not found.');
+      const res = await fetch(`/api/public/verify/${inferredType}/${encodeURIComponent(cleanRef)}`);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error('Please check the reference number on your document and try again, or contact our finance department for assistance.');
+      }
+
+      if (!res.ok || !data || !data.verified) {
+        throw new Error(data?.error || 'Please check the reference number on your document and try again, or contact our finance department for assistance.');
       }
       setVerifyResult(data);
     } catch (err) {
@@ -311,7 +323,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     display: 'inline-block',
                     marginBottom: '0.4rem'
                   }}>
-                    {verifyResult.document_type || (isQuotation ? 'OFFICIAL COMMERCIAL QUOTATION' : 'OFFICIAL TAX INVOICE')}
+                    {verifyResult.document_type || (isWorkOrder ? 'OFFICIAL WORK ORDER' : isExpense ? 'OFFICIAL PAYMENT VOUCHER' : isQuotation ? 'OFFICIAL COMMERCIAL QUOTATION' : 'OFFICIAL TAX INVOICE')}
                   </div>
                   <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em', fontFamily: 'monospace' }}>
                     {verifyResult.document_number}
@@ -340,15 +352,20 @@ export default function VerifyDocumentPage({ setActivePage }) {
               {/* Dual Metadata Executive Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem' }}>
                 
-                {/* Client / Recipient Card */}
+                {/* Client / Recipient / Assigned Entity Card */}
                 <div style={{ background: '#f8fafc', padding: '1.15rem 1.25rem', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.45rem' }}>
-                    {isQuotation ? 'Prepared For Client:' : 'Billed To / Recipient Entity:'}
+                    {isWorkOrder ? 'Assigned Field Engineer & Deployment Site:' : isExpense ? 'Staff Beneficiary & Claimant:' : isQuotation ? 'Prepared For Client:' : 'Billed To / Recipient Entity:'}
                   </div>
                   <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#0f172a', marginBottom: '0.2rem' }}>
                     {verifyResult.customer_name || 'Corporate Customer'}
                   </div>
-                  {verifyResult.company && (
+                  {isWorkOrder && verifyResult.client_site && (
+                    <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e3a8a', marginBottom: '0.2rem' }}>
+                      Target Site: {verifyResult.client_site}
+                    </div>
+                  )}
+                  {verifyResult.company && !isWorkOrder && (
                     <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '0.2rem' }}>
                       {verifyResult.company}
                     </div>
@@ -358,9 +375,16 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       {verifyResult.customer_email}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.825rem', color: '#475569', marginTop: '2px' }}>
-                    {verifyResult.customer_address || 'Kampala, Republic of Uganda'}
-                  </div>
+                  {verifyResult.customer_phone && (
+                    <div style={{ fontSize: '0.825rem', color: '#475569' }}>
+                      Tel: {verifyResult.customer_phone}
+                    </div>
+                  )}
+                  {!isWorkOrder && !isExpense && (
+                    <div style={{ fontSize: '0.825rem', color: '#475569', marginTop: '2px' }}>
+                      {verifyResult.customer_address || 'Kampala, Republic of Uganda'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Document Specifications Card */}
@@ -374,19 +398,30 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       {new Date(verifyResult.issued_date || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
 
-                    <span style={{ fontWeight: '700', color: '#64748b' }}>{isQuotation ? 'Valid Until:' : 'Payment Due:'}</span>
-                    <span style={{ fontWeight: '800', color: '#0f172a' }}>
-                      {verifyResult.due_date || verifyResult.valid_until || 'Payable Upon Receipt'}
-                    </span>
+                    {isWorkOrder ? (
+                      <>
+                        <span style={{ fontWeight: '700', color: '#64748b' }}>Scheduled:</span>
+                        <span style={{ fontWeight: '800', color: '#0f172a' }}>{verifyResult.scheduled_date || 'Immediate'}</span>
+                        <span style={{ fontWeight: '700', color: '#64748b' }}>Charging Mode:</span>
+                        <span style={{ fontWeight: '800', color: '#0f172a' }}>{verifyResult.charging_mode || 'Daily Flat Rate'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight: '700', color: '#64748b' }}>{isQuotation ? 'Valid Until:' : 'Payment Due:'}</span>
+                        <span style={{ fontWeight: '800', color: '#0f172a' }}>
+                          {verifyResult.due_date || verifyResult.valid_until || 'Payable Upon Receipt'}
+                        </span>
+                      </>
+                    )}
 
                     <span style={{ fontWeight: '700', color: '#64748b' }}>Currency:</span>
                     <span style={{ fontWeight: '800', color: '#0f172a' }}>
                       {verifyResult.currency || 'UGX'} (Uganda Shillings)
                     </span>
 
-                    <span style={{ fontWeight: '700', color: '#64748b' }}>Clearance:</span>
+                    <span style={{ fontWeight: '700', color: '#64748b' }}>Verification:</span>
                     <span style={{ fontWeight: '800', color: '#16a34a' }}>
-                      ✓ Cryptographically Sealed & Verified
+                      ✓ Verified in Official Company Database
                     </span>
                   </div>
                 </div>
@@ -399,7 +434,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                   <thead>
                     <tr style={{ background: '#0f172a', color: '#ffffff', textAlign: 'left' }}>
                       <th style={{ padding: '0.75rem 1rem', fontWeight: '800', fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                        SERVICE / INFRASTRUCTURE DESCRIPTION
+                        {isWorkOrder ? 'TECHNICAL SCOPE OF WORK / SPECIFICATION' : isExpense ? 'EXPENSE CLASSIFICATION & PURPOSE' : 'SERVICE / INFRASTRUCTURE DESCRIPTION'}
                       </th>
                       <th style={{ padding: '0.75rem 0.65rem', textAlign: 'center', fontWeight: '800', fontSize: '0.8rem', width: '60px' }}>
                         QTY
@@ -413,36 +448,82 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayItems.map((it, idx) => {
-                      const qty = Number(it.quantity || it.qty || 1);
-                      const price = Number(it.unit_price || it.price || Math.round((it.amount || totalAmount) / qty));
-                      const itemTotal = Number(it.amount || (price * qty));
-                      const isEven = idx % 2 === 0;
-
-                      return (
-                        <tr key={idx} style={{ background: isEven ? '#ffffff' : '#f8fafc', borderBottom: idx < displayItems.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                          <td style={{ padding: '0.85rem 1rem' }}>
-                            <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.875rem' }}>
-                              {it.name || it.description || 'Enterprise Cloud VPS & Infrastructure Service'}
+                    {isWorkOrder ? (
+                      <tr style={{ background: '#ffffff' }}>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.875rem' }}>
+                            {verifyResult.task_title || 'Field Service Technical Deployment'}
+                          </div>
+                          {verifyResult.description && (
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                              {verifyResult.description}
                             </div>
-                            {it.short_description && (
-                              <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
-                                {it.short_description}
+                          )}
+                        </td>
+                        <td style={{ padding: '0.85rem 0.65rem', textAlign: 'center', fontWeight: '700', color: '#334155' }}>
+                          {verifyResult.quantity || 1}
+                        </td>
+                        <td style={{ padding: '0.85rem 0.85rem', textAlign: 'right', color: '#334155', fontWeight: '600' }}>
+                          {Number(verifyResult.rate || totalAmount).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: '800', color: '#0f172a' }}>
+                          {totalAmount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ) : isExpense ? (
+                      <tr style={{ background: '#ffffff' }}>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.875rem' }}>
+                            {verifyResult.category || 'Company Operational Expense'}
+                          </div>
+                          {verifyResult.description && (
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                              {verifyResult.description}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.85rem 0.65rem', textAlign: 'center', fontWeight: '700', color: '#334155' }}>
+                          1
+                        </td>
+                        <td style={{ padding: '0.85rem 0.85rem', textAlign: 'right', color: '#334155', fontWeight: '600' }}>
+                          {totalAmount.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: '800', color: '#0f172a' }}>
+                          {totalAmount.toLocaleString()}
+                        </td>
+                      </tr>
+                    ) : (
+                      displayItems.map((it, idx) => {
+                        const qty = Number(it.quantity || it.qty || 1);
+                        const price = Number(it.unit_price || it.price || Math.round((it.amount || totalAmount) / qty));
+                        const itemTotal = Number(it.amount || (price * qty));
+                        const isEven = idx % 2 === 0;
+
+                        return (
+                          <tr key={idx} style={{ background: isEven ? '#ffffff' : '#f8fafc', borderBottom: idx < displayItems.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                            <td style={{ padding: '0.85rem 1rem' }}>
+                              <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.875rem' }}>
+                                {it.name || it.description || 'Enterprise Cloud VPS & Infrastructure Service'}
                               </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '0.85rem 0.65rem', textAlign: 'center', fontWeight: '700', color: '#334155' }}>
-                            {qty}
-                          </td>
-                          <td style={{ padding: '0.85rem 0.85rem', textAlign: 'right', color: '#334155', fontWeight: '600' }}>
-                            {price.toLocaleString()}
-                          </td>
-                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: '800', color: '#0f172a' }}>
-                            {itemTotal.toLocaleString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                              {it.short_description && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
+                                  {it.short_description}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.85rem 0.65rem', textAlign: 'center', fontWeight: '700', color: '#334155' }}>
+                              {qty}
+                            </td>
+                            <td style={{ padding: '0.85rem 0.85rem', textAlign: 'right', color: '#334155', fontWeight: '600' }}>
+                              {price.toLocaleString()}
+                            </td>
+                            <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: '800', color: '#0f172a' }}>
+                              {itemTotal.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -583,18 +664,18 @@ export default function VerifyDocumentPage({ setActivePage }) {
               {/* Corporate Signatory & Authorized Approval Block */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '1rem' }}>
                 <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: '1.45', maxWidth: '380px' }}>
-                  This document is generated by Nova Cloud Edges (U) Limited automated billing & clearance gateway. Valid without physical handwritten signature when digitally stamped.
+                  Official business document issued by Nova Cloud Edges (U) Limited. Verification records are maintained on our secure system.
                 </div>
 
                 <div style={{ textAlign: 'right', minWidth: '220px' }}>
                   <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.25rem', color: '#0f172a', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '4px', display: 'inline-block' }}>
-                    Dr. Arthur Mukasa
+                    {docData.signatory || docData.created_by || 'Authorized Signatory'}
                   </div>
                   <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f172a' }}>
-                    Dr. Arthur Mukasa
+                    {docData.signatory || docData.created_by || 'Authorized Signatory'}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
-                    Director of Cloud Systems & Regional Operations
+                    Finance & Operations Lead
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: '700' }}>
                     Nova Cloud Edges (U) Limited

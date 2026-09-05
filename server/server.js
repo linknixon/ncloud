@@ -10,6 +10,7 @@ import nodemailer from 'nodemailer';
 import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import { registerTrebuchetFont } from './trebuchetFont.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,11 +56,11 @@ export async function sendMail({ to, subject, text, html, attachments }) {
   const host = (settings.host && settings.host.trim()) || process.env.SMTP_HOST;
   const port = Number(settings.port) || Number(process.env.SMTP_PORT) || 587;
   const securityType = settings.security_type || 'TLS';
-  const secure = securityType === 'SSL/TLS' || port === 465;
+  const secure = securityType === 'SSL/TLS' || securityType === 'SSL' || port === 465;
   const user = (settings.username && settings.username.trim()) || process.env.SMTP_USER;
   const pass = settings.password || process.env.SMTP_PASS;
   const senderName = settings.sender_name || 'Nova Cloud Edges Official Notifications';
-  const senderEmail = (settings.sender_email && settings.sender_email.trim()) || user || 'billing@ncloud.co.ug';
+  const senderEmail = (settings.sender_email && settings.sender_email.trim()) || user || 'alerts@ncloud.co.ug';
 
   if (!host) {
     console.warn('[SMTP Mailer WARNING] SMTP Host is not configured in settings or environment. Email delivery skipped.');
@@ -1865,7 +1866,7 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
         company: company || 'Nova Cloud Edges (U) Ltd',
         salary: salary ? Number(salary) : 3000000,
         supervisor_id: supervisor_id || 1,
-        supervisor_name: supervisor_name || 'Dr. Arthur Mukasa',
+        supervisor_name: supervisor_name || '',
         created_at: new Date().toISOString()
       };
       memoryStore.users.push(userRecord);
@@ -1965,7 +1966,7 @@ app.put('/api/admin/company-expenses/:id/approve', (req, res) => {
   const expense = memoryStore.staff_expenses.find(e => String(e.id) === String(id) || Number(e.id) === Number(id));
   if (expense) {
     expense.status = 'Approved by Supervisor';
-    expense.approved_by = approver_name || expense.supervisor_name || 'Dr. Arthur Mukasa';
+    expense.approved_by = approver_name || expense.supervisor_name || 'Management / Finance';
     expense.approved_at = new Date().toISOString();
     savePersistentStore();
     return res.json({ message: `Expenditure of UGX ${Number(expense.amount).toLocaleString()} approved by supervisor!`, expense });
@@ -2371,85 +2372,89 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
 
     savePersistentStore();
 
-    // 3. Send SMTP Notification Email to Sales Team (non-blocking)
-    try {
-      const defaultSales = 'sales@ncloud.co.ug';
-      const defaultBilling = 'billing@ncloud.co.ug';
-      const salesEmail = memoryStore.notification_emails?.sales || defaultSales;
-      const billingEmail = memoryStore.notification_emails?.billing || defaultBilling;
-      const targets = [...new Set([salesEmail, billingEmail])];
+    // 3. Send SMTP Notification Email to Sales Team (non-blocking in background)
+    (async () => {
+      try {
+        const defaultSales = 'sales@ncloud.co.ug';
+        const defaultBilling = 'billing@ncloud.co.ug';
+        const salesEmail = memoryStore.notification_emails?.sales || defaultSales;
+        const billingEmail = memoryStore.notification_emails?.billing || defaultBilling;
+        const targets = [...new Set([salesEmail, billingEmail])];
 
-      console.log('[DEBUG] Starting Sales Email send...');
-      const salesRes = await sendMail({
-        to: targets,
-        subject: `New Subscription Order Received: ${plan_name} (Invoice #${invNum})`,
-        html: generateCorporateEmailHtml({
-          title: 'New Subscription Order',
-          badgeText: 'Pending Payment',
-          recipientName: 'Sales Team',
-          introText: 'An official subscription order has been submitted via the Nova Website checkout portal.',
-          itemsRows: `
-            <tr><td><strong>Customer Name:</strong></td><td colspan="2" style="text-align:right;">${finalName}</td></tr>
-            <tr><td><strong>Email Address:</strong></td><td colspan="2" style="text-align:right;">${finalEmail}</td></tr>
-            <tr><td><strong>Phone Number:</strong></td><td colspan="2" style="text-align:right;">${finalPhone || 'N/A'}</td></tr>
-            <tr><td><strong>Company:</strong></td><td colspan="2" style="text-align:right;">${finalCompany || 'N/A'}</td></tr>
-            <tr><td><strong>Package(s):</strong></td><td colspan="2" style="text-align:right;">${plan_name}</td></tr>
-            <tr><td><strong>Duration:</strong></td><td colspan="2" style="text-align:right;">${dur}</td></tr>
-            <tr><td><strong>Status:</strong></td><td colspan="2" style="text-align:right;">Pending Payment</td></tr>
-            <tr><td><strong>Invoice Number:</strong></td><td colspan="2" style="text-align:right;">#${invNum}</td></tr>
-            <tr><td><strong>Order Reference:</strong></td><td colspan="2" style="text-align:right;">#${reference}</td></tr>
-            <tr><td><strong>Account Auto-Created:</strong></td><td colspan="2" style="text-align:right;">${isNewAccountCreated ? 'YES (Role: Customer)' : 'NO (Existing User Records Preserved)'}</td></tr>
-          `,
-          subtotalText: '-',
-          vatText: '-',
-          totalAmountText: `${currency || 'UGX'} ${Number(amount).toLocaleString()}`,
-          shareLink: 'https://ncloud.co.ug/admin',
-          ctaText: 'Login to Admin Dashboard',
-          ctaLink: 'https://ncloud.co.ug/admin'
-        })
-      });
-      console.log('[DEBUG] Sales Email Result:', salesRes);
-    } catch (err) {
-      console.error('[Checkout Email Warning - Sales]:', err.message);
-    }
+        console.log('[SMTP Checkout] Initiating non-blocking Sales Email notification...');
+        const salesRes = await sendMail({
+          to: targets,
+          subject: `New Subscription Order Received: ${plan_name} (Invoice #${invNum})`,
+          html: generateCorporateEmailHtml({
+            title: 'New Subscription Order',
+            badgeText: 'Pending Payment',
+            recipientName: 'Sales Team',
+            introText: 'An official subscription order has been submitted via the Nova Website checkout portal.',
+            itemsRows: `
+              <tr><td><strong>Customer Name:</strong></td><td colspan="2" style="text-align:right;">${finalName}</td></tr>
+              <tr><td><strong>Email Address:</strong></td><td colspan="2" style="text-align:right;">${finalEmail}</td></tr>
+              <tr><td><strong>Phone Number:</strong></td><td colspan="2" style="text-align:right;">${finalPhone || 'N/A'}</td></tr>
+              <tr><td><strong>Company:</strong></td><td colspan="2" style="text-align:right;">${finalCompany || 'N/A'}</td></tr>
+              <tr><td><strong>Package(s):</strong></td><td colspan="2" style="text-align:right;">${plan_name}</td></tr>
+              <tr><td><strong>Duration:</strong></td><td colspan="2" style="text-align:right;">${dur}</td></tr>
+              <tr><td><strong>Status:</strong></td><td colspan="2" style="text-align:right;">Pending Payment</td></tr>
+              <tr><td><strong>Invoice Number:</strong></td><td colspan="2" style="text-align:right;">#${invNum}</td></tr>
+              <tr><td><strong>Order Reference:</strong></td><td colspan="2" style="text-align:right;">#${reference}</td></tr>
+              <tr><td><strong>Account Auto-Created:</strong></td><td colspan="2" style="text-align:right;">${isNewAccountCreated ? 'YES (Role: Customer)' : 'NO (Existing User Records Preserved)'}</td></tr>
+            `,
+            subtotalText: '-',
+            vatText: '-',
+            totalAmountText: `${currency || 'UGX'} ${Number(amount).toLocaleString()}`,
+            shareLink: 'https://ncloud.co.ug/admin',
+            ctaText: 'Login to Admin Dashboard',
+            ctaLink: 'https://ncloud.co.ug/admin'
+          })
+        });
+        console.log('[SMTP Checkout] Sales Email Result:', salesRes?.success ? 'Delivered' : salesRes?.error);
+      } catch (err) {
+        console.error('[Checkout Email Warning - Sales]:', err.message);
+      }
+    })().catch(e => console.error('[Background Sales Email Error]:', e));
 
-    // 4. Send Official Corporate Tax Invoice Email to Customer (non-blocking)
-    try {
-      console.log('[DEBUG] Generating Corporate Email HTML...');
-      const customerEmailHtml = generateCorporateEmailHtml({
-        title: `Official Tax Invoice #${invNum}`,
-        badgeText: 'Invoice Generated - Pending Payment',
-        recipientName: finalName,
-        introText: `Thank you for your order! Your subscription order for <strong>"${plan_name}"</strong> has been received. Your official verifiable Tax Invoice <strong>#${invNum}</strong> (Order Ref: <strong>#${reference}</strong>) details are provided below. Status is currently <strong>Pending Payment</strong>.`,
-        itemsRows: inputItems.map(it => `
-          <tr>
-            <td style="padding: 10px 0; border-bottom: 1px solid #334155;">
-              <strong style="color: #ffffff;">${it.name || it.description}</strong><br/>
-              <span style="font-size: 11px; color: #94a3b8;">Order Ref: ${reference}</span>
-            </td>
-            <td style="text-align: center; padding: 10px 0; border-bottom: 1px solid #334155;">${it.quantity || it.qty || 1}</td>
-            <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #334155; font-weight: 700; color: #ffffff;">UGX ${Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || it.qty || 1))).toLocaleString()}</td>
-          </tr>
-        `).join(''),
-        subtotalText: `UGX ${Number(amount).toLocaleString()}`,
-        vatText: 'UGX 0 (Standard Statutory)',
-        totalAmountText: `UGX ${Number(amount).toLocaleString()}`,
-        shareLink: invoiceRecord.shareable_url,
-        ctaText: 'View & Print Official Invoice Online',
-        ctaLink: invoiceRecord.shareable_url,
-        footerNote: isNewAccountCreated ? `We created a new customer account for you. Login Email: <strong>${finalEmail}</strong> | Temp Password: <code style="background:#334155;padding:2px 6px;border-radius:4px;color:#38bdf8;">${tempPassword}</code>` : ''
-      });
+    // 4. Send Official Corporate Tax Invoice Email to Customer (non-blocking in background)
+    (async () => {
+      try {
+        console.log('[SMTP Checkout] Generating customer invoice email HTML...');
+        const customerEmailHtml = generateCorporateEmailHtml({
+          title: `Official Tax Invoice #${invNum}`,
+          badgeText: 'Invoice Generated - Pending Payment',
+          recipientName: finalName,
+          introText: `Thank you for your order! Your subscription order for <strong>"${plan_name}"</strong> has been received. Your official verifiable Tax Invoice <strong>#${invNum}</strong> (Order Ref: <strong>#${reference}</strong>) details are provided below. Status is currently <strong>Pending Payment</strong>.`,
+          itemsRows: inputItems.map(it => `
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #334155;">
+                <strong style="color: #ffffff;">${it.name || it.description}</strong><br/>
+                <span style="font-size: 11px; color: #94a3b8;">Order Ref: ${reference}</span>
+              </td>
+              <td style="text-align: center; padding: 10px 0; border-bottom: 1px solid #334155;">${it.quantity || it.qty || 1}</td>
+              <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #334155; font-weight: 700; color: #ffffff;">UGX ${Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || it.qty || 1))).toLocaleString()}</td>
+            </tr>
+          `).join(''),
+          subtotalText: `UGX ${Number(amount).toLocaleString()}`,
+          vatText: 'UGX 0 (Standard Statutory)',
+          totalAmountText: `UGX ${Number(amount).toLocaleString()}`,
+          shareLink: invoiceRecord.shareable_url,
+          ctaText: 'View & Print Official Invoice Online',
+          ctaLink: invoiceRecord.shareable_url,
+          footerNote: isNewAccountCreated ? `We created a new customer account for you. Login Email: <strong>${finalEmail}</strong> | Temp Password: <code style="background:#334155;padding:2px 6px;border-radius:4px;color:#38bdf8;">${tempPassword}</code>` : ''
+        });
 
-      console.log('[DEBUG] Starting Customer Email send...');
-      const custRes = await sendMail({
-        to: finalEmail,
-        subject: `Official Tax Invoice #${invNum} - Pending Payment (Nova Cloud Edges)`,
-        html: customerEmailHtml
-      });
-      console.log('[DEBUG] Customer Email Result:', custRes);
-    } catch (err) {
-      console.error('[Checkout Email Warning - Customer]:', err.message);
-    }
+        console.log('[SMTP Checkout] Initiating non-blocking Customer Email notification to:', finalEmail);
+        const custRes = await sendMail({
+          to: finalEmail,
+          subject: `Official Tax Invoice #${invNum} - Pending Payment (Nova Cloud Edges)`,
+          html: customerEmailHtml
+        });
+        console.log('[SMTP Checkout] Customer Email Result:', custRes?.success ? 'Delivered' : custRes?.error);
+      } catch (err) {
+        console.error('[Checkout Email Warning - Customer]:', err.message);
+      }
+    })().catch(e => console.error('[Background Customer Email Error]:', e));
 
     return res.json({
       success: true,
@@ -4012,7 +4017,7 @@ app.put('/api/admin/work-orders/:id/complete', async (req, res) => {
     id: Date.now(),
     staff_name: order.assigned_staff_name,
     staff_email: staffEmail,
-    supervisor_name: 'Dr. Arthur Mukasa',
+    supervisor_name: order.assigned_supervisor || '',
     category: 'Field Infrastructure Deployment',
     description: `Labor Payout for Work Order ${order.order_number}: ${order.task_title} (${order.quantity} ${order.charging_mode === 'per_hour' ? 'Hours' : 'Days'} @ UGX ${Number(order.rate || 0).toLocaleString()})`,
     amount: order.total_cost,
@@ -4318,12 +4323,25 @@ app.put('/api/admin/schedules/:id/toggle', (req, res) => {
 // ----------------------------------------------------
 // Public Document Verification (QR Code Scan Target)
 // ----------------------------------------------------
-app.get(['/api/public/verify/:type/:id', '/api/public/verify/:type'], (req, res) => {
+// Public Unified Document Verification Endpoint
+// Supports Invoices, Work Orders, Quotations, and Expense Vouchers
+// ----------------------------------------------------
+app.get(['/api/public/verify/:type/:id', '/api/public/verify/:type', '/api/public/verify'], (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   const paramType = req.params.type;
-  const paramId = req.params.id || paramType;
-  const searchRef = String(paramId || '').trim().toLowerCase();
+  const paramId = req.params.id || paramType || req.query.doc || req.query.ref || req.query.id;
+  const searchRef = String(paramId || '').trim().replace(/^#+/, '').toLowerCase();
 
-  const inv = (memoryStore.invoices || []).find(i => 
+  if (!searchRef) {
+    return res.status(400).json({
+      verified: false,
+      error: 'Please enter a valid document reference number (e.g., INV-..., WO-..., QTN-..., or EXP-...)'
+    });
+  }
+
+  // 1. Search Invoices
+  const allInvoices = [...(memoryStore.invoices || []), ...(memoryStore.staff_invoices || [])];
+  const inv = allInvoices.find(i => 
     String(i.id).toLowerCase() === searchRef ||
     (i.invoice_number || '').trim().toLowerCase() === searchRef ||
     (i.reference || '').trim().toLowerCase() === searchRef
@@ -4348,51 +4366,100 @@ app.get(['/api/public/verify/:type/:id', '/api/public/verify/:type'], (req, res)
       status: inv.status,
       due_date: inv.due_date,
       issued_date: inv.created_at,
-      efris_compliance: '100% Digital Document Clearance Verified',
       issuer: 'Nova Cloud Edges (U) Limited',
       invoice: inv,
       bank_remittance: memoryStore.bank_accounts || []
     });
-  } else if (cleanType === 'quote' || cleanType === 'quotation' || cleanType === 'qtn') {
-    const q = (memoryStore.quotations || []).find(item => String(item.id) === String(id) || item.quote_number === id);
-    if (q) {
-      return res.json({
-        verified: true,
-        document_type: 'Official Commercial Quotation',
-        document_number: q.quote_number,
-        customer_name: q.customer_name,
-        company: q.company,
-        total_amount: Number(q.total_amount),
-        currency: 'UGX',
-        status: q.status,
-        valid_until: q.valid_until,
-        issued_date: q.created_at,
-        issuer: 'Nova Cloud Edges (U) Limited',
-        bank_remittance: memoryStore.bank_accounts || []
-      });
-    }
-  } else if (cleanType === 'expense' || cleanType === 'exp') {
-    const exp = (memoryStore.staff_expenses || []).find(item => String(item.id) === String(id) || item.receipt_ref === id);
-    if (exp) {
-      return res.json({
-        verified: true,
-        document_type: 'Official Expenditure Claim Voucher',
-        document_number: exp.receipt_ref || `EXP-${exp.id}`,
-        customer_name: exp.staff_name,
-        company: 'Nova Cloud Edges Staff Roll',
-        total_amount: Number(exp.amount),
-        currency: 'UGX',
-        status: exp.status,
-        issued_date: exp.date || exp.created_at,
-        issuer: 'Nova Cloud Edges (U) Limited',
-        bank_remittance: memoryStore.bank_accounts || []
-      });
-    }
   }
 
-  res.status(404).json({
+  // 2. Search Work Orders
+  const wo = (memoryStore.work_orders || []).find(w =>
+    String(w.id).toLowerCase() === searchRef ||
+    (w.order_number || '').trim().toLowerCase() === searchRef
+  );
+  if (wo) {
+    const rateVal = Number(wo.rate || 0);
+    const qtyVal = Number(wo.quantity || 1);
+    const totalCost = Number(wo.total_cost || (rateVal * qtyVal));
+    return res.json({
+      verified: true,
+      document_type: 'Official Field Service Work Order',
+      document_number: wo.order_number,
+      customer_name: wo.assigned_staff_name || 'Field Support Specialist',
+      customer_email: wo.assigned_staff_email || '',
+      customer_phone: wo.customer_phone || '',
+      client_site: wo.client_site || 'Nova Primary Datacenter',
+      task_title: wo.task_title || 'Field Operations Technical Deployment',
+      description: wo.service_description || wo.description || '',
+      scheduled_date: wo.scheduled_date || 'Immediate',
+      completion_date: wo.completion_date || '',
+      charging_mode: wo.charging_mode === 'per_hour' ? 'Hourly Rate' : 'Daily Project Rate',
+      rate: rateVal,
+      quantity: qtyVal,
+      total_amount: totalCost,
+      currency: 'UGX',
+      status: wo.status || 'Completed',
+      issued_date: wo.created_at || wo.scheduled_date,
+      issuer: 'Nova Cloud Edges (U) Limited',
+      work_order: wo,
+      bank_remittance: memoryStore.bank_accounts || []
+    });
+  }
+
+  // 3. Search Quotations
+  const q = (memoryStore.quotations || []).find(item =>
+    String(item.id).toLowerCase() === searchRef ||
+    (item.quote_number || '').trim().toLowerCase() === searchRef
+  );
+  if (q) {
+    return res.json({
+      verified: true,
+      document_type: 'Official Commercial Quotation',
+      document_number: q.quote_number,
+      customer_name: q.customer_name,
+      customer_email: q.customer_email || '',
+      customer_phone: q.customer_phone || '',
+      company: q.company || '',
+      items: q.items || [],
+      total_amount: Number(q.total_amount),
+      currency: 'UGX',
+      status: q.status || 'Active',
+      valid_until: q.valid_until,
+      issued_date: q.created_at,
+      issuer: 'Nova Cloud Edges (U) Limited',
+      quotation: q,
+      bank_remittance: memoryStore.bank_accounts || []
+    });
+  }
+
+  // 4. Search Expense Vouchers
+  const exp = (memoryStore.staff_expenses || []).find(item =>
+    String(item.id).toLowerCase() === searchRef ||
+    (item.receipt_ref || '').trim().toLowerCase() === searchRef ||
+    (item.voucher_number || '').trim().toLowerCase() === searchRef
+  );
+  if (exp) {
+    return res.json({
+      verified: true,
+      document_type: 'Official Expenditure Payment Voucher',
+      document_number: exp.receipt_ref || `EXP-${exp.id}`,
+      customer_name: exp.staff_name || 'Staff Member',
+      customer_email: exp.staff_email || '',
+      category: exp.category || 'Company Expense',
+      description: exp.description || exp.purpose || '',
+      total_amount: Number(exp.amount),
+      currency: 'UGX',
+      status: exp.status || 'Approved',
+      issued_date: exp.date || exp.created_at,
+      issuer: 'Nova Cloud Edges (U) Limited',
+      expense: exp,
+      bank_remittance: memoryStore.bank_accounts || []
+    });
+  }
+
+  return res.status(404).json({
     verified: false,
-    error: 'Document not found or invalid verification token'
+    error: 'Please check the reference number on your document and try again, or contact our finance department for assistance.'
   });
 });
 
@@ -4525,15 +4592,31 @@ app.put('/api/admin/users/:id/status', (req, res) => {
 });
 
 // Admin Reset User Password
-app.put('/api/admin/users/:id/reset-password', (req, res) => {
+app.put('/api/admin/users/:id/reset-password', async (req, res) => {
   const { id } = req.params;
   const { new_password } = req.body;
-  const targetUser = memoryStore.users.find(u => u.id == id);
+  if (!new_password || !new_password.trim()) {
+    return res.status(400).json({ error: 'Please provide a valid new password.' });
+  }
+  const targetUser = (memoryStore.users || []).find(u => String(u.id) === String(id));
   if (!targetUser) return res.status(404).json({ error: 'User not found' });
   
+  const trimmed = new_password.trim();
+  const hashedPassword = await bcrypt.hash(trimmed, 10);
+
+  targetUser.passwordHash = hashedPassword;
+  targetUser.password_hash = hashedPassword;
   targetUser.password_reset_at = new Date().toISOString();
+  targetUser.password_changed_at = new Date().toISOString();
+
+  try {
+    await query('UPDATE users SET password_hash = ? WHERE id = ? OR email = ?', [hashedPassword, id, targetUser.email]);
+  } catch (dbErr) {
+    console.warn('[DB User Password Update Warning]:', dbErr.message);
+  }
+
   savePersistentStore();
-  res.json({ message: `Password reset successfully for ${targetUser.name}. Temporary access key issued.` });
+  res.json({ message: `Password reset successfully for ${targetUser.name}. User can now log in immediately with the new password.` });
 });
 
 // Delete User Account
@@ -4593,8 +4676,8 @@ const SERVER_BRAND = {
   address: 'Lugga Zone, Ndejje, Wakiso, Republic of Uganda',
   tin: '1014892019',
   contact: 'billing@ncloud.co.ug | Hotline: +256 790 001 631 | https://ncloud.co.ug',
-  signatory: 'Dr. Arthur Mukasa',
-  signatoryTitle: 'Director of Finance & Cloud Operations'
+  signatory: 'Authorized Signatory',
+  signatoryTitle: 'Director of Finance & Operations'
 };
 
 async function getServerQrDataUrl(url) {
@@ -4644,6 +4727,7 @@ function formatNinjaUGX(num) {
 
 export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
   const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
@@ -4699,7 +4783,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   try {
     doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 45, 15);
   } catch {
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(30, 58, 138);
     doc.text('NOVA CLOUD EDGES (U) LTD', 14, 18);
@@ -4709,7 +4793,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -4738,17 +4822,17 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -4760,7 +4844,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -4769,17 +4853,17 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('BILLED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Registered Client', 112, cardY + 15.5);
@@ -4790,7 +4874,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -4835,7 +4919,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -4845,12 +4929,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -4874,12 +4958,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   const totalsY = tableY + 6;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Invoice Terms:', 14, totalsY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = inv?.terms || 'This Invoice is valid for ONLY 2 weeks, and payment of at least 75% MUST be made before services are offered.';
@@ -4887,12 +4971,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text(termsText, 14, totalsY + 4.5);
 
   const verifyY = totalsY + 16;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -4913,7 +4997,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 150, rY, { align: 'right' });
@@ -4924,12 +5008,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -4942,6 +5026,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
 export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
 
   const quoteNum = sanitizePdfText(quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`);
   const qDate = formatNinjaDate(quote?.created_at || quote?.date || new Date());
@@ -4974,7 +5059,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   try {
     doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 45, 15);
   } catch {
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(30, 58, 138);
     doc.text('NOVA CLOUD EDGES (U) LTD', 14, 18);
@@ -4983,7 +5068,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -5012,17 +5097,17 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -5034,7 +5119,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -5043,17 +5128,17 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('PROPOSED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Enterprise Prospect', 112, cardY + 15.5);
@@ -5064,7 +5149,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -5128,7 +5213,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -5138,12 +5223,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -5167,12 +5252,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
   const totalsY = tableY + 6;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Commercial Terms & Scope:', 14, totalsY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = quote?.notes || 'Quotation valid for 30 days from date of issuance. Includes 24/7 priority support and enterprise SLA.';
@@ -5180,12 +5265,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.text(termsText, 14, totalsY + 4.5);
 
   const verifyY = totalsY + 16;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -5206,7 +5291,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('Helvetica', r.bold ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 150, rY, { align: 'right' });
@@ -5217,12 +5302,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -5251,12 +5336,14 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   } catch {}
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  registerTrebuchetFont(dummyDoc);
   const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
   const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
   const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
 
   const calculatedHeight = Math.max(160, 175 + (taskLines.length * 4.2) + (descLines.length * 3.8) + (siteLines.length * 3.8));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -5269,19 +5356,19 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('FIELD SERVICE WORK ORDER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -5302,7 +5389,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('WORK ORDER REF:', 8, y + 4.8);
@@ -5310,17 +5397,17 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${orderNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Scheduled Date:', 8, y + 9.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(wo?.scheduled_date || 'Immediate', 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.text('Status:', 8, y + 13.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   const isCompleted = wo?.status === 'Completed';
   doc.setTextColor(isCompleted ? 22 : 217, isCompleted ? 163 : 119, isCompleted ? 74 : 6);
   doc.text(`[ ${wo?.status || 'Active Dispatch'} ]`, 72, y + 13.5, { align: 'right' });
@@ -5328,27 +5415,27 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 18;
 
   // Deployment Site & Staff Details
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('DISPATCH & TARGET SITE DETAILS:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Assigned Engineer:', 5, y);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(staffName, 75, y, { align: 'right' });
   y += 4.2;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Deployment Site / Client:', 5, y);
   y += 3.8;
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   siteLines.forEach(line => {
     doc.text(line, 5, y);
@@ -5363,13 +5450,13 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 5;
 
   // Scope & Task Section
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('ASSIGNED TECHNICAL SCOPE OF WORK:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   taskLines.forEach(line => {
@@ -5378,7 +5465,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   });
 
   if (descLines.length > 0 && descLines[0] !== '') {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     descLines.forEach(line => {
@@ -5395,18 +5482,18 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 5;
 
   // Operations & Charging Schedule
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('OPERATIONS & BILLING SCHEDULE:', 5, y);
   y += 4.5;
 
   const printMetric = (label, val) => {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text(label, 5, y);
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setTextColor(15, 23, 42);
     doc.text(String(val), 75, y, { align: 'right' });
     y += 4.2;
@@ -5424,12 +5511,12 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL APPROVED JOB VALUE:', 8, y + 4.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(totalCost), 72, y + 10, { align: 'right' });
@@ -5437,13 +5524,13 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 18;
 
   // Verification Section
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -5457,7 +5544,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   }
 
   // Bottom text
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Official Field Operations Deployment Voucher', 40, y, { align: 'center' });
@@ -5484,12 +5571,14 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   } catch {}
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
+  registerTrebuchetFont(dummyDoc);
   const descLines = dummyDoc.splitTextToSize(desc, 68);
   const catLines = dummyDoc.splitTextToSize(category, 68);
   const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
   const calculatedHeight = Math.max(160, 175 + (descLines.length * 3.8) + (catLines.length * 3.8) + (staffLines.length > 1 ? staffLines.length * 3.8 : 0));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -5502,19 +5591,19 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('OFFICIAL EXPENDITURE PAYMENT VOUCHER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -5535,7 +5624,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('VOUCHER REF:', 8, y + 4.8);
@@ -5543,17 +5632,17 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${voucherNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Disbursed Date:', 8, y + 9.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(dateVal, 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.text('Voucher Status:', 8, y + 13.5);
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   const isPaidOrApp = status === 'Paid' || status === 'Approved' || status === 'Approved by Supervisor';
   doc.setTextColor(isPaidOrApp ? 22 : 217, isPaidOrApp ? 163 : 119, isPaidOrApp ? 74 : 6);
   doc.text(`[ ${status} ]`, 72, y + 13.5, { align: 'right' });
@@ -5561,13 +5650,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 18;
 
   // Beneficiary Staff Details
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('STAFF BENEFICIARY & CLAIMANT:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   staffLines.forEach(line => {
@@ -5576,7 +5665,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   });
 
   if (staffEmail) {
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(71, 85, 105);
     doc.text(staffEmail, 5, y);
@@ -5590,13 +5679,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 5;
 
   // Category & Purpose Details
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('EXPENSE CLASSIFICATION & PURPOSE:', 5, y);
   y += 4.5;
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   catLines.forEach(line => {
@@ -5604,7 +5693,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
     y += 3.8;
   });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   descLines.forEach(line => {
@@ -5624,12 +5713,12 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL DISBURSED AMOUNT:', 8, y + 4.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(amount), 72, y + 10, { align: 'right' });
@@ -5637,13 +5726,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 18;
 
   // Verification Section
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -5656,7 +5745,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Authorized Corporate Expenditure Disbursement', 40, y, { align: 'center' });
@@ -5668,6 +5757,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
 
 export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
   const pmtRef = pmt.reference || `PAY-${pmt.id || '2026-0001'}`;
   const invNum = pmt.invoice_number || 'INV-2026-0001';
   const cName = pmt.party_name || options.customerName || 'Valued Corporate Customer';
@@ -5695,7 +5785,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES', textX, 18);
@@ -5703,7 +5793,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setTextColor(22, 163, 74);
   doc.text('(U) LIMITED', textX + 62, 18);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(SERVER_BRAND.tagline, textX, 23);
@@ -5711,12 +5801,12 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.text(SERVER_BRAND.contact, textX, 32);
 
   // Header Right
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(15, 23, 42);
   doc.text('PAYMENT RECEIPT', 196, 19, { align: 'right' });
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(22, 163, 74);
   doc.text(pmtRef, 196, 25, { align: 'right' });
@@ -5730,7 +5820,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setDrawColor(isCleared ? 34 : 217, isCleared ? 197 : 119, isCleared ? 94 : 6);
   doc.setLineWidth(0.4);
   doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(isCleared ? 22 : 180, isCleared ? 163 : 83, isCleared ? 74 : 9);
   doc.text(isCleared ? '100% CLEARANCE CONFIRMED' : 'PARTIAL REMITTANCE', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
@@ -5749,17 +5839,17 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, metaY, colW, 30, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(22, 163, 74);
   doc.text('RECEIVED FROM (PAYEE DETAILS):', 18, metaY + 6);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 36), 18, metaY + 11.5);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text(`Email: ${cEmail}`, 18, metaY + 16.5);
@@ -5771,12 +5861,12 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(rX, metaY, colW, 30, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(22, 163, 74);
   doc.text('SETTLEMENT AUDIT METRICS:', rX + 4, metaY + 6);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('Transaction Ref:', rX + 4, metaY + 12);
@@ -5784,7 +5874,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.text('Settlement Timestamp:', rX + 4, metaY + 21);
   doc.text('Reconciliation State:', rX + 4, metaY + 25.5);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(pmtRef, rX + 40, metaY + 12);
   doc.text(pmtMethod, rX + 40, metaY + 16.5);
@@ -5799,18 +5889,18 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setLineWidth(0.5);
   doc.roundedRect(14, bannerY, 182, 38, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(22, 163, 74);
   doc.text('OFFICIAL SETTLEMENT DISCHARGE CONFIRMATION', 18, bannerY + 7);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(51, 65, 85);
   doc.text('Nova Cloud Edges Finance Automation confirms successful receipt and reconciliation of payment', 18, bannerY + 14);
   doc.text(`credited against Tax Invoice #${invNum} via ${pmtMethod}.`, 18, bannerY + 19);
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(21, 128, 61);
   doc.text(`AMOUNT RECEIVED: UGX ${paidAmt.toLocaleString()}`, 18, bannerY + 31);
@@ -5822,17 +5912,17 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, detailY, 182, 40, 2, 2, 'FD');
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(22, 163, 74);
-  doc.text('TRANSACTION LEDGER BREAKDOWN', 18, detailY + 6.5);
+  doc.text('PAYMENT BREAKDOWN', 18, detailY + 6.5);
 
   const printRow = (lbl, val, yOff, isBold = false, col = [15, 23, 42]) => {
-    doc.setFont('Helvetica', isBold ? 'bold' : 'normal');
+    doc.setFont('TrebuchetMS', isBold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
     doc.text(lbl, 20, detailY + yOff);
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.setTextColor(...col);
     doc.text(val, 190, detailY + yOff, { align: 'right' });
   };
@@ -5840,7 +5930,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   printRow('Settled Installment Amount:', `UGX ${paidAmt.toLocaleString()}`, 14, false);
   printRow('Clearance Fee / Processing Charge:', 'UGX 0 (Absorbed by Nova Cloud)', 20, false);
   printRow('Statutory Tax Status:', 'URA EFRIS Verified Tax Invoice Settlement', 26, false);
-  printRow('Net Ledger Credit to Account:', `UGX ${paidAmt.toLocaleString()}`, 33, true, [22, 163, 74]);
+  printRow('Net Amount Credited to Account:', `UGX ${paidAmt.toLocaleString()}`, 33, true, [22, 163, 74]);
 
   // Signatory & QR Verification Card
   const signBlockY = detailY + 46;
@@ -5855,15 +5945,15 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
     } catch {}
   }
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   doc.text('OFFICIAL PAYMENT VERIFICATION', 48, signBlockY + 9);
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
   doc.text('This electronic receipt constitutes an official legal discharge for the funds stated.', 48, signBlockY + 14);
-  doc.text('Verify authenticity on the Nova Cloud cryptographic ledger.', 48, signBlockY + 18.5);
+  doc.text('Verify authenticity online at ncloud.co.ug/verify.', 48, signBlockY + 18.5);
   doc.setTextColor(22, 163, 74);
   doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(pmtRef)}`, 48, signBlockY + 23);
 
@@ -5871,17 +5961,17 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.line(135, signBlockY + 21, 190, signBlockY + 21);
 
-  doc.setFont('Helvetica', 'italic');
+  doc.setFont('TrebuchetMS', 'italic');
   doc.setFontSize(8.5);
   doc.setTextColor(22, 163, 74);
   doc.text(SERVER_BRAND.signatory, 162.5, signBlockY + 18, { align: 'center' });
 
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(15, 23, 42);
   doc.text('AUTHORIZED FINANCE OFFICER', 162.5, signBlockY + 25, { align: 'center' });
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Treasury & Billing Automation', 162.5, signBlockY + 29, { align: 'center' });
@@ -5891,7 +5981,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setLineWidth(0.4);
   doc.line(14, 282, 196, 282);
 
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184);
   doc.text(`Official Receipt issued by ${SERVER_BRAND.name} • Certified URA Tax Compliant • Page 1 of 1`, 105, 287, { align: 'center' });
