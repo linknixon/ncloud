@@ -662,10 +662,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
                 <div style={{ textAlign: 'right', minWidth: '220px' }}>
                   <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.25rem', color: '#0f172a', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '4px', display: 'inline-block' }}>
-                    {docData.signatory || docData.created_by || 'Authorized Signatory'}
+                    {verifyResult?.signatory || verifyResult?.created_by || 'Authorized Signatory'}
                   </div>
                   <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f172a' }}>
-                    {docData.signatory || docData.created_by || 'Authorized Signatory'}
+                    {verifyResult?.signatory || verifyResult?.created_by || 'Authorized Signatory'}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
                     Finance & Operations Lead

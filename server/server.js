@@ -41,13 +41,24 @@ function loadPersistentStore() {
   return null;
 }
 
-export function savePersistentStore() {
-  try {
-    if (typeof memoryStore !== 'undefined' && memoryStore) {
-      fs.writeFileSync(persistentStorePath, JSON.stringify(memoryStore, null, 2), 'utf8');
+let saveStoreTimeout = null;
+export function savePersistentStore(immediate = false) {
+  const executeSave = () => {
+    try {
+      if (typeof memoryStore !== 'undefined' && memoryStore) {
+        fs.writeFileSync(persistentStorePath, JSON.stringify(memoryStore, null, 2), 'utf8');
+      }
+    } catch (err) {
+      console.error('[Database Persistence] Warning writing persistentStore.json:', err.message);
     }
-  } catch (err) {
-    console.error('[Database Persistence] Warning writing persistentStore.json:', err.message);
+  };
+
+  if (immediate) {
+    if (saveStoreTimeout) clearTimeout(saveStoreTimeout);
+    executeSave();
+  } else {
+    if (saveStoreTimeout) clearTimeout(saveStoreTimeout);
+    saveStoreTimeout = setTimeout(executeSave, 800);
   }
 }
 
@@ -771,9 +782,18 @@ if (loadedDiskStore) {
       memoryStore[key] = loadedDiskStore[key];
     } else if (typeof loadedDiskStore[key] === 'object' && loadedDiskStore[key] !== null) {
       memoryStore[key] = { ...memoryStore[key], ...loadedDiskStore[key] };
+    } else {
+      memoryStore[key] = loadedDiskStore[key];
     }
   });
   console.log(`[Database Persistence] Restored ${memoryStore.users?.length || 0} total system users from persistent disk store.`);
+}
+
+if (!memoryStore.site_logo) {
+  memoryStore.site_logo = '/nova_logo_official.png';
+}
+if (!memoryStore.site_favicon) {
+  memoryStore.site_favicon = '/nova_logo_official.png';
 }
 
 if (!memoryStore.delivery_notes) {
@@ -1673,8 +1693,19 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
   return res.json({ message: 'Password updated successfully' });
 });
 
-// Protect all admin endpoints
-app.use('/api/admin', verifyToken, requireCRUDAS);
+// Protect admin endpoints, while allowing public read access to branding/identity settings
+app.use('/api/admin', (req, res, next) => {
+  if (req.method === 'GET' && (
+    req.path === '/settings/logo' || 
+    req.path === '/settings/favicon' || 
+    req.path === '/settings/stamp' || 
+    req.path === '/settings/paid-stamp' || 
+    req.path === '/topbar-settings'
+  )) {
+    return next();
+  }
+  return verifyToken(req, res, () => requireCRUDAS(req, res, next));
+});
 
 // ----------------------------------------------------
 // Product Categories Endpoints
@@ -3590,10 +3621,15 @@ app.get('/api/admin/settings', (req, res) => {
   });
 });
 
+app.get('/api/admin/settings/paid-stamp', (req, res) => {
+  res.json({ paidStamp: memoryStore.paid_stamp || null });
+});
+
 app.post('/api/admin/settings/paid-stamp', (req, res) => {
   const { paidStamp } = req.body;
-  memoryStore.paid_stamp = paidStamp;
-  res.json({ message: 'Official PAID Stamp image updated successfully in System Brand Settings!', paidStamp });
+  memoryStore.paid_stamp = paidStamp || null;
+  savePersistentStore();
+  res.json({ message: 'Official PAID Stamp image updated successfully in System Brand Settings!', paidStamp: memoryStore.paid_stamp });
 });
 
 app.get('/api/admin/payments', (req, res) => {
@@ -4103,6 +4139,18 @@ app.post('/api/admin/settings/favicon', (req, res) => {
   savePersistentStore();
   console.log('[System Settings] Updated persistent site favicon');
   res.json({ success: true, faviconUrl: memoryStore.site_favicon });
+});
+
+app.get('/api/admin/settings/stamp', (req, res) => {
+  res.json({ stampUrl: memoryStore.paid_stamp || '' });
+});
+
+app.post('/api/admin/settings/stamp', (req, res) => {
+  const { stampUrl } = req.body;
+  memoryStore.paid_stamp = stampUrl || null;
+  savePersistentStore();
+  console.log('[System Settings] Updated persistent corporate paid stamp');
+  res.json({ success: true, stampUrl: memoryStore.paid_stamp });
 });
 
 // ----------------------------------------------------
@@ -5306,7 +5354,17 @@ app.put('/api/admin/schedules/:id/toggle', (req, res) => {
 // Public Unified Document Verification Endpoint
 // Supports Invoices, Work Orders, Quotations, and Expense Vouchers
 // ----------------------------------------------------
-app.get(['/api/public/verify/:type/:id', '/api/public/verify/:type', '/api/public/verify'], (req, res) => {
+app.get([
+  '/api/public/verify/:type/:id', 
+  '/api/public/verify/:type', 
+  '/api/public/verify',
+  '/api/documents/verify/:type/:id',
+  '/api/documents/verify/:type',
+  '/api/documents/verify',
+  '/api/verify/:type/:id',
+  '/api/verify/:type',
+  '/api/verify'
+], (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   const paramType = req.params.type;
   const paramId = req.params.id || paramType || req.query.doc || req.query.ref || req.query.id;

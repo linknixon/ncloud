@@ -123,13 +123,24 @@ export function AppProvider({ children }) {
     };
 
     syncUserProfile();
-    const interval = setInterval(syncUserProfile, 3000);
+    // Optimized profile sync: listen to events and recheck only every 60s when tab is active
+    const interval = setInterval(() => {
+      if (!document.hidden) syncUserProfile();
+    }, 60000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) syncUserProfile();
+    };
+
     window.addEventListener('user_profile_updated', syncUserProfile);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('user_profile_updated', syncUserProfile);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [user?.email, user?.id, user?.name, user?.role, user?.phone, user?.company, user?.department, user?.position, user?.status, user?.avatar_url, user?.supervisor_name]);
+  }, [user?.id, user?.email]);
 
   const toggleTheme = () => {
     setTheme(prev => {
@@ -221,8 +232,8 @@ export function AppProvider({ children }) {
     };
   }, [user]);
 
-  const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('site_logo') || '');
-  const [siteFavicon, setSiteFavicon] = useState(() => localStorage.getItem('site_favicon') || '');
+  const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('site_logo') || '/nova_logo_official.png');
+  const [siteFavicon, setSiteFavicon] = useState(() => localStorage.getItem('site_favicon') || '/nova_logo_official.png');
 
   const applyFavicon = (url) => {
     if (!url) return;

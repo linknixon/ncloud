@@ -559,24 +559,43 @@ export default function ShopCheckoutModal() {
                 />
               </div>
 
-              {/* Optional VAT Checkbox */}
-              <div style={{
-                background: 'var(--bg-main)',
-                padding: '0.85rem 1rem',
-                borderRadius: '10px',
-                border: '1px solid var(--border-color)',
-                marginBottom: '1.25rem'
-              }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={includeVat}
-                    onChange={e => setIncludeVat(e.target.checked)}
-                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-                  />
-                  <span>Add 18% Value Added Tax (VAT) for Official Tax Invoice <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>(Optional Tax Invoice VAT)</span></span>
-                </label>
-              </div>
+              {/* Tax & VAT Option Checkbox */}
+              {(() => {
+                const isAdmin = user && (user.role === 'super_admin' || user.role === 'admin');
+                return (
+                  <div style={{
+                    background: 'var(--bg-main)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    marginBottom: '1.25rem'
+                  }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: isAdmin ? 'pointer' : 'default', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={includeVat}
+                        disabled={!isAdmin}
+                        onChange={e => {
+                          if (isAdmin) setIncludeVat(e.target.checked);
+                        }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: isAdmin ? 'pointer' : 'not-allowed' }}
+                      />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        Add 18% Value Added Tax (VAT) for Official Tax Invoice
+                        {!isAdmin ? (
+                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
+                            Standard Uganda VAT (Admin override only)
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: '700' }}>
+                            Admin Override Active
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  </div>
+                );
+              })()}
 
               {/* Order Summary Financial Breakdown */}
               <div style={{

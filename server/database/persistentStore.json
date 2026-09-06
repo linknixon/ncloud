@@ -2542,5 +2542,7 @@
       "notes": "Goods delivered in 100% working condition.",
       "created_at": "2026-09-06T07:23:08.037Z"
     }
-  ]
+  ],
+  "site_logo": "/nova_logo_official.png",
+  "site_favicon": "/nova_logo_official.png"
 }

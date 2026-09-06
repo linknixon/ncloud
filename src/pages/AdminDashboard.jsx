@@ -1075,24 +1075,25 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const handleFetchPaidStamp = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/paid-stamp');
+      const data = await res.json();
+      if (data && data.paidStamp) {
+        setPaidStamp(data.paidStamp);
+        localStorage.setItem('nova_paid_stamp', data.paidStamp);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
-    const loadAllDashboardData = (isSilent = false) => {
-      fetchDashboardData(isSilent);
+    // 1. Static and catalog content: load once on dashboard mount
+    const loadStaticContent = () => {
       fetchBankAccounts();
-      fetchQuotations();
-      fetchWorkOrders();
-      fetchUnifiVouchers();
-      fetchSchedules();
-      fetchRoles();
-      fetchForensics();
       fetchBannerSettings();
       fetchProductCategories();
-      if (!isSilent) {
-        handleFetchSmtpSettings();
-        handleFetchNotificationEmails();
-        handleFetchSecuritySettings();
-      }
-      loadAnalyticsData();
+      fetchRoles();
+      handleFetchPaidStamp();
 
       fetch('/api/admin/applications')
         .then(res => res.json())
@@ -1133,21 +1134,50 @@ const normalizeTabName = (rawTab) => {
         .then(res => res.json())
         .then(nw => { if (Array.isArray(nw) && nw.length > 0) setNewsList(nw); })
         .catch(() => {});
+    };
+
+    // 2. Transactional & operational data
+    const loadTransactionalData = (isSilent = false) => {
+      fetchDashboardData(isSilent);
+      fetchQuotations();
+      fetchWorkOrders();
+      fetchUnifiVouchers();
+      fetchSchedules();
+      fetchForensics();
+      loadAnalyticsData();
 
       fetch('/api/admin/company-expenses')
         .then(res => res.json())
         .then(exp => { if (Array.isArray(exp) && exp.length > 0) setCompanyExpensesList(exp); })
         .catch(() => {});
+
+      if (!isSilent) {
+        handleFetchSmtpSettings();
+        handleFetchNotificationEmails();
+        handleFetchSecuritySettings();
+      }
     };
 
-    loadAllDashboardData(false);
+    loadStaticContent();
+    loadTransactionalData(false);
 
-    // Auto-update dashboard live every 5 seconds silently without page flash
+    // Optimized auto-update: checks only when the tab is actively visible every 45s
     const autoRefreshInterval = setInterval(() => {
-      loadAllDashboardData(true);
-    }, 5000);
+      if (document.hidden) return;
+      loadTransactionalData(true);
+    }, 45000);
 
-    return () => clearInterval(autoRefreshInterval);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadTransactionalData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(autoRefreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
