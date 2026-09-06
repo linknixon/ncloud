@@ -552,6 +552,8 @@ const normalizeTabName = (rawTab) => {
   const [securitySettings, setSecuritySettings] = useState({
     turnstile_site_key: '', turnstile_secret_key: '', is_active: false
   });
+  const [showTurnstileSecret, setShowTurnstileSecret] = useState(false);
+  const isSecurityDirty = React.useRef(false);
 
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
   const [testingSmtp, setTestingSmtp] = useState(false);
@@ -1084,9 +1086,11 @@ const normalizeTabName = (rawTab) => {
       fetchForensics();
       fetchBannerSettings();
       fetchProductCategories();
-      handleFetchSmtpSettings();
-      handleFetchNotificationEmails();
-      handleFetchSecuritySettings();
+      if (!isSilent) {
+        handleFetchSmtpSettings();
+        handleFetchNotificationEmails();
+        handleFetchSecuritySettings();
+      }
       loadAnalyticsData();
 
       fetch('/api/admin/applications')
@@ -2721,14 +2725,22 @@ const normalizeTabName = (rawTab) => {
     } catch (err) {}
   }
 
-  async function handleFetchSecuritySettings() {
+  async function handleFetchSecuritySettings(force = false) {
+    if (isSecurityDirty.current && !force) return;
     try {
       const res = await fetch('/api/admin/security-settings', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setSecuritySettings(prev => ({ ...prev, ...data }));
+        if (!isSecurityDirty.current || force) {
+          setSecuritySettings(prev => ({
+            turnstile_site_key: data.turnstile_site_key || '',
+            turnstile_secret_key: data.turnstile_secret_key || '',
+            is_active: !!data.is_active,
+            ...data
+          }));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -2767,16 +2779,22 @@ const normalizeTabName = (rawTab) => {
     setSavingSecurity(true);
     try {
       const token = localStorage.getItem('token');
+      const payload = {
+        turnstile_site_key: (securitySettings.turnstile_site_key || '').trim(),
+        turnstile_secret_key: (securitySettings.turnstile_secret_key || '').trim(),
+        is_active: !!securitySettings.is_active
+      };
       const res = await fetch('/api/admin/security-settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : ''
         },
-        body: JSON.stringify(securitySettings)
+        body: JSON.stringify(payload)
       });
       const resData = await res.json().catch(() => ({}));
       if (res.ok && resData.success !== false) {
+        isSecurityDirty.current = false;
         showToast('Cloudflare Security Settings saved successfully!', 'success');
         if (resData.settings) {
           setSecuritySettings(prev => ({ ...prev, ...resData.settings }));
@@ -11643,8 +11661,12 @@ const normalizeTabName = (rawTab) => {
                               color: securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444',
                               border: `1px solid ${securitySettings.is_active ? 'var(--accent-emerald)' : '#ef4444'}`
                             }}
-                            value={securitySettings.is_active ? 'true' : 'false'}
-                            onChange={e => setSecuritySettings({ ...securitySettings, is_active: e.target.value === 'true' })}
+                            value={securitySettings?.is_active ? 'true' : 'false'}
+                            onChange={e => {
+                              isSecurityDirty.current = true;
+                              const val = e.target.value === 'true';
+                              setSecuritySettings(prev => ({ ...prev, is_active: val }));
+                            }}
                           >
                             <option value="true">● CAPTCHA Active</option>
                             <option value="false">○ Disabled (Off)</option>
@@ -11658,19 +11680,51 @@ const normalizeTabName = (rawTab) => {
                               type="text"
                               className="form-input"
                               placeholder="0x4AAAAAA..."
-                              value={securitySettings.turnstile_site_key || ''}
-                              onChange={e => setSecuritySettings({ ...securitySettings, turnstile_site_key: e.target.value })}
+                              value={securitySettings?.turnstile_site_key || ''}
+                              onPaste={() => { isSecurityDirty.current = true; }}
+                              onChange={e => {
+                                isSecurityDirty.current = true;
+                                const val = e.target.value;
+                                setSecuritySettings(prev => ({ ...prev, turnstile_site_key: val }));
+                              }}
                             />
                           </div>
                           <div className="form-group">
-                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Secret Key</label>
-                            <input
-                              type="password"
-                              className="form-input"
-                              placeholder="0x4AAAAAA..."
-                              value={securitySettings.turnstile_secret_key || ''}
-                              onChange={e => setSecuritySettings({ ...securitySettings, turnstile_secret_key: e.target.value })}
-                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Secret Key</label>
+                              <button
+                                type="button"
+                                onClick={() => setShowTurnstileSecret(!showTurnstileSecret)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  color: 'var(--text-muted)',
+                                  fontSize: '0.75rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  padding: 0,
+                                  marginBottom: '0.2rem'
+                                }}
+                              >
+                                {showTurnstileSecret ? <><EyeOff size={13} /> Hide Key</> : <><Eye size={13} /> View Key</>}
+                              </button>
+                            </div>
+                            <div style={{ position: 'relative' }}>
+                              <input
+                                type={showTurnstileSecret ? "text" : "password"}
+                                className="form-input"
+                                placeholder="0x4AAAAAA..."
+                                value={securitySettings?.turnstile_secret_key || ''}
+                                onPaste={() => { isSecurityDirty.current = true; }}
+                                onChange={e => {
+                                  isSecurityDirty.current = true;
+                                  const val = e.target.value;
+                                  setSecuritySettings(prev => ({ ...prev, turnstile_secret_key: val }));
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
 
