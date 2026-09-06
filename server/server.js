@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
@@ -1022,6 +1023,194 @@ async function verifyTurnstile(req, res, next) {
 }
 
 // ----------------------------------------------------
+// Password Policy & Common Password Detection
+// ----------------------------------------------------
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', 'pass1234', 'p@ssword', 'p@ssw0rd',
+  '123456', '1234567', '12345678', '123456789', '1234567890', '00000000', '11111111', '87654321',
+  'qwerty', 'qwerty1', 'qwerty123', 'qwertz123', 'asdfghjk', 'zxcvbnm1',
+  'admin', 'admin123', 'admin2024', 'admin2025', 'admin2026', 'administrator', 'root1234',
+  'welcome', 'welcome1', 'welcome123', 'letmein1', 'iloveyou1', 'monkey123',
+  'novacloud', 'novacloud123', 'ncloud123', 'ncloud2026', 'testing123', 'default123',
+  'dragon123', 'master123', 'sunshine1', 'football1', 'secret123', 'login123'
+]);
+
+function validatePasswordStrength(password, userEmail = '', userName = '') {
+  if (!password || typeof password !== 'string') {
+    return { isValid: false, error: 'Password is required.' };
+  }
+
+  if (password.length < 8) {
+    return { isValid: false, error: 'Password must be at least 8 characters long.' };
+  }
+
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  if (!hasLetter || !hasNumber) {
+    return { isValid: false, error: 'Password must contain both letters and numbers for adequate security.' };
+  }
+
+  const clean = password.toLowerCase().trim();
+
+  if (COMMON_PASSWORDS.has(clean)) {
+    return { isValid: false, error: 'This password is too common and easily guessed. Please choose a more unique password.' };
+  }
+
+  // Detect common dictionary words with simple digit/symbol suffixes (e.g. admin12345, password2026, welcome99)
+  const commonBasePattern = /^(password|passcode|admin|administrator|welcome|qwerty|letmein|novacloud|ncloud|changeme|guest|system|testing|default|portal)[0-9!@#$%^&*_\-.]*$/i;
+  if (commonBasePattern.test(clean)) {
+    return { isValid: false, error: 'This password is based on a common easily guessed word. Please choose a more unique password.' };
+  }
+
+  // Detect simple repeated character sequences
+  if (/^(.)\1+$/.test(clean) || /^(.{2,4})\1+$/.test(clean)) {
+    return { isValid: false, error: 'Password contains repetitive patterns. Please choose a stronger password.' };
+  }
+
+  // Detect if password matches the email prefix
+  if (userEmail && typeof userEmail === 'string') {
+    const emailPrefix = userEmail.split('@')[0].toLowerCase().trim();
+    if (emailPrefix.length >= 3 && (clean === emailPrefix || clean === emailPrefix + '123' || clean === emailPrefix + '1')) {
+      return { isValid: false, error: 'Password cannot be derived from your email address.' };
+    }
+  }
+
+  // Detect if password matches user's name
+  if (userName && typeof userName === 'string') {
+    const cleanName = userName.toLowerCase().replace(/\s+/g, '');
+    if (cleanName.length >= 3 && (clean === cleanName || clean === cleanName + '123' || clean === cleanName + '1')) {
+      return { isValid: false, error: 'Password cannot be derived from your name.' };
+    }
+  }
+
+  return { isValid: true };
+}
+
+// ----------------------------------------------------
+// Email Verification & Welcome Email Dispatchers
+// ----------------------------------------------------
+async function sendVerificationEmail(user, req) {
+  const xForwardedHost = (req.headers['x-forwarded-host'] || '').toLowerCase();
+  const host = (xForwardedHost || req.headers.host || '').toLowerCase();
+  const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+  const baseUrl = host.includes('ncloud.co.ug') 
+    ? 'https://ncloud.co.ug' 
+    : `${protocol}://${host || 'localhost:3000'}`;
+
+  const verifyUrl = `${baseUrl}/verify-email?token=${user.verification_token}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { background: #0a192f; padding: 30px; text-align: center; color: #ffffff; }
+        .content { padding: 35px 30px; line-height: 1.6; }
+        .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0; }
+        .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        .url-box { background: #f8fafc; padding: 10px; border-radius: 6px; font-size: 11px; word-break: break-all; border: 1px dashed #cbd5e1; margin-top: 15px; color: #475569; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>
+          <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
+        </div>
+        <div class="content">
+          <h3 style="margin-top: 0; color: #0f172a;">Activate Your Account</h3>
+          <p>Dear <strong>${user.name || 'Valued Customer'}</strong>,</p>
+          <p>Thank you for registering with Nova Cloud Edges. To activate your cloud portal account and verify your email address, please click the button below:</p>
+          <div style="text-align: center;">
+            <a href="${verifyUrl}" class="btn" target="_blank">Verify & Activate Account</a>
+          </div>
+          <p style="font-size: 13px; color: #64748b;">This verification link will expire in 24 hours. For security reasons, you cannot log in until your email is confirmed.</p>
+          <div class="url-box">
+            If the button doesn't work, copy and paste this URL into your browser:<br>
+            <a href="${verifyUrl}" style="color: #2563eb;">${verifyUrl}</a>
+          </div>
+        </div>
+        <div class="footer">
+          Lugga Zone, Ndejje, Wakiso, Uganda | support@ncloud.co.ug | +256 790 001 631<br>
+          © ${new Date().getFullYear()} Nova Cloud Edges (U) Ltd. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({
+    to: user.email,
+    subject: 'Activate Your Nova Cloud Account — Email Verification Required',
+    html
+  });
+}
+
+async function sendAdminCreatedUserEmail(user, rawPassword, req) {
+  const xForwardedHost = (req.headers['x-forwarded-host'] || '').toLowerCase();
+  const host = (xForwardedHost || req.headers.host || '').toLowerCase();
+  const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+  const baseUrl = host.includes('ncloud.co.ug') 
+    ? 'https://ncloud.co.ug' 
+    : `${protocol}://${host || 'localhost:3000'}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { background: #0a192f; padding: 30px; text-align: center; color: #ffffff; }
+        .content { padding: 35px 30px; line-height: 1.6; }
+        .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0; }
+        .cred-box { background: #f1f5f9; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 15px 0; }
+        .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>
+          <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
+        </div>
+        <div class="content">
+          <h3 style="margin-top: 0; color: #0f172a;">Welcome to Nova Cloud Portal</h3>
+          <p>Dear <strong>${user.name}</strong>,</p>
+          <p>An administrator has created an authorized portal account for you at Nova Cloud Edges with the assigned role: <strong>${user.role || 'Member'}</strong>.</p>
+          <div class="cred-box">
+            <strong>Portal Access Credentials:</strong><br>
+            <span style="color: #475569;">Login Email:</span> <strong>${user.email}</strong><br>
+            ${rawPassword ? `<span style="color: #475569;">Temporary Password:</span> <strong style="font-family: monospace; font-size: 14px;">${rawPassword}</strong><br>` : ''}
+            <span style="color: #475569;">Account Status:</span> <span style="color: #059669; font-weight: bold;">● Active & Ready</span>
+          </div>
+          <p>Your account is already activated and does not require email confirmation. You can immediately log in to access your services and dashboard:</p>
+          <div style="text-align: center;">
+            <a href="${baseUrl}" class="btn" target="_blank">Sign In to Cloud Portal</a>
+          </div>
+          <p style="font-size: 13px; color: #64748b;">For security reasons, we strongly recommend changing your password after signing in for the first time.</p>
+        </div>
+        <div class="footer">
+          Lugga Zone, Ndejje, Wakiso, Uganda | support@ncloud.co.ug | +256 790 001 631<br>
+          © ${new Date().getFullYear()} Nova Cloud Edges (U) Ltd. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendMail({
+    to: user.email,
+    subject: 'Welcome to Nova Cloud Edges — Your Portal Account Credentials',
+    html
+  });
+}
+
+// ----------------------------------------------------
 // Auth Endpoints
 // ----------------------------------------------------
 app.post('/api/auth/register', verifyTurnstile, async (req, res) => {
@@ -1030,35 +1219,77 @@ app.post('/api/auth/register', verifyTurnstile, async (req, res) => {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
   }
 
+  // Validate password policy and block common weak passwords
+  const pwdCheck = validatePasswordStrength(password, email, name);
+  if (!pwdCheck.isValid) {
+    return res.status(400).json({ error: pwdCheck.error });
+  }
+
+  const existing = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase().trim());
+  if (existing) {
+    return res.status(400).json({ error: 'Email already registered. Please sign in or reset your password.' });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
-  const isFirstUser = memoryStore.users.length === 0;
+  const isFirstUser = (memoryStore.users || []).length === 0;
   const assignedRole = isFirstUser ? 'super_admin' : 'customer';
 
-  // Try MySQL
-  const dbRes = await query(
-    'INSERT INTO users (name, email, password_hash, role, phone, company) VALUES (?, ?, ?, ?, ?, ?)',
-    [name, email, hashedPassword, assignedRole, phone || null, company || null]
-  );
+  // First user is super_admin and verified immediately; subsequent public signups require email confirmation
+  const isVerified = isFirstUser;
+  const verificationToken = isFirstUser ? null : crypto.randomBytes(32).toString('hex');
+  const verificationExpires = isFirstUser ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  if (dbRes.success) {
-    const userId = dbRes.data.insertId;
-    const token = jwt.sign({ id: userId, name, email, role: assignedRole }, JWT_SECRET, { expiresIn: '7d' });
-    const userObj = { id: userId, name, email, role: assignedRole, position: assignedRole === 'super_admin' ? 'Admin' : 'Customer', title: assignedRole === 'super_admin' ? 'Admin' : 'Customer', phone, company, status: 'Active' };
-    memoryStore.users.unshift(userObj);
-    savePersistentStore();
-    return res.json({ message: `User registered successfully with ${assignedRole} role`, token, user: userObj });
-  } else {
-    // Memory store fallback
-    const existing = memoryStore.users.find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
-    if (existing) {
-      return res.status(400).json({ error: 'Email already registered.' });
+  const newUser = {
+    id: Date.now(),
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    passwordHash: hashedPassword,
+    password_hash: hashedPassword,
+    role: assignedRole,
+    position: assignedRole === 'super_admin' ? 'Admin' : 'Customer',
+    title: assignedRole === 'super_admin' ? 'Admin' : 'Customer',
+    phone: phone || null,
+    company: company || null,
+    status: 'Active',
+    is_verified: isVerified,
+    verification_token: verificationToken,
+    verification_expires: verificationExpires,
+    created_at: new Date().toISOString()
+  };
+
+  memoryStore.users.unshift(newUser);
+  savePersistentStore();
+
+  // Try MySQL
+  await query(
+    'INSERT INTO users (name, email, password_hash, role, phone, company, status, is_verified, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [newUser.name, newUser.email, hashedPassword, assignedRole, newUser.phone, newUser.company, 'Active', isVerified ? 1 : 0, verificationToken]
+  ).catch(() => {});
+
+  if (!isVerified) {
+    // Send confirmation email
+    try {
+      await sendVerificationEmail(newUser, req);
+    } catch (mailErr) {
+      console.warn('[Signup Verification Email Error]:', mailErr);
     }
-    const newUser = { id: Date.now(), name, email, passwordHash: hashedPassword, password_hash: hashedPassword, role: assignedRole, position: assignedRole === 'super_admin' ? 'Admin' : 'Customer', title: assignedRole === 'super_admin' ? 'Admin' : 'Customer', phone, company, status: 'Active' };
-    memoryStore.users.unshift(newUser);
-    savePersistentStore();
-    const token = jwt.sign({ id: newUser.id, name, email, role: assignedRole }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ message: `User registered successfully with ${assignedRole} role`, token, user: newUser });
+
+    return res.json({
+      success: true,
+      requires_verification: true,
+      message: `Account registered successfully! A confirmation email has been sent to ${newUser.email}. Please verify your email before logging in.`,
+      email: newUser.email
+    });
   }
+
+  // If first user (Super Admin)
+  const token = jwt.sign({ id: newUser.id, name: newUser.name, email: newUser.email, role: assignedRole }, JWT_SECRET, { expiresIn: '7d' });
+  return res.json({
+    success: true,
+    message: 'Super Administrator registered and activated successfully.',
+    token,
+    user: newUser
+  });
 });
 
 app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
@@ -1068,7 +1299,7 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
   }
 
   // Check MySQL
-  const dbRes = await query('SELECT * FROM users WHERE email = ?', [email]);
+  const dbRes = await query('SELECT * FROM users WHERE email = ?', [email.trim().toLowerCase()]);
   let user = null;
 
   if (dbRes.success && dbRes.data.length > 0) {
@@ -1077,7 +1308,7 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
   } else {
     // Check Memory store
-    const memUser = memoryStore.users.find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
+    const memUser = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === email.trim().toLowerCase());
     if (memUser) {
       const storedHash = memUser.passwordHash || memUser.password_hash || '';
       const match = await bcrypt.compare(password, storedHash);
@@ -1086,6 +1317,15 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
     } else {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
+  }
+
+  // Strict email confirmation check: Unverified users cannot log in
+  if (user.is_verified === false || user.is_verified === 0) {
+    return res.status(403).json({
+      error: 'Please confirm your email address before logging in. We sent a verification link to your inbox.',
+      needs_verification: true,
+      email: user.email
+    });
   }
 
   const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }, JWT_SECRET, { expiresIn: '7d' });
@@ -1109,6 +1349,68 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
   return res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }
+  });
+});
+
+// Verify Email Confirmation Endpoint
+app.get('/api/auth/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ error: 'Verification token is required.' });
+  }
+
+  const user = (memoryStore.users || []).find(u => u && u.verification_token === token);
+  if (!user) {
+    return res.status(400).json({ error: 'Invalid or expired verification link. Please request a new verification link.' });
+  }
+
+  if (user.verification_expires && new Date(user.verification_expires) < new Date()) {
+    return res.status(400).json({ error: 'This verification link has expired. Please request a new verification email.', expired: true, email: user.email });
+  }
+
+  user.is_verified = true;
+  user.verification_token = null;
+  user.verification_expires = null;
+  user.verified_at = new Date().toISOString();
+
+  await query('UPDATE users SET is_verified = 1, verification_token = NULL WHERE email = ?', [user.email]).catch(() => {});
+  savePersistentStore();
+
+  const jwtToken = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }, JWT_SECRET, { expiresIn: '7d' });
+
+  return res.json({
+    success: true,
+    message: 'Email confirmed successfully! Your account is now active and ready to use.',
+    token: jwtToken,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }
+  });
+});
+
+// Resend Verification Email Endpoint
+app.post('/api/auth/resend-verification', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  const user = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === email.trim().toLowerCase());
+  if (!user) {
+    return res.status(404).json({ error: 'No account found with this email address.' });
+  }
+
+  if (user.is_verified === true || user.is_verified === 1) {
+    return res.status(400).json({ error: 'This account is already verified. You can sign in directly.' });
+  }
+
+  user.verification_token = crypto.randomBytes(32).toString('hex');
+  user.verification_expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  savePersistentStore();
+
+  await sendVerificationEmail(user, req);
+
+  return res.json({
+    success: true,
+    message: `A fresh verification link has been sent to ${user.email}. Please check your inbox.`
   });
 });
 
@@ -5264,7 +5566,7 @@ app.put('/api/admin/users/:id/role', (req, res) => {
 });
 
 // Full User Data & Profile Update
-app.put('/api/admin/users/:id', (req, res) => {
+app.put('/api/admin/users/:id', async (req, res) => {
   const { id } = req.params;
   const { name, email, role, phone, company, department, position, salary, status, location, notes, avatar_url, supervisor_id, supervisor_name, password } = req.body;
   const targetUser = memoryStore.users.find(u => u.id == id);
@@ -5281,6 +5583,18 @@ app.put('/api/admin/users/:id', (req, res) => {
     }
   }
 
+  if (password && password.trim()) {
+    const pwdCheck = validatePasswordStrength(password.trim(), targetUser.email, targetUser.name);
+    if (!pwdCheck.isValid) {
+      return res.status(400).json({ error: pwdCheck.error });
+    }
+    const hashed = await bcrypt.hash(password.trim(), 10);
+    targetUser.passwordHash = hashed;
+    targetUser.password_hash = hashed;
+    targetUser.password_changed_at = new Date().toISOString();
+    await query('UPDATE users SET password_hash = ? WHERE id = ?', [hashed, id]).catch(() => {});
+  }
+
   if (name) targetUser.name = name;
   if (email) targetUser.email = email;
   if (role && targetUser.role !== 'super_admin') targetUser.role = role;
@@ -5295,9 +5609,6 @@ app.put('/api/admin/users/:id', (req, res) => {
   if (avatar_url !== undefined) targetUser.avatar_url = avatar_url;
   if (supervisor_id !== undefined) targetUser.supervisor_id = supervisor_id;
   if (supervisor_name !== undefined) targetUser.supervisor_name = supervisor_name;
-  if (password) {
-    targetUser.password_changed_at = new Date().toISOString();
-  }
 
   targetUser.updated_at = new Date().toISOString();
   savePersistentStore();
@@ -5348,6 +5659,11 @@ app.put('/api/admin/users/:id/reset-password', async (req, res) => {
   if (!targetUser) return res.status(404).json({ error: 'User not found' });
   
   const trimmed = new_password.trim();
+  const pwdCheck = validatePasswordStrength(trimmed, targetUser.email, targetUser.name);
+  if (!pwdCheck.isValid) {
+    return res.status(400).json({ error: pwdCheck.error });
+  }
+
   const hashedPassword = await bcrypt.hash(trimmed, 10);
 
   targetUser.passwordHash = hashedPassword;
@@ -5381,15 +5697,34 @@ app.delete('/api/admin/users/:id', requireSuperAdmin, async (req, res) => {
   res.json({ message: `User account "${deleted.name}" removed successfully!` });
 });
 
-app.post('/api/admin/users', (req, res) => {
-  const { name, email, role, phone, company, department, position, salary, status, location, notes, supervisor_id, supervisor_name } = req.body;
+app.post('/api/admin/users', async (req, res) => {
+  const { name, email, role, phone, company, department, position, salary, status, location, notes, supervisor_id, supervisor_name, password } = req.body;
   if (!name || !email) {
     return res.status(400).json({ error: 'Name and email address are required' });
   }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const existing = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === cleanEmail);
+  if (existing) {
+    return res.status(400).json({ error: 'A user with this email address already exists.' });
+  }
+
+  const rawPassword = (password && password.trim()) || `NovaCloud@${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // Validate common password on manual admin user creation
+  const pwdCheck = validatePasswordStrength(rawPassword, cleanEmail, name);
+  if (!pwdCheck.isValid) {
+    return res.status(400).json({ error: pwdCheck.error });
+  }
+
+  const hashedPassword = await bcrypt.hash(rawPassword, 10);
+
   const newUser = {
-    id: memoryStore.users.length + 1,
-    name,
-    email,
+    id: Date.now(),
+    name: name.trim(),
+    email: cleanEmail,
+    passwordHash: hashedPassword,
+    password_hash: hashedPassword,
     role: role || 'sales_admin',
     phone: phone || '+256 700 000 000',
     company: company || 'Nova Cloud Edges Partner',
@@ -5401,12 +5736,31 @@ app.post('/api/admin/users', (req, res) => {
     notes: notes || '',
     supervisor_id: supervisor_id || null,
     supervisor_name: supervisor_name || null,
+    is_verified: true, // Manual admin-created users are automatically active; confirmation ONLY applies to signup
     created_at: new Date().toISOString(),
     last_login: 'Never'
   };
+
   memoryStore.users.unshift(newUser);
   savePersistentStore();
-  res.json({ message: `System User "${name}" created successfully as ${role || 'sales_admin'}`, user: newUser });
+
+  // Try MySQL
+  await query(
+    'INSERT INTO users (name, email, password_hash, role, phone, company, status, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+    [newUser.name, newUser.email, hashedPassword, newUser.role, newUser.phone, newUser.company, newUser.status]
+  ).catch(() => {});
+
+  // Dispatch welcome email with credentials to user (confirmation not required)
+  try {
+    await sendAdminCreatedUserEmail(newUser, rawPassword, req);
+  } catch (mailErr) {
+    console.warn('[Admin Create User Mail Error]:', mailErr);
+  }
+
+  res.json({ 
+    message: `System User "${name}" created successfully as ${role || 'sales_admin'}. Welcome credentials sent to ${cleanEmail}.`, 
+    user: newUser 
+  });
 });
 
 app.get('/api/admin/invoices', (req, res) => {

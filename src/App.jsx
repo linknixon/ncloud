@@ -21,6 +21,7 @@ import AboutPage from './pages/AboutPage';
 import NewsPage from './pages/NewsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import VerifyDocumentPage from './pages/VerifyDocumentPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 import ShopCheckoutModal from './components/ShopCheckoutModal';
 
@@ -29,6 +30,9 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname;
+      if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
+        return 'verify-email';
+      }
       if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
         return 'verify';
       }
@@ -51,7 +55,8 @@ export default function App() {
         '/privacy': 'privacy',
         '/subscription': 'subscription',
         '/admin': 'admin',
-        '/verify': 'verify'
+        '/verify': 'verify',
+        '/verify-email': 'verify-email'
       };
       if (pageMap[path]) return pageMap[path];
     }
@@ -63,14 +68,16 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname;
       let newPath = '/';
-      if (activePage !== 'home' && activePage !== 'admin' && activePage !== 'verify') {
+      if (activePage !== 'home' && activePage !== 'admin' && activePage !== 'verify' && activePage !== 'verify-email') {
         newPath = `/${activePage}`;
       } else if (activePage === 'admin') {
         newPath = '/admin';
       } else if (activePage === 'verify') {
         newPath = '/verify';
+      } else if (activePage === 'verify-email') {
+        newPath = window.location.pathname.includes('verify-email') ? window.location.pathname + window.location.search : '/verify-email';
       }
-      if (currentPath !== newPath) {
+      if (currentPath !== newPath && !currentPath.includes('verify-email')) {
         window.history.pushState({}, '', newPath);
       }
     }
@@ -81,7 +88,9 @@ export default function App() {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const path = window.location.pathname;
-        if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
+        if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
+          setActivePage('verify-email');
+        } else if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
           setActivePage('verify');
         } else if (path === '/admin' || params.get('tab') || path === '/subscriptions') {
           setActivePage('admin');
@@ -101,7 +110,8 @@ export default function App() {
             '/privacy': 'privacy',
             '/subscription': 'subscription',
             '/admin': 'admin',
-            '/verify': 'verify'
+            '/verify': 'verify',
+            '/verify-email': 'verify-email'
           };
           if (pageMap[path]) {
             setActivePage(pageMap[path]);
@@ -141,6 +151,8 @@ export default function App() {
         return <PrivacyPage setActivePage={setActivePage} />;
       case 'verify':
         return <VerifyDocumentPage setActivePage={setActivePage} />;
+      case 'verify-email':
+        return <VerifyEmailPage setActivePage={setActivePage} />;
       case 'admin':
         return <AdminDashboard setActivePage={setActivePage} />;
       default:

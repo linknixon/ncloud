@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Lock, Mail, User, Building, Phone, Eye, EyeOff, ShieldCheck, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, Lock, Mail, User, Building, Phone, Eye, EyeOff, ShieldCheck, CheckCircle2, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { validatePasswordStrength } from '../utils/securityValidators';
 
 export default function AuthModal({ setActivePage }) {
   const { isAuthOpen, setIsAuthOpen, authMode, setUser, showToast } = useApp();
   const [isRegister, setIsRegister] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   useEffect(() => {
     setIsRegister(authMode === 'register');
     setIsForgotPassword(false);
+    setRegistrationSuccess(null);
+    setUnverifiedEmail('');
     if (!isAuthOpen) {
       setFormData({
         name: '',
@@ -130,6 +136,29 @@ export default function AuthModal({ setActivePage }) {
 
   if (!isAuthOpen) return null;
 
+  const handleResendVerificationFromModal = async () => {
+    const emailToUse = unverifiedEmail || formData.email;
+    if (!emailToUse) {
+      showToast('Please enter your email address.', 'error');
+      return;
+    }
+    setResendingVerification(true);
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToUse.trim() })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to resend confirmation email.');
+      showToast(resData.message || 'Verification email resent! Please check your inbox.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (siteKey && !turnstileToken && !isLocalhost) {
@@ -137,8 +166,17 @@ export default function AuthModal({ setActivePage }) {
       return;
     }
 
+    if (isRegister) {
+      const pwdCheck = validatePasswordStrength(formData.password, formData.email, formData.name);
+      if (!pwdCheck.isValid) {
+        setError(pwdCheck.error);
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
+    setUnverifiedEmail('');
 
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
 
@@ -161,7 +199,20 @@ export default function AuthModal({ setActivePage }) {
       }
 
       if (!res.ok) {
+        if (data.needs_verification) {
+          setUnverifiedEmail(data.email || formData.email);
+        }
         throw new Error(data.error || 'Authentication failed');
+      }
+
+      // If registration requires email confirmation
+      if (data.requires_verification) {
+        setRegistrationSuccess({
+          email: data.email || formData.email,
+          message: data.message
+        });
+        showToast('Confirmation email sent! Please check your inbox.', 'info');
+        return;
       }
 
       if (!data.user || !data.token) {
@@ -175,14 +226,12 @@ export default function AuthModal({ setActivePage }) {
       if (['super_admin', 'admin', 'hr_manager', 'reviewer'].includes(role)) {
         setActivePage('admin');
       } else {
-        // Keep them on current page, or redirect to a safe default if they were on a restricted page
-        // For customers, let's refresh the current view or redirect to shop/portal
         if (window.location.pathname === '/admin' || window.location.pathname === '/') {
           setActivePage('shop');
         }
       }
       
-      showToast(isRegister ? 'Account created successfully! Welcome to your Portal.' : `Welcome back, ${data.user.name}!`, 'success');
+      showToast(`Welcome back, ${data.user.name}!`, 'success');
       setIsAuthOpen(false);
     } catch (err) {
       setError(err.message || 'Authentication error');
@@ -315,135 +364,146 @@ export default function AuthModal({ setActivePage }) {
           </p>
         </div>
 
-        {/* Clear Switcher Tabs (Sign In vs Register Account) */}
-        {!isForgotPassword && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', background: 'var(--bg-main)', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-            <button
-              type="button"
-              onClick={() => { setIsRegister(false); setError(''); }}
-              style={{
-                padding: '0.6rem',
-                borderRadius: '9px',
-                border: 'none',
-                background: !isRegister ? 'var(--primary)' : 'transparent',
-                color: !isRegister ? '#fff' : 'var(--text-muted)',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: !isRegister ? '0 2px 8px rgba(99, 102, 241, 0.4)' : 'none'
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsRegister(true); setError(''); }}
-              style={{
-                padding: '0.6rem',
-                borderRadius: '9px',
-                border: 'none',
-                background: isRegister ? 'var(--primary)' : 'transparent',
-                color: isRegister ? '#fff' : 'var(--text-muted)',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: isRegister ? '0 2px 8px rgba(99, 102, 241, 0.4)' : 'none'
-              }}
-            >
-              Create Account
-            </button>
-          </div>
-        )}
+        {/* Registration Success Screen */}
+        {registrationSuccess ? (
+          <div style={{ textAlign: 'center', padding: '1.25rem 0.5rem' }}>
+            <div style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.15)',
+              color: '#10b981',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem'
+            }}>
+              <Mail size={36} />
+            </div>
 
-        {/* Social SSO OAuth Buttons - Currently Disabled per request */}
-        {/*
-        {!isForgotPassword && (
+            <h3 style={{ fontSize: '1.35rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+              Confirm Your Email Address
+            </h3>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '380px', margin: '0 auto 1.5rem' }}>
+              We have sent a verification link to <strong>{registrationSuccess.email}</strong>.<br />
+              Please check your inbox and click the link to activate your account. You cannot log in until your email is confirmed.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setRegistrationSuccess(null);
+                  setIsRegister(false);
+                  setError('');
+                }}
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', fontWeight: '800' }}
+              >
+                Go to Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResendVerificationFromModal()}
+                disabled={resendingVerification}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  padding: '0.5rem'
+                }}
+              >
+                {resendingVerification ? 'Resending verification...' : "Didn't receive the email? Resend link"}
+              </button>
+            </div>
+          </div>
+        ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
-          <button
-            type="button"
-            onClick={() => handleOAuthLogin('google')}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 0.75rem',
-              borderRadius: '10px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              fontSize: '0.825rem',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.29v3.15C3.26 21.3 7.31 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.29C.47 8.21 0 10.05 0 12s.47 3.79 1.29 5.42l3.99-3.15z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.58l3.99 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-            </svg>
-            Google
-          </button>
+            {/* Clear Switcher Tabs (Sign In vs Register Account) */}
+            {!isForgotPassword && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', background: 'var(--bg-main)', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsRegister(false); setError(''); setUnverifiedEmail(''); }}
+                  style={{
+                    padding: '0.6rem',
+                    borderRadius: '9px',
+                    border: 'none',
+                    background: !isRegister ? 'var(--primary)' : 'transparent',
+                    color: !isRegister ? '#fff' : 'var(--text-muted)',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: !isRegister ? '0 2px 8px rgba(99, 102, 241, 0.4)' : 'none'
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsRegister(true); setError(''); setUnverifiedEmail(''); }}
+                  style={{
+                    padding: '0.6rem',
+                    borderRadius: '9px',
+                    border: 'none',
+                    background: isRegister ? 'var(--primary)' : 'transparent',
+                    color: isRegister ? '#fff' : 'var(--text-muted)',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isRegister ? '0 2px 8px rgba(99, 102, 241, 0.4)' : 'none'
+                  }}
+                >
+                  Create Account
+                </button>
+              </div>
+            )}
 
-          <button
-            type="button"
-            onClick={() => handleOAuthLogin('microsoft')}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 0.75rem',
-              borderRadius: '10px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              fontSize: '0.825rem',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 23 23">
-              <path fill="#f35325" d="M1 1h10v10H1z"/>
-              <path fill="#81bc06" d="M12 1h10v10H12z"/>
-              <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-              <path fill="#ffba08" d="M12 12h10v10H12z"/>
-            </svg>
-            Microsoft 365
-          </button>
-            </div>
+            {error && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#ef4444',
+                padding: '0.85rem 1rem',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                marginBottom: '1.25rem',
+                fontWeight: '600',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div>{error}</div>
+                {unverifiedEmail && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerificationFromModal}
+                    disabled={resendingVerification}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontWeight: '800',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      textDecoration: 'underline',
+                      padding: 0
+                    }}
+                  >
+                    {resendingVerification ? 'Sending fresh link...' : 'Resend Confirmation Email →'}
+                  </button>
+                )}
+              </div>
+            )}
 
-            <div style={{ display: 'flex', alignItems: 'center', margin: '1rem 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.725rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-              <span style={{ padding: '0 0.65rem' }}>or use email & password</span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-            </div>
-          </>
-        )}
-        */}
-
-        {error && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#ef4444',
-            padding: '0.75rem 1rem',
-            borderRadius: '10px',
-            fontSize: '0.85rem',
-            marginBottom: '1.25rem',
-            fontWeight: '600'
-          }}>
-            {error}
-          </div>
-        )}
-
-        {isForgotPassword ? (
+            {isForgotPassword ? (
           <form onSubmit={handleForgotPasswordSubmit}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -613,6 +673,8 @@ export default function AuthModal({ setActivePage }) {
             {loading ? 'Authenticating...' : (isRegister ? 'Complete Registration' : 'Sign In to Portal')}
           </button>
         </form>
+            )}
+          </>
         )}
       </div>
     </div>

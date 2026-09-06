@@ -108,6 +108,7 @@ import {
   Truck,
   X
 } from 'lucide-react';
+import { validatePasswordStrength } from '../utils/securityValidators';
 
 const initialStoreProducts = [
   {
@@ -3727,6 +3728,13 @@ const normalizeTabName = (rawTab) => {
         return;
       }
     }
+    if (!editingUser || userForm.password) {
+      const pwCheck = validatePasswordStrength(userForm.password, userForm.email, userForm.name);
+      if (!pwCheck.isValid) {
+        showToast(pwCheck.message, 'error');
+        return;
+      }
+    }
     try {
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
       const method = editingUser ? 'PUT' : 'POST';
@@ -3817,6 +3825,11 @@ const normalizeTabName = (rawTab) => {
   const handleResetUserPassword = async (e) => {
     e.preventDefault();
     if (!userToResetPassword) return;
+    const pwCheck = validatePasswordStrength(newPasswordInput, userToResetPassword?.email, userToResetPassword?.name);
+    if (!pwCheck.isValid) {
+      showToast(pwCheck.message, 'error');
+      return;
+    }
     try {
       const res = await fetch(`/api/admin/users/${userToResetPassword.id}/reset-password`, {
         method: 'PUT',
@@ -16188,18 +16201,31 @@ const normalizeTabName = (rawTab) => {
                 {/* Additional Settings & Administrative Notes */}
                 <div style={{ padding: '1rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
                   <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
-                      <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>
-                        {editingUser ? 'Update Password / Access Key (Leave blank to keep unchanged)' : 'Initial Password / Access Key'}
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <label style={{ fontWeight: '700', fontSize: '0.825rem', margin: 0 }}>
+                          {editingUser ? 'Update Password / Access Key (Leave blank to keep unchanged)' : 'Initial Password / Access Key *'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const gen = 'NovaPass-' + Math.floor(100000 + Math.random() * 900000) + '!';
+                            setUserForm({ ...userForm, password: gen });
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+                        >
+                          Auto-Generate Secure Password
+                        </button>
+                      </div>
                       <input
-                        type="password"
+                        type="text"
                         className="form-input"
-                        placeholder={editingUser ? '•••••••• (unchanged)' : 'Enter strong temporary password'}
+                        placeholder={editingUser ? '•••••••• (unchanged)' : 'Enter strong password (min 8 chars, letters & numbers)'}
                         value={userForm.password}
                         onChange={e => setUserForm({ ...userForm, password: e.target.value })}
                       />
-                    </div>
+                      <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                        Must be at least 8 characters with letters & numbers. Common passwords (123456, password, admin123) are blocked.
+                      </span>
                   </div>
 
                   <div className="form-group" style={{ marginTop: '0.9rem', marginBottom: 0 }}>

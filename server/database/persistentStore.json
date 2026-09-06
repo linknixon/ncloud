@@ -735,8 +735,8 @@
           "created_at": "2026-09-03T06:09:51.482Z"
         }
       ],
-      "delivery_note_ref": "DN-2026-0101",
-      "delivery_dispatched_at": "2026-09-06T07:23:08.037Z"
+      "delivery_note_ref": "DN-2026-0102",
+      "delivery_dispatched_at": "2026-09-06T09:13:17.530Z"
     },
     {
       "id": 1787820063903,
@@ -2196,6 +2196,18 @@
   ],
   "audit_logs": [
     {
+      "id": 1788685957722,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-06T09:12:37.722Z"
+    },
+    {
       "id": 1788683757691,
       "user_email": "systems@ncloud.co.ug",
       "user_name": "Systems Admin",
@@ -2466,6 +2478,42 @@
     "updated_at": "2026-09-06T12:05:00.000Z"
   },
   "delivery_notes": [
+    {
+      "id": 1788685997529,
+      "dn_number": "DN-2026-0102",
+      "invoice_id": 1787853997304,
+      "invoice_number": "INV-2026-0046",
+      "customer_name": "Child Care Ministry (Manishimwe Nelson)",
+      "customer_email": "nelsonmanishimwe@gmail.com",
+      "customer_phone": "+256 786 833219",
+      "delivery_address": "Busamba",
+      "carrier": "Direct Handover",
+      "tracking_code": "TRK-989599",
+      "dispatch_officer": "Systems Admin",
+      "delivery_date": "2026-09-06",
+      "status": "Dispatched & Delivered",
+      "payment_status": "100% Paid & Cleared",
+      "items": [
+        {
+          "name": "Domain Name Registration",
+          "description": "Domain Name Registration",
+          "serial_number": "N/A - Direct Handover",
+          "quantity_ordered": 1,
+          "quantity_dispatched": 1,
+          "condition": "Tested & Certified (Pristine)"
+        },
+        {
+          "name": "Custom Technical Services / Infrastructure Support",
+          "description": "Custom Technical Services / Infrastructure Support",
+          "serial_number": "N/A - Direct Handover",
+          "quantity_ordered": 1,
+          "quantity_dispatched": 1,
+          "condition": "Tested & Certified (Pristine)"
+        }
+      ],
+      "notes": "All items inspected, verified, and accepted in 100% operational condition with official warranty.",
+      "created_at": "2026-09-06T09:13:17.529Z"
+    },
     {
       "id": 1788679388037,
       "dn_number": "DN-2026-0101",
