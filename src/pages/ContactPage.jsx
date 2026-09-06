@@ -28,41 +28,81 @@ export default function ContactPage() {
     window.location.hostname === '::1'
   );
 
+  const widgetIdRef = React.useRef(null);
+
   React.useEffect(() => {
-    if (isLocalhost) return;
     fetch('/api/security/turnstile')
       .then(res => res.json())
       .then(data => {
-        if (!data.is_localhost && data.is_active && data.site_key) {
+        if (data.is_active && data.site_key) {
           setSiteKey(data.site_key);
-          const renderWidget = () => {
-            if (window.turnstile && turnstileRef.current) {
-              try {
-                window.turnstile.render(turnstileRef.current, {
-                  sitekey: data.site_key,
-                  callback: (token) => {
-                    setTurnstileToken(token);
-                    setTurnstileError('');
-                  }
-                });
-              } catch (e) {}
-            }
-          };
           if (!document.getElementById('turnstile-script')) {
             const script = document.createElement('script');
             script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
             script.async = true;
             script.defer = true;
             script.id = 'turnstile-script';
-            script.onload = renderWidget;
             document.body.appendChild(script);
-          } else {
-            setTimeout(renderWidget, 500);
+          }
+        } else {
+          setSiteKey('');
+          if (data.bypass_allowed || isLocalhost) {
+            setTurnstileToken('bypass-localhost');
           }
         }
       })
-      .catch(() => {});
-  }, [isLocalhost]);
+      .catch(() => {
+        if (isLocalhost) setTurnstileToken('bypass-localhost');
+      });
+  }, []);
+
+  React.useEffect(() => {
+    if (!siteKey) return;
+    let timer = null;
+    let attempts = 0;
+
+    const tryRender = () => {
+      attempts++;
+      if (window.turnstile && turnstileRef.current) {
+        try {
+          if (widgetIdRef.current !== null) {
+            window.turnstile.remove(widgetIdRef.current);
+            widgetIdRef.current = null;
+          }
+        } catch (e) {}
+        turnstileRef.current.innerHTML = '';
+        try {
+          widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+            sitekey: siteKey,
+            theme: 'light',
+            callback: (token) => {
+              setTurnstileToken(token);
+              setTurnstileError('');
+            },
+            'error-callback': () => {
+              console.warn('Turnstile challenge error');
+            }
+          });
+        } catch (e) {
+          console.error('Turnstile render exception:', e);
+        }
+      } else if (attempts < 25) {
+        timer = setTimeout(tryRender, 120);
+      }
+    };
+
+    timer = setTimeout(tryRender, 100);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (widgetIdRef.current !== null && window.turnstile) {
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+          widgetIdRef.current = null;
+        } catch (e) {}
+      }
+    };
+  }, [siteKey]);
 
   const { clearDraft } = useAutoSaveDraft('contact_form', formData, setFormData);
 

@@ -962,26 +962,31 @@ app.get('/api/iso', (req, res) => {
 // Cloudflare Turnstile Verification Middleware
 // ----------------------------------------------------
 async function verifyTurnstile(req, res, next) {
-  const host = (req.headers.host || req.hostname || '').toLowerCase();
+  const xForwardedHost = (req.headers['x-forwarded-host'] || '').toLowerCase();
+  const host = (xForwardedHost || req.headers.host || req.hostname || '').toLowerCase();
   const origin = (req.headers.origin || '').toLowerCase();
   const referer = (req.headers.referer || '').toLowerCase();
-  const ip = req.ip || req.connection?.remoteAddress || '';
-  
-  const isLocalhost = 
+
+  const isProduction = 
+    host.includes('ncloud.co.ug') || 
+    origin.includes('ncloud.co.ug') || 
+    referer.includes('ncloud.co.ug') ||
+    host.includes('ncedges.com') ||
+    origin.includes('ncedges.com');
+
+  const isLocalhost = !isProduction && (
     host.includes('localhost') || 
     host.includes('127.0.0.1') || 
     origin.includes('localhost') || 
     origin.includes('127.0.0.1') || 
     referer.includes('localhost') || 
-    referer.includes('127.0.0.1') ||
-    ip === '127.0.0.1' || 
-    ip === '::1' || 
-    ip === '::ffff:127.0.0.1';
+    referer.includes('127.0.0.1')
+  );
 
   const token = req.body.turnstileToken || req.headers['x-turnstile-token'];
 
-  // Seamless Cloudflare Turnstile bypass on localhost environment
-  if (isLocalhost || token === 'bypass-localhost' || token === 'localhost-test-token') {
+  // Seamless Cloudflare Turnstile bypass on localhost development environment
+  if (isLocalhost && (token === 'bypass-localhost' || token === 'localhost-test-token')) {
     return next();
   }
 
@@ -7313,39 +7318,46 @@ app.get('/api/admin/security-settings', verifyToken, requireCRUDAS, (req, res) =
 });
 
 app.get('/api/security/turnstile', (req, res) => {
-  const host = (req.headers.host || req.hostname || '').toLowerCase();
+  const xForwardedHost = (req.headers['x-forwarded-host'] || '').toLowerCase();
+  const host = (xForwardedHost || req.headers.host || req.hostname || '').toLowerCase();
   const origin = (req.headers.origin || '').toLowerCase();
   const referer = (req.headers.referer || '').toLowerCase();
-  const ip = req.ip || req.connection?.remoteAddress || '';
-  const isLocalhost = 
+
+  const isProduction = 
+    host.includes('ncloud.co.ug') || 
+    origin.includes('ncloud.co.ug') || 
+    referer.includes('ncloud.co.ug') ||
+    host.includes('ncedges.com') ||
+    origin.includes('ncedges.com');
+
+  const isLocalhost = !isProduction && (
     host.includes('localhost') || 
     host.includes('127.0.0.1') || 
     origin.includes('localhost') || 
     origin.includes('127.0.0.1') || 
     referer.includes('localhost') || 
-    referer.includes('127.0.0.1') ||
-    ip === '127.0.0.1' || 
-    ip === '::1' || 
-    ip === '::ffff:127.0.0.1';
+    referer.includes('127.0.0.1')
+  );
 
   const settings = memoryStore.security_settings || {};
-  if (isLocalhost) {
-    return res.json({ 
-      is_active: false, 
-      is_localhost: true, 
-      bypass_allowed: true,
-      site_key: '' 
-    });
-  }
-
   const isValidKey = settings.turnstile_site_key && 
     !settings.turnstile_site_key.includes('testSiteKey') &&
     settings.turnstile_site_key !== '0x4AAAAAAtestSiteKey12345';
 
   if (settings.is_active && isValidKey) {
-    res.json({ is_active: true, site_key: settings.turnstile_site_key });
+    res.json({ 
+      is_active: true, 
+      site_key: settings.turnstile_site_key,
+      is_localhost: isLocalhost,
+      bypass_allowed: isLocalhost 
+    });
   } else {
-    res.json({ is_active: false });
+    res.json({ 
+      is_active: false, 
+      site_key: '',
+      is_localhost: isLocalhost,
+      bypass_allowed: isLocalhost 
+    });
   }
 });
 

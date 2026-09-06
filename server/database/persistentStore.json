@@ -2460,10 +2460,10 @@
     }
   ],
   "security_settings": {
-    "turnstile_site_key": "",
-    "turnstile_secret_key": "",
-    "is_active": false,
-    "updated_at": "2026-09-06T11:50:00.000Z"
+    "turnstile_site_key": "0x4AAAAAAEpIVOujZk0gnQvz",
+    "turnstile_secret_key": "0x4AAAAAAEpIVKfPgRZrUw68kWUeqnZAdeI",
+    "is_active": true,
+    "updated_at": "2026-09-06T12:05:00.000Z"
   },
   "delivery_notes": [
     {
