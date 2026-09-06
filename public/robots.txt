@@ -1,0 +1,23 @@
+# Robots.txt for Nova Cloud (ncloud.co.ug)
+# Optimized for Googlebot, Bingbot & Search Indexers
+
+User-agent: *
+Allow: /
+Allow: /shop
+Allow: /services
+Allow: /about
+Allow: /subscription
+Allow: /contact
+Allow: /news
+Allow: /jobs
+Allow: /verify
+Allow: /terms
+Allow: /privacy
+
+# Disallow private admin routes and API data endpoints from public search results
+Disallow: /api/
+Disallow: /admin
+Disallow: /portal
+
+# Official XML Sitemap
+Sitemap: https://ncloud.co.ug/sitemap.xml

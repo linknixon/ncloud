@@ -22,11 +22,18 @@ export default function ContactPage() {
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileError, setTurnstileError] = useState('');
 
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1'
+  );
+
   React.useEffect(() => {
+    if (isLocalhost) return;
     fetch('/api/security/turnstile')
       .then(res => res.json())
       .then(data => {
-        if (data.is_active && data.site_key) {
+        if (!data.is_localhost && data.is_active && data.site_key) {
           setSiteKey(data.site_key);
           const renderWidget = () => {
             if (window.turnstile && turnstileRef.current) {
@@ -55,13 +62,13 @@ export default function ContactPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [isLocalhost]);
 
   const { clearDraft } = useAutoSaveDraft('contact_form', formData, setFormData);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (siteKey && !turnstileToken) {
+    if (!isLocalhost && siteKey && !turnstileToken) {
       setTurnstileError('Please complete the CAPTCHA verification.');
       return;
     }
@@ -72,7 +79,10 @@ export default function ContactPage() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, turnstileToken })
+        body: JSON.stringify({ 
+          ...formData, 
+          turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '') 
+        })
       });
       const data = await res.json();
 

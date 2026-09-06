@@ -301,6 +301,72 @@ export function AppProvider({ children }) {
     }
   };
 
+  const defaultTopbarConfig = {
+    enabled: true,
+    bg_color: '#0a192f',
+    text_color: '#ffffff',
+    phone: '0790001631',
+    email: 'support@ncloud.co.ug',
+    location_text: 'Lugga Zone, Ndejje, Wakiso',
+    location_short: 'Kampala',
+    maps_url: 'https://maps.google.com/?q=Lugga+Zone,+Ndejje,+Wakiso,+Uganda',
+    noc_status_enabled: true,
+    noc_status_text: '24/7 Support NOC',
+    whatsapp: 'https://wa.me/256790001631',
+    linkedin: 'https://www.linkedin.com/company/nova-cloud-edges',
+    twitter: 'https://x.com/novacloudedges',
+    facebook: 'https://facebook.com/novacloudedges',
+    github: 'https://github.com/linknixon/ncloud'
+  };
+
+  const [topbarSettings, setTopbarSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nova_topbar_settings');
+      return saved ? { ...defaultTopbarConfig, ...JSON.parse(saved) } : defaultTopbarConfig;
+    } catch {
+      return defaultTopbarConfig;
+    }
+  });
+
+  useEffect(() => {
+    fetch('/api/topbar')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.enabled !== 'undefined') {
+          const merged = { ...defaultTopbarConfig, ...data };
+          setTopbarSettings(merged);
+          localStorage.setItem('nova_topbar_settings', JSON.stringify(merged));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const updateTopbarSettings = async (newSettings) => {
+    const merged = { ...topbarSettings, ...newSettings };
+    setTopbarSettings(merged);
+    localStorage.setItem('nova_topbar_settings', JSON.stringify(merged));
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/topbar', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify(merged)
+      });
+      const data = await res.json();
+      if (data && data.topbar_settings) {
+        const fullyMerged = { ...defaultTopbarConfig, ...data.topbar_settings };
+        setTopbarSettings(fullyMerged);
+        localStorage.setItem('nova_topbar_settings', JSON.stringify(fullyMerged));
+      }
+      return data;
+    } catch (err) {
+      console.warn('Backend topbar settings sync error:', err);
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -337,7 +403,9 @@ export function AppProvider({ children }) {
         siteLogo,
         updateSiteLogo,
         siteFavicon,
-        updateSiteFavicon
+        updateSiteFavicon,
+        topbarSettings,
+        updateTopbarSettings
       }}
     >
       {children}

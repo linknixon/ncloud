@@ -121,16 +121,68 @@ export default function ShopPage({ setActivePage }) {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
+  // Dynamic Google Search Schema.org ItemList for Nova Cloud Shop
+  const shopSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Nova Cloud Shop Uganda",
+    "description": "Official Nova Cloud online shop for Cloud VPS, Server Racks, Zimbra Mail, QuickBooks ERP Licenses, and Enterprise Networking Hardware in Uganda.",
+    "url": "https://ncloud.co.ug/shop",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": filteredProducts.length,
+      "itemListElement": (filteredProducts.length > 0 ? filteredProducts.slice(0, 20) : products.slice(0, 15)).map((p, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "item": {
+          "@type": "Product",
+          "name": `${p.name} - Nova Cloud Uganda`,
+          "description": p.description || `${p.name} available at Nova Cloud Edges Kampala Uganda.`,
+          "image": p.image_url || "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+          "category": p.category || "Cloud & IT Solutions",
+          "brand": {
+            "@type": "Brand",
+            "name": "Nova Cloud"
+          },
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "UGX",
+            "price": p.price ? String(p.price) : "50000",
+            "priceValidUntil": "2027-12-31",
+            "availability": "https://schema.org/InStock",
+            "itemCondition": "https://schema.org/NewCondition",
+            "seller": {
+              "@type": "Organization",
+              "name": "Nova Cloud (U) Limited",
+              "url": "https://ncloud.co.ug"
+            }
+          }
+        }
+      }))
+    }
+  };
+
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
-      <SEO title="IT Shop & Hardware | Nova Cloud" description="Shop for enterprise-grade IT hardware, networking equipment, and accessories." keywords="buy routers, switches, fiber cables, servers, UPS, IT equipment, Kampala" />
+      <SEO 
+        title="Nova Cloud Shop Uganda | Cloud VPS, Servers, Enterprise ERP, WiFi Vouchers & IT Hardware" 
+        description="Shop official Nova Cloud infrastructure in Uganda. Buy Cloud VPS Hosting, Tier III Colocation, Zimbra Corporate Email, QuickBooks Enterprise ERP, WiFi Hotspot Vouchers, Routers & IT hardware with instant delivery in Kampala." 
+        keywords="Nova Cloud, Nova Cloud Uganda, Nova Cloud shop, Nova Cloud store, Nova Cloud Edges, buy Nova Cloud, cloud provider Uganda, cloud hosting Kampala, buy VPS Uganda, enterprise server Uganda, MikroTik routers Kampala, Zimbra email Uganda, WiFi vouchers Kampala, IT hardware shop Uganda, QuickBooks ERP Uganda" 
+        canonical="https://ncloud.co.ug/shop"
+        ogTitle="Nova Cloud Shop Uganda | Cloud VPS, Enterprise ERP & Hardware"
+        ogDescription="Official Nova Cloud store in Uganda. Instant deployment for Cloud VPS, Corporate Email, QuickBooks ERP, WiFi Passes, and Networking Hardware."
+        schemaJson={shopSchema}
+      />
       <div className="container">
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Products, Cloud Solutions & WiFi Vouchers</h1>
+          <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(30, 58, 138, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+            Official Nova Cloud Store • Kampala, Uganda
+          </div>
+          <h1 style={{ fontSize: '2.1rem', marginTop: '0.2rem' }}>Nova Cloud Shop: Infrastructure, Enterprise ERP & IT Solutions</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
-            Explore enterprise cloud hosting, high-speed WiFi vouchers, QuickBooks ERP licenses, and carrier-grade IT networking hardware.
+            Explore enterprise cloud hosting, high-speed WiFi vouchers, QuickBooks ERP licenses, and carrier-grade IT networking hardware with localized sovereign delivery in Uganda.
           </p>
         </div>
 

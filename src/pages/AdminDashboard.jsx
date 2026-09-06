@@ -105,6 +105,7 @@ import {
   Bell,
   Shield,
   Trash2,
+  Truck,
   X
 } from 'lucide-react';
 
@@ -264,7 +265,7 @@ class SettingsErrorBoundary extends React.Component {
 }
 
 export default function AdminDashboard({ setActivePage }) {
-  const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon } = useApp();
+  const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon, topbarSettings, updateTopbarSettings } = useApp();
   const [logoInput, setLogoInput] = useState(siteLogo || '');
   const [faviconInput, setFaviconInput] = useState(siteFavicon || '');
   
@@ -389,6 +390,21 @@ const normalizeTabName = (rawTab) => {
   const [cloneInvoiceModal, setCloneInvoiceModal] = useState(null);
   const [modalQrImg, setModalQrImg] = useState('');
   const [paymentViewMode, setPaymentViewMode] = useState('table');
+
+  // Smart Delivery Note Modal States (100% Paid Invoices)
+  const [showDeliveryNoteModal, setShowDeliveryNoteModal] = useState(false);
+  const [selectedInvoiceForDN, setSelectedInvoiceForDN] = useState(null);
+  const [dnCarrier, setDnCarrier] = useState('Direct Handover');
+  const [dnTrackingCode, setDnTrackingCode] = useState('');
+  const [dnDispatchOfficer, setDnDispatchOfficer] = useState('');
+  const [dnDeliveryAddress, setDnDeliveryAddress] = useState('');
+  const [dnDeliveryDate, setDnDeliveryDate] = useState('');
+  const [dnRecipientName, setDnRecipientName] = useState('');
+  const [dnRecipientEmail, setDnRecipientEmail] = useState('');
+  const [dnRecipientPhone, setDnRecipientPhone] = useState('');
+  const [dnNotes, setDnNotes] = useState('');
+  const [dnItems, setDnItems] = useState([]);
+  const [isDispatchingDN, setIsDispatchingDN] = useState(false);
 
   useEffect(() => {
     if (selectedInvoice) {
@@ -583,6 +599,13 @@ const normalizeTabName = (rawTab) => {
     image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'
   });
 
+  // Bulk CSV Upload & Import State for Store Catalog
+  const [showProductCsvModal, setShowProductCsvModal] = useState(false);
+  const [csvProductsPreview, setCsvProductsPreview] = useState([]);
+  const [csvUploadFileName, setCsvUploadFileName] = useState('');
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvParseError, setCsvParseError] = useState('');
+
   // Service Modal State
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState(null);
@@ -694,6 +717,35 @@ const normalizeTabName = (rawTab) => {
     bg_gradient: 'linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)',
     theme: 'rose'
   });
+
+  // Top Utility Bar Branding Configuration State
+  const [topbarForm, setTopbarForm] = useState({
+    enabled: true,
+    bg_color: '#0a192f',
+    text_color: '#ffffff',
+    phone: '0790001631',
+    email: 'support@ncloud.co.ug',
+    location_text: 'Lugga Zone, Ndejje, Wakiso',
+    location_short: 'Kampala',
+    maps_url: 'https://maps.google.com/?q=Lugga+Zone,+Ndejje,+Wakiso,+Uganda',
+    noc_status_enabled: true,
+    noc_status_text: '24/7 Support NOC',
+    whatsapp: 'https://wa.me/256790001631',
+    linkedin: 'https://www.linkedin.com/company/nova-cloud-edges',
+    twitter: 'https://x.com/novacloudedges',
+    facebook: 'https://facebook.com/novacloudedges',
+    github: 'https://github.com/linknixon/ncloud'
+  });
+  const [savingTopbar, setSavingTopbar] = useState(false);
+
+  useEffect(() => {
+    if (topbarSettings) {
+      setTopbarForm(prev => ({
+        ...prev,
+        ...topbarSettings
+      }));
+    }
+  }, [topbarSettings]);
 
   // Reports & Financial Analytics State
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -880,6 +932,10 @@ const normalizeTabName = (rawTab) => {
       if (resData.partners && Array.isArray(resData.partners)) setPartnersList(resData.partners);
       if (resData.news && Array.isArray(resData.news)) setNewsList(resData.news);
       if (resData.applications && Array.isArray(resData.applications)) setApplicationsList(resData.applications);
+      if (resData.quotations && Array.isArray(resData.quotations)) setQuotationsList(resData.quotations);
+      if (resData.work_orders && Array.isArray(resData.work_orders)) setWorkOrdersList(resData.work_orders);
+      if (resData.bank_accounts && Array.isArray(resData.bank_accounts)) setBankAccountsList(resData.bank_accounts);
+      if (resData.customerCredits && Array.isArray(resData.customerCredits)) setCustomerCreditsList(resData.customerCredits);
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -1663,17 +1719,434 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const handleSaveTopbar = async (e) => {
+    if (e) e.preventDefault();
+    setSavingTopbar(true);
+    try {
+      if (updateTopbarSettings) {
+        await updateTopbarSettings(topbarForm);
+      }
+      showToast('Top utility bar configuration saved successfully!', 'success');
+    } catch (err) {
+      showToast('Failed to save top bar configuration: ' + err.message, 'error');
+    } finally {
+      setSavingTopbar(false);
+    }
+  };
+
   // Reports & Analytics Load Handler
   const loadAnalyticsData = async () => {
     setAnalyticsLoading(true);
     try {
-      const res = await fetch('/api/admin/reports/analytics');
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/reports/analytics', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
       const resData = await res.json();
-      setAnalyticsData(resData);
+      if (res.ok && resData && resData.metrics) {
+        setAnalyticsData(resData);
+      }
     } catch (err) {
       console.error('Failed to load analytics:', err);
     } finally {
       setAnalyticsLoading(false);
+    }
+  };
+
+  // ==========================================
+  // CSV EXPORTS & CATALOG BULK UPLOAD HANDLERS
+  // ==========================================
+
+  const formatCsvCell = (val) => {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const downloadCsvBlob = (csvString, filename) => {
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCSVText = (text) => {
+    const lines = [];
+    let row = [''];
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const nextC = text[i + 1];
+
+      if (c === '"') {
+        if (inQuotes && nextC === '"') {
+          row[row.length - 1] += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        row.push('');
+      } else if ((c === '\r' || c === '\n') && !inQuotes) {
+        if (c === '\r' && nextC === '\n') i++;
+        if (row.length > 1 || row[0] !== '') {
+          lines.push(row.map(cell => cell.trim()));
+        }
+        row = [''];
+      } else {
+        row[row.length - 1] += c;
+      }
+    }
+    if (row.length > 1 || row[0] !== '') {
+      lines.push(row.map(cell => cell.trim()));
+    }
+    return lines;
+  };
+
+  // 1. Export All Users CSV
+  const handleDownloadUsersCSV = (users) => {
+    const list = Array.isArray(users) && users.length > 0 ? users : (data?.users || []);
+    if (list.length === 0) {
+      showToast('No user records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'User ID', 'Full Name', 'Email', 'Role', 'Position', 'Company', 'Phone',
+      'Department', 'Monthly Salary (UGX)', 'Location', 'Account Status', 'Supervisor Name'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    list.forEach(u => {
+      rows.push([
+        formatCsvCell(u.id || ''),
+        formatCsvCell(u.name || ''),
+        formatCsvCell(u.email || ''),
+        formatCsvCell(u.role || ''),
+        formatCsvCell(u.position || ''),
+        formatCsvCell(u.company || ''),
+        formatCsvCell(u.phone || ''),
+        formatCsvCell(u.department || ''),
+        formatCsvCell(Number(u.salary || 0)),
+        formatCsvCell(u.location || ''),
+        formatCsvCell(u.status || 'Active'),
+        formatCsvCell(u.supervisor_name || '')
+      ].join(','));
+    });
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_System_Users_${dateStr}.csv`);
+    showToast(`Exported ${list.length} user record(s) to CSV!`, 'success');
+  };
+
+  // 2. Export All Expenditures CSV
+  const handleDownloadExpensesCSV = (expenses) => {
+    const list = Array.isArray(expenses) && expenses.length > 0 
+      ? expenses 
+      : (Array.isArray(companyExpensesList) && companyExpensesList.length > 0 ? companyExpensesList : (data?.staffExpenses || []));
+    if (list.length === 0) {
+      showToast('No expenditure records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Voucher Ref', 'Expense Category', 'Staff Name', 'Staff Email', 'Supervisor Name',
+      'Description', 'Amount (UGX)', 'Status', 'Approved By', 'Date Recorded', 'Work Order Ref'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalAmt = 0;
+    list.forEach(e => {
+      const amt = Number(e.amount || 0);
+      totalAmt += amt;
+      rows.push([
+        formatCsvCell(e.receipt_ref || e.id || ''),
+        formatCsvCell(e.category || 'General Operations'),
+        formatCsvCell(e.staff_name || ''),
+        formatCsvCell(e.staff_email || ''),
+        formatCsvCell(e.supervisor_name || ''),
+        formatCsvCell(e.description || ''),
+        formatCsvCell(amt),
+        formatCsvCell(e.status || 'Approved'),
+        formatCsvCell(e.approved_by || ''),
+        formatCsvCell(e.date || (e.created_at ? e.created_at.split('T')[0] : '')),
+        formatCsvCell(e.work_order_ref || '')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL EXPENDITURES",,,,,,"UGX ${totalAmt.toLocaleString()}",,,,`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Expenditures_${dateStr}.csv`);
+    showToast(`Exported ${list.length} expenditure record(s) to CSV!`, 'success');
+  };
+
+  // 3. Export All Work Orders CSV
+  const handleDownloadWorkOrdersCSV = (orders) => {
+    const list = Array.isArray(orders) && orders.length > 0
+      ? orders
+      : (Array.isArray(workOrdersList) && workOrdersList.length > 0 ? workOrdersList : (data?.work_orders || []));
+    if (list.length === 0) {
+      showToast('No work order records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Work Order No', 'Task Title', 'Client Site / System', 'Assigned Staff',
+      'Charging Mode', 'Rate (UGX)', 'Units / Days', 'Total Labor Cost (UGX)',
+      'Scheduled Date', 'Completion Date', 'Status', 'Description'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalLabor = 0;
+    list.forEach(o => {
+      const cost = Number(o.total_cost || 0);
+      totalLabor += cost;
+      rows.push([
+        formatCsvCell(o.order_number || o.id || ''),
+        formatCsvCell(o.task_title || ''),
+        formatCsvCell(o.client_site || ''),
+        formatCsvCell(o.assigned_staff_name || ''),
+        formatCsvCell(o.charging_mode === 'per_hour' ? 'Hourly Rate' : 'Daily Rate'),
+        formatCsvCell(Number(o.rate || 0)),
+        formatCsvCell(Number(o.quantity || 1)),
+        formatCsvCell(cost),
+        formatCsvCell(o.scheduled_date || ''),
+        formatCsvCell(o.completion_date || ''),
+        formatCsvCell(o.status || 'Scheduled'),
+        formatCsvCell(o.description || '')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL WORK ORDER LABOR",,,,,,, "UGX ${totalLabor.toLocaleString()}",,,,`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Work_Orders_${dateStr}.csv`);
+    showToast(`Exported ${list.length} work order(s) to CSV!`, 'success');
+  };
+
+  // 4. Export All Quotations CSV
+  const handleDownloadQuotationsCSV = (quotes) => {
+    const list = Array.isArray(quotes) && quotes.length > 0
+      ? quotes
+      : (Array.isArray(quotationsList) && quotationsList.length > 0 ? quotationsList : (data?.quotations || []));
+    if (list.length === 0) {
+      showToast('No quotation records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Quotation No', 'Customer Name', 'Customer Email', 'Customer Phone', 'Company',
+      'Date Issued', 'Valid Until', 'Subtotal (UGX)', 'VAT Exempt', 'VAT Amount (UGX)',
+      'Total Amount (UGX)', 'Status', 'Line Items Summary', 'Notes'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalQuotesSum = 0;
+    list.forEach(q => {
+      const total = Number(q.total_amount || 0);
+      totalQuotesSum += total;
+      const itemsSummary = Array.isArray(q.items) 
+        ? q.items.map(it => `${it.name || it.description} (Qty: ${it.quantity || 1}, UGX ${Number(it.total || 0).toLocaleString()})`).join('; ')
+        : '';
+      rows.push([
+        formatCsvCell(q.quote_number || q.id || ''),
+        formatCsvCell(q.customer_name || ''),
+        formatCsvCell(q.customer_email || ''),
+        formatCsvCell(q.customer_phone || ''),
+        formatCsvCell(q.company || ''),
+        formatCsvCell(q.created_at ? q.created_at.split('T')[0] : ''),
+        formatCsvCell(q.valid_until || ''),
+        formatCsvCell(Number(q.subtotal || 0)),
+        formatCsvCell(q.vat_exempt ? 'YES' : 'NO'),
+        formatCsvCell(Number(q.vat_amount || 0)),
+        formatCsvCell(total),
+        formatCsvCell(q.status || 'Sent'),
+        formatCsvCell(itemsSummary),
+        formatCsvCell(q.notes || '')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL QUOTATION VALUE",,,,,,,,,,"UGX ${totalQuotesSum.toLocaleString()}",,,`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Quotations_${dateStr}.csv`);
+    showToast(`Exported ${list.length} quotation(s) to CSV!`, 'success');
+  };
+
+  // 5. Download Products Catalog CSV Template based on current product variables & categories
+  const handleDownloadProductCSVTemplate = () => {
+    const categories = productCategories.length > 0 
+      ? productCategories.map(c => c.name) 
+      : ['Hosting Services', 'Hardware & Security', 'WiFi Vouchers', 'Domain Names'];
+    const cat1 = categories[0] || 'Hosting Services';
+    const cat2 = categories[1] || 'Hardware & Security';
+    const cat3 = categories[2] || 'WiFi Vouchers';
+
+    const headers = [
+      'Name', 'Category', 'Price', 'Currency', 'Stock', 'Badge',
+      'Short Description', 'Full Description', 'Image URL', 'Is Hidden', 'Checkout Flow'
+    ];
+
+    const sampleRows = [
+      headers.map(formatCsvCell).join(','),
+      [
+        formatCsvCell('Nova Edge Cloud VPS (Standard)'),
+        formatCsvCell(cat1),
+        formatCsvCell(250000),
+        formatCsvCell('UGX'),
+        formatCsvCell(50),
+        formatCsvCell('Popular'),
+        formatCsvCell('2 vCPU, 4GB RAM, 80GB NVMe SSD Edge Cloud Node'),
+        formatCsvCell('High-availability cloud compute instance hosted in Kampala datacenter with 99.99% uptime guarantee and daily backup snapshots.'),
+        formatCsvCell('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'),
+        formatCsvCell('false'),
+        formatCsvCell('shop')
+      ].join(','),
+      [
+        formatCsvCell('UniFi WiFi 6 Long-Range Access Point'),
+        formatCsvCell(cat2),
+        formatCsvCell(680000),
+        formatCsvCell('UGX'),
+        formatCsvCell(25),
+        formatCsvCell('Enterprise'),
+        formatCsvCell('High-density enterprise ceiling WiFi 6 AP with 4x4 MU-MIMO'),
+        formatCsvCell('Supports up to 300 concurrent devices with integrated PoE+ powering and cloud controller integration.'),
+        formatCsvCell('https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80'),
+        formatCsvCell('false'),
+        formatCsvCell('shop')
+      ].join(','),
+      [
+        formatCsvCell('30-Day Unlimited Hotspot Pass'),
+        formatCsvCell(cat3),
+        formatCsvCell(45000),
+        formatCsvCell('UGX'),
+        formatCsvCell(100),
+        formatCsvCell('Hot'),
+        formatCsvCell('30 days high-speed unlimited voucher code with instant SMS delivery'),
+        formatCsvCell('Full month high-speed guest token for university campuses, business cafes, and remote field camps.'),
+        formatCsvCell('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'),
+        formatCsvCell('false'),
+        formatCsvCell('shop')
+      ].join(',')
+    ];
+
+    downloadCsvBlob(sampleRows.join('\n'), 'Nova_Store_Products_Catalog_Template.csv');
+    showToast('Downloaded Catalog CSV Template with active categories!', 'success');
+  };
+
+  // 6. Handle CSV File Select & Parsing for Bulk Product Upload
+  const handleCsvFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploadFileName(file.name);
+    setCsvParseError('');
+    setCsvProductsPreview([]);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result || '';
+        const matrix = parseCSVText(text);
+        if (matrix.length < 2) {
+          setCsvParseError('The uploaded CSV file is empty or does not contain product data rows.');
+          return;
+        }
+
+        const rawHeaders = matrix[0].map(h => h.trim().toLowerCase());
+        const findCol = (keys) => rawHeaders.findIndex(h => keys.some(k => h === k.toLowerCase()));
+
+        const nameIdx = findCol(['name', 'product name', 'product_name', 'title']);
+        const catIdx = findCol(['category', 'product category', 'product_category', 'cat']);
+        const priceIdx = findCol(['price', 'unit price', 'unit_price', 'amount', 'cost']);
+        const currIdx = findCol(['currency', 'curr']);
+        const stockIdx = findCol(['stock', 'quantity', 'qty']);
+        const badgeIdx = findCol(['badge', 'tag', 'label']);
+        const shortDescIdx = findCol(['short description', 'short_desc', 'shortdesc', 'summary']);
+        const descIdx = findCol(['full description', 'description', 'desc', 'specs', 'details']);
+        const imgIdx = findCol(['image url', 'image_url', 'image', 'photo']);
+        const hiddenIdx = findCol(['is hidden', 'is_hidden', 'hidden']);
+        const flowIdx = findCol(['checkout flow', 'checkout_flow', 'checkout type', 'checkout_type']);
+
+        if (nameIdx === -1) {
+          setCsvParseError('CSV missing "Name" column header. Please download the template to check required column headers.');
+          return;
+        }
+
+        const parsedProducts = [];
+        for (let i = 1; i < matrix.length; i++) {
+          const row = matrix[i];
+          if (!row || row.length === 0 || (row.length === 1 && !row[0])) continue;
+
+          const name = row[nameIdx]?.trim();
+          if (!name) continue;
+
+          const category = (catIdx !== -1 && row[catIdx]?.trim()) ? row[catIdx].trim() : (productCategories[0]?.name || 'Hosting Services');
+          const rawPrice = priceIdx !== -1 ? row[priceIdx]?.replace(/[^0-9.]/g, '') : '0';
+          const price = Number(rawPrice) || 0;
+          const currency = (currIdx !== -1 && row[currIdx]?.trim()) ? row[currIdx].trim() : 'UGX';
+          const stock = (stockIdx !== -1 && row[stockIdx]?.trim()) ? Number(row[stockIdx]) || 50 : 50;
+          const badge = (badgeIdx !== -1 && row[badgeIdx]?.trim()) ? row[badgeIdx].trim() : '';
+          const short_desc = (shortDescIdx !== -1 && row[shortDescIdx]?.trim()) ? row[shortDescIdx].trim() : name;
+          const description = (descIdx !== -1 && row[descIdx]?.trim()) ? row[descIdx].trim() : short_desc;
+          const image_url = (imgIdx !== -1 && row[imgIdx]?.trim()) ? row[imgIdx].trim() : 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80';
+          const is_hidden = hiddenIdx !== -1 ? (row[hiddenIdx]?.trim().toLowerCase() === 'true' || row[hiddenIdx]?.trim() === '1') : false;
+          const checkout_flow = (flowIdx !== -1 && row[flowIdx]?.trim()) ? row[flowIdx].trim().toLowerCase() : 'shop';
+
+          parsedProducts.push({
+            name,
+            category,
+            price,
+            currency,
+            stock,
+            badge,
+            short_desc,
+            description,
+            image_url,
+            is_hidden,
+            checkout_flow: checkout_flow === 'hosting' ? 'hosting' : 'shop'
+          });
+        }
+
+        if (parsedProducts.length === 0) {
+          setCsvParseError('No valid product rows could be parsed. Check that rows contain product names.');
+          return;
+        }
+
+        setCsvProductsPreview(parsedProducts);
+      } catch (err) {
+        setCsvParseError(`Failed to parse CSV file: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 7. Execute Bulk Product Import API Call
+  const handleExecuteCsvProductImport = async () => {
+    if (csvProductsPreview.length === 0) return;
+    setCsvUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/products/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ products: csvProductsPreview })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to bulk import products.');
+
+      showToast(resData.message || `Successfully imported ${csvProductsPreview.length} products!`, 'success');
+      setShowProductCsvModal(false);
+      setCsvProductsPreview([]);
+      setCsvUploadFileName('');
+
+      // Refresh store products & categories
+      fetch('/api/products').then(r => r.json()).then(p => Array.isArray(p) && setStoreProducts(p));
+      fetch('/api/product-categories').then(r => r.json()).then(c => Array.isArray(c) && setProductCategories(c));
+      fetchDashboardData(true);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setCsvUploading(false);
     }
   };
 
@@ -1811,9 +2284,106 @@ const normalizeTabName = (rawTab) => {
 
   const handleSendReceipt = async (invoiceId, invoiceNumber, customerEmail) => {
     try {
-      showToast(`Official 100% Paid Tax Receipt for ${invoiceNumber} dispatched to ${customerEmail || 'customer'}`, 'success');
+      showToast(`Generating official receipt for ${invoiceNumber}...`, 'info');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/admin/invoices/${invoiceId}/send-receipt`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to dispatch receipt');
+      showToast(data.message || `Official 100% Paid Tax Receipt for ${invoiceNumber} dispatched to ${customerEmail || 'customer'}`, 'success');
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleOpenDeliveryNoteModal = (inv) => {
+    setSelectedInvoiceForDN(inv);
+    setDnCarrier('Direct Handover');
+    setDnTrackingCode(`TRK-${Date.now().toString().slice(-6)}`);
+    setDnDispatchOfficer(user?.name || 'Nova Operations & Logistics');
+    setDnDeliveryAddress(inv.customer_address || 'Customer Premises, Uganda');
+    setDnDeliveryDate(new Date().toISOString().split('T')[0]);
+    setDnRecipientName(inv.customer_name || '');
+    setDnRecipientEmail(inv.customer_email || '');
+    setDnRecipientPhone(inv.customer_phone || '');
+    setDnNotes('All items inspected, verified, and accepted in 100% operational condition with official warranty.');
+
+    // Populate items
+    if (Array.isArray(inv.items) && inv.items.length > 0) {
+      setDnItems(inv.items.map(it => ({
+        name: it.name || it.description || inv.item_name || 'Supplied Item',
+        description: it.description || '',
+        serial_number: it.serial_number || '',
+        quantity_ordered: Number(it.quantity || it.qty || 1),
+        quantity_dispatched: Number(it.quantity || it.qty || 1),
+        condition: 'Tested & Certified (Pristine)'
+      })));
+    } else {
+      setDnItems([{
+        name: inv.item_name || 'Enterprise Cloud & Managed Solution',
+        description: 'Delivered and deployed under Invoice #' + inv.invoice_number,
+        serial_number: '',
+        quantity_ordered: Number(inv.quantity || 1),
+        quantity_dispatched: Number(inv.quantity || 1),
+        condition: 'Tested & Certified (Pristine)'
+      }]);
+    }
+
+    setShowDeliveryNoteModal(true);
+  };
+
+  const handleDispatchDeliveryNote = async (e) => {
+    e.preventDefault();
+    if (!selectedInvoiceForDN) return;
+
+    setIsDispatchingDN(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        carrier: dnCarrier,
+        tracking_code: dnTrackingCode,
+        dispatch_officer: dnDispatchOfficer,
+        delivery_address: dnDeliveryAddress,
+        delivery_date: dnDeliveryDate,
+        recipient_name: dnRecipientName,
+        recipient_email: dnRecipientEmail,
+        recipient_phone: dnRecipientPhone,
+        notes: dnNotes,
+        items: dnItems
+      };
+
+      const res = await fetch(`/api/admin/invoices/${selectedInvoiceForDN.id}/delivery-note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to dispatch delivery note');
+
+      showToast(data.message || 'Delivery note generated and dispatched with PDF attached!', 'success');
+
+      if (data.delivery_note?.dn_number) {
+        setInvoices(prev => prev.map(inv => 
+          (inv.id === selectedInvoiceForDN.id || inv.invoice_number === selectedInvoiceForDN.invoice_number)
+            ? { ...inv, delivery_note_ref: data.delivery_note.dn_number, delivery_dispatched_at: new Date().toISOString() }
+            : inv
+        ));
+      }
+
+      setShowDeliveryNoteModal(false);
+      setSelectedInvoiceForDN(null);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsDispatchingDN(false);
     }
   };
 
@@ -1922,12 +2492,49 @@ const normalizeTabName = (rawTab) => {
 
   const handleSendInvoiceEmail = async (inv) => {
     try {
+      showToast(`Dispatching Tax Invoice #${inv.invoice_number} with certified PDF attached...`, 'info');
       const res = await fetch(`/api/admin/invoices/${inv.id}/send-email`, { method: 'POST' });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
-      showToast(`Official Tax Invoice #${inv.invoice_number} sent to ${inv.customer_email} (CC: sales@ncloud.co.ug)`, 'success');
+      showToast(`Official Tax Invoice #${inv.invoice_number} & PDF sent to ${inv.customer_email}!`, 'success');
     } catch (err) {
       showToast(err.message || 'Failed to dispatch invoice email', 'error');
+    }
+  };
+
+  const handleSendQuotationEmail = async (q) => {
+    try {
+      showToast(`Dispatching Commercial Quotation #${q.quote_number} with certified PDF attached...`, 'info');
+      const res = await fetch(`/api/admin/quotations/${q.id}/send-email`, { method: 'POST' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch quotation email');
+      showToast(resData.message || `Commercial Quotation #${q.quote_number} & PDF sent to ${q.customer_email}!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to dispatch quotation email', 'error');
+    }
+  };
+
+  const handleSendWorkOrderEmail = async (wo) => {
+    try {
+      showToast(`Dispatching Work Order #${wo.order_number} with certified PDF attached...`, 'info');
+      const res = await fetch(`/api/admin/work-orders/${wo.id}/send-email`, { method: 'POST' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch work order email');
+      showToast(resData.message || `Work Order #${wo.order_number} & PDF sent successfully!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to dispatch work order email', 'error');
+    }
+  };
+
+  const handleSendExpenseEmail = async (exp) => {
+    try {
+      showToast(`Dispatching Expenditure Voucher #${exp.receipt_ref} with certified PDF attached...`, 'info');
+      const res = await fetch(`/api/admin/company-expenses/${exp.id}/send-email`, { method: 'POST' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch expense voucher email');
+      showToast(resData.message || `Expenditure Voucher #${exp.receipt_ref} & PDF sent successfully!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to dispatch expense voucher email', 'error');
     }
   };
 
@@ -4898,6 +5505,15 @@ const normalizeTabName = (rawTab) => {
                     </div>
                     <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                       <button
+                        type="button"
+                        onClick={() => handleDownloadUsersCSV(usersList)}
+                        className="btn-secondary"
+                        style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
+                        title="Download CSV export of all system users"
+                      >
+                        <Download size={15} /> Export Users CSV
+                      </button>
+                      <button
                         onClick={() => setActiveTab('roles')}
                         className="btn-secondary"
                         style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
@@ -5940,6 +6556,29 @@ const normalizeTabName = (rawTab) => {
                     {catalogTab === 'products' ? (
                       <>
                         <button
+                          type="button"
+                          onClick={handleDownloadProductCSVTemplate}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
+                          title="Download Catalog CSV Template with current product variables"
+                        >
+                          <Download size={15} /> CSV Template
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCsvProductsPreview([]);
+                            setCsvUploadFileName('');
+                            setCsvParseError('');
+                            setShowProductCsvModal(true);
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                          title="Bulk upload store products via CSV"
+                        >
+                          <Upload size={15} /> Bulk Upload CSV
+                        </button>
+                        <button
                           onClick={() => setShowProdCategoryModal(true)}
                           className="btn-secondary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
@@ -6328,6 +6967,15 @@ const normalizeTabName = (rawTab) => {
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadExpensesCSV(companyExpensesList)}
+                      className="btn-secondary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                      title="Download CSV export of all company expenditures"
+                    >
+                      <Download size={15} /> Export Expenses CSV
+                    </button>
                     {isSuperAdmin && (
                       <button
                         onClick={() => setShowCategoryModal(true)}
@@ -6512,6 +7160,14 @@ const normalizeTabName = (rawTab) => {
                                   title="Duplicate expenditure claim for this staff member"
                                 >
                                   <Copy size={12} /> Duplicate
+                                </button>
+                                <button
+                                  onClick={() => handleSendExpenseEmail(e)}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
+                                  title="Email official Expenditure Voucher with PDF attached"
+                                >
+                                  <Mail size={12} /> Send Email
                                 </button>
                                 {(isSuperAdmin || isHrManager || isSalesAdmin) && !isApproved && (
                                   <button
@@ -8142,14 +8798,33 @@ const normalizeTabName = (rawTab) => {
                                 </button>
 
                                 {isPaid ? (
-                                  <button
-                                    onClick={() => handleSendReceipt(inv.id, inv.invoice_number, inv.customer_email)}
-                                    className="btn-secondary"
-                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#16a34a', border: '1px solid rgba(22, 163, 74, 0.3)' }}
-                                    title="Dispatch official paid tax receipt to customer"
-                                  >
-                                    <Mail size={13} color="#16a34a" /> Receipt
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleSendReceipt(inv.id, inv.invoice_number, inv.customer_email)}
+                                      className="btn-secondary"
+                                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#16a34a', border: '1px solid rgba(22, 163, 74, 0.3)' }}
+                                      title="Dispatch official paid tax receipt to customer with PDF attached"
+                                    >
+                                      <Mail size={13} color="#16a34a" /> Receipt
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleOpenDeliveryNoteModal(inv)}
+                                      className="btn-secondary"
+                                      style={{ 
+                                        padding: '0.35rem 0.65rem', 
+                                        fontSize: '0.75rem', 
+                                        gap: '4px', 
+                                        color: '#0284c7', 
+                                        border: '1px solid rgba(2, 132, 199, 0.35)', 
+                                        background: 'rgba(2, 132, 199, 0.06)',
+                                        fontWeight: '700'
+                                      }}
+                                      title="Prepare and dispatch official certified Delivery Note to customer (100% Paid)"
+                                    >
+                                      <Truck size={13} color="#0284c7" /> Delivery Note
+                                    </button>
+                                  </>
                                 ) : (
                                   <button
                                     onClick={() => handleSendDemandNotice(inv)}
@@ -8247,28 +8922,39 @@ const normalizeTabName = (rawTab) => {
                         Draft formal commercial cost proposals from shop inventory, apply custom discounts, convert accepted quotes to Tax Invoices, and share instant verification links.
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setEditingQuotation(null);
-                        setQuotationForm({
-                          customer_name: '',
-                          customer_email: '',
-                          customer_phone: '',
-                          company: '',
-                          valid_until: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-                          notes: 'Quotation valid for 30 days from date of issuance. Remittance details attached.',
-                          vat_exempt: false,
-                          items: [
-                            { name: storeProducts[0]?.name || 'Nova Cloud Edge VPS Server (Standard)', quantity: 1, unit_price: Number(storeProducts[0]?.price || 280000), discount_pct: 0, total: Number(storeProducts[0]?.price || 280000) }
-                          ]
-                        });
-                        setShowQuotationModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0d9488' }}
-                    >
-                      <Plus size={16} /> New Commercial Quotation
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadQuotationsCSV(rawQuotes)}
+                        className="btn-secondary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                        title="Download CSV export of quotations"
+                      >
+                        <Download size={15} /> Export Quotations CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingQuotation(null);
+                          setQuotationForm({
+                            customer_name: '',
+                            customer_email: '',
+                            customer_phone: '',
+                            company: '',
+                            valid_until: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                            notes: 'Quotation valid for 30 days from date of issuance. Remittance details attached.',
+                            vat_exempt: false,
+                            items: [
+                              { name: storeProducts[0]?.name || 'Nova Cloud Edge VPS Server (Standard)', quantity: 1, unit_price: Number(storeProducts[0]?.price || 280000), discount_pct: 0, total: Number(storeProducts[0]?.price || 280000) }
+                            ]
+                          });
+                          setShowQuotationModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0d9488' }}
+                      >
+                        <Plus size={16} /> New Commercial Quotation
+                      </button>
+                    </div>
                   </div>
 
                   {/* Search Bar */}
@@ -8381,6 +9067,15 @@ const normalizeTabName = (rawTab) => {
                             </button>
 
                             <button
+                              onClick={() => handleSendQuotationEmail(q)}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                              title="Email official Commercial Quotation with PDF attached"
+                            >
+                              <Mail size={13} /> Send Email
+                            </button>
+
+                            <button
                               onClick={() => generateQuotationPDF(q, { siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label, bankAccounts: bankAccountsList })}
                               className="btn-secondary"
                               style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px' }}
@@ -8476,27 +9171,38 @@ const normalizeTabName = (rawTab) => {
                         Schedule field tasks and technical labor for staff (hourly/daily charging mode). Marking a Work Order as complete automatically generates a Company Expense Voucher for payout.
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setEditingWorkOrder(null);
-                        setWorkOrderForm({
-                          task_title: '',
-                          client_site: '',
-                          assigned_staff_id: '',
-                          assigned_staff_name: '',
-                          charging_mode: 'per_day',
-                          rate: 150000,
-                          quantity: 1,
-                          scheduled_date: new Date().toISOString().split('T')[0],
-                          description: ''
-                        });
-                        setShowWorkOrderModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#eab308', color: '#000', fontWeight: '800' }}
-                    >
-                      <Plus size={16} /> Schedule Work Order
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadWorkOrdersCSV(rawOrders)}
+                        className="btn-secondary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                        title="Download CSV export of work orders"
+                      >
+                        <Download size={15} /> Export Work Orders CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingWorkOrder(null);
+                          setWorkOrderForm({
+                            task_title: '',
+                            client_site: '',
+                            assigned_staff_id: '',
+                            assigned_staff_name: '',
+                            charging_mode: 'per_day',
+                            rate: 150000,
+                            quantity: 1,
+                            scheduled_date: new Date().toISOString().split('T')[0],
+                            description: ''
+                          });
+                          setShowWorkOrderModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#eab308', color: '#000', fontWeight: '800' }}
+                      >
+                        <Plus size={16} /> Schedule Work Order
+                      </button>
+                    </div>
                   </div>
 
                   {/* Search Bar */}
@@ -8614,6 +9320,15 @@ const normalizeTabName = (rawTab) => {
                               title="Duplicate work order for this assigned staff"
                             >
                               <Copy size={13} /> Duplicate
+                            </button>
+
+                            <button
+                              onClick={() => handleSendWorkOrderEmail(wo)}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                              title="Email official Work Order with certified PDF attached"
+                            >
+                              <Mail size={13} /> Send Email
                             </button>
 
                             {isCompleted ? (
@@ -10294,6 +11009,302 @@ const normalizeTabName = (rawTab) => {
                     </div>
                   </div>
 
+                  {/* Card 4B: Top Utility Bar Configuration (Contacts, Location, Socials, Dark Blue & White Theme) */}
+                  <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Sliders size={18} /> Top Utility Bar Configuration
+                        </h4>
+                        <span className="badge-tag" style={{ background: topbarForm.enabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: topbarForm.enabled ? 'var(--accent-emerald)' : '#ef4444', fontWeight: '800', fontSize: '0.7rem' }}>
+                          {topbarForm.enabled ? '● Active' : '○ Hidden'}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                        Configure the website top contact bar. Customize dark blue background, white text color, telephone contact, email, physical map pin, and social links.
+                      </p>
+
+                      {/* Live Top Bar Preview */}
+                      <div style={{ marginBottom: '1.25rem', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                        <div style={{ padding: '0.35rem 0.65rem', background: 'var(--bg-main)', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
+                          Live Top Bar Preview:
+                        </div>
+                        {topbarForm.enabled ? (
+                          <div style={{
+                            backgroundColor: topbarForm.bg_color || '#0a192f',
+                            color: topbarForm.text_color || '#ffffff',
+                            padding: '0.55rem 0.85rem',
+                            fontSize: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '0.65rem'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: topbarForm.text_color }}>
+                                <i className="fa-solid fa-location-dot" style={{ color: 'var(--accent-cyan)' }}></i>
+                                {topbarForm.location_text || 'Lugga Zone, Ndejje, Wakiso'}
+                              </span>
+                              <span style={{ opacity: 0.3 }}>|</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: topbarForm.text_color, fontWeight: '700' }}>
+                                <i className="fa-solid fa-phone" style={{ color: 'var(--accent-emerald)' }}></i>
+                                {topbarForm.phone || '0790001631'}
+                              </span>
+                              {topbarForm.noc_status_enabled && (
+                                <>
+                                  <span style={{ opacity: 0.3 }}>|</span>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', opacity: 0.85, textTransform: 'uppercase', fontWeight: '700' }}>
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
+                                    {topbarForm.noc_status_text || '24/7 Support NOC'}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: topbarForm.text_color }}>
+                                <i className="fa-solid fa-envelope" style={{ color: '#38bdf8' }}></i>
+                                {topbarForm.email || 'support@ncloud.co.ug'}
+                              </span>
+                              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                {topbarForm.whatsapp && <i className="fa-brands fa-whatsapp" style={{ color: '#25d366' }}></i>}
+                                {topbarForm.linkedin && <i className="fa-brands fa-linkedin-in" style={{ color: '#38bdf8' }}></i>}
+                                {topbarForm.twitter && <i className="fa-brands fa-x-twitter" style={{ color: '#ffffff' }}></i>}
+                                {topbarForm.facebook && <i className="fa-brands fa-facebook-f" style={{ color: '#60a5fa' }}></i>}
+                                {topbarForm.github && <i className="fa-brands fa-github" style={{ color: '#c084fc' }}></i>}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', background: 'var(--bg-main)' }}>
+                            Top utility bar is hidden.
+                          </div>
+                        )}
+                      </div>
+
+                      <form onSubmit={handleSaveTopbar}>
+                        {/* Visibility and 24/7 NOC Toggle */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Bar Visibility</label>
+                            <select
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.enabled ? 'true' : 'false'}
+                              onChange={e => setTopbarForm({ ...topbarForm, enabled: e.target.value === 'true' })}
+                            >
+                              <option value="true">Active (Visible)</option>
+                              <option value="false">Disabled (Hidden)</option>
+                            </select>
+                          </div>
+
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>24/7 NOC Status</label>
+                            <select
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.noc_status_enabled ? 'true' : 'false'}
+                              onChange={e => setTopbarForm({ ...topbarForm, noc_status_enabled: e.target.value === 'true' })}
+                            >
+                              <option value="true">Enabled (Online Ping)</option>
+                              <option value="false">Disabled</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Colors: Dark Blue Background & White Text */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Background (Dark Blue)</label>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <input
+                                type="color"
+                                value={topbarForm.bg_color || '#0a192f'}
+                                onChange={e => setTopbarForm({ ...topbarForm, bg_color: e.target.value })}
+                                style={{ width: '38px', height: '34px', padding: '2px', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}
+                              />
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.8rem' }}
+                                value={topbarForm.bg_color || '#0a192f'}
+                                onChange={e => setTopbarForm({ ...topbarForm, bg_color: e.target.value })}
+                                placeholder="#0a192f"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Text Color (White)</label>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                              <input
+                                type="color"
+                                value={topbarForm.text_color || '#ffffff'}
+                                onChange={e => setTopbarForm({ ...topbarForm, text_color: e.target.value })}
+                                style={{ width: '38px', height: '34px', padding: '2px', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer' }}
+                              />
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.8rem' }}
+                                value={topbarForm.text_color || '#ffffff'}
+                                onChange={e => setTopbarForm({ ...topbarForm, text_color: e.target.value })}
+                                placeholder="#ffffff"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Dark Blue Color Presets */}
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', alignSelf: 'center' }}>Presets:</span>
+                          {[
+                            { name: 'Corporate Dark Blue', bg: '#0a192f', text: '#ffffff' },
+                            { name: 'Deep Navy', bg: '#0f172a', text: '#ffffff' },
+                            { name: 'Royal Blue', bg: '#1e3a8a', text: '#ffffff' },
+                            { name: 'Midnight', bg: '#040812', text: '#ffffff' }
+                          ].map((p, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setTopbarForm({ ...topbarForm, bg_color: p.bg, text_color: p.text })}
+                              style={{
+                                background: p.bg,
+                                color: p.text,
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {p.name}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Telephone and Email */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Telephone Contact *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.phone || ''}
+                              onChange={e => setTopbarForm({ ...topbarForm, phone: e.target.value })}
+                              placeholder="0790001631"
+                              required
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Support Email *</label>
+                            <input
+                              type="email"
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.email || ''}
+                              onChange={e => setTopbarForm({ ...topbarForm, email: e.target.value })}
+                              placeholder="support@ncloud.co.ug"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {/* Physical Location and Google Maps Link */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Location Map Pin Text</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.location_text || ''}
+                              onChange={e => setTopbarForm({ ...topbarForm, location_text: e.target.value })}
+                              placeholder="Lugga Zone, Ndejje, Wakiso"
+                            />
+                          </div>
+
+                          <div className="form-group">
+                            <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Google Maps URL</label>
+                            <input
+                              type="url"
+                              className="form-input"
+                              style={{ fontSize: '0.8rem' }}
+                              value={topbarForm.maps_url || ''}
+                              onChange={e => setTopbarForm({ ...topbarForm, maps_url: e.target.value })}
+                              placeholder="https://maps.google.com/..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Social Media Channels */}
+                        <div style={{ padding: '0.65rem 0.75rem', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '0.85rem' }}>
+                          <label style={{ fontWeight: '800', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>
+                            Social Media & WhatsApp Channels
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>WhatsApp Link</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.75rem' }}
+                                value={topbarForm.whatsapp || ''}
+                                onChange={e => setTopbarForm({ ...topbarForm, whatsapp: e.target.value })}
+                                placeholder="https://wa.me/256790001631"
+                              />
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>LinkedIn URL</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.75rem' }}
+                                value={topbarForm.linkedin || ''}
+                                onChange={e => setTopbarForm({ ...topbarForm, linkedin: e.target.value })}
+                                placeholder="https://linkedin.com/..."
+                              />
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>X (Twitter) URL</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.75rem' }}
+                                value={topbarForm.twitter || ''}
+                                onChange={e => setTopbarForm({ ...topbarForm, twitter: e.target.value })}
+                                placeholder="https://x.com/..."
+                              />
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>Facebook URL</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.75rem' }}
+                                value={topbarForm.facebook || ''}
+                                onChange={e => setTopbarForm({ ...topbarForm, facebook: e.target.value })}
+                                placeholder="https://facebook.com/..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          type="submit" 
+                          disabled={savingTopbar}
+                          className="btn-primary" 
+                          style={{ width: '100%', justifyContent: 'center', background: '#0284c7' }}
+                        >
+                          {savingTopbar ? 'Saving Configuration...' : 'Save Top Utility Bar Configuration'}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
                   {/* Card 5: System Notification Emails */}
                   <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
@@ -10856,6 +11867,15 @@ const normalizeTabName = (rawTab) => {
                                 title="Duplicate expense voucher for this staff"
                               >
                                 <Copy size={13} /> Duplicate
+                              </button>
+
+                              <button
+                                onClick={() => handleSendExpenseEmail(exp)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Email official Expenditure Voucher with PDF attached"
+                              >
+                                <Mail size={13} /> Send Email
                               </button>
 
                               <button
@@ -12103,6 +13123,432 @@ const normalizeTabName = (rawTab) => {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* SMART DELIVERY NOTE MODAL (100% Paid Invoices) */}
+        {showDeliveryNoteModal && selectedInvoiceForDN && (
+          <div className="modal-overlay" onClick={() => setShowDeliveryNoteModal(false)}>
+            <div
+              className="modal-content animate-fade-in"
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: '780px',
+                width: '100%',
+                maxHeight: '92vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 0,
+                borderRadius: '16px',
+                overflow: 'hidden',
+                background: 'var(--bg-card)',
+                boxShadow: '0 25px 50px rgba(0,0,0,0.35)',
+                border: '1px solid var(--border-color)'
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--bg-card-hover)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(2, 132, 199, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0284c7'
+                  }}>
+                    <Truck size={20} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '1.15rem', margin: 0, fontWeight: '800', color: 'var(--text-main)' }}>
+                        Prepare & Dispatch Delivery Note
+                      </h3>
+                      <span style={{
+                        background: 'rgba(22, 163, 74, 0.12)',
+                        color: '#16a34a',
+                        fontSize: '0.7rem',
+                        fontWeight: '800',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(22, 163, 74, 0.25)'
+                      }}>
+                        100% PAID VERIFIED
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                      Fulfillment verification & certified PDF document dispatch for Invoice #{selectedInvoiceForDN.invoice_number}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeliveryNoteModal(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '0.35rem',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleDispatchDeliveryNote} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+                  
+                  {/* Invoice Quick Summary Card */}
+                  <div style={{
+                    background: 'var(--bg-main)',
+                    borderRadius: '10px',
+                    padding: '0.85rem 1rem',
+                    border: '1px solid var(--border-color)',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '0.75rem',
+                    fontSize: '0.8rem'
+                  }}>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>Tax Invoice</div>
+                      <div style={{ fontWeight: '800', color: 'var(--primary)', marginTop: '2px' }}>#{selectedInvoiceForDN.invoice_number}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>Customer / Company</div>
+                      <div style={{ fontWeight: '700', color: 'var(--text-main)', marginTop: '2px' }}>{selectedInvoiceForDN.customer_name}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase' }}>Amount Cleared</div>
+                      <div style={{ fontWeight: '800', color: '#16a34a', marginTop: '2px' }}>
+                        UGX {Number(selectedInvoiceForDN.paid_amount || selectedInvoiceForDN.amount || 0).toLocaleString()} (100%)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Logistics & Delivery Details */}
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Logistics & Carrier Details
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Handover / Carrier Method</label>
+                        <select
+                          className="form-control"
+                          value={dnCarrier}
+                          onChange={e => setDnCarrier(e.target.value)}
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        >
+                          <option value="Direct Handover">Direct Handover (On-Premises)</option>
+                          <option value="Field Engineer Delivery">Field Engineer Delivery & Setup</option>
+                          <option value="Logistics Courier Dispatch">Logistics Courier Dispatch</option>
+                          <option value="Secure Digital Provisioning">Secure Digital Provisioning</option>
+                          <option value="Customer Counter Pickup">Customer Counter Pickup</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Tracking / Waybill Ref</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={dnTrackingCode}
+                          onChange={e => setDnTrackingCode(e.target.value)}
+                          placeholder="e.g. TRK-2026-9812"
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem', fontFamily: 'monospace' }}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Dispatching Officer</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={dnDispatchOfficer}
+                          onChange={e => setDnDispatchOfficer(e.target.value)}
+                          placeholder="e.g. Nixon Kamugisha"
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recipient & Destination Details */}
+                  <div>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Recipient & Destination
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem', marginBottom: '0.65rem' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Delivery / Site Address *</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={dnDeliveryAddress}
+                          onChange={e => setDnDeliveryAddress(e.target.value)}
+                          required
+                          placeholder="Delivery premises or site address"
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Delivery Date *</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={dnDeliveryDate}
+                          onChange={e => setDnDeliveryDate(e.target.value)}
+                          required
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Recipient Contact</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={dnRecipientName}
+                          onChange={e => setDnRecipientName(e.target.value)}
+                          placeholder="Contact person"
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Recipient Email (PDF will be sent here) *</label>
+                        <input
+                          type="email"
+                          className="form-control"
+                          value={dnRecipientEmail}
+                          onChange={e => setDnRecipientEmail(e.target.value)}
+                          required
+                          placeholder="Email address for PDF delivery"
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>Recipient Phone</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={dnRecipientPhone}
+                          onChange={e => setDnRecipientPhone(e.target.value)}
+                          placeholder="+256..."
+                          style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Smart Line Items & Equipment Checklist */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Fulfillment Line Items & Equipment QC
+                      </h4>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Verify serial numbers / asset tags and condition
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {dnItems.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'var(--bg-main)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '0.75rem 0.85rem',
+                            display: 'grid',
+                            gridTemplateColumns: '2fr 1.5fr 70px 70px 1.5fr',
+                            gap: '0.65rem',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                              {item.name}
+                            </div>
+                            <input
+                              type="text"
+                              value={item.description || ''}
+                              onChange={e => {
+                                const updated = [...dnItems];
+                                updated[idx].description = e.target.value;
+                                setDnItems(updated);
+                              }}
+                              placeholder="Specs / model details"
+                              style={{
+                                width: '100%',
+                                fontSize: '0.72rem',
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-muted)',
+                                padding: 0,
+                                marginTop: '2px'
+                              }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                              Serial / Asset Tag
+                            </label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={item.serial_number || ''}
+                              onChange={e => {
+                                const updated = [...dnItems];
+                                updated[idx].serial_number = e.target.value;
+                                setDnItems(updated);
+                              }}
+                              placeholder="e.g. SN-88219"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.45rem', fontFamily: 'monospace' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                              Qty Ord
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              className="form-control"
+                              value={item.quantity_ordered}
+                              onChange={e => {
+                                const updated = [...dnItems];
+                                updated[idx].quantity_ordered = Number(e.target.value);
+                                setDnItems(updated);
+                              }}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.45rem', textAlign: 'center' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: '#0284c7', display: 'block', marginBottom: '2px' }}>
+                              Qty Disp
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              className="form-control"
+                              value={item.quantity_dispatched}
+                              onChange={e => {
+                                const updated = [...dnItems];
+                                updated[idx].quantity_dispatched = Number(e.target.value);
+                                setDnItems(updated);
+                              }}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.45rem', textAlign: 'center', fontWeight: 'bold' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                              QC Condition
+                            </label>
+                            <select
+                              className="form-control"
+                              value={item.condition}
+                              onChange={e => {
+                                const updated = [...dnItems];
+                                updated[idx].condition = e.target.value;
+                                setDnItems(updated);
+                              }}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.45rem' }}
+                            >
+                              <option value="Tested & Certified (Pristine)">Tested & Certified</option>
+                              <option value="Brand New / Sealed">Brand New / Sealed</option>
+                              <option value="Pre-Configured & Verified">Pre-Configured</option>
+                              <option value="Factory Calibrated">Factory Calibrated</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Delivery Terms & Warranty Acknowledgement */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: '700', marginBottom: '0.3rem' }}>
+                      Delivery Acknowledgement & Warranty Notes
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      value={dnNotes}
+                      onChange={e => setDnNotes(e.target.value)}
+                      placeholder="Special delivery terms or warranty conditions"
+                      style={{ fontSize: '0.8rem', padding: '0.45rem 0.65rem' }}
+                    />
+                  </div>
+
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div style={{
+                  padding: '1rem 1.5rem',
+                  borderTop: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  background: 'var(--bg-card-hover)'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeliveryNoteModal(false)}
+                    className="btn-secondary"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isDispatchingDN}
+                    className="btn-primary"
+                    style={{
+                      padding: '0.5rem 1.35rem',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#0284c7',
+                      borderColor: '#0284c7',
+                      opacity: isDispatchingDN ? 0.7 : 1
+                    }}
+                  >
+                    {isDispatchingDN ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" /> Dispatching Document...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} /> Generate & Dispatch Delivery Note (PDF Attached)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -16494,6 +17940,160 @@ const normalizeTabName = (rawTab) => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* BULK CSV PRODUCT IMPORT MODAL */}
+        {showProductCsvModal && (
+          <div className="modal-overlay" onClick={() => setShowProductCsvModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '820px', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileSpreadsheet size={22} color="var(--primary)" /> Bulk Upload Store Products (CSV)
+                  </h3>
+                  <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                    Upload a CSV file containing catalog items. Products are automatically classified by category and assigned inventory properties.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProductCsvModal(false)}
+                  className="btn-secondary"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              {/* Step 1: Template and File Picker */}
+              <div style={{ background: 'var(--bg-main)', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700' }}>
+                    1. CSV Template & Format Guidelines
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadProductCSVTemplate}
+                    className="btn-secondary"
+                    style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', gap: '6px' }}
+                  >
+                    <Download size={14} /> Download Products CSV Template
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                  Supported headers: <code>Name, Category, Price, Currency, Stock, Badge, Short Description, Full Description, Image URL, Is Hidden, Checkout Flow</code>. If a specified category does not yet exist in your store, it will automatically be created and registered!
+                </div>
+              </div>
+
+              {/* Step 2: File input */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.5rem', display: 'block' }}>
+                  2. Choose CSV File to Upload
+                </label>
+                <div style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    id="csvProductFileInput"
+                    style={{ display: 'none' }}
+                    onChange={handleCsvFileSelect}
+                  />
+                  <label htmlFor="csvProductFileInput" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <Upload size={32} color="var(--primary)" />
+                    <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>
+                      {csvUploadFileName ? csvUploadFileName : 'Click to browse or drop your .csv file here'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      CSV files only (UTF-8 comma-separated values)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {csvParseError && (
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '8px', color: '#ef4444', fontSize: '0.825rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={16} /> {csvParseError}
+                </div>
+              )}
+
+              {/* Step 3: Parsed Preview Table */}
+              {csvProductsPreview.length > 0 && (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0, color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={16} /> Parsed {csvProductsPreview.length} product(s) ready for catalog import:
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {Array.from(new Set(csvProductsPreview.map(p => p.category))).length} categories detected
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                      <thead style={{ background: 'var(--bg-main)', position: 'sticky', top: 0 }}>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '0.6rem 0.75rem' }}>Product Name</th>
+                          <th style={{ padding: '0.6rem 0.75rem' }}>Category</th>
+                          <th style={{ padding: '0.6rem 0.75rem' }}>Price (UGX)</th>
+                          <th style={{ padding: '0.6rem 0.75rem' }}>Stock</th>
+                          <th style={{ padding: '0.6rem 0.75rem' }}>Checkout Flow</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvProductsPreview.map((p, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '0.5rem 0.75rem', fontWeight: '700' }}>{p.name}</td>
+                            <td style={{ padding: '0.5rem 0.75rem' }}>
+                              <span className="badge-tag" style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', fontSize: '0.7rem' }}>
+                                {p.category}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.5rem 0.75rem', fontWeight: '800', color: 'var(--text-main)' }}>
+                              UGX {Number(p.price || 0).toLocaleString()}
+                            </td>
+                            <td style={{ padding: '0.5rem 0.75rem' }}>{p.stock || 50}</td>
+                            <td style={{ padding: '0.5rem 0.75rem', textTransform: 'capitalize' }}>{p.checkout_flow || 'shop'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProductCsvModal(false);
+                    setCsvProductsPreview([]);
+                    setCsvUploadFileName('');
+                    setCsvParseError('');
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCsvProductImport}
+                  disabled={csvProductsPreview.length === 0 || csvUploading}
+                  className="btn-primary"
+                  style={{ background: 'var(--accent-emerald)', padding: '0.65rem 1.25rem', gap: '6px' }}
+                >
+                  <Upload size={15} /> {csvUploading ? 'Importing Products...' : `Import ${csvProductsPreview.length} Products`}
+                </button>
+              </div>
             </div>
           </div>
         )}

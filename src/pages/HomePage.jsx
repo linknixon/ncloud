@@ -98,7 +98,14 @@ export default function HomePage({ setActivePage }) {
 
   return (
     <div className="animate-fade-in" style={{ width: '100%' }}>
-      <SEO title="Nova Cloud Uganda | Enterprise ISP" description="Empowering your business with scalable internet and cloud infrastructure." keywords="best internet provider uganda, cloud infrastructure, enterprise connectivity" />
+      <SEO 
+        title="Nova Cloud Uganda | #1 Sovereign Cloud Provider, VPS Hosting, Enterprise ERP & IT Store" 
+        description="Nova Cloud (Nova Cloud Edges) is Uganda's premier sovereign cloud hosting and IT store in Kampala. Deploy Edge VPS, Tier III Server Colocation, Zimbra Corporate Email, QuickBooks Enterprise ERP, WiFi Vouchers & IT hardware." 
+        keywords="Nova Cloud, Nova Cloud Uganda, Nova Cloud shop, Nova Cloud store, Nova Cloud Edges, buy Nova Cloud, cloud provider Uganda, cloud hosting Kampala, VPS Uganda, Tier III datacenter Uganda, corporate email server Uganda, enterprise ERP software Uganda, IT hardware shop Kampala, MikroTik Uganda, Zimbra Uganda" 
+        canonical="https://ncloud.co.ug/"
+        ogTitle="Nova Cloud Uganda | Sovereign Cloud & IT Online Store"
+        ogDescription="Sovereign Cloud Edge VPS, Tier III Colocation, Zimbra Email, QuickBooks ERP, and Enterprise IT Hardware in Kampala, Uganda."
+      />
       
       {/* 1. Hero Section with Auto-Moving Data Center Image Slider */}
       <section style={{ position: 'relative', width: '100%', overflow: 'hidden', background: '#050a14', color: '#fff' }}>

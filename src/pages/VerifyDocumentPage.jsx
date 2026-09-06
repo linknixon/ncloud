@@ -58,6 +58,8 @@ export default function VerifyDocumentPage({ setActivePage }) {
         inferredType = 'work_order';
       } else if (upperRef.startsWith('EXP')) {
         inferredType = 'expense';
+      } else if (upperRef.startsWith('DN') || upperRef.startsWith('DEL')) {
+        inferredType = 'delivery_note';
       } else if (upperRef.startsWith('INV')) {
         inferredType = 'invoice';
       }
@@ -133,9 +135,13 @@ export default function VerifyDocumentPage({ setActivePage }) {
         { bank_name: 'Absa Bank Uganda', account_number: '6007291044', currency: 'UGX', branch: 'Kampala Main' }
       ];
 
-  const isQuotation = (verifyResult?.document_type || '').toLowerCase().includes('quote') || 
-                      (verifyResult?.document_type || '').toLowerCase().includes('quotation') ||
-                      (verifyResult?.document_number || '').toUpperCase().startsWith('QTN');
+  const docTypeStr = (verifyResult?.document_type || '').toLowerCase();
+  const docNumStr = (verifyResult?.document_number || '').toUpperCase();
+
+  const isQuotation = docTypeStr.includes('quote') || docTypeStr.includes('quotation') || docNumStr.startsWith('QTN');
+  const isWorkOrder = docTypeStr.includes('work order') || docNumStr.startsWith('WO');
+  const isExpense = docTypeStr.includes('expense') || docTypeStr.includes('voucher') || docNumStr.startsWith('EXP');
+  const isDeliveryNote = docTypeStr.includes('delivery') || docNumStr.startsWith('DN');
 
   return (
     <div style={{ minHeight: '90vh', background: 'var(--bg-main)', padding: '2.5rem 1rem' }}>
@@ -202,33 +208,20 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
               <button
                 onClick={() => {
-                  if (isQuotation) {
-                    generateQuotationPDF(verifyResult.quotation || verifyResult, { siteLogo });
+                  if (isDeliveryNote) {
+                    window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
+                  } else if (isQuotation) {
+                    window.open(`/api/quotations/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
+                  } else if (isWorkOrder) {
+                    window.open(`/api/admin/work-orders/${encodeURIComponent(verifyResult.document_number)}/pdf`, '_blank');
                   } else {
-                    const targetInv = verifyResult.invoice || {
-                      invoice_number: verifyResult.document_number,
-                      customer_name: verifyResult.customer_name,
-                      customer_email: verifyResult.customer_email,
-                      customer_phone: verifyResult.customer_phone || '',
-                      customer_address: verifyResult.customer_address || 'Kampala, Uganda',
-                      company: verifyResult.company || '',
-                      item_name: verifyResult.item_name,
-                      amount: verifyResult.total_amount,
-                      status: verifyResult.status,
-                      due_date: verifyResult.due_date,
-                      created_at: verifyResult.issued_date,
-                      include_vat: verifyResult.include_vat,
-                      vat_exempt: verifyResult.vat_exempt,
-                      vat_amount: verifyResult.vat_amount,
-                      items: verifyResult.items
-                    };
-                    generateInvoicePDF(targetInv, { siteLogo });
+                    window.open(`/api/invoices/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
                   }
                 }}
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
               >
-                <Download size={15} /> Download PDF
+                <Download size={15} /> Download Official PDF
               </button>
             </div>
           )}

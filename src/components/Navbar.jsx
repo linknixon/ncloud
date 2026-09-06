@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage }) {
-  const { theme, toggleTheme, user, setUser, logout, cart, openAuthModal, setIsCartOpen, setIsEditProfileOpen, siteLogo, showToast } = useApp();
+  const { theme, toggleTheme, user, setUser, logout, cart, openAuthModal, setIsCartOpen, setIsEditProfileOpen, siteLogo, showToast, topbarSettings } = useApp();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -146,6 +146,143 @@ export default function Navbar({ activePage, setActivePage }) {
 
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 1000, width: '100%' }}>
+      {/* Top Utility Contact & Social Bar */}
+      {topbarSettings?.enabled !== false && (
+        <div 
+          className="top-bar-section"
+          style={{
+            backgroundColor: topbarSettings?.bg_color || '#0a192f',
+            color: topbarSettings?.text_color || '#ffffff'
+          }}
+        >
+          <div className="container top-bar-inner">
+            {/* Left Side: Location Map Pin + Telephone Contact */}
+            <div className="top-bar-left">
+              {/* Location Map Pin with Font Awesome */}
+              <a 
+                href={topbarSettings?.maps_url || "https://maps.google.com/?q=Lugga+Zone,+Ndejje,+Wakiso,+Uganda"} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="top-bar-item top-bar-location"
+                style={{ color: topbarSettings?.text_color || '#ffffff' }}
+                title={`Nova Cloud Edges HQ: ${topbarSettings?.location_text || 'Lugga Zone, Ndejje, Wakiso'} (Open Google Maps)`}
+              >
+                <i className="fa-solid fa-location-dot" style={{ color: 'var(--accent-cyan)' }}></i>
+                <span className="item-text full-address">{topbarSettings?.location_text || 'Lugga Zone, Ndejje, Wakiso'}</span>
+                <span className="item-text short-address" style={{ display: 'none' }}>{topbarSettings?.location_short || 'Kampala'}</span>
+              </a>
+
+              <span className="top-bar-divider" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}></span>
+
+              {/* Telephone Contact with Font Awesome */}
+              <a 
+                href={`tel:${topbarSettings?.phone || '0790001631'}`} 
+                className="top-bar-item top-bar-phone"
+                style={{ color: topbarSettings?.text_color || '#ffffff' }}
+                title={`Call Nova Cloud Edges Support Desk: ${topbarSettings?.phone || '0790001631'}`}
+              >
+                <i className="fa-solid fa-phone" style={{ color: 'var(--accent-emerald)' }}></i>
+                <span className="phone-num">{topbarSettings?.phone || '0790001631'}</span>
+                <span className="phone-compact" style={{ display: 'none' }}>Call</span>
+              </a>
+
+              {/* Live NOC Status indicator on desktop */}
+              {topbarSettings?.noc_status_enabled !== false && (
+                <>
+                  <span className="top-bar-divider top-bar-status" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}></span>
+                  <div className="top-bar-item top-bar-status" style={{ cursor: 'default', color: topbarSettings?.text_color || '#ffffff' }} title="Tier III Sovereign Cloud & NOC Online">
+                    <span className="top-bar-status-dot"></span>
+                    <span style={{ fontSize: '0.72rem', opacity: 0.88, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: '700' }}>
+                      {topbarSettings?.noc_status_text || '24/7 Support NOC'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right Side: Email Contact + Social Media Icons */}
+            <div className="top-bar-right">
+              {/* Email Contact with Font Awesome */}
+              <a 
+                href={`mailto:${topbarSettings?.email || 'support@ncloud.co.ug'}`} 
+                className="top-bar-item top-bar-email"
+                style={{ color: topbarSettings?.text_color || '#ffffff' }}
+                title={`Email Support Desk: ${topbarSettings?.email || 'support@ncloud.co.ug'}`}
+              >
+                <i className="fa-solid fa-envelope" style={{ color: '#38bdf8' }}></i>
+                <span className="item-text email-text">{topbarSettings?.email || 'support@ncloud.co.ug'}</span>
+              </a>
+
+              <span className="top-bar-divider" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}></span>
+
+              {/* Social Media Links with Font Awesome Brands */}
+              <div className="top-bar-socials">
+                {topbarSettings?.whatsapp && (
+                  <a 
+                    href={topbarSettings.whatsapp} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="top-bar-social-btn wa"
+                    title={`Direct WhatsApp Support: ${topbarSettings.phone || '0790001631'}`}
+                    aria-label="WhatsApp"
+                  >
+                    <i className="fa-brands fa-whatsapp"></i>
+                  </a>
+                )}
+                {topbarSettings?.linkedin && (
+                  <a 
+                    href={topbarSettings.linkedin} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="top-bar-social-btn li"
+                    title="Follow Nova Cloud Edges on LinkedIn"
+                    aria-label="LinkedIn"
+                  >
+                    <i className="fa-brands fa-linkedin-in"></i>
+                  </a>
+                )}
+                {topbarSettings?.twitter && (
+                  <a 
+                    href={topbarSettings.twitter} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="top-bar-social-btn tw"
+                    title="Follow on X (formerly Twitter)"
+                    aria-label="X Twitter"
+                  >
+                    <i className="fa-brands fa-x-twitter"></i>
+                  </a>
+                )}
+                {topbarSettings?.facebook && (
+                  <a 
+                    href={topbarSettings.facebook} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="top-bar-social-btn fb secondary-social"
+                    title="Follow on Facebook"
+                    aria-label="Facebook"
+                  >
+                    <i className="fa-brands fa-facebook-f"></i>
+                  </a>
+                )}
+                {topbarSettings?.github && (
+                  <a 
+                    href={topbarSettings.github} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="top-bar-social-btn gh secondary-social"
+                    title="Official GitHub Repository"
+                    aria-label="GitHub"
+                  >
+                    <i className="fa-brands fa-github"></i>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Announcement Top Banner */}
       {isAnnouncementVisible() && (
         <div style={{

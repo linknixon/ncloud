@@ -109,6 +109,218 @@ button {
   }
 }
 
+/* ====================================================
+   Top Utility Bar (Telephone, Map Pin, Email, Socials)
+   ==================================================== */
+.top-bar-section {
+  width: 100%;
+  background: #090e1a;
+  color: #cbd5e1;
+  font-size: 0.785rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1001;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+[data-theme='dark'] .top-bar-section {
+  background: #040812;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.top-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.top-bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.18s ease, transform 0.18s ease;
+  white-space: nowrap;
+}
+
+.top-bar-item:hover {
+  color: #ffffff;
+}
+
+.top-bar-item i {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.top-bar-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.top-bar-socials {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.top-bar-social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  font-size: 0.82rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.top-bar-social-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.top-bar-social-btn.wa:hover {
+  color: #25d366;
+  background: rgba(37, 211, 102, 0.15);
+  border-color: rgba(37, 211, 102, 0.4);
+}
+
+.top-bar-social-btn.li:hover {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.top-bar-social-btn.tw:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.top-bar-social-btn.fb:hover {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.top-bar-social-btn.gh:hover {
+  color: #c084fc;
+  background: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.4);
+}
+
+/* 24/7 Live Status Dot */
+.top-bar-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: pulseGreen 2s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulseGreen {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Responsive Top Bar Breakpoints */
+@media (max-width: 992px) {
+  .top-bar-status {
+    display: none !important;
+  }
+  .top-bar-location .full-address {
+    display: none !important;
+  }
+  .top-bar-location .short-address {
+    display: inline !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-bar-inner {
+    height: 35px;
+    gap: 0.5rem;
+  }
+  .top-bar-left, .top-bar-right {
+    gap: 0.65rem;
+  }
+  .top-bar-email .email-text {
+    display: none !important;
+  }
+  .top-bar-social-btn.secondary-social {
+    display: none !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .top-bar-divider {
+    display: none !important;
+  }
+  .top-bar-location .item-text {
+    display: none !important;
+  }
+  .top-bar-phone .phone-num {
+    font-size: 0.76rem;
+  }
+  .top-bar-socials {
+    gap: 0.25rem;
+  }
+  .top-bar-social-btn {
+    width: 25px;
+    height: 25px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .top-bar-inner {
+    padding: 0 0.5rem;
+  }
+  .top-bar-phone .phone-num {
+    display: none !important;
+  }
+  .top-bar-phone .phone-compact {
+    display: inline !important;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+}
+
 /* Glassmorphism Header & Cards */
 .glass-header {
   background: var(--bg-glass);

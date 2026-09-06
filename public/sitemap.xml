@@ -5,22 +5,22 @@
 
   <url>
     <loc>https://ncloud.co.ug/</loc>
-    <lastmod>2026-08-22</lastmod>
+    <lastmod>2026-09-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
   </url>
 
   <url>
-    <loc>https://ncloud.co.ug/services</loc>
-    <lastmod>2026-08-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.90</priority>
+    <loc>https://ncloud.co.ug/shop</loc>
+    <lastmod>2026-09-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
   </url>
 
   <url>
-    <loc>https://ncloud.co.ug/shop</loc>
-    <lastmod>2026-08-22</lastmod>
-    <changefreq>daily</changefreq>
+    <loc>https://ncloud.co.ug/services</loc>
+    <lastmod>2026-09-06</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.90</priority>
   </url>
 

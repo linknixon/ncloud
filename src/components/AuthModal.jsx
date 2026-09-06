@@ -36,12 +36,18 @@ export default function AuthModal({ setActivePage }) {
   const [turnstileToken, setTurnstileToken] = useState('');
   const turnstileRef = React.useRef(null);
 
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1'
+  );
+
   useEffect(() => {
-    if (isAuthOpen) {
+    if (isAuthOpen && !isLocalhost) {
       fetch('/api/security/turnstile')
         .then(res => res.json())
         .then(data => {
-          if (data.is_active && data.site_key) {
+          if (!data.is_localhost && data.is_active && data.site_key) {
             setSiteKey(data.site_key);
             
             const renderWidget = () => {
@@ -70,7 +76,7 @@ export default function AuthModal({ setActivePage }) {
         })
         .catch(() => {});
     } else {
-      setTurnstileToken('');
+      setTurnstileToken(isLocalhost ? 'bypass-localhost' : '');
     }
   }, [isAuthOpen, isRegister, isForgotPassword]);
 
@@ -78,7 +84,7 @@ export default function AuthModal({ setActivePage }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (siteKey && !turnstileToken) {
+    if (!isLocalhost && siteKey && !turnstileToken) {
       setError('Please complete the CAPTCHA verification.');
       return;
     }
@@ -92,7 +98,10 @@ export default function AuthModal({ setActivePage }) {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, turnstileToken })
+        body: JSON.stringify({ 
+          ...formData, 
+          turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '') 
+        })
       });
 
       const rawText = await res.text();
