@@ -986,7 +986,12 @@ async function verifyTurnstile(req, res, next) {
   }
 
   const security = memoryStore.security_settings;
-  if (!security || !security.is_active || !security.turnstile_secret_key) {
+  const isValidSecret = security && 
+    security.turnstile_secret_key && 
+    !security.turnstile_secret_key.includes('testSecretKey') &&
+    security.turnstile_secret_key !== '0x4AAAAAAtestSecretKey67890';
+
+  if (!security || !security.is_active || !isValidSecret) {
     return next();
   }
 
@@ -7333,7 +7338,11 @@ app.get('/api/security/turnstile', (req, res) => {
     });
   }
 
-  if (settings.is_active) {
+  const isValidKey = settings.turnstile_site_key && 
+    !settings.turnstile_site_key.includes('testSiteKey') &&
+    settings.turnstile_site_key !== '0x4AAAAAAtestSiteKey12345';
+
+  if (settings.is_active && isValidKey) {
     res.json({ is_active: true, site_key: settings.turnstile_site_key });
   } else {
     res.json({ is_active: false });

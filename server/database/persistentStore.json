@@ -2196,6 +2196,18 @@
   ],
   "audit_logs": [
     {
+      "id": 1788683757691,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::1",
+      "timestamp": "2026-09-06T08:35:57.691Z"
+    },
+    {
       "id": 1788682216424,
       "user_email": "systems@ncloud.co.ug",
       "user_name": "Systems Admin",
@@ -2396,7 +2408,7 @@
     "twitter": "https://x.com/ncloud",
     "facebook": "https://facebook.com/novacloudedges",
     "github": "https://github.com/linknixon/ncloud",
-    "updated_at": "2026-09-06T08:15:59.267Z"
+    "updated_at": "2026-09-06T08:36:35.178Z"
   },
   "product_categories": [
     {
@@ -2448,10 +2460,10 @@
     }
   ],
   "security_settings": {
-    "turnstile_site_key": "0x4AAAAAAtestSiteKey12345",
-    "turnstile_secret_key": "0x4AAAAAAtestSecretKey67890",
-    "is_active": true,
-    "updated_at": "2026-09-05T12:41:24.475Z"
+    "turnstile_site_key": "",
+    "turnstile_secret_key": "",
+    "is_active": false,
+    "updated_at": "2026-09-06T11:50:00.000Z"
   },
   "delivery_notes": [
     {
