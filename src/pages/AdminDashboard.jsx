@@ -9793,15 +9793,15 @@ const normalizeTabName = (rawTab) => {
 
               return (
                 <div>
-                  {/* Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>UniFi WiFi Guest Voucher Pool</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        Register voucher tokens copied from UniFi Controller. Vouchers are securely stored and auto-dispatched to customers upon payment.
-                      </p>
-                    </div>
-                    {isSuperAdmin && (
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0284c7' }}>UniFi WiFi Guest Voucher Pool</h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          Register voucher tokens copied from UniFi Controller. Vouchers are securely stored and auto-dispatched to customers upon payment.
+                        </p>
+                      </div>
+                      {(isSuperAdmin || canCreate('unifi')) && (
                       <button
                         onClick={() => setShowUnifiModal(true)}
                         className="btn-primary"
@@ -9925,7 +9925,7 @@ const normalizeTabName = (rawTab) => {
                             >
                               <Copy size={12} /> Copy
                             </button>
-                            {v.status === 'available' && isSuperAdmin && (
+                            {v.status === 'available' && (isSuperAdmin || canUpdate('unifi')) && (
                               <button
                                 onClick={() => handleMarkVoucherBought(v.id)}
                                 className="btn-secondary"
@@ -9934,7 +9934,7 @@ const normalizeTabName = (rawTab) => {
                                 <Check size={12} /> Mark Bought
                               </button>
                             )}
-                            {v.status === 'available' && isSuperAdmin && (
+                            {v.status === 'available' && (isSuperAdmin || canUpdate('unifi')) && (
                               <button
                                 onClick={() => handleSuspendWifiVoucher(v.id, v.token)}
                                 className="btn-secondary"
@@ -9943,7 +9943,7 @@ const normalizeTabName = (rawTab) => {
                                 <AlertTriangle size={12} /> Suspend
                               </button>
                             )}
-                            {isSuperAdmin && (
+                            {(isSuperAdmin || canDelete('unifi')) && (
                               <button
                                 onClick={() => handleDeleteWifiVoucher(v.id, v.token)}
                                 className="btn-secondary"
