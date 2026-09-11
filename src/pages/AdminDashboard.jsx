@@ -9194,7 +9194,7 @@ const normalizeTabName = (rawTab) => {
                                   )
                                 )}
 
-                                {inv.status !== 'Cancelled' && canUpdate('invoices') && (
+                                {inv.status !== 'Cancelled' && (canDelete('invoices') || canDeleteSystemRecords) && (
                                   <button
                                     onClick={() => handleCancelInvoice(inv)}
                                     className="btn-secondary"

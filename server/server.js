@@ -8482,6 +8482,14 @@ app.get('/api/admin/delivery-notes', (req, res) => {
 
 // Cancel Invoice & Send Outbound Cancellation Email Notification
 app.post('/api/admin/invoices/:id/cancel', async (req, res) => {
+  const isSuperAdmin = ['super_admin', 'admin', 'web_admin'].includes(req.userRole);
+  if (!isSuperAdmin) {
+    const roleObj = memoryStore.roles.find(r => r.code === req.userRole);
+    if (!roleObj || !roleObj.permissions || !roleObj.permissions['invoices'] || !roleObj.permissions['invoices']['delete']) {
+      return res.status(403).json({ error: 'Permission Denied: You must have DELETE access to cancel an invoice.' });
+    }
+  }
+
   const { id } = req.params;
   const { cancellation_reason, admin_name, admin_email } = req.body;
   const inv = (memoryStore.invoices || []).find(i => i.id == id || i.invoice_number === id);
