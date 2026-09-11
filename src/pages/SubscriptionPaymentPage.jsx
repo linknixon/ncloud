@@ -242,15 +242,21 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
 
     const packageNames = selectedProducts.map(p => p.name).join(', ');
 
-    const itemsPayload = selectedProducts.map(item => ({
-      name: item.name,
-      description: item.name,
-      quantity: Number(item.quantity) || 1,
-      qty: Number(item.quantity) || 1,
-      unit_price: Number(item.price) || 0,
-      price: Number(item.price) || 0,
-      amount: (Number(item.price) || 0) * (Number(item.quantity) || 1)
-    }));
+    const itemsPayload = selectedProducts.map(item => {
+      const isHosting = item.category && item.category.toLowerCase().includes('hosting');
+      const mult = isHosting ? durationMultiplier : 1;
+      const finalQty = (Number(item.quantity) || 1) * mult;
+      
+      return {
+        name: item.name,
+        description: item.name,
+        quantity: finalQty,
+        qty: finalQty,
+        unit_price: Number(item.price) || 0,
+        price: Number(item.price) || 0,
+        amount: (Number(item.price) || 0) * finalQty
+      };
+    });
 
     try {
       const res = await fetch('/api/subscriptions/checkout', {
