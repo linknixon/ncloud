@@ -364,8 +364,8 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setTextColor(255, 255, 255);
 
   const metaRows = [
-    { label: 'OFFICIAL TAX INVOICE', val: `#${invoiceNum}` },
-    { label: 'Invoice Date:', val: invDate },
+    { label: opts.documentTitle || 'OFFICIAL TAX INVOICE', val: `#${invoiceNum}` },
+    { label: opts.documentTitle === 'OFFICIAL PAYMENT RECEIPT' ? 'Payment Date:' : 'Invoice Date:', val: invDate },
     { label: 'Payment Due:', val: dueDate },
     { label: 'Total Amount:', val: formatNinjaUGX(totalAmt) },
     { label: 'Balance Outstanding:', val: formatNinjaUGX(balanceDue) }
@@ -2207,133 +2207,29 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
 // ============================================================================
 
 export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
-  const invNum = paymentData?.invoice_number || 'INV-2026-0041';
-  const customerName = paymentData?.customer_name || paymentData?.party_name || 'Valued Customer';
-  const customerPhone = paymentData?.customer_phone || paymentData?.phone || '';
-  const now = new Date();
-  const dateStr = paymentData?.payment_date || (paymentData?.created_at ? new Date(paymentData.created_at).toLocaleString('en-GB') : now.toLocaleString('en-GB'));
-
-  const totalBilled = Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || 0);
-  const totalPaid = Number(paymentData?.paid_amount || paymentData?.totalPaid || paymentData?.amount_paid || totalBilled);
-  const balance = Math.max(0, totalBilled - totalPaid);
-  const isPaid = balance === 0;
-
-  const pmtMethod = paymentData?.payment_method || 'Bank Wire / Mobile Money';
-  const refCode = paymentData?.reference || `TXN-${invNum}`;
-
-  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invNum)}`;
-  const qrDataUrl = await createQRCodeDataURL(verifyUrl, 180);
-
-  // Calculate dynamic roll height based on contents
-  const receiptHeight = 175;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, receiptHeight] });
-  registerTrebuchetFont(doc);
-
-  let y = 6;
-  const effectiveLogo = options?.logoDataUrl || (typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '');
-  if (effectiveLogo && effectiveLogo.startsWith('data:image')) {
-    try {
-      doc.addImage(effectiveLogo, 'PNG', 30, y, 20, 11);
-      y += 13;
-    } catch {}
-  }
-
-  // Header
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(BRAND.companyName, 40, y, { align: 'center' });
-  y += 4.5;
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(2, 132, 199);
-  doc.text('OFFICIAL PAYMENT RECEIPT', 40, y, { align: 'center' });
-  y += 4;
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(6);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Lugga Zone, Ndejje, Wakiso • Tel: +256 790 001 631', 40, y, { align: 'center' });
-  y += 3.2;
-  doc.text('TIN: 1014892019 • support@ncloud.co.ug • ncloud.co.ug', 40, y, { align: 'center' });
-  y += 4;
-
-  // Dashed Cut Line
-  doc.setDrawColor(148, 163, 184);
-  doc.setLineWidth(0.3);
-  doc.setLineDashPattern([1.5, 1.5], 0);
-  doc.line(4, y, 76, y);
-  doc.setLineDashPattern([], 0);
-  y += 5;
-
-  // Transaction Info
-  const printRow = (label, val, boldVal = false) => {
-    doc.setFont('TrebuchetMS', 'normal');
-    doc.setFontSize(6.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(label, 6, y);
-    doc.setFont('TrebuchetMS', boldVal ? 'bold' : 'normal');
-    doc.setTextColor(15, 23, 42);
-    doc.text(String(val), 74, y, { align: 'right' });
-    y += 4.2;
+  // Translate the payment data format into the standard Invoice format
+  // so it utilizes the exact same A4 base64 PDF engine.
+  const mappedInv = {
+    id: paymentData?.id || paymentData?.reference,
+    invoice_number: paymentData?.invoice_number || paymentData?.receipt_ref || `REC-${Date.now()}`,
+    created_at: paymentData?.payment_date || paymentData?.created_at || new Date(),
+    due_date: paymentData?.payment_date || paymentData?.created_at || new Date(),
+    status: '100% Paid', // Forces the Paid stamp and zeroes out balance
+    amount: Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || 0),
+    paid_amount: Number(paymentData?.paid_amount || paymentData?.amount_paid || paymentData?.totalPaid || paymentData?.amount || 0),
+    customer_name: paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Customer',
+    customer_email: paymentData?.customer_email || paymentData?.party_email || paymentData?.email || '',
+    customer_phone: paymentData?.customer_phone || paymentData?.phone || '',
+    items: paymentData?.items || paymentData?.lines || [{
+      name: paymentData?.item || 'Payment / Installment',
+      description: `Payment Ref: ${paymentData?.reference || paymentData?.receipt_ref || 'Direct E-Payment'}`,
+      quantity: 1,
+      unit_price: Number(paymentData?.amount_paid || paymentData?.amount || 0)
+    }]
   };
 
-  printRow('Receipt / Inv Ref:', invNum, true);
-  printRow('Transaction Date:', String(dateStr).substring(0, 22));
-  printRow('Client Name:', String(customerName).substring(0, 24));
-  if (customerPhone) printRow('Client Phone:', customerPhone);
-  printRow('Payment Method:', pmtMethod);
-  printRow('Settlement Reference:', refCode);
-
-  // Dashed Line
-  y += 1;
-  doc.setLineDashPattern([1.5, 1.5], 0);
-  doc.line(4, y, 76, y);
-  doc.setLineDashPattern([], 0);
-  y += 5;
-
-  // Financial Figures
-  printRow('Total Invoice Billed:', `UGX ${totalBilled.toLocaleString()}`);
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('AMOUNT PAID CLEARED:', 6, y);
-  doc.text(`UGX ${totalPaid.toLocaleString()}`, 74, y, { align: 'right' });
-  y += 5;
-
-  printRow('Remaining Balance:', `UGX ${balance.toLocaleString()}`, balance > 0);
-
-  // Status Stamp Box
-  y += 2;
-  doc.setFillColor(isPaid ? 240 : 254, isPaid ? 253 : 243, isPaid ? 244 : 199);
-  doc.roundedRect(6, y, 68, 7, 1.5, 1.5, 'F');
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(isPaid ? 22 : 180, isPaid ? 163 : 83, isPaid ? 74 : 9);
-  doc.text(isPaid ? '100% PAYMENT CLEARED & SETTLED' : `PARTIAL PAYMENT — UGX ${balance.toLocaleString()} DUE`, 40, y + 4.8, { align: 'center' });
-  y += 11;
-
-  // Verification QR
-  if (qrDataUrl) {
-    try {
-      doc.addImage(qrDataUrl, 'PNG', 31, y, 18, 18);
-      y += 20;
-    } catch {}
-  }
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(5.8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Scan QR Code to verify document online', 40, y, { align: 'center' });
-  y += 3.2;
-  doc.text(`Cashier / Admin: ${options?.userName || 'Corporate POS Desk'}`, 40, y, { align: 'center' });
-  y += 3.2;
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.text('Thank you for choosing Nova Cloud Edges!', 40, y, { align: 'center' });
-
-  openPdfInBrowser(doc, `Payment_Receipt_80mm_${invNum}.pdf`);
-  return doc;
+  // Generate an identical A4 PDF, but rename the title header
+  return generateInvoicePDF(mappedInv, { ...options, documentTitle: 'OFFICIAL PAYMENT RECEIPT' });
 }
 
 
