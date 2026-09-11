@@ -24,6 +24,7 @@ import VerifyDocumentPage from './pages/VerifyDocumentPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 
 import ShopCheckoutModal from './components/ShopCheckoutModal';
+import InstallPrompt from './components/InstallPrompt';
 
 export default function App() {
   const [activePage, setActivePage] = useState(() => {
@@ -179,6 +180,7 @@ export default function App() {
           <ShopCheckoutModal />
           <Toast />
           <BackToTop />
+          <InstallPrompt />
         </div>
       </ErrorBoundary>
     </AppProvider>
