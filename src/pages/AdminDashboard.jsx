@@ -360,7 +360,9 @@ export default function AdminDashboard({ setActivePage }) {
     return `${badge.label} Scope`;
   }, [getRoleBadgeStyle]);
 
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'admin' || user?.role === 'super_admin' || user?.role === 'admin';
+  // If the admin uses the Role Switcher to simulate a non-admin role, we MUST revoke isSuperAdmin for the UI evaluation
+  const isSuperAdmin = (currentRole === 'super_admin' || currentRole === 'admin') && 
+                       (user?.role === 'super_admin' || user?.role === 'admin');
   const isCustomer = currentRole === 'customer';
 
   // Granular CRUDAS matrix permissions resolver
@@ -4481,7 +4483,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isHrManager || currentRole === 'customer' || user?.role === 'customer' || canRead('payments')) && (
+          {(isSalesAdmin || isHrManager || canRead('payments')) && (
             <button
               onClick={() => updateActiveTab('payments')}
               className="btn-secondary"
