@@ -1147,7 +1147,7 @@ async function sendVerificationEmail(user, req) {
     <body>
       <div class="card">
         <div class="header">
-          <h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>
+          ${(memoryStore.site_logo && memoryStore.site_logo !== '') ? `<img src="${memoryStore.site_logo.startsWith('/') ? 'https://ncloud.co.ug' + memoryStore.site_logo : memoryStore.site_logo}" alt="Nova Cloud Edges Logo" style="max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px;" />` : '<h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>'}
           <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
         </div>
         <div class="content">
@@ -1205,7 +1205,7 @@ async function sendAdminCreatedUserEmail(user, rawPassword, req) {
     <body>
       <div class="card">
         <div class="header">
-          <h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>
+          ${(memoryStore.site_logo && memoryStore.site_logo !== '') ? `<img src="${memoryStore.site_logo.startsWith('/') ? 'https://ncloud.co.ug' + memoryStore.site_logo : memoryStore.site_logo}" alt="Nova Cloud Edges Logo" style="max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px;" />` : '<h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>'}
           <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
         </div>
         <div class="content">
@@ -7627,8 +7627,7 @@ function generateCorporateEmailHtml({
 <body>
   <div class="email-wrapper">
     <div class="email-header">
-      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" /><br/>` : ''}
-      <div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>
+      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>'}
       <div class="company-subtitle">Enterprise Cloud Infrastructure & IT Solutions</div>
     </div>
     <div class="email-body">
