@@ -7575,7 +7575,10 @@ function generateCorporateEmailHtml({
   const finalRecipient = recipientName || (greeting ? greeting.replace('Hello ', '').replace(',', '') : 'Valued Customer');
   const finalIntro = introText || message || '';
   const isInvoice = !!subtotalText && subtotalText !== '-' && !hideInvoiceHeaders;
-  const siteLogo = memoryStore.site_logo || '';
+  let siteLogo = memoryStore.site_logo || '';
+  if (siteLogo.startsWith('/')) {
+    siteLogo = 'https://ncloud.co.ug' + siteLogo;
+  }
 
   return `
 <!DOCTYPE html>
