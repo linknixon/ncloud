@@ -243,7 +243,16 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
     const packageNames = selectedProducts.map(p => p.name).join(', ');
 
     const itemsPayload = selectedProducts.map(item => {
-      const isHosting = item.category && item.category.toLowerCase().includes('hosting');
+      const categoryStr = (item.category || '').toLowerCase();
+      const nameStr = (item.name || '').toLowerCase();
+      const badgeStr = (item.badge || '').toLowerCase();
+      const isWifiVoucher = categoryStr.includes('voucher') || categoryStr.includes('wifi') || nameStr.includes('voucher');
+      const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription'];
+      const isHosting = !isWifiVoucher && (
+        item.checkout_type === 'hosting' || 
+        item.checkout_flow === 'hosting' || 
+        keywords.some(kw => categoryStr.includes(kw) || nameStr.includes(kw) || badgeStr.includes(kw))
+      );
       const mult = isHosting ? durationMultiplier : 1;
       const finalQty = (Number(item.quantity) || 1) * mult;
       
