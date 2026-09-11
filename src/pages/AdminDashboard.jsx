@@ -282,7 +282,6 @@ export default function AdminDashboard({ setActivePage }) {
         store: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         payments: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         subscriptions: { create: true, read: true, update: true, delete: false, approve: false, share: true },
-        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         unifi: { create: true, read: true, update: true, delete: false, approve: false, share: true }
     } },
     { code: 'web_admin', name: 'Web Admin', desc: 'CMS, Sliders & Careers', badge_color: '#06b6d4', permissions: {
