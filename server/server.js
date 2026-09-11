@@ -5171,9 +5171,14 @@ app.get('/api/admin/work-orders/:id/pdf', async (req, res) => {
 // (No UniFi Controller API — fully internal system)
 // ----------------------------------------------------
 
-// GET all vouchers
+// GET all vouchers (or filtered for customer)
 app.get('/api/admin/unifi/vouchers', (req, res) => {
-  res.json(memoryStore.unifi_vouchers || []);
+  let vouchers = memoryStore.unifi_vouchers || [];
+  if (req.userRole === 'customer') {
+    const cMail = (req.userEmail || '').toLowerCase();
+    vouchers = vouchers.filter(v => (v.customer_email || '').toLowerCase() === cMail);
+  }
+  res.json(vouchers);
 });
 
 // POST register new UniFi vouchers copied manually from UniFi controller (admin only)
