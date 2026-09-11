@@ -275,13 +275,43 @@ export default function AdminDashboard({ setActivePage }) {
 
   // Base Built-in System Roles
   const defaultSystemRoles = useMemo(() => [
-    { code: 'super_admin', name: 'Super Admin', desc: 'Full CRUDAS & System Authority', badge_color: '#8b5cf6' },
-    { code: 'sales_admin', name: 'Sales Admin', desc: 'Invoices, Quotes & Catalog', badge_color: '#10b981' },
-    { code: 'web_admin', name: 'Web Admin', desc: 'CMS, Sliders & Careers', badge_color: '#06b6d4' },
-    { code: 'hr_manager', name: 'HR Manager', desc: 'Staff Roll, Payroll & Expenses', badge_color: '#f97316' },
-    { code: 'staff', name: 'Staff Specialist', desc: 'Work Orders & Expenses', badge_color: '#14b8a6' },
-    { code: 'reviewer', name: 'Auditor / Reviewer', desc: 'Read & Share Only', badge_color: '#06b6d4' },
-    { code: 'customer', name: 'Client', desc: 'Customer Self-Service Portal', badge_color: '#3b82f6' }
+    { code: 'super_admin', name: 'Super Admin', desc: 'Full CRUDAS & System Authority', badge_color: '#8b5cf6', permissions: {} },
+    { code: 'sales_admin', name: 'Sales Admin', desc: 'Invoices, Quotes & Catalog', badge_color: '#10b981', permissions: {
+        invoices: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        quotations: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        store: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        payments: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        subscriptions: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        unifi: { create: true, read: true, update: true, delete: false, approve: false, share: true }
+    } },
+    { code: 'web_admin', name: 'Web Admin', desc: 'CMS, Sliders & Careers', badge_color: '#06b6d4', permissions: {
+        cms: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        sliders: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        news: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        settings: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        team_mgmt: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        partners: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        careers: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        contacts: { create: true, read: true, update: true, delete: false, approve: true, share: true }
+    } },
+    { code: 'hr_manager', name: 'HR Manager', desc: 'Staff Roll, Payroll & Expenses', badge_color: '#f97316', permissions: {
+        hr: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        jobs: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        expenses: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        work_orders: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        applications: { create: true, read: true, update: true, delete: true, approve: true, share: true }
+    } },
+    { code: 'staff', name: 'Staff Specialist', desc: 'Work Orders & Expenses', badge_color: '#14b8a6', permissions: {
+        work_orders: { create: false, read: true, update: true, delete: false, approve: false, share: false },
+        expenses: { create: true, read: true, update: false, delete: false, approve: false, share: false }
+    } },
+    { code: 'reviewer', name: 'Auditor / Reviewer', desc: 'Read & Share Only', badge_color: '#06b6d4', permissions: {
+        forensics: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true }
+    } },
+    { code: 'customer', name: 'Client', desc: 'Customer Self-Service Portal', badge_color: '#3b82f6', permissions: {} }
   ], []);
 
   // Merged available roles: Built-in + dynamically created custom roles
@@ -295,7 +325,7 @@ export default function AdminDashboard({ setActivePage }) {
           name: serverMatch.name || dr.name,
           desc: serverMatch.description || dr.desc,
           badge_color: serverMatch.badge_color || dr.badge_color,
-          permissions: serverMatch.permissions
+          permissions: serverMatch.permissions || dr.permissions
         };
       }
       return dr;
@@ -470,11 +500,11 @@ export default function AdminDashboard({ setActivePage }) {
   const canApprove = useCallback((mod) => hasPermission(mod, 'approve'), [hasPermission]);
   const canShare = useCallback((mod) => hasPermission(mod, 'share'), [hasPermission]);
 
-  const isSalesAdmin = isSuperAdmin || currentRole === 'sales_admin' || canRead('invoices') || canRead('quotations') || canRead('store');
-  const isWebAdmin = isSuperAdmin || currentRole === 'web_admin' || canRead('sliders') || canRead('news') || canRead('settings');
-  const isHrManager = isSuperAdmin || currentRole === 'hr_manager' || canRead('hr') || canRead('jobs');
-  const isStaff = isHrManager || currentRole === 'staff' || canRead('work_orders');
-  const canDeleteSystemRecords = isSuperAdmin || ['sales_admin', 'web_admin', 'hr_manager'].includes(currentRole) || (availableRoles.find(r => r.code === currentRole)?.permissions && Object.values(availableRoles.find(r => r.code === currentRole).permissions).some(p => p && p.delete));
+  const isSalesAdmin = false;
+  const isWebAdmin = false;
+  const isHrManager = false;
+  const isStaff = false;
+  const canDeleteSystemRecords = isSuperAdmin || (availableRoles.find(r => r.code === currentRole)?.permissions && Object.values(availableRoles.find(r => r.code === currentRole).permissions).some(p => p && p.delete));
 
   useEffect(() => {
     if (!user) {
