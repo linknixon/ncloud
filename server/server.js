@@ -6178,6 +6178,16 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   });
 
   const totalPages = doc.internal.getNumberOfPages();
+  
+  if (isPaid && memoryStore.paid_stamp) {
+    try {
+      doc.setPage(totalPages);
+      doc.addImage(memoryStore.paid_stamp, 'PNG', 85, totalsY - 8, 45, 25);
+    } catch (e) {
+      console.warn('Could not inject paid stamp', e.message);
+    }
+  }
+
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
