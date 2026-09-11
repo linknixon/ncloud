@@ -328,7 +328,7 @@ export async function generateInvoicePDF(inv, options = {}) {
       description: sanitizePdfText(it.description || it.specs || it.short_desc || ''),
       unit_price: Number(it.unit_price || it.price || 0),
       quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
-      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
+      amount: (Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)
     }));
   } else {
     items = [{
@@ -730,7 +730,7 @@ export async function generateQuotationPDF(quote, options = {}) {
       description: sanitizePdfText(it.description || it.specs || it.short_desc || ''),
       unit_price: Number(it.unit_price || it.price || 0),
       quantity: Math.max(1, parseInt(it.quantity || it.qty) || 1),
-      amount: Number(it.amount || it.total || ((Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)))
+      amount: (Math.max(1, parseInt(it.quantity || it.qty) || 1)) * Number(it.unit_price || it.price || 0)
     }));
   } else {
     items = [{
