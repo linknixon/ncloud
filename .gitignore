@@ -17,3 +17,4 @@ build
 .idea
 *.log
 scratch/
+server/database/persistentStore.json
