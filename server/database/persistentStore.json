@@ -41,24 +41,24 @@
       "id": 1788262157265,
       "name": "James Brian Otunu",
       "email": "info@ncedges.com",
-      "passwordHash": "$2b$10$1YFxA98LAJH6DAwm224zleWecDXoSdSgVLHKYVXes6pG9dZGxQ8Pi",
-      "role": "customer",
+      "passwordHash": "$2b$10$LeJHgqL29Rh2XpIWCmswOO5KiVBxRpG29N25WLi7.F4ET52Er.DV2",
+      "role": "wifi_noc",
       "position": "Customer",
       "title": "Customer",
       "phone": "0790001631",
       "company": "Legit Hotel",
       "status": "Active",
-      "password_hash": "$2b$10$1YFxA98LAJH6DAwm224zleWecDXoSdSgVLHKYVXes6pG9dZGxQ8Pi",
+      "password_hash": "$2b$10$LeJHgqL29Rh2XpIWCmswOO5KiVBxRpG29N25WLi7.F4ET52Er.DV2",
       "department": "Client Corporate",
       "salary": 0,
       "location": "Kampala, Uganda",
       "notes": "",
       "avatar_url": "",
-      "supervisor_id": 1,
-      "supervisor_name": "Dr. Arthur Mukasa",
-      "password_changed_at": "2026-09-06T11:44:31.570Z",
-      "updated_at": "2026-09-05T10:59:20.125Z",
-      "password_reset_at": "2026-09-06T11:44:31.570Z"
+      "supervisor_id": 2,
+      "supervisor_name": "Nixon Kamugisha",
+      "password_changed_at": "2026-09-11T06:06:31.286Z",
+      "updated_at": "2026-09-11T06:11:50.258Z",
+      "password_reset_at": "2026-09-11T06:06:31.286Z"
     },
     {
       "id": 1787853881019,
@@ -1839,7 +1839,12 @@
     }
   ],
   "banner_settings": {
+    "message": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631",
     "enabled": true,
+    "timing_seconds": 16,
+    "auto_dismiss_hours": 24,
+    "bg_gradient": "linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)",
+    "updated_at": "2026-09-06T11:52:47.458Z",
     "badge": "NEW NOTICE",
     "text": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631",
     "link_text": "View Advisory",
@@ -1847,15 +1852,10 @@
     "schedule_type": "always",
     "start_date": "",
     "end_date": "",
-    "bg_gradient": "linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)",
     "badge_text": "NEW NOTICE",
     "btn_text": "View Advisory",
     "link": "/news",
-    "theme": "rose",
-    "timing_seconds": 16,
-    "auto_dismiss_hours": 24,
-    "updated_at": "2026-09-06T11:52:47.458Z",
-    "message": "Scheduled Maintenance Update: Edge Cloud Server Upgrade & Maintenance scheduled Sunday 2:00 AM - 4:00 AM EAT. Hotline: 0790001631"
+    "theme": "rose"
   },
   "roles": [
     {
@@ -2486,19 +2486,19 @@
       "permissions": {
         "invoices": {
           "create": false,
-          "read": true,
+          "read": false,
           "update": false,
           "delete": false,
           "approve": false,
-          "share": true
+          "share": false
         },
         "quotations": {
           "create": false,
-          "read": true,
+          "read": false,
           "update": false,
           "delete": false,
           "approve": false,
-          "share": true
+          "share": false
         },
         "work_orders": {
           "create": false,
@@ -2510,11 +2510,11 @@
         },
         "payments": {
           "create": false,
-          "read": true,
+          "read": false,
           "update": false,
           "delete": false,
           "approve": false,
-          "share": true
+          "share": false
         },
         "expenses": {
           "create": false,
@@ -2534,7 +2534,7 @@
         },
         "unifi": {
           "create": false,
-          "read": true,
+          "read": false,
           "update": false,
           "delete": false,
           "approve": false,
@@ -2582,7 +2582,7 @@
         },
         "store": {
           "create": false,
-          "read": true,
+          "read": false,
           "update": false,
           "delete": false,
           "approve": false,
@@ -2590,11 +2590,11 @@
         },
         "subscriptions": {
           "create": false,
-          "read": true,
-          "update": true,
+          "read": false,
+          "update": false,
           "delete": false,
           "approve": false,
-          "share": true
+          "share": false
         },
         "settings": {
           "create": false,
@@ -2620,12 +2620,139 @@
           "update": true,
           "delete": false,
           "approve": false,
-          "share": false
+          "share": true
         }
-      }
+      },
+      "updated_at": "2026-09-11T06:13:39.708Z"
     }
   ],
   "audit_logs": [
+    {
+      "id": 1789107270190,
+      "user_email": "info@ncedges.com",
+      "user_name": "James Brian Otunu",
+      "user_role": "wifi_noc",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1788262157265,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T06:14:30.191Z"
+    },
+    {
+      "id": 36,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "USER_PROFILE_UPDATED",
+      "resource_type": "System Users",
+      "resource_id": "USER-1788262157265",
+      "details": "Updated user profile & data for James Brian Otunu (info@ncedges.com)",
+      "ip_address": "::ffff:127.0.0.1",
+      "device_type": "Desktop Console",
+      "status": "SUCCESS",
+      "timestamp": "2026-09-11T06:11:50.258Z"
+    },
+    {
+      "id": 1789106906010,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T06:08:26.010Z"
+    },
+    {
+      "id": 1789106804219,
+      "user_email": "info@ncedges.com",
+      "user_name": "James Brian Otunu",
+      "user_role": "sales_team",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1788262157265,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T06:06:44.219Z"
+    },
+    {
+      "id": 1789106779731,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T06:06:19.731Z"
+    },
+    {
+      "id": 32,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "USER_PROFILE_UPDATED",
+      "resource_type": "System Users",
+      "resource_id": "USER-1788262157265",
+      "details": "Updated user profile & data for James Brian Otunu (info@ncedges.com)",
+      "ip_address": "::ffff:127.0.0.1",
+      "device_type": "Desktop Console",
+      "status": "SUCCESS",
+      "timestamp": "2026-09-11T06:05:46.925Z"
+    },
+    {
+      "id": 1789106057812,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T05:54:17.812Z"
+    },
+    {
+      "id": 1789106027176,
+      "user_email": "info@ncedges.com",
+      "user_name": "James Brian Otunu",
+      "user_role": "sales_team",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1788262157265,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T05:53:47.176Z"
+    },
+    {
+      "id": 29,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "USER_PROFILE_UPDATED",
+      "resource_type": "System Users",
+      "resource_id": "USER-1788262157265",
+      "details": "Updated user profile & data for James Brian Otunu (info@ncedges.com)",
+      "ip_address": "::ffff:127.0.0.1",
+      "device_type": "Desktop Console",
+      "status": "SUCCESS",
+      "timestamp": "2026-09-11T05:53:17.555Z"
+    },
+    {
+      "id": 1789105923235,
+      "user_email": "systems@ncloud.co.ug",
+      "user_name": "Systems Admin",
+      "user_role": "super_admin",
+      "action": "AUDIT_LOGIN",
+      "resource_type": "Authentication",
+      "resource_id": 1,
+      "details": "User successfully authenticated and created a new session.",
+      "ip_address": "::ffff:127.0.0.1",
+      "timestamp": "2026-09-11T05:52:03.235Z"
+    },
     {
       "id": 1788695336740,
       "user_email": "systems@ncloud.co.ug",
