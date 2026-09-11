@@ -20027,18 +20027,19 @@ const normalizeTabName = (rawTab) => {
                       { key: 'users', label: 'System User Accounts', category: 'Security' },
                       { key: 'roles', label: 'User Roles & CRUDAS Config', category: 'Security' }
                     ].map(mod => {
-                      const userPerms = selectedUserForPerms.custom_permissions || {};
-                      const perms = userPerms[mod.key] || {
+                      const roleDef = availableRoles.find(r => r.code === selectedUserForPerms.role || (r.name && r.name.toLowerCase() === selectedUserForPerms.role));
+                      const basePerms = roleDef?.permissions?.[mod.key] || {
                         create: false, read: true, update: false, delete: false, approve: false, share: false
                       };
+                      const userPerms = selectedUserForPerms.custom_permissions || {};
+                      const perms = userPerms[mod.key] || basePerms;
 
                       const togglePerm = (action) => {
                         // Use functional updater to always work on the latest state,
                         // preventing stale-closure bugs when multiple checkboxes are toggled.
                         setSelectedUserForPerms(prev => {
                           const latestPerms = prev.custom_permissions || {};
-                          const defaultPerms = { create: false, read: true, update: false, delete: false, approve: false, share: false };
-                          const modulePerms = latestPerms[mod.key] || defaultPerms;
+                          const modulePerms = latestPerms[mod.key] || basePerms;
                           return {
                             ...prev,
                             custom_permissions: {
