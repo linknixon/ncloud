@@ -1635,6 +1635,11 @@ const verifyToken = (req, res, next) => {
 const requireCRUDAS = (req, res, next) => {
   if (['super_admin', 'admin', 'web_admin'].includes(req.userRole)) return next();
 
+  // Allow all authenticated users to fetch roles and users for frontend permission matrix & profile sync
+  if (req.method === 'GET' && (req.path === '/roles' || req.path === '/users')) {
+    return next();
+  }
+
   const role = memoryStore.roles.find(r => r.code === req.userRole);
   if (!role || !role.permissions) return res.status(403).json({ error: 'Role permissions not found.' });
 
