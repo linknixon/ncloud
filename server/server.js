@@ -1652,7 +1652,7 @@ const requireCRUDAS = (req, res, next) => {
   else if (path.includes('/payments') || path.includes('/bank-accounts')) module = 'payments';
   else if (path.includes('/company-expenses') || path.includes('/expense')) module = 'expenses';
   else if (path.includes('/hr/') || path.includes('/schedules') || path.includes('/applications')) module = 'hr';
-  else if (path.includes('/unifi/')) module = 'unifi';
+  else if (path.includes('/unifi/') || path.includes('/wifi/')) module = 'unifi';
   else if (path.includes('/roles') || path.includes('/users')) module = 'roles';
   else if (path.includes('/store') || path.includes('/product-categories')) module = 'store';
   else if (path.includes('/subscriptions') || path.includes('/customer-credits')) module = 'subscriptions';
