@@ -4345,8 +4345,10 @@ const normalizeTabName = (rawTab) => {
     <div className="animate-fade-in" style={{ paddingTop: '2.5rem', paddingBottom: '5rem' }}>
       <div className="container">
         
-        {/* Header Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.25rem' }}>
+        {/* Header Bar - Hidden for Customers */}
+        {!isCustomer && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.25rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
               <span className="badge-tag" style={{ background: getRoleBadgeStyle(currentRole).bg, color: getRoleBadgeStyle(currentRole).color, fontSize: '0.85rem' }}>
@@ -4862,6 +4864,8 @@ const normalizeTabName = (rawTab) => {
               <ArrowLeft size={16} /> Return to Nova Cloud Portal
             </button>
           </div>
+        )}
+          </>
         )}
 
         {/* Loading Indicator */}
