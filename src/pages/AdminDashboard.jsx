@@ -443,12 +443,12 @@ export default function AdminDashboard({ setActivePage }) {
         settings: { create: false, read: true, update: false, delete: false, approve: false, share: false }
       },
       customer: {
-        invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
-        quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
-        payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
-        subscriptions: { create: false, read: true, update: true, delete: false, approve: false, share: true },
-        store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
-        unifi: { create: false, read: true, update: false, delete: false, approve: false, share: false }
+        invoices: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        quotations: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        payments: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        subscriptions: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        store: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        unifi: { create: false, read: false, update: false, delete: false, approve: false, share: false }
       }
     };
 

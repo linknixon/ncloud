@@ -1636,7 +1636,7 @@ const requireCRUDAS = (req, res, next) => {
   if (['super_admin', 'admin', 'web_admin'].includes(req.userRole)) return next();
 
   // Allow all authenticated users to fetch roles and users for frontend permission matrix & profile sync
-  if (req.method === 'GET' && (req.path === '/roles' || req.path === '/users')) {
+  if (req.method === 'GET' && (req.path === '/roles' || req.path === '/users' || req.path === '/overview')) {
     return next();
   }
 
@@ -3339,6 +3339,9 @@ app.get('/api/admin/overview', async (req, res) => {
   })();
   const services = (servicesDb.success && !servicesDb.isFallback) ? servicesDb.data : memoryStore.services;
 
+  const isCust = req.userRole === 'customer';
+  const cMail = (req.userEmail || '').toLowerCase();
+  
   res.json({
     totalContacts: contacts.length,
     totalApplications: applications.length,
@@ -3355,32 +3358,32 @@ app.get('/api/admin/overview', async (req, res) => {
     totalStaffInvoices: memoryStore.staff_invoices.length,
     totalPartners: (memoryStore.partners || []).length,
     totalNews: (memoryStore.news || []).length,
-    contacts,
-    applications,
-    subscriptions,
+    contacts: isCust ? [] : contacts,
+    applications: isCust ? [] : applications,
+    subscriptions: isCust ? subscriptions.filter(s => (s.client_email || '').toLowerCase() === cMail) : subscriptions,
     products,
     services,
     partners: memoryStore.partners || [],
     news: memoryStore.news || [],
     team: memoryStore.team,
     jobs: memoryStore.jobs,
-    users: memoryStore.users,
-    invoices: memoryStore.invoices,
-    payments: memoryStore.payments || [],
-    payroll: memoryStore.payroll,
-    staffExpenses: memoryStore.staff_expenses,
-    companyExpenses: memoryStore.staff_expenses,
-    staffInvoices: memoryStore.staff_invoices,
-    quotations: memoryStore.quotations || [],
-    work_orders: memoryStore.work_orders || [],
-    workOrders: memoryStore.work_orders || [],
-    customerCredits: memoryStore.customer_credits || [],
-    customer_credits: memoryStore.customer_credits || [],
+    users: isCust ? memoryStore.users.filter(u => (u.email || '').toLowerCase() === cMail) : memoryStore.users,
+    invoices: isCust ? memoryStore.invoices.filter(i => (i.customer_email || '').toLowerCase() === cMail || (i.party || '').toLowerCase().includes(cMail.split('@')[0])) : memoryStore.invoices,
+    payments: isCust ? (memoryStore.payments || []).filter(p => (p.party_email || '').toLowerCase() === cMail) : (memoryStore.payments || []),
+    payroll: isCust ? [] : memoryStore.payroll,
+    staffExpenses: isCust ? [] : memoryStore.staff_expenses,
+    companyExpenses: isCust ? [] : memoryStore.staff_expenses,
+    staffInvoices: isCust ? [] : memoryStore.staff_invoices,
+    quotations: isCust ? (memoryStore.quotations || []).filter(q => (q.customer_email || '').toLowerCase() === cMail || (q.party || '').toLowerCase().includes(cMail.split('@')[0])) : (memoryStore.quotations || []),
+    work_orders: isCust ? [] : (memoryStore.work_orders || []),
+    workOrders: isCust ? [] : (memoryStore.work_orders || []),
+    customerCredits: isCust ? (memoryStore.customer_credits || []).filter(c => (c.customer_email || '').toLowerCase() === cMail) : (memoryStore.customer_credits || []),
+    customer_credits: isCust ? (memoryStore.customer_credits || []).filter(c => (c.customer_email || '').toLowerCase() === cMail) : (memoryStore.customer_credits || []),
     bank_accounts: memoryStore.bank_accounts || [],
     sliders: memoryStore.sliders,
-    audit_logs: memoryStore.audit_logs || [],
-    forensics: memoryStore.audit_logs || [],
-    security_settings: memoryStore.security_settings || null
+    audit_logs: isCust ? [] : (memoryStore.audit_logs || []),
+    forensics: isCust ? [] : (memoryStore.audit_logs || []),
+    security_settings: isCust ? null : (memoryStore.security_settings || null)
   });
 });
 
