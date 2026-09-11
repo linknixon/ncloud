@@ -906,16 +906,26 @@ app.put('/api/admin/partners/:id', (req, res) => {
   res.json({ message: 'Partner saved successfully', partner: newPartner });
 });
 
-// Super Admin Authorization Middleware for Deletion Operations
+// Authorization Middleware for Deletion Operations
 function requireSuperAdmin(req, res, next) {
   const rawRole = req.headers['x-user-role'] || req.body?.user_role || req.body?.admin_role || req.query?.user_role;
   if (!rawRole) return next();
   const roleClean = String(rawRole).trim().toLowerCase().replace(/\s+/g, '_');
   const allowed = ['super_admin', 'admin', 'sales_admin', 'web_admin', 'hr_manager', 'superadmin'];
-  if (!allowed.includes(roleClean)) {
-    return res.status(403).json({ error: 'Access Denied: Only Administrators have permission to delete system records.' });
+  if (allowed.includes(roleClean)) {
+    return next();
   }
-  next();
+
+  // Check if custom role has permission for deletion
+  const customRole = (memoryStore.roles || []).find(r => r.code === roleClean);
+  if (customRole && customRole.permissions) {
+    const hasDeletePermission = Object.values(customRole.permissions).some(p => p && p.delete === true);
+    if (hasDeletePermission) {
+      return next();
+    }
+  }
+
+  return res.status(403).json({ error: 'Access Denied: Only users with deletion permissions can remove system records.' });
 }
 
 app.delete('/api/admin/partners/:id', requireSuperAdmin, async (req, res) => {
@@ -7945,51 +7955,7 @@ app.post('/api/admin/smtp-test', async (req, res) => {
   }
 });
 
-// Roles Management Endpoints
-app.post('/api/admin/roles', (req, res) => {
-  const { name, code, badge_color, description, permissions } = req.body;
-  if (!name || !code) {
-    return res.status(400).json({ error: 'Role name and identifier code are required' });
-  }
-
-  const existing = (memoryStore.roles || []).find(r => r.code === code);
-  if (existing) {
-    return res.status(400).json({ error: `A role with identifier "${code}" already exists.` });
-  }
-
-  const newRole = {
-    id: (memoryStore.roles || []).length + 1,
-    name,
-    code: code.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
-    badge_color: badge_color || '#8b5cf6',
-    description: description || 'Custom enterprise module role with configured CRUDAS matrix permissions.',
-    user_count: 0,
-    permissions: permissions || {
-      invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
-      quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
-      reports: { create: false, read: true, update: false, delete: false, approve: false, share: true }
-    }
-  };
-
-  if (!memoryStore.roles) memoryStore.roles = [];
-  memoryStore.roles.push(newRole);
-
-  res.json({ message: `Custom User Role "${name}" created successfully with configured CRUDAS permissions!`, role: newRole });
-});
-
-app.delete('/api/admin/roles/:id', (req, res) => {
-  const { id } = req.params;
-  const index = (memoryStore.roles || []).findIndex(r => r.id == id);
-  if (index === -1) return res.status(404).json({ error: 'Role not found' });
-
-  const roleToDelete = memoryStore.roles[index];
-  if (['super_admin', 'sales_admin', 'web_admin', 'hr_manager'].includes(roleToDelete.code)) {
-    return res.status(400).json({ error: `Cannot delete system core role "${roleToDelete.name}".` });
-  }
-
-  const deleted = memoryStore.roles.splice(index, 1)[0];
-  res.json({ message: `Custom Role "${deleted.name}" removed successfully!` });
-});
+// (Duplicate role routes removed - handled in consolidated User Roles & Granular CRUDAS Permissions API section below)
 
 app.get('/api/admin/invoices', (req, res) => {
   res.json(memoryStore.invoices);
@@ -9243,7 +9209,16 @@ app.delete('/api/admin/payments/:id', async (req, res) => {
 // User Roles & Granular CRUDAS Permissions API
 // ----------------------------------------------------
 app.get('/api/admin/roles', (req, res) => {
-  res.json(memoryStore.roles || []);
+  if (!memoryStore.roles) memoryStore.roles = [];
+  const users = memoryStore.users || [];
+  const rolesWithCount = memoryStore.roles.map(r => {
+    const userCount = users.filter(u => u && (u.role === r.code || u.role === r.name)).length;
+    return {
+      ...r,
+      user_count: userCount
+    };
+  });
+  res.json(rolesWithCount);
 });
 
 app.post('/api/admin/roles', (req, res) => {
@@ -9251,7 +9226,15 @@ app.post('/api/admin/roles', (req, res) => {
   if (!name || !code) {
     return res.status(400).json({ error: 'Role name and role code are required' });
   }
-  const defaultPerms = permissions || {
+
+  if (!memoryStore.roles) memoryStore.roles = [];
+  const formattedCode = code.toLowerCase().trim().replace(/[^a-z0-9_]/g, '_');
+  const existing = memoryStore.roles.find(r => r.code === formattedCode || r.name.toLowerCase() === name.trim().toLowerCase());
+  if (existing) {
+    return res.status(400).json({ error: `A role with identifier "${formattedCode}" or name "${name}" already exists.` });
+  }
+
+  const defaultPerms = permissions && typeof permissions === 'object' && Object.keys(permissions).length > 0 ? permissions : {
     invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
     quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
     work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -9266,20 +9249,29 @@ app.post('/api/admin/roles', (req, res) => {
     roles: { create: false, read: false, update: false, delete: false, approve: false, share: false },
     store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
     subscriptions: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+    jobs: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+    news: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+    partners: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+    sliders: { create: false, read: false, update: false, delete: false, approve: false, share: false },
     settings: { create: false, read: false, update: false, delete: false, approve: false, share: false }
   };
+
+  const nextId = memoryStore.roles.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0) + 1;
   const newRole = {
-    id: (memoryStore.roles || []).length + 1,
-    name,
-    code: code.toLowerCase().replace(/\s+/g, '_'),
-    badge_color: badge_color || '#6366f1',
-    description: description || 'Custom configured system role with defined CRUDAS module privileges.',
+    id: nextId,
+    name: name.trim(),
+    code: formattedCode,
+    badge_color: badge_color || '#8b5cf6',
+    description: description ? description.trim() : 'Custom configured system role with defined CRUDAS module privileges.',
     user_count: 0,
     permissions: defaultPerms,
+    is_custom: true,
     created_at: new Date().toISOString()
   };
+
   memoryStore.roles.push(newRole);
-  res.json({ message: `Role "${name}" created with custom module permissions`, role: newRole });
+  savePersistentStore();
+  res.json({ message: `Custom Role "${name}" created successfully and is now available for user assignment!`, role: newRole });
 });
 
 app.put('/api/admin/roles/:id', (req, res) => {
@@ -9287,10 +9279,12 @@ app.put('/api/admin/roles/:id', (req, res) => {
   const { name, badge_color, description, permissions } = req.body;
   const r = (memoryStore.roles || []).find(role => role.id == id);
   if (r) {
-    if (name) r.name = name;
+    if (name) r.name = name.trim();
     if (badge_color) r.badge_color = badge_color;
-    if (description) r.description = description;
+    if (description !== undefined) r.description = description.trim();
     if (permissions) r.permissions = permissions;
+    r.updated_at = new Date().toISOString();
+    savePersistentStore();
     return res.json({ message: `Role "${r.name}" updated successfully`, role: r });
   }
   res.status(404).json({ error: 'Role not found' });
@@ -9302,6 +9296,8 @@ app.put('/api/admin/roles/:id/permissions', (req, res) => {
   const r = (memoryStore.roles || []).find(role => role.id == id);
   if (r) {
     r.permissions = permissions;
+    r.updated_at = new Date().toISOString();
+    savePersistentStore();
     return res.json({ message: `Granular CRUDAS permissions updated for role "${r.name}"`, role: r });
   }
   res.status(404).json({ error: 'Role not found' });
@@ -9311,13 +9307,28 @@ app.delete('/api/admin/roles/:id', requireSuperAdmin, (req, res) => {
   const { id } = req.params;
   const idx = (memoryStore.roles || []).findIndex(role => role.id == id);
   if (idx !== -1) {
-    if (memoryStore.roles[idx].code === 'super_admin') {
+    const roleToDelete = memoryStore.roles[idx];
+    if (['super_admin', 'admin'].includes(roleToDelete.code)) {
       return res.status(400).json({ error: 'Cannot delete default Super Administrator role' });
     }
-    memoryStore.roles.splice(idx, 1);
-    return res.json({ message: 'User role removed successfully' });
+    const removed = memoryStore.roles.splice(idx, 1)[0];
+    savePersistentStore();
+    return res.json({ message: `Custom role "${removed.name}" removed successfully` });
   }
   res.status(404).json({ error: 'Role not found' });
+});
+
+// User Specific Permissions Override Endpoint
+app.put('/api/admin/users/:id/permissions', (req, res) => {
+  const { id } = req.params;
+  const { custom_permissions } = req.body;
+  const targetUser = (memoryStore.users || []).find(u => String(u.id) === String(id));
+  if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+  targetUser.custom_permissions = custom_permissions || {};
+  targetUser.updated_at = new Date().toISOString();
+  savePersistentStore();
+  res.json({ message: `Custom CRUDAS permissions override updated for "${targetUser.name}"!`, user: targetUser });
 });
 
 // ----------------------------------------------------

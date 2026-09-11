@@ -223,7 +223,7 @@ export default function AuthModal({ setActivePage }) {
       setUser(data.user);
       
       const role = data.user.role;
-      if (['super_admin', 'admin', 'hr_manager', 'reviewer'].includes(role)) {
+      if (role && role !== 'customer') {
         setActivePage('admin');
       } else {
         if (window.location.pathname === '/admin' || window.location.pathname === '/') {

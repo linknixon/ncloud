@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import QRCode from 'qrcode';
 import { 
@@ -271,14 +271,208 @@ export default function AdminDashboard({ setActivePage }) {
   const [faviconInput, setFaviconInput] = useState(siteFavicon || '');
   
   const [currentRole, setCurrentRole] = useState(user?.role || 'super_admin');
+  const [rolesList, setRolesList] = useState([]);
 
-  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'admin';
-  const canDeleteSystemRecords = ['super_admin', 'admin', 'web_admin', 'sales_admin', 'hr_manager', 'superadmin'].includes(currentRole);
-  const isSalesAdmin = isSuperAdmin || currentRole === 'sales_admin';
-  const isWebAdmin = isSuperAdmin || currentRole === 'web_admin';
-  const isHrManager = isSuperAdmin || currentRole === 'hr_manager';
-  const isStaff = isHrManager || currentRole === 'staff';
+  // Base Built-in System Roles
+  const defaultSystemRoles = useMemo(() => [
+    { code: 'super_admin', name: 'Super Admin', desc: 'Full CRUDAS & System Authority', badge_color: '#8b5cf6' },
+    { code: 'sales_admin', name: 'Sales Admin', desc: 'Invoices, Quotes & Catalog', badge_color: '#10b981' },
+    { code: 'web_admin', name: 'Web Admin', desc: 'CMS, Sliders & Careers', badge_color: '#06b6d4' },
+    { code: 'hr_manager', name: 'HR Manager', desc: 'Staff Roll, Payroll & Expenses', badge_color: '#f97316' },
+    { code: 'staff', name: 'Staff Specialist', desc: 'Work Orders & Expenses', badge_color: '#14b8a6' },
+    { code: 'reviewer', name: 'Auditor / Reviewer', desc: 'Read & Share Only', badge_color: '#06b6d4' },
+    { code: 'customer', name: 'Client', desc: 'Customer Self-Service Portal', badge_color: '#3b82f6' }
+  ], []);
+
+  // Merged available roles: Built-in + dynamically created custom roles
+  const availableRoles = useMemo(() => {
+    const list = defaultSystemRoles.map(dr => {
+      const serverMatch = (rolesList || []).find(r => r.code === dr.code);
+      if (serverMatch) {
+        return {
+          ...dr,
+          id: serverMatch.id,
+          name: serverMatch.name || dr.name,
+          desc: serverMatch.description || dr.desc,
+          badge_color: serverMatch.badge_color || dr.badge_color,
+          permissions: serverMatch.permissions
+        };
+      }
+      return dr;
+    });
+
+    (rolesList || []).forEach(r => {
+      if (!list.some(item => item.code === r.code)) {
+        list.push({
+          id: r.id,
+          code: r.code,
+          name: r.name,
+          desc: r.description || 'Custom Enterprise Role',
+          badge_color: r.badge_color || '#8b5cf6',
+          permissions: r.permissions,
+          isCustom: true
+        });
+      }
+    });
+    return list;
+  }, [rolesList, defaultSystemRoles]);
+
+  // Dynamic helper for role badge colors & titles
+  const getRoleBadgeStyle = useCallback((role) => {
+    const clean = String(role || '').toLowerCase().trim();
+    if (clean === 'super_admin' || clean === 'admin') {
+      return { bg: 'rgba(124, 58, 237, 0.15)', color: '#8b5cf6', label: 'Super Admin' };
+    }
+    if (clean === 'sales_admin') {
+      return { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: 'Sales Admin' };
+    }
+    if (clean === 'web_admin') {
+      return { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', label: 'Web Admin' };
+    }
+    if (clean === 'hr_manager') {
+      return { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316', label: 'HR Manager' };
+    }
+    if (clean === 'staff') {
+      return { bg: 'rgba(20, 184, 166, 0.15)', color: '#14b8a6', label: 'Staff Member' };
+    }
+    if (clean === 'reviewer') {
+      return { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', label: 'Auditor / Reviewer' };
+    }
+    if (clean === 'customer') {
+      return { bg: 'rgba(30, 58, 138, 0.15)', color: '#3b82f6', label: 'Customer' };
+    }
+
+    const customMatch = availableRoles.find(r => r.code === clean || (r.name && r.name.toLowerCase() === clean));
+    if (customMatch) {
+      const color = customMatch.badge_color || '#8b5cf6';
+      return {
+        bg: `${color}26`,
+        color: color,
+        label: customMatch.name
+      };
+    }
+
+    return { bg: 'rgba(99, 102, 241, 0.15)', color: '#6366f1', label: role ? String(role).replace(/_/g, ' ').toUpperCase() : 'Operator' };
+  }, [availableRoles]);
+
+  const getRoleTitle = useCallback((role) => {
+    const badge = getRoleBadgeStyle(role);
+    return `${badge.label} Scope`;
+  }, [getRoleBadgeStyle]);
+
+  const isSuperAdmin = currentRole === 'super_admin' || currentRole === 'admin' || user?.role === 'super_admin' || user?.role === 'admin';
   const isCustomer = currentRole === 'customer';
+
+  // Granular CRUDAS matrix permissions resolver
+  const hasPermission = useCallback((moduleKey, action = 'read') => {
+    if (isSuperAdmin) return true;
+
+    const modKey = (moduleKey === 'products' || moduleKey === 'catalog') ? 'store' 
+      : (moduleKey === 'expenditures' ? 'expenses' : moduleKey);
+
+    // 1. Check user-specific custom overrides
+    if (user?.custom_permissions && (user.custom_permissions[modKey] || user.custom_permissions[moduleKey])) {
+      const p = user.custom_permissions[modKey] || user.custom_permissions[moduleKey];
+      if (p && p[action] !== undefined) return Boolean(p[action]);
+    }
+
+    // 2. Check role definition from availableRoles (custom roles or edited default roles)
+    const cleanRole = String(currentRole || '').toLowerCase().trim();
+    const roleDef = availableRoles.find(r => r.code === cleanRole || (r.name && r.name.toLowerCase() === cleanRole));
+    if (roleDef && roleDef.permissions && (roleDef.permissions[modKey] || roleDef.permissions[moduleKey])) {
+      const p = roleDef.permissions[modKey] || roleDef.permissions[moduleKey];
+      if (p && p[action] !== undefined) return Boolean(p[action]);
+    }
+
+    // 3. Fallback matrix for standard roles
+    const standardMatrices = {
+      sales_admin: {
+        invoices: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        quotations: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        payments: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        unifi: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        store: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        subscriptions: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        users: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        settings: { create: false, read: true, update: false, delete: false, approve: false, share: false }
+      },
+      web_admin: {
+        sliders: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        cms: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        jobs: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        careers: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        news: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        partners: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        team_mgmt: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        settings: { create: true, read: true, update: true, delete: false, approve: false, share: false },
+        schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        applications: { create: false, read: true, update: true, delete: false, approve: true, share: false }
+      },
+      hr_manager: {
+        work_orders: { create: true, read: true, update: true, delete: false, approve: true, share: true },
+        payments: { create: true, read: true, update: true, delete: false, approve: true, share: true },
+        expenses: { create: true, read: true, update: true, delete: false, approve: true, share: true },
+        hr: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        users: { create: true, read: true, update: true, delete: false, approve: false, share: false },
+        jobs: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        applications: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        careers: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true }
+      },
+      staff: {
+        work_orders: { create: false, read: true, update: true, delete: false, approve: false, share: false },
+        expenses: { create: true, read: true, update: false, delete: false, approve: false, share: false },
+        hr: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        store: { create: false, read: true, update: false, delete: false, approve: false, share: false }
+      },
+      reviewer: {
+        invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        expenses: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        hr: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        forensics: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        subscriptions: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        settings: { create: false, read: true, update: false, delete: false, approve: false, share: false }
+      },
+      customer: {
+        invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        subscriptions: { create: false, read: true, update: true, delete: false, approve: false, share: true },
+        store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        unifi: { create: false, read: true, update: false, delete: false, approve: false, share: false }
+      }
+    };
+
+    const std = standardMatrices[cleanRole];
+    if (std && std[moduleKey] && std[moduleKey][action] !== undefined) {
+      return Boolean(std[moduleKey][action]);
+    }
+
+    return false;
+  }, [isSuperAdmin, user, currentRole, availableRoles]);
+
+  // Convenience CRUDAS helpers
+  const canCreate = useCallback((mod) => hasPermission(mod, 'create'), [hasPermission]);
+  const canRead = useCallback((mod) => hasPermission(mod, 'read'), [hasPermission]);
+  const canUpdate = useCallback((mod) => hasPermission(mod, 'update'), [hasPermission]);
+  const canDelete = useCallback((mod) => hasPermission(mod, 'delete'), [hasPermission]);
+  const canApprove = useCallback((mod) => hasPermission(mod, 'approve'), [hasPermission]);
+  const canShare = useCallback((mod) => hasPermission(mod, 'share'), [hasPermission]);
+
+  const isSalesAdmin = isSuperAdmin || currentRole === 'sales_admin' || canRead('invoices') || canRead('quotations') || canRead('store');
+  const isWebAdmin = isSuperAdmin || currentRole === 'web_admin' || canRead('sliders') || canRead('news') || canRead('settings');
+  const isHrManager = isSuperAdmin || currentRole === 'hr_manager' || canRead('hr') || canRead('jobs');
+  const isStaff = isHrManager || currentRole === 'staff' || canRead('work_orders');
+  const canDeleteSystemRecords = isSuperAdmin || ['sales_admin', 'web_admin', 'hr_manager'].includes(currentRole) || (availableRoles.find(r => r.code === currentRole)?.permissions && Object.values(availableRoles.find(r => r.code === currentRole).permissions).some(p => p && p.delete));
 
   useEffect(() => {
     if (!user) {
@@ -520,7 +714,6 @@ const normalizeTabName = (rawTab) => {
   const [ledgerSearch, setLedgerSearch] = useState('');
 
   // User Roles & Granular CRUDAS Permissions Modals
-  const [rolesList, setRolesList] = useState([]);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showRolePermissionsModal, setShowRolePermissionsModal] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
@@ -923,7 +1116,7 @@ const normalizeTabName = (rawTab) => {
   const fetchDashboardData = async (silent = false) => {
     if (!silent && !data) setLoading(true);
     try {
-      const res = await fetch('/api/admin/overview');
+      const res = await fetch('/api/admin/overview', { cache: 'no-store' });
       const resData = await res.json();
       setData(resData);
       if (resData.products && Array.isArray(resData.products) && resData.products.length > 0) setStoreProducts(resData.products);
@@ -982,7 +1175,7 @@ const normalizeTabName = (rawTab) => {
   };
 
   const fetchRoles = () => {
-    fetch('/api/admin/roles')
+    fetch('/api/admin/roles', { cache: 'no-store' })
       .then(r => r.json())
       .then(roles => Array.isArray(roles) && setRolesList(roles))
       .catch(() => {});
@@ -1201,38 +1394,6 @@ const normalizeTabName = (rawTab) => {
     showToast(`Switched active portal view to: ${getRoleTitle(newRole)}`, 'info');
   };
 
-  // Helper function for role badge colors & titles
-  const getRoleBadgeStyle = (role) => {
-    switch (role) {
-      case 'super_admin':
-      case 'admin':
-        return { bg: 'rgba(124, 58, 237, 0.15)', color: '#8b5cf6', label: 'Super Admin' };
-      case 'sales_admin':
-        return { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: 'Sales Admin' };
-      case 'web_admin':
-        return { bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', label: 'Web Admin' };
-      case 'hr_manager':
-        return { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316', label: 'HR Manager' };
-      case 'staff':
-        return { bg: 'rgba(20, 184, 166, 0.15)', color: '#14b8a6', label: 'Staff Member' };
-      case 'customer':
-      default:
-        return { bg: 'rgba(30, 58, 138, 0.15)', color: '#3b82f6', label: 'Customer' };
-    }
-  };
-
-  const getRoleTitle = (role) => {
-    switch (role) {
-      case 'super_admin': return 'Super Admin Authority';
-      case 'sales_admin': return 'Sales & Invoicing Scope';
-      case 'web_admin': return 'Web Content Management';
-      case 'hr_manager': return 'HR & Payroll Scope';
-      case 'staff': return 'Staff Employee Portal';
-      case 'customer': return 'Customer Portal';
-      default: return 'User Portal';
-    }
-  };
-
   // Action handlers
   const handleRoleUpdate = async (userId, targetRole) => {
     const targetUser = (dashboardData.users || []).find(u => u.id === userId);
@@ -1300,6 +1461,10 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteInvoice = async (id, invoiceNumber) => {
+    if (!canDelete('invoices') && !canDeleteSystemRecords) {
+      showToast('Access Denied: You do not have permission to delete invoices.', 'error');
+      return;
+    }
     if (!window.confirm(`Are you sure you want to permanently delete Tax Invoice #${invoiceNumber}? This document will be completely removed from the system.`)) return;
     try {
       const res = await fetch(`/api/admin/invoices/${id}`, {
@@ -1316,6 +1481,10 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeletePayment = async (idOrPmt, ref, invoiceNumber) => {
+    if (!canDelete('payments') && !canDeleteSystemRecords) {
+      showToast('Access Denied: You do not have permission to delete payment records.', 'error');
+      return;
+    }
     const pmtObj = typeof idOrPmt === 'object' && idOrPmt !== null ? idOrPmt : null;
     const deleteId = pmtObj ? (pmtObj.rawPaymentObj?.id || pmtObj.reference || pmtObj.invoice_number || pmtObj.id) : (idOrPmt || ref || invoiceNumber);
     const pmtInvNumber = pmtObj ? pmtObj.invoice_number : (invoiceNumber || ref);
@@ -1340,8 +1509,8 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteProduct = async (id, name) => {
-    if (!canDeleteSystemRecords) {
-      showToast('Access Denied: Only Administrators have permission to delete product catalog records.', 'error');
+    if (!canDelete('store') && !canDeleteSystemRecords) {
+      showToast('Access Denied: You do not have permission to delete product catalog records.', 'error');
       return;
     }
     if (!window.confirm(`Are you sure you want to remove "${name}" from the shop catalog?`)) return;
@@ -1534,8 +1703,8 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteCompanyExpense = async (id) => {
-    if (!canDeleteSystemRecords) {
-      showToast('Access Denied: Only Administrators have permission to delete company expenditures.', 'error');
+    if (!canDelete('expenses') && !canDeleteSystemRecords) {
+      showToast('Access Denied: You do not have permission to delete company expenditures.', 'error');
       return;
     }
     if (!window.confirm('Are you sure you want to remove this company expenditure record?')) return;
@@ -1642,7 +1811,7 @@ const normalizeTabName = (rawTab) => {
       setSelectedAppForHire(null);
       fetchDashboardData();
       fetch('/api/admin/applications').then(r => r.json()).then(apps => Array.isArray(apps) && setApplicationsList(apps));
-      fetch('/api/admin/overview').then(r => r.json()).then(ov => ov.users && setData(prev => ({ ...prev, users: ov.users })));
+      fetch('/api/admin/overview', { cache: 'no-store' }).then(r => r.json()).then(ov => ov.users && setData(prev => ({ ...prev, users: ov.users })));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -2923,8 +3092,8 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteSubscription = async (id, planName, customerName) => {
-    if (currentRole === 'customer' || user?.role === 'customer') {
-      showToast('Customers are not permitted to delete subscription records.', 'error');
+    if ((!canDelete('subscriptions') && !canDeleteSystemRecords) || currentRole === 'customer' || user?.role === 'customer') {
+      showToast('Access denied: You do not have permission to delete subscription records.', 'error');
       return;
     }
     if (!window.confirm(`Are you sure you want to permanently delete subscription "${planName}" for ${customerName}?`)) return;
@@ -2956,8 +3125,8 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleUpdateSubscriptionStatus = async (subId, newStatus, duration = null, expiryDate = null) => {
-    if (currentRole === 'customer' || user?.role === 'customer') {
-      showToast('Customers are not permitted to modify active subscription status.', 'error');
+    if (!canUpdate('subscriptions') || currentRole === 'customer' || user?.role === 'customer') {
+      showToast('Access denied: You do not have permission to modify active subscriptions.', 'error');
       return;
     }
     try {
@@ -2977,8 +3146,8 @@ const normalizeTabName = (rawTab) => {
 
   const handleCreateSubscription = async (e) => {
     e.preventDefault();
-    if (currentRole === 'customer' || user?.role === 'customer') {
-      showToast('Customers are not permitted to log manual subscriptions.', 'error');
+    if (!canCreate('subscriptions') || currentRole === 'customer' || user?.role === 'customer') {
+      showToast('Access denied: You do not have permission to log manual subscriptions.', 'error');
       return;
     }
     try {
@@ -3097,6 +3266,10 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteQuotation = async (id, quoteNumber) => {
+    if (!canDelete('quotations') && !canDeleteSystemRecords) {
+      showToast('Access Denied: You do not have permission to delete quotations.', 'error');
+      return;
+    }
     if (!window.confirm(`Are you sure you want to delete quotation ${quoteNumber}?`)) return;
     try {
       const res = await fetch(`/api/admin/quotations/${id}`, {
@@ -3181,7 +3354,7 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleDeleteWorkOrder = async (id, orderNumber) => {
-    if (!canDeleteSystemRecords) {
+    if (!canDelete('work_orders') && !canDeleteSystemRecords) {
       showToast('Access Denied: Only Administrators have permission to delete work orders.', 'error');
       return;
     }
@@ -3703,6 +3876,8 @@ const normalizeTabName = (rawTab) => {
 
   const openCreateUserModal = () => {
     setEditingUser(null);
+    // Refresh roles list so any custom roles created in CRUDAS show up in the dropdown
+    fetchRoles();
     setUserForm({
       name: '',
       email: '',
@@ -3796,9 +3971,16 @@ const normalizeTabName = (rawTab) => {
       showToast('Super Administrator accounts can never be deleted.', 'error');
       return;
     }
+    if (!isSuperAdmin && !canDelete('users')) {
+      showToast('Access Denied: You do not have permission to delete user accounts.', 'error');
+      return;
+    }
     if (!window.confirm(`Are you sure you want to permanently remove system user account "${userToDelete.name}" (${userToDelete.email})?`)) return;
     try {
-      const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message || 'User account removed', 'success');
@@ -3888,7 +4070,7 @@ const normalizeTabName = (rawTab) => {
       icon: ShieldCheck,
       color: '#8b5cf6',
       btnText: 'Configure Roles & CRUDAS',
-      show: isSuperAdmin
+      show: isSuperAdmin || canRead('roles')
     },
     {
       id: 'users',
@@ -3897,7 +4079,7 @@ const normalizeTabName = (rawTab) => {
       icon: UserPlus,
       color: '#6366f1',
       btnText: 'Manage System Users',
-      show: isSuperAdmin || isHrManager
+      show: isSuperAdmin || canRead('users') || isHrManager
     },
     {
       id: 'forensics',
@@ -3906,7 +4088,7 @@ const normalizeTabName = (rawTab) => {
       icon: ShieldAlert,
       color: '#ef4444',
       btnText: 'Open Forensics Logs',
-      show: !isCustomer
+      show: isSuperAdmin || canRead('forensics') || (!isCustomer && currentRole === 'reviewer')
     },
     {
       id: 'cms',
@@ -3915,7 +4097,7 @@ const normalizeTabName = (rawTab) => {
       icon: Sliders,
       color: '#06b6d4',
       btnText: 'Configure Sliders',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('sliders') || canRead('cms') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'products',
@@ -3924,7 +4106,7 @@ const normalizeTabName = (rawTab) => {
       icon: Tag,
       color: '#10b981',
       btnText: 'Manage Catalog',
-      show: isSalesAdmin || isWebAdmin || isSuperAdmin
+      show: canRead('store') || isSalesAdmin || isWebAdmin || isSuperAdmin
     },
     {
       id: 'expenses',
@@ -3933,7 +4115,7 @@ const normalizeTabName = (rawTab) => {
       icon: Banknote,
       color: '#ef4444',
       btnText: 'Manage Expenditures',
-      show: isSalesAdmin || isHrManager || isSuperAdmin
+      show: canRead('expenses') || isSalesAdmin || isHrManager || isSuperAdmin
     },
     {
       id: 'payments',
@@ -3942,7 +4124,7 @@ const normalizeTabName = (rawTab) => {
       icon: Wallet,
       color: '#2563eb',
       btnText: 'Manage Payments',
-      show: isSalesAdmin || isHrManager || isSuperAdmin
+      show: canRead('payments') || isSalesAdmin || isHrManager || isSuperAdmin
     },
     {
       id: 'invoices',
@@ -3951,7 +4133,7 @@ const normalizeTabName = (rawTab) => {
       icon: FileText,
       color: '#3b82f6',
       btnText: 'Manage Invoices',
-      show: isSalesAdmin || isSuperAdmin
+      show: canRead('invoices') || isSalesAdmin || isSuperAdmin
     },
     {
       id: 'subscriptions',
@@ -3960,7 +4142,7 @@ const normalizeTabName = (rawTab) => {
       icon: CreditCard,
       color: '#f43f5e',
       btnText: 'View Subscriptions',
-      show: isSalesAdmin || isSuperAdmin
+      show: canRead('subscriptions') || isSalesAdmin || isSuperAdmin
     },
     {
       id: 'careers',
@@ -3969,7 +4151,7 @@ const normalizeTabName = (rawTab) => {
       icon: Briefcase,
       color: '#0ea5e9',
       btnText: 'Manage Careers',
-      show: isHrManager || isSuperAdmin
+      show: canRead('jobs') || canRead('careers') || isHrManager || isSuperAdmin
     },
     {
       id: 'team_mgmt',
@@ -3978,7 +4160,7 @@ const normalizeTabName = (rawTab) => {
       icon: Users,
       color: '#a855f7',
       btnText: 'Manage Executive Team',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('team_mgmt') || canRead('settings') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'partners',
@@ -3987,7 +4169,7 @@ const normalizeTabName = (rawTab) => {
       icon: Building,
       color: '#0284c7',
       btnText: 'Manage Partners',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('partners') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'news',
@@ -3996,7 +4178,7 @@ const normalizeTabName = (rawTab) => {
       icon: Newspaper,
       color: '#f59e0b',
       btnText: 'Manage News',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('news') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'hr',
@@ -4005,7 +4187,7 @@ const normalizeTabName = (rawTab) => {
       icon: Users,
       color: '#f97316',
       btnText: 'Manage HR & Payroll',
-      show: isHrManager || isStaff || isSuperAdmin
+      show: canRead('hr') || isHrManager || isStaff || isSuperAdmin
     },
     {
       id: 'contacts',
@@ -4014,7 +4196,7 @@ const normalizeTabName = (rawTab) => {
       icon: Mail,
       color: '#f59e0b',
       btnText: 'Open Messages',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('contacts') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'applications',
@@ -4023,7 +4205,7 @@ const normalizeTabName = (rawTab) => {
       icon: FileCheck,
       color: '#6366f1',
       btnText: 'Review Applications',
-      show: isHrManager || isSuperAdmin || isWebAdmin
+      show: canRead('jobs') || canRead('applications') || isHrManager || isSuperAdmin || isWebAdmin
     },
     {
       id: 'reports',
@@ -4032,7 +4214,7 @@ const normalizeTabName = (rawTab) => {
       icon: TrendingUp,
       color: '#8b5cf6',
       btnText: 'Open Reports & Analytics',
-      show: isSalesAdmin || isHrManager || isSuperAdmin
+      show: canRead('reports') || isSalesAdmin || isHrManager || isSuperAdmin
     },
     {
       id: 'quotations',
@@ -4041,7 +4223,7 @@ const normalizeTabName = (rawTab) => {
       icon: FileSpreadsheet,
       color: '#0d9488',
       btnText: 'Manage Quotations',
-      show: isSalesAdmin || isSuperAdmin
+      show: canRead('quotations') || isSalesAdmin || isSuperAdmin
     },
     {
       id: 'work_orders',
@@ -4050,7 +4232,7 @@ const normalizeTabName = (rawTab) => {
       icon: CheckSquare,
       color: '#eab308',
       btnText: 'Manage Work Orders',
-      show: isStaff || isHrManager || isSuperAdmin
+      show: canRead('work_orders') || isStaff || isHrManager || isSuperAdmin
     },
     {
       id: 'internet',
@@ -4059,7 +4241,7 @@ const normalizeTabName = (rawTab) => {
       icon: Wifi,
       color: '#0284c7',
       btnText: 'Manage Internet & WiFi',
-      show: isSalesAdmin || isWebAdmin || isSuperAdmin
+      show: canRead('unifi') || isSalesAdmin || isWebAdmin || isSuperAdmin
     },
     {
       id: 'schedules',
@@ -4068,7 +4250,7 @@ const normalizeTabName = (rawTab) => {
       icon: Clock3,
       color: '#8b5cf6',
       btnText: 'Manage Schedules',
-      show: isSuperAdmin || isWebAdmin
+      show: canRead('schedules') || isSuperAdmin || isWebAdmin
     },
     {
       id: 'bank_accounts',
@@ -4077,7 +4259,7 @@ const normalizeTabName = (rawTab) => {
       icon: Landmark,
       color: '#10b981',
       btnText: 'Configure Bank Accounts',
-      show: isSuperAdmin
+      show: isSuperAdmin || canRead('bank_accounts') || canRead('invoices')
     },
     {
       id: 'settings',
@@ -4086,7 +4268,7 @@ const normalizeTabName = (rawTab) => {
       icon: ImageIcon,
       color: '#d946ef',
       btnText: 'Configure Brand Settings',
-      show: isWebAdmin || isSuperAdmin
+      show: canRead('settings') || isWebAdmin || isSuperAdmin
     },
     {
       id: 'customer_portal',
@@ -4179,42 +4361,34 @@ const normalizeTabName = (rawTab) => {
           {(!user?.role || user?.role === 'super_admin' || user?.role === 'admin') ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--bg-card)', padding: '0.4rem 0.6rem', borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', paddingRight: '0.25rem' }}>Role View:</span>
-              <button
-                onClick={() => handleRoleSwitch('super_admin')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'super_admin' ? 'var(--primary)' : 'transparent', color: currentRole === 'super_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <ShieldCheck size={14} /> Super Admin
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('sales_admin')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'sales_admin' ? 'var(--accent-emerald)' : 'transparent', color: currentRole === 'sales_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <Banknote size={14} /> Sales Admin
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('web_admin')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'web_admin' ? 'var(--accent-cyan)' : 'transparent', color: currentRole === 'web_admin' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <Sliders size={14} /> Web Admin
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('hr_manager')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'hr_manager' ? '#f97316' : 'transparent', color: currentRole === 'hr_manager' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <Users size={14} /> HR Manager
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('staff')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'staff' ? '#14b8a6' : 'transparent', color: currentRole === 'staff' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <Briefcase size={14} /> Staff
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('customer')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '0.4rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', background: currentRole === 'customer' ? 'var(--secondary)' : 'transparent', color: currentRole === 'customer' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-              >
-                <User size={14} /> Customer
-              </button>
+              {availableRoles.map(r => {
+                const isSelected = currentRole === r.code;
+                const badge = getRoleBadgeStyle(r.code);
+                return (
+                  <button
+                    key={r.code}
+                    type="button"
+                    onClick={() => handleRoleSwitch(r.code)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      background: isSelected ? badge.color : 'transparent',
+                      color: isSelected ? '#fff' : 'var(--text-main)',
+                      border: isSelected ? 'none' : '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={`Switch view to ${r.name}`}
+                  >
+                    <ShieldCheck size={13} /> {r.name} {r.isCustom ? '★' : ''}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', background: 'var(--bg-card)', padding: '0.55rem 0.95rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
@@ -4269,7 +4443,7 @@ const normalizeTabName = (rawTab) => {
             <LayoutDashboard size={15} /> Nova Cloud Portal
           </button>
 
-          {(isSalesAdmin || isWebAdmin || isSuperAdmin) && (
+          {(isSalesAdmin || isWebAdmin || isSuperAdmin || canRead('store')) && (
             <button
               onClick={() => updateActiveTab('products')}
               className="btn-secondary"
@@ -4288,7 +4462,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isHrManager || isSuperAdmin) && (
+          {(isSalesAdmin || isHrManager || isSuperAdmin || canRead('expenses')) && (
             <button
               onClick={() => updateActiveTab('expenses')}
               className="btn-secondary"
@@ -4307,7 +4481,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isHrManager || currentRole === 'customer' || user?.role === 'customer') && (
+          {(isSalesAdmin || isHrManager || currentRole === 'customer' || user?.role === 'customer' || canRead('payments')) && (
             <button
               onClick={() => updateActiveTab('payments')}
               className="btn-secondary"
@@ -4326,7 +4500,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isSuperAdmin) && (
+          {(isSalesAdmin || isSuperAdmin || canRead('invoices')) && (
             <button
               onClick={() => updateActiveTab('invoices')}
               className="btn-secondary"
@@ -4345,7 +4519,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isSuperAdmin) && (
+          {(isSalesAdmin || isSuperAdmin || canRead('quotations')) && (
             <button
               onClick={() => updateActiveTab('quotations')}
               className="btn-secondary"
@@ -4364,7 +4538,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isStaff || isHrManager || isSuperAdmin) && (
+          {(isStaff || isHrManager || isSuperAdmin || canRead('work_orders')) && (
             <button
               onClick={() => updateActiveTab('work_orders')}
               className="btn-secondary"
@@ -4383,7 +4557,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isWebAdmin || isSuperAdmin) && (
+          {(isSalesAdmin || isWebAdmin || isSuperAdmin || canRead('unifi')) && (
             <button
               onClick={() => updateActiveTab('internet')}
               className="btn-secondary"
@@ -4402,7 +4576,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSuperAdmin || isWebAdmin) && (
+          {(isSuperAdmin || isWebAdmin || canRead('schedules')) && (
             <button
               onClick={() => updateActiveTab('schedules')}
               className="btn-secondary"
@@ -4421,7 +4595,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {isSuperAdmin && (
+          {(isSuperAdmin || canRead('bank_accounts') || canRead('invoices')) && (
             <button
               onClick={() => updateActiveTab('bank_accounts')}
               className="btn-secondary"
@@ -4440,7 +4614,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {isSalesAdmin && (
+          {(isSalesAdmin || isSuperAdmin || canRead('subscriptions')) && (
             <button
               onClick={() => updateActiveTab('subscriptions')}
               className="btn-secondary"
@@ -4459,7 +4633,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isHrManager || isSuperAdmin) && (
+          {(isHrManager || isSuperAdmin || canRead('jobs') || canRead('careers')) && (
             <button
               onClick={() => updateActiveTab('careers')}
               className="btn-secondary"
@@ -4478,7 +4652,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isWebAdmin || isSuperAdmin) && (
+          {(isWebAdmin || isSuperAdmin || canRead('team_mgmt') || canRead('settings')) && (
             <button
               onClick={() => updateActiveTab('team_mgmt')}
               className="btn-secondary"
@@ -4497,7 +4671,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isWebAdmin || isSuperAdmin) && (
+          {(isWebAdmin || isSuperAdmin || canRead('partners')) && (
             <button
               onClick={() => updateActiveTab('partners')}
               className="btn-secondary"
@@ -4516,7 +4690,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isWebAdmin || isSuperAdmin) && (
+          {(isWebAdmin || isSuperAdmin || canRead('news')) && (
             <button
               onClick={() => updateActiveTab('news')}
               className="btn-secondary"
@@ -4535,7 +4709,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isHrManager || isStaff) && (
+          {(isHrManager || isStaff || isSuperAdmin || canRead('hr')) && (
             <button
               onClick={() => updateActiveTab('hr')}
               className="btn-secondary"
@@ -4554,7 +4728,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {isSuperAdmin && (
+          {(isSuperAdmin || canRead('roles')) && (
             <button
               onClick={() => updateActiveTab('roles')}
               className="btn-secondary"
@@ -4573,7 +4747,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {isSuperAdmin && (
+          {(isSuperAdmin || canRead('users') || isHrManager) && (
             <button
               onClick={() => updateActiveTab('users')}
               className="btn-secondary"
@@ -4592,7 +4766,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSuperAdmin || currentRole === 'reviewer') && (
+          {(isSuperAdmin || currentRole === 'reviewer' || canRead('forensics')) && (
             <button
               onClick={() => {
                 updateActiveTab('forensics');
@@ -4614,7 +4788,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isHrManager || isSuperAdmin || isWebAdmin) && (
+          {(isHrManager || isSuperAdmin || isWebAdmin || canRead('jobs') || canRead('applications')) && (
             <button
               onClick={() => updateActiveTab('applications')}
               className="btn-secondary"
@@ -4633,7 +4807,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isHrManager || isSuperAdmin) && (
+          {(isSalesAdmin || isHrManager || isSuperAdmin || canRead('reports')) && (
             <button
               onClick={() => {
                 updateActiveTab('reports');
@@ -4655,7 +4829,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {isWebAdmin && (
+          {(isWebAdmin || isSuperAdmin || canRead('settings')) && (
             <button
               onClick={() => updateActiveTab('settings')}
               className="btn-secondary"
@@ -4708,7 +4882,7 @@ const normalizeTabName = (rawTab) => {
                     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 250px))',
                     gap: '1rem'
                   }}>
-                    {isSalesAdmin && (
+                    {(canRead('invoices') || isSuperAdmin) && (
                       <div className="glass-card" style={{
                         padding: '1rem 1.25rem',
                         border: '1.5px solid rgba(99, 102, 241, 0.4)',
@@ -4732,7 +4906,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     )}
 
-                    {isSalesAdmin && (
+                    {(canRead('subscriptions') || isSuperAdmin) && (
                       <div className="glass-card" style={{
                         padding: '1rem 1.25rem',
                         border: '1.5px solid rgba(16, 185, 129, 0.4)',
@@ -4753,7 +4927,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     )}
 
-                    {isWebAdmin && (
+                    {(canRead('store') || isSuperAdmin) && (
                       <div className="glass-card" style={{
                         padding: '1rem 1.25rem',
                         border: '1.5px solid rgba(6, 182, 212, 0.4)',
@@ -5337,23 +5511,25 @@ const normalizeTabName = (rawTab) => {
                         Configure enterprise roles independently from user accounts. Assign multiple modules with fine-grained Create, Read, Update, Delete, Approve, and Share (CRUDAS) permissions.
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setEditingRole(null);
-                        setRoleForm({
-                          name: '',
-                          code: '',
-                          badge_color: '#8b5cf6',
-                          description: '',
-                          permissions: {}
-                        });
-                        setShowRoleModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1.1rem', fontSize: '0.85rem', gap: '0.4rem' }}
-                    >
-                      <Plus size={16} /> Create Custom Role
-                    </button>
+                    {(isSuperAdmin || canCreate('roles')) && (
+                      <button
+                        onClick={() => {
+                          setEditingRole(null);
+                          setRoleForm({
+                            name: '',
+                            code: '',
+                            badge_color: '#8b5cf6',
+                            description: '',
+                            permissions: {}
+                          });
+                          setShowRoleModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1.1rem', fontSize: '0.85rem', gap: '0.4rem' }}
+                      >
+                        <Plus size={16} /> Create Custom Role
+                      </button>
+                    )}
                   </div>
 
                   {/* Search and Metric Count */}
@@ -5446,29 +5622,34 @@ const normalizeTabName = (rawTab) => {
                             </button>
 
                             <div style={{ display: 'flex', gap: '0.4rem' }}>
-                              <button
-                                onClick={() => {
-                                  setEditingRole(role);
-                                  setRoleForm({
-                                    name: role.name,
-                                    code: role.code,
-                                    badge_color: role.badge_color || '#8b5cf6',
-                                    description: role.description || '',
-                                    permissions: role.permissions || {}
-                                  });
-                                  setShowRoleModal(true);
-                                }}
-                                className="btn-secondary"
-                                style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem', justifyContent: 'center' }}
-                              >
-                                <Edit size={12} /> Edit Details
-                              </button>
-                              {role.code !== 'super_admin' && (
+                              {(isSuperAdmin || canUpdate('roles')) && (
+                                <button
+                                  onClick={() => {
+                                    setEditingRole(role);
+                                    setRoleForm({
+                                      name: role.name,
+                                      code: role.code,
+                                      badge_color: role.badge_color || '#8b5cf6',
+                                      description: role.description || '',
+                                      permissions: role.permissions || {}
+                                    });
+                                    setShowRoleModal(true);
+                                  }}
+                                  className="btn-secondary"
+                                  style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.75rem', justifyContent: 'center' }}
+                                >
+                                  <Edit size={12} /> Edit Details
+                                </button>
+                              )}
+                              {role.code !== 'super_admin' && (isSuperAdmin || canDelete('roles')) && (
                                 <button
                                   onClick={async () => {
                                     if (!window.confirm(`Delete role "${role.name}"?`)) return;
                                     try {
-                                      const res = await fetch(`/api/admin/roles/${role.id}`, { method: 'DELETE' });
+                                      const res = await fetch(`/api/admin/roles/${role.id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'x-user-role': currentRole }
+                                      });
                                       const resData = await res.json();
                                       if (!res.ok) throw new Error(resData.error);
                                       showToast('Role removed successfully', 'success');
@@ -5565,29 +5746,35 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadUsersCSV(usersList)}
-                        className="btn-secondary"
-                        style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
-                        title="Download CSV export of all system users"
-                      >
-                        <Download size={15} /> Export Users CSV
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('roles')}
-                        className="btn-secondary"
-                        style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
-                      >
-                        <ShieldCheck size={15} color="#8b5cf6" /> Manage User Roles
-                      </button>
-                      <button
-                        onClick={openCreateUserModal}
-                        className="btn-primary"
-                        style={{ padding: '0.55rem 1rem', fontSize: '0.825rem', gap: '0.4rem' }}
-                      >
-                        <Plus size={16} /> Add System User
-                      </button>
+                      {(isSuperAdmin || canShare('users')) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadUsersCSV(usersList)}
+                          className="btn-secondary"
+                          style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
+                          title="Download CSV export of all system users"
+                        >
+                          <Download size={15} /> Export Users CSV
+                        </button>
+                      )}
+                      {(isSuperAdmin || canRead('roles')) && (
+                        <button
+                          onClick={() => setActiveTab('roles')}
+                          className="btn-secondary"
+                          style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
+                        >
+                          <ShieldCheck size={15} color="#8b5cf6" /> Manage User Roles
+                        </button>
+                      )}
+                      {(isSuperAdmin || canCreate('users')) && (
+                        <button
+                          onClick={openCreateUserModal}
+                          className="btn-primary"
+                          style={{ padding: '0.55rem 1rem', fontSize: '0.825rem', gap: '0.4rem' }}
+                        >
+                          <Plus size={16} /> Add System User
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -5667,13 +5854,11 @@ const normalizeTabName = (rawTab) => {
                           style={{ padding: '0.45rem 0.75rem', fontSize: '0.825rem', minWidth: '130px' }}
                         >
                           <option value="ALL">All Roles ({usersList.length})</option>
-                          <option value="super_admin">Super Admin</option>
-                          <option value="sales_admin">Sales Admin</option>
-                          <option value="web_admin">Web Admin</option>
-                          <option value="hr_manager">HR Manager</option>
-                          <option value="staff">Staff Specialist</option>
-                          <option value="reviewer">Auditor / Reviewer</option>
-                          <option value="customer">Client</option>
+                          {availableRoles.map(r => (
+                            <option key={r.code} value={r.code}>
+                              {r.name} {r.isCustom ? '(Custom)' : ''}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -5870,42 +6055,48 @@ const normalizeTabName = (rawTab) => {
                                 {/* Bottom Action Toolbar */}
                                 <div>
                                   <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
-                                    <button
-                                      onClick={() => openEditUserModal(u)}
-                                      className="btn-secondary"
-                                      style={{ flex: 1, padding: '0.45rem 0.5rem', fontSize: '0.75rem', justifyContent: 'center', gap: '4px', fontWeight: '700' }}
-                                      title="Edit User Profile & Organizational Data"
-                                    >
-                                      <Edit size={13} color="var(--primary)" /> Edit Profile
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedUserForPerms(u);
-                                        setShowUserPermissionsModal(true);
-                                      }}
-                                      className="btn-secondary"
-                                      style={{ padding: '0.45rem 0.65rem', fontSize: '0.75rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.4)' }}
-                                      title="Configure User Module CRUDAS Permissions"
-                                    >
-                                      <Settings2 size={13} /> CRUDAS
-                                    </button>
+                                    {(isSuperAdmin || canUpdate('users')) && (
+                                      <button
+                                        onClick={() => openEditUserModal(u)}
+                                        className="btn-secondary"
+                                        style={{ flex: 1, padding: '0.45rem 0.5rem', fontSize: '0.75rem', justifyContent: 'center', gap: '4px', fontWeight: '700' }}
+                                        title="Edit User Profile & Organizational Data"
+                                      >
+                                        <Edit size={13} color="var(--primary)" /> Edit Profile
+                                      </button>
+                                    )}
+                                    {(isSuperAdmin || canUpdate('users') || canUpdate('roles')) && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedUserForPerms(u);
+                                          setShowUserPermissionsModal(true);
+                                        }}
+                                        className="btn-secondary"
+                                        style={{ padding: '0.45rem 0.65rem', fontSize: '0.75rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.4)' }}
+                                        title="Configure User Module CRUDAS Permissions"
+                                      >
+                                        <Settings2 size={13} /> CRUDAS
+                                      </button>
+                                    )}
                                   </div>
 
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setUserToResetPassword(u);
-                                        setShowResetPasswordModal(true);
-                                      }}
-                                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer', padding: 0 }}
-                                      title="Reset user access key or password"
-                                    >
-                                      <Key size={12} /> Reset Key
-                                    </button>
+                                    {(isSuperAdmin || canUpdate('users')) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setUserToResetPassword(u);
+                                          setShowResetPasswordModal(true);
+                                        }}
+                                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer', padding: 0 }}
+                                        title="Reset user access key or password"
+                                      >
+                                        <Key size={12} /> Reset Key
+                                      </button>
+                                    )}
 
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                      {u.role !== 'super_admin' && (
+                                      {u.role !== 'super_admin' && (isSuperAdmin || canUpdate('users')) && (
                                         <button
                                           type="button"
                                           onClick={() => handleToggleUserStatus(u)}
@@ -5924,7 +6115,7 @@ const normalizeTabName = (rawTab) => {
                                         </button>
                                       )}
 
-                                      {u.role !== 'super_admin' && (
+                                      {u.role !== 'super_admin' && (isSuperAdmin || canDelete('users')) && (
                                         <button
                                           type="button"
                                           onClick={() => handleDeleteUser(u)}
@@ -6005,19 +6196,17 @@ const normalizeTabName = (rawTab) => {
                                           borderRadius: '6px',
                                           border: '1px solid var(--border-color)',
                                           background: u.role === 'super_admin' ? 'var(--bg-main)' : 'var(--bg-card)',
-                                          color: 'var(--text-main)',
+                                        color: 'var(--text-main)',
                                           fontSize: '0.75rem',
                                           fontWeight: '700',
                                           cursor: u.role === 'super_admin' ? 'not-allowed' : 'pointer'
                                         }}
                                       >
-                                        <option value="super_admin">Super Admin</option>
-                                        <option value="sales_admin">Sales Admin</option>
-                                        <option value="web_admin">Web Admin</option>
-                                        <option value="hr_manager">HR Manager</option>
-                                        <option value="staff">Staff Specialist</option>
-                                        <option value="reviewer">Auditor / Reviewer</option>
-                                        <option value="customer">Client</option>
+                                        {availableRoles.map(r => (
+                                          <option key={r.code} value={r.code}>
+                                            {r.name} {r.isCustom ? '(Custom)' : ''}
+                                          </option>
+                                        ))}
                                       </select>
                                     </td>
                                     <td style={{ padding: '0.9rem 1.1rem' }}>
@@ -6046,26 +6235,30 @@ const normalizeTabName = (rawTab) => {
                                     </td>
                                     <td style={{ padding: '0.9rem 1.1rem', textAlign: 'right' }}>
                                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <button
-                                          onClick={() => openEditUserModal(u)}
-                                          className="btn-secondary"
-                                          style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', gap: '3px' }}
-                                          title="Edit User Profile"
-                                        >
-                                          <Edit size={12} color="var(--primary)" /> Edit
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setSelectedUserForPerms(u);
-                                            setShowUserPermissionsModal(true);
-                                          }}
-                                          className="btn-secondary"
-                                          style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
-                                          title="Configure User Module CRUDAS"
-                                        >
-                                          <Settings2 size={12} /> CRUDAS
-                                        </button>
-                                        {u.role !== 'super_admin' && (
+                                        {(isSuperAdmin || canUpdate('users')) && (
+                                          <button
+                                            onClick={() => openEditUserModal(u)}
+                                            className="btn-secondary"
+                                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', gap: '3px' }}
+                                            title="Edit User Profile"
+                                          >
+                                            <Edit size={12} color="var(--primary)" /> Edit
+                                          </button>
+                                        )}
+                                        {(isSuperAdmin || canUpdate('users') || canUpdate('roles')) && (
+                                          <button
+                                            onClick={() => {
+                                              setSelectedUserForPerms(u);
+                                              setShowUserPermissionsModal(true);
+                                            }}
+                                            className="btn-secondary"
+                                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
+                                            title="Configure User Module CRUDAS"
+                                          >
+                                            <Settings2 size={12} /> CRUDAS
+                                          </button>
+                                        )}
+                                        {u.role !== 'super_admin' && (isSuperAdmin || canDelete('users')) && (
                                           <button
                                             onClick={() => handleDeleteUser(u)}
                                             className="btn-secondary"
@@ -6616,78 +6809,88 @@ const normalizeTabName = (rawTab) => {
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                     {catalogTab === 'products' ? (
                       <>
+                        {(canCreate('store') || canUpdate('store')) && (
+                          <button
+                            type="button"
+                            onClick={handleDownloadProductCSVTemplate}
+                            className="btn-secondary"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
+                            title="Download Catalog CSV Template with current product variables"
+                          >
+                            <Download size={15} /> CSV Template
+                          </button>
+                        )}
+                        {canCreate('store') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCsvProductsPreview([]);
+                              setCsvUploadFileName('');
+                              setCsvParseError('');
+                              setShowProductCsvModal(true);
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                            title="Bulk upload store products via CSV"
+                          >
+                            <Upload size={15} /> Bulk Upload CSV
+                          </button>
+                        )}
+                        {(canUpdate('store') || isSuperAdmin) && (
+                          <button
+                            onClick={() => setShowProdCategoryModal(true)}
+                            className="btn-secondary"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
+                          >
+                            <FolderPlus size={16} /> Manage Categories ({productCategories.length})
+                          </button>
+                        )}
+                        {canCreate('store') && (
+                          <button
+                            onClick={() => {
+                              setEditingProduct(null);
+                              setProductForm({
+                                name: '',
+                                category: productCategories[0]?.name || 'Hosting',
+                                price: 500000,
+                                currency: 'UGX',
+                                badge: 'Popular',
+                                stock: 50,
+                                is_hidden: false,
+                                checkout_type: 'shop',
+                                short_desc: '',
+                                description: '',
+                                image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'
+                              });
+                              setShowProductModal(true);
+                            }}
+                            className="btn-primary"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
+                          >
+                            <Plus size={16} /> Add Shop Product
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      canCreate('store') && (
                         <button
-                          type="button"
-                          onClick={handleDownloadProductCSVTemplate}
-                          className="btn-secondary"
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
-                          title="Download Catalog CSV Template with current product variables"
-                        >
-                          <Download size={15} /> CSV Template
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => {
-                            setCsvProductsPreview([]);
-                            setCsvUploadFileName('');
-                            setCsvParseError('');
-                            setShowProductCsvModal(true);
-                          }}
-                          className="btn-secondary"
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                          title="Bulk upload store products via CSV"
-                        >
-                          <Upload size={15} /> Bulk Upload CSV
-                        </button>
-                        <button
-                          onClick={() => setShowProdCategoryModal(true)}
-                          className="btn-secondary"
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderRadius: '8px' }}
-                        >
-                          <FolderPlus size={16} /> Manage Categories ({productCategories.length})
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingProduct(null);
-                            setProductForm({
-                              name: '',
-                              category: productCategories[0]?.name || 'Hosting',
-                              price: 500000,
-                              currency: 'UGX',
-                              badge: 'Popular',
-                              stock: 50,
-                              is_hidden: false,
-                              checkout_type: 'shop',
-                              short_desc: '',
+                            setEditingService(null);
+                            setServiceForm({
+                              title: '',
+                              summary: '',
                               description: '',
-                              image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'
+                              icon: 'Cloud',
+                              features: ''
                             });
-                            setShowProductModal(true);
+                            setShowServiceModal(true);
                           }}
                           className="btn-primary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
                         >
-                          <Plus size={16} /> Add Shop Product
+                          <Plus size={16} /> Add Core Service
                         </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingService(null);
-                          setServiceForm({
-                            title: '',
-                            summary: '',
-                            description: '',
-                            icon: 'Cloud',
-                            features: ''
-                          });
-                          setShowServiceModal(true);
-                        }}
-                        className="btn-primary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
-                      >
-                        <Plus size={16} /> Add Core Service
-                      </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -6910,34 +7113,37 @@ const normalizeTabName = (rawTab) => {
                                 </div>
                               </div>
                               <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <button
-                                  onClick={() => {
-                                    setEditingProduct(p);
-                                    setProductForm({
-                                      name: p.name,
-                                      category: p.category || 'Hosting',
-                                      price: p.price,
-                                      currency: p.currency || 'UGX',
-                                      badge: p.badge || '',
-                                      stock: p.stock !== undefined ? p.stock : 50,
-                                      is_hidden: Boolean(p.is_hidden),
-                                      checkout_type: p.checkout_type || p.checkout_flow || 'shop',
-                                      short_desc: p.short_desc || p.desc || '',
-                                      description: p.description || p.specs || p.details || '',
-                                      image_url: p.image_url || ''
-                                    });
-                                    setShowProductModal(true);
-                                  }}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                                >
-                                  <Edit3 size={13} /> Edit
-                                </button>
-                                {canDeleteSystemRecords && (
+                                {canUpdate('store') && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingProduct(p);
+                                      setProductForm({
+                                        name: p.name,
+                                        category: p.category || 'Hosting',
+                                        price: p.price,
+                                        currency: p.currency || 'UGX',
+                                        badge: p.badge || '',
+                                        stock: p.stock !== undefined ? p.stock : 50,
+                                        is_hidden: Boolean(p.is_hidden),
+                                        checkout_type: p.checkout_type || p.checkout_flow || 'shop',
+                                        short_desc: p.short_desc || p.desc || '',
+                                        description: p.description || p.specs || p.details || '',
+                                        image_url: p.image_url || ''
+                                      });
+                                      setShowProductModal(true);
+                                    }}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                                  >
+                                    <Edit3 size={13} /> Edit
+                                  </button>
+                                )}
+                                {(canDelete('store') || canDeleteSystemRecords) && (
                                   <button
                                     onClick={() => handleDeleteProduct(p.id, p.name)}
                                     className="btn-secondary"
                                     style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                    title="Delete product"
                                   >
                                     <Trash size={13} /> Delete
                                   </button>
@@ -6981,29 +7187,32 @@ const normalizeTabName = (rawTab) => {
                         </div>
 
                         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                          <button
-                            onClick={() => {
-                              setEditingService(s);
-                              const featText = Array.isArray(s.features) ? s.features.join('\n') : (typeof s.features === 'string' ? JSON.parse(s.features || '[]').join('\n') : '');
-                              setServiceForm({
-                                title: s.title,
-                                summary: s.summary || '',
-                                description: s.description || '',
-                                icon: s.icon || 'Cloud',
-                                features: featText
-                              });
-                              setShowServiceModal(true);
-                            }}
-                            className="btn-secondary"
-                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                          >
-                            <Edit3 size={13} /> Edit Service
-                          </button>
-                          {canDeleteSystemRecords && (
+                          {canUpdate('store') && (
+                            <button
+                              onClick={() => {
+                                setEditingService(s);
+                                const featText = Array.isArray(s.features) ? s.features.join('\n') : (typeof s.features === 'string' ? JSON.parse(s.features || '[]').join('\n') : '');
+                                setServiceForm({
+                                  title: s.title,
+                                  summary: s.summary || '',
+                                  description: s.description || '',
+                                  icon: s.icon || 'Cloud',
+                                  features: featText
+                                });
+                                setShowServiceModal(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                            >
+                              <Edit3 size={13} /> Edit Service
+                            </button>
+                          )}
+                          {(canDelete('store') || canDeleteSystemRecords) && (
                             <button
                               onClick={() => handleDeleteService(s.id, s.title)}
                               className="btn-secondary"
                               style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                              title="Delete core service"
                             >
                               <Trash size={13} /> Delete
                             </button>
@@ -7028,16 +7237,18 @@ const normalizeTabName = (rawTab) => {
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadExpensesCSV(companyExpensesList)}
-                      className="btn-secondary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                      title="Download CSV export of all company expenditures"
-                    >
-                      <Download size={15} /> Export Expenses CSV
-                    </button>
-                    {isSuperAdmin && (
+                    {(canShare('expenses') || canRead('expenses')) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadExpensesCSV(companyExpensesList)}
+                        className="btn-secondary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                        title="Download CSV export of all company expenditures"
+                      >
+                        <Download size={15} /> Export Expenses CSV
+                      </button>
+                    )}
+                    {(isSuperAdmin || canUpdate('expenses')) && (
                       <button
                         onClick={() => setShowCategoryModal(true)}
                         className="btn-secondary"
@@ -7046,26 +7257,28 @@ const normalizeTabName = (rawTab) => {
                         <SlidersHorizontal size={16} /> Manage Categories ({expenseCategories.length})
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        setEditingCompanyExpense(null);
-                        setCompanyExpenseForm({
-                          staff_name: user?.name || '',
-                          staff_email: user?.email || '',
-                          category: expenseCategories[0]?.name || '',
-                          description: '',
-                          amount: 450000,
-                          receipt_ref: 'EXP-REC-' + Math.floor(1000 + Math.random() * 9000),
-                          status: 'Approved',
-                          date: new Date().toISOString().split('T')[0]
-                        });
-                        setShowCompanyExpenseModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#ef4444' }}
-                    >
-                      <Plus size={16} /> Record Company Expenditure
-                    </button>
+                    {canCreate('expenses') && (
+                      <button
+                        onClick={() => {
+                          setEditingCompanyExpense(null);
+                          setCompanyExpenseForm({
+                            staff_name: user?.name || '',
+                            staff_email: user?.email || '',
+                            category: expenseCategories[0]?.name || '',
+                            description: '',
+                            amount: 450000,
+                            receipt_ref: 'EXP-REC-' + Math.floor(1000 + Math.random() * 9000),
+                            status: 'Approved',
+                            date: new Date().toISOString().split('T')[0]
+                          });
+                          setShowCompanyExpenseModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#ef4444' }}
+                      >
+                        <Plus size={16} /> Record Company Expenditure
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -7214,23 +7427,27 @@ const normalizeTabName = (rawTab) => {
                                 >
                                   <Download size={12} /> Download
                                 </button>
-                                <button
-                                  onClick={() => handleDuplicateExpense(e)}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
-                                  title="Duplicate expenditure claim for this staff member"
-                                >
-                                  <Copy size={12} /> Duplicate
-                                </button>
-                                <button
-                                  onClick={() => handleSendExpenseEmail(e)}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
-                                  title="Email official Expenditure Voucher with PDF attached"
-                                >
-                                  <Mail size={12} /> Send Email
-                                </button>
-                                {(isSuperAdmin || isHrManager || isSalesAdmin) && !isApproved && (
+                                {canCreate('expenses') && (
+                                  <button
+                                    onClick={() => handleDuplicateExpense(e)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
+                                    title="Duplicate expenditure claim for this staff member"
+                                  >
+                                    <Copy size={12} /> Duplicate
+                                  </button>
+                                )}
+                                {canShare('expenses') && (
+                                  <button
+                                    onClick={() => handleSendExpenseEmail(e)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#0284c7', borderColor: 'rgba(2, 132, 199, 0.4)', gap: '3px' }}
+                                    title="Email official Expenditure Voucher with PDF attached"
+                                  >
+                                    <Mail size={12} /> Send Email
+                                  </button>
+                                )}
+                                {canApprove('expenses') && !isApproved && (
                                   <button
                                     onClick={() => handleApproveCompanyExpense(e.id)}
                                     className="btn-secondary"
@@ -7239,7 +7456,7 @@ const normalizeTabName = (rawTab) => {
                                     <CheckCircle size={12} /> Approve
                                   </button>
                                 )}
-                                {(isSuperAdmin || isHrManager || isSalesAdmin) && !isRejected && (
+                                {canApprove('expenses') && !isRejected && (
                                   <button
                                     onClick={() => handleRejectCompanyExpense(e.id)}
                                     className="btn-secondary"
@@ -7248,36 +7465,41 @@ const normalizeTabName = (rawTab) => {
                                     <AlertCircle size={12} /> Reject
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => {
-                                    setEditingCompanyExpense(e);
-                                    setCompanyExpenseForm({
-                                      staff_name: e.staff_name,
-                                      staff_email: e.staff_email,
-                                      category: e.category,
-                                      description: e.description,
-                                      amount: e.amount,
-                                      receipt_ref: e.receipt_ref,
-                                      status: e.status || 'Pending Supervisor Review',
-                                      date: e.date || new Date().toISOString().split('T')[0],
-                                      supervisor_name: e.supervisor_name || 'Systems Admin',
-                                      attachment_url: e.attachment_url || '',
-                                      attachment_name: e.attachment_name || ''
-                                    });
-                                    setShowCompanyExpenseModal(true);
-                                  }}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                                >
-                                  <Edit3 size={12} /> Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteCompanyExpense(e.id)}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444' }}
-                                >
-                                  <Trash size={12} /> Delete
-                                </button>
+                                {canUpdate('expenses') && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingCompanyExpense(e);
+                                      setCompanyExpenseForm({
+                                        staff_name: e.staff_name,
+                                        staff_email: e.staff_email,
+                                        category: e.category,
+                                        description: e.description,
+                                        amount: e.amount,
+                                        receipt_ref: e.receipt_ref,
+                                        status: e.status || 'Pending Supervisor Review',
+                                        date: e.date || new Date().toISOString().split('T')[0],
+                                        supervisor_name: e.supervisor_name || 'Systems Admin',
+                                        attachment_url: e.attachment_url || '',
+                                        attachment_name: e.attachment_name || ''
+                                      });
+                                      setShowCompanyExpenseModal(true);
+                                    }}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                                  >
+                                    <Edit3 size={12} /> Edit
+                                  </button>
+                                )}
+                                {(canDelete('expenses') || canDeleteSystemRecords) && (
+                                  <button
+                                    onClick={() => handleDeleteCompanyExpense(e.id)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                    title="Delete expenditure claim"
+                                  >
+                                    <Trash size={12} /> Delete
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -7324,28 +7546,30 @@ const normalizeTabName = (rawTab) => {
                       Post new job opportunities, review applicant submissions, and manage company recruitment.
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingJob(null);
-                      setJobForm({
-                        title: '',
-                        department: 'Engineering & Cloud Infrastructure',
-                        location: 'Kampala, Uganda',
-                        type: 'Full-time',
-                        vacancies: 1,
-                        status: 'open',
-                        deadline: '2026-10-31',
-                        description: '',
-                        requirements: '',
-                        responsibilities: ''
-                      });
-                      setShowJobModal(true);
-                    }}
-                    className="btn-primary"
-                    style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
-                  >
-                    <Plus size={16} /> Post New Job Opening
-                  </button>
+                  {(canCreate('jobs') || canCreate('careers')) && (
+                    <button
+                      onClick={() => {
+                        setEditingJob(null);
+                        setJobForm({
+                          title: '',
+                          department: 'Engineering & Cloud Infrastructure',
+                          location: 'Kampala, Uganda',
+                          type: 'Full-time',
+                          vacancies: 1,
+                          status: 'open',
+                          deadline: '2026-10-31',
+                          description: '',
+                          requirements: '',
+                          responsibilities: ''
+                        });
+                        setShowJobModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
+                    >
+                      <Plus size={16} /> Post New Job Opening
+                    </button>
+                  )}
                 </div>
 
                 {/* Search Bar */}
@@ -7395,35 +7619,38 @@ const normalizeTabName = (rawTab) => {
                           Deadline: <strong>{j.deadline || 'Open'}</strong> {(j.deadline && j.deadline < new Date().toISOString().split('T')[0]) && '• (Deadline Ended)'}
                         </div>
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
-                          <button
-                            onClick={() => {
-                              setEditingJob(j);
-                              const reqText = Array.isArray(j.requirements) ? j.requirements.join('\n') : (typeof j.requirements === 'string' ? JSON.parse(j.requirements || '[]').join('\n') : '');
-                              const respText = Array.isArray(j.responsibilities) ? j.responsibilities.join('\n') : (typeof j.responsibilities === 'string' ? JSON.parse(j.responsibilities || '[]').join('\n') : '');
-                              setJobForm({
-                                title: j.title,
-                                department: j.department,
-                                location: j.location,
-                                type: j.type,
-                                vacancies: j.vacancies,
-                                status: j.status,
-                                deadline: j.deadline,
-                                description: j.description,
-                                requirements: reqText,
-                                responsibilities: respText
-                              });
-                              setShowJobModal(true);
-                            }}
-                            className="btn-secondary"
-                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                          >
-                            <Edit3 size={13} /> Edit
-                          </button>
-                          {canDeleteSystemRecords && (
+                          {(canUpdate('jobs') || canUpdate('careers')) && (
+                            <button
+                              onClick={() => {
+                                setEditingJob(j);
+                                const reqText = Array.isArray(j.requirements) ? j.requirements.join('\n') : (typeof j.requirements === 'string' ? JSON.parse(j.requirements || '[]').join('\n') : '');
+                                const respText = Array.isArray(j.responsibilities) ? j.responsibilities.join('\n') : (typeof j.responsibilities === 'string' ? JSON.parse(j.responsibilities || '[]').join('\n') : '');
+                                setJobForm({
+                                  title: j.title,
+                                  department: j.department,
+                                  location: j.location,
+                                  type: j.type,
+                                  vacancies: j.vacancies,
+                                  status: j.status,
+                                  deadline: j.deadline,
+                                  description: j.description,
+                                  requirements: reqText,
+                                  responsibilities: respText
+                                });
+                                setShowJobModal(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                            >
+                              <Edit3 size={13} /> Edit
+                            </button>
+                          )}
+                          {((canDelete('jobs') || canDelete('careers')) || canDeleteSystemRecords) && (
                             <button
                               onClick={() => handleDeleteJob(j.id, j.title)}
                               className="btn-secondary"
                               style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                              title="Delete job posting"
                             >
                               <Trash size={13} /> Delete
                             </button>
@@ -7446,22 +7673,24 @@ const normalizeTabName = (rawTab) => {
                       Manage executive profiles, leadership bios, and company directors displayed on the About Us page.
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingTeam(null);
-                      setTeamForm({
-                        name: '',
-                        role: '',
-                        bio: '',
-                        image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80'
-                      });
-                      setShowTeamModal(true);
-                    }}
-                    className="btn-primary"
-                    style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#a855f7' }}
-                  >
-                    <Plus size={16} /> Add Executive Member
-                  </button>
+                  {canCreate('team_mgmt') && (
+                    <button
+                      onClick={() => {
+                        setEditingTeam(null);
+                        setTeamForm({
+                          name: '',
+                          role: '',
+                          bio: '',
+                          image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80'
+                        });
+                        setShowTeamModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#a855f7' }}
+                    >
+                      <Plus size={16} /> Add Executive Member
+                    </button>
+                  )}
                 </div>
 
                 {/* Search Bar */}
@@ -7494,27 +7723,30 @@ const normalizeTabName = (rawTab) => {
                       <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.6rem' }}>{m.role}</div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: '1.45', marginBottom: '1rem', flex: 1 }}>{m.bio}</p>
                       <div style={{ display: 'flex', gap: '0.4rem', width: '100%', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => {
-                            setEditingTeam(m);
-                            setTeamForm({
-                              name: m.name,
-                              role: m.role,
-                              bio: m.bio || '',
-                              image: m.image || ''
-                            });
-                            setShowTeamModal(true);
-                          }}
-                          className="btn-secondary"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
-                        >
-                          <Edit3 size={13} /> Edit
-                        </button>
-                        {canDeleteSystemRecords && (
+                        {canUpdate('team_mgmt') && (
+                          <button
+                            onClick={() => {
+                              setEditingTeam(m);
+                              setTeamForm({
+                                name: m.name,
+                                role: m.role,
+                                bio: m.bio || '',
+                                image: m.image || ''
+                              });
+                              setShowTeamModal(true);
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
+                        )}
+                        {(canDelete('team_mgmt') || canDeleteSystemRecords) && (
                           <button
                             onClick={() => handleDeleteTeam(m.id, m.name)}
                             className="btn-secondary"
                             style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#ef4444' }}
+                            title="Remove executive member"
                           >
                             <Trash size={13} /> Remove
                           </button>
@@ -7536,22 +7768,24 @@ const normalizeTabName = (rawTab) => {
                       Manage Our Trusted Technology Partners displayed on the homepage and across client portals.
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingPartner(null);
-                      setPartnerForm({
-                        name: '',
-                        category: 'Premier Cloud Partner',
-                        website: '',
-                        logo_text: ''
-                      });
-                      setShowPartnerModal(true);
-                    }}
-                    className="btn-primary"
-                    style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#0284c7' }}
-                  >
-                    <Plus size={16} /> Add Partner
-                  </button>
+                  {canCreate('partners') && (
+                    <button
+                      onClick={() => {
+                        setEditingPartner(null);
+                        setPartnerForm({
+                          name: '',
+                          category: 'Premier Cloud Partner',
+                          website: '',
+                          logo_text: ''
+                        });
+                        setShowPartnerModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#0284c7' }}
+                    >
+                      <Plus size={16} /> Add Partner
+                    </button>
+                  )}
                 </div>
 
                 {/* Search Bar */}
@@ -7622,28 +7856,31 @@ const normalizeTabName = (rawTab) => {
                         </a>
                       )}
                       <div style={{ display: 'flex', gap: '0.4rem', width: '100%', justifyContent: 'center', marginTop: 'auto' }}>
-                        <button
-                          onClick={() => {
-                            setEditingPartner(p);
-                            setPartnerForm({
-                              name: p.name,
-                              category: p.category || '',
-                              website: p.website || '',
-                              logo_text: p.logo_text || '',
-                              logo_url: p.logo_url || p.logo || ''
-                            });
-                            setShowPartnerModal(true);
-                          }}
-                          className="btn-secondary"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
-                        >
-                          <Edit3 size={13} /> Edit
-                        </button>
-                        {canDeleteSystemRecords && (
+                        {canUpdate('partners') && (
+                          <button
+                            onClick={() => {
+                              setEditingPartner(p);
+                              setPartnerForm({
+                                name: p.name,
+                                category: p.category || '',
+                                website: p.website || '',
+                                logo_text: p.logo_text || '',
+                                logo_url: p.logo_url || p.logo || ''
+                              });
+                              setShowPartnerModal(true);
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
+                        )}
+                        {(canDelete('partners') || canDeleteSystemRecords) && (
                           <button
                             onClick={() => handleDeletePartner(p.id, p.name)}
                             className="btn-secondary"
                             style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#ef4444' }}
+                            title="Remove partner"
                           >
                             <Trash size={13} /> Remove
                           </button>
@@ -7665,23 +7902,25 @@ const normalizeTabName = (rawTab) => {
                       Publish and edit Latest News Postings & Feeds displayed on the homepage and about page.
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingNews(null);
-                      setNewsForm({
-                        title: '',
-                        category: 'Security',
-                        date: new Date().toISOString().split('T')[0],
-                        image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
-                        content: ''
-                      });
-                      setShowNewsModal(true);
-                    }}
-                    className="btn-primary"
-                    style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#f59e0b' }}
-                  >
-                    <Plus size={16} /> Add News Post
-                  </button>
+                  {canCreate('news') && (
+                    <button
+                      onClick={() => {
+                        setEditingNews(null);
+                        setNewsForm({
+                          title: '',
+                          category: 'Security',
+                          date: new Date().toISOString().split('T')[0],
+                          image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+                          content: ''
+                        });
+                        setShowNewsModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#f59e0b' }}
+                    >
+                      <Plus size={16} /> Add News Post
+                    </button>
+                  )}
                 </div>
 
                 {/* Search Bar */}
@@ -7716,28 +7955,31 @@ const normalizeTabName = (rawTab) => {
                           {item.content || item.summary || item.title}
                         </p>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                          <button
-                            onClick={() => {
-                              setEditingNews(item);
-                              setNewsForm({
-                                title: item.title,
-                                category: item.category || 'Security',
-                                date: item.date || new Date().toISOString().split('T')[0],
-                                image: item.image || '',
-                                content: item.content || ''
-                              });
-                              setShowNewsModal(true);
-                            }}
-                            className="btn-secondary"
-                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
-                          >
-                            <Edit3 size={13} /> Edit
-                          </button>
-                          {canDeleteSystemRecords && (
+                          {canUpdate('news') && (
+                            <button
+                              onClick={() => {
+                                setEditingNews(item);
+                                setNewsForm({
+                                  title: item.title,
+                                  category: item.category || 'Security',
+                                  date: item.date || new Date().toISOString().split('T')[0],
+                                  image: item.image || '',
+                                  content: item.content || ''
+                                });
+                                setShowNewsModal(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                            >
+                              <Edit3 size={13} /> Edit
+                            </button>
+                          )}
+                          {(canDelete('news') || canDeleteSystemRecords) && (
                             <button
                               onClick={() => handleDeleteNews(item.id, item.title)}
                               className="btn-secondary"
                               style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#ef4444' }}
+                              title="Remove news article"
                             >
                               <Trash size={13} /> Remove
                             </button>
@@ -7760,7 +8002,7 @@ const normalizeTabName = (rawTab) => {
                       Track official customer invoice payments, stacked transaction logs, PDF receipts, and verification share links.
                     </p>
                   </div>
-                  {currentRole !== 'customer' && user?.role !== 'customer' && (
+                  {canCreate('payments') && (
                     <button onClick={() => setShowPaymentModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}>
                       <Plus size={16} /> Record New Payment
                     </button>
@@ -8134,22 +8376,24 @@ const normalizeTabName = (rawTab) => {
                                     <Printer size={12} color="var(--primary)" /> Receipt
                                   </button>
 
-                                  <button
-                                    onClick={() => handleOpenShareModal('payment', {
-                                      invoice_number: card.invoice_number,
-                                      customer_name: card.party_name,
-                                      reference: card.lines[0]?.reference || card.invoice_number,
-                                      totalPaid: card.totalPaid,
-                                      lines: card.lines
-                                    })}
-                                    className="btn-secondary"
-                                    style={{ flex: 1, padding: '0.35rem 0.55rem', fontSize: '0.725rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)', justifyContent: 'center' }}
-                                    title="Share verification link for payment card"
-                                  >
-                                    <Share2 size={12} /> Share Card
-                                  </button>
+                                  {(canShare('payments') || isCustomerUser) && (
+                                    <button
+                                      onClick={() => handleOpenShareModal('payment', {
+                                        invoice_number: card.invoice_number,
+                                        customer_name: card.party_name,
+                                        reference: card.lines[0]?.reference || card.invoice_number,
+                                        totalPaid: card.totalPaid,
+                                        lines: card.lines
+                                      })}
+                                      className="btn-secondary"
+                                      style={{ flex: 1, padding: '0.35rem 0.55rem', fontSize: '0.725rem', gap: '3px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)', justifyContent: 'center' }}
+                                      title="Share verification link for payment card"
+                                    >
+                                      <Share2 size={12} /> Share Card
+                                    </button>
+                                  )}
 
-                                  {(isSuperAdmin || isSalesAdmin || currentRole === 'sales_admin' || currentRole === 'admin' || currentRole === 'super_admin') && (
+                                  {(isSuperAdmin || canUpdate('payments') || canApprove('payments')) && (
                                     <button
                                       onClick={() => handleRefundPayment(card.lines[card.lines.length - 1] || card)}
                                       className="btn-secondary"
@@ -8195,7 +8439,7 @@ const normalizeTabName = (rawTab) => {
                                 <div style={{ marginBottom: '0.75rem' }}>
                                   <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span>Payment History ({card.lines.length})</span>
-                                    {!isCustomerUser && card.status !== '100% Paid' && (
+                                    {!isCustomerUser && card.status !== '100% Paid' && canCreate('payments') && (
                                       <button
                                         onClick={() => {
                                           handleInvoiceRefSelection(card.invoice_number);
@@ -8266,18 +8510,20 @@ const normalizeTabName = (rawTab) => {
                                                 <Download size={10} color="var(--primary)" /> Receipt
                                               </button>
 
-                                              <button
-                                                onClick={() => handleOpenShareModal('payment', { invoice_number: card.invoice_number, customer_name: card.party_name, reference: line.reference })}
-                                                className="btn-secondary"
-                                                style={{ padding: '0.2rem 0.45rem', fontSize: '0.675rem', gap: '2px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
-                                                title="Share public verification link"
-                                              >
-                                                <Share2 size={10} /> Share
-                                              </button>
+                                              {(canShare('payments') || isCustomerUser) && (
+                                                <button
+                                                  onClick={() => handleOpenShareModal('payment', { invoice_number: card.invoice_number, customer_name: card.party_name, reference: line.reference })}
+                                                  className="btn-secondary"
+                                                  style={{ padding: '0.2rem 0.45rem', fontSize: '0.675rem', gap: '2px', color: '#8b5cf6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
+                                                  title="Share public verification link"
+                                                >
+                                                  <Share2 size={10} /> Share
+                                                </button>
+                                              )}
 
                                               {!isCustomerUser && (
                                                 <>
-                                                  {(isSuperAdmin || isSalesAdmin) && (
+                                                  {(canDelete('payments') || canDeleteSystemRecords) && (
                                                     <button
                                                       onClick={() => handleDeletePayment(line)}
                                                       className="btn-secondary"
@@ -8287,7 +8533,7 @@ const normalizeTabName = (rawTab) => {
                                                       <Trash size={10} />
                                                     </button>
                                                   )}
-                                                  {line.status !== 'Refunded' && (
+                                                  {line.status !== 'Refunded' && (canUpdate('payments') || canApprove('payments')) && (
                                                     <button
                                                       onClick={() => handleRefundPayment(line)}
                                                       className="btn-secondary"
@@ -8419,37 +8665,41 @@ const normalizeTabName = (rawTab) => {
                       >
                         <BellRing size={16} color="#dc2626" /> Dispatch Demand Notices
                       </button>
-                      <button
-                        onClick={() => {
-                          setEditingUser(null);
-                          setUserForm({
-                            name: '',
-                            email: '',
-                            role: 'customer',
-                            phone: '',
-                            company: '',
-                            department: 'Client Accounts',
-                            position: 'Client Representative',
-                            salary: 0,
-                            status: 'Active',
-                            location: 'Kampala, Uganda',
-                            notes: 'Account created by Sales Department.',
-                            supervisor_id: 1,
-                            supervisor_name: '',
-                            avatar_url: '',
-                            password: ''
-                          });
-                          setShowUserModal(true);
-                        }}
-                        className="btn-secondary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '4px' }}
-                        title="Sales Admin can create new customer accounts"
-                      >
-                        <UserPlus size={16} color="var(--primary)" /> Add Customer
-                      </button>
-                      <button onClick={() => setShowInvoiceModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
-                        <Plus size={16} /> Issue Customer Invoice
-                      </button>
+                      {(isSuperAdmin || canCreate('users')) && (
+                        <button
+                          onClick={() => {
+                            setEditingUser(null);
+                            setUserForm({
+                              name: '',
+                              email: '',
+                              role: 'customer',
+                              phone: '',
+                              company: '',
+                              department: 'Client Accounts',
+                              position: 'Client Representative',
+                              salary: 0,
+                              status: 'Active',
+                              location: 'Kampala, Uganda',
+                              notes: 'Account created by Sales Department.',
+                              supervisor_id: 1,
+                              supervisor_name: '',
+                              avatar_url: '',
+                              password: ''
+                            });
+                            setShowUserModal(true);
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '4px' }}
+                          title="Sales Admin can create new customer accounts"
+                        >
+                          <UserPlus size={16} color="var(--primary)" /> Add Customer
+                        </button>
+                      )}
+                      {(isSuperAdmin || canCreate('invoices')) && (
+                        <button onClick={() => setShowInvoiceModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
+                          <Plus size={16} /> Issue Customer Invoice
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -8816,29 +9066,33 @@ const normalizeTabName = (rawTab) => {
                               <Download size={13} color="var(--primary)" /> Download
                             </button>
 
-                            {/* Share button (available to both Admin & Customer) */}
-                            <button
-                              onClick={() => handleOpenShareModal('invoice', inv)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
-                              title="Share public verification link for invoice"
-                            >
-                              <Share2 size={13} /> Share
-                            </button>
+                            {/* Share button (available if canShare('invoices') or customer) */}
+                            {(canShare('invoices') || currentRole === 'customer' || user?.role === 'customer') && (
+                              <button
+                                onClick={() => handleOpenShareModal('invoice', inv)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                                title="Share public verification link for invoice"
+                              >
+                                <Share2 size={13} /> Share
+                              </button>
+                            )}
 
 
 
                             {/* Administrative-only actions (Hidden for Customer) */}
                             {currentRole !== 'customer' && user?.role !== 'customer' && (
                               <>
-                                <button
-                                  onClick={() => handleDuplicateInvoice(inv)}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                                  title="Duplicate invoice record for this customer"
-                                >
-                                  <Copy size={13} /> Duplicate
-                                </button>
+                                {canCreate('invoices') && (
+                                  <button
+                                    onClick={() => handleDuplicateInvoice(inv)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                    title="Duplicate invoice record for this customer"
+                                  >
+                                    <Copy size={13} /> Duplicate
+                                  </button>
+                                )}
 
                                 <button
                                   onClick={() => handleOpenVerifyModal('invoice', inv.invoice_number)}
@@ -8849,55 +9103,63 @@ const normalizeTabName = (rawTab) => {
                                   <QrCode size={13} /> Verify
                                 </button>
 
-                                <button
-                                  onClick={() => handleSendInvoiceEmail(inv)}
-                                  className="btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.3)' }}
-                                  title="Dispatch official invoice email notification to customer with PDF & copy to sales admin"
-                                >
-                                  <Mail size={13} color="#0d9488" /> Email
-                                </button>
-
-                                {isPaid ? (
-                                  <>
-                                    <button
-                                      onClick={() => handleSendReceipt(inv.id, inv.invoice_number, inv.customer_email)}
-                                      className="btn-secondary"
-                                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#16a34a', border: '1px solid rgba(22, 163, 74, 0.3)' }}
-                                      title="Dispatch official paid tax receipt to customer with PDF attached"
-                                    >
-                                      <Mail size={13} color="#16a34a" /> Receipt
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleOpenDeliveryNoteModal(inv)}
-                                      className="btn-secondary"
-                                      style={{ 
-                                        padding: '0.35rem 0.65rem', 
-                                        fontSize: '0.75rem', 
-                                        gap: '4px', 
-                                        color: '#0284c7', 
-                                        border: '1px solid rgba(2, 132, 199, 0.35)', 
-                                        background: 'rgba(2, 132, 199, 0.06)',
-                                        fontWeight: '700'
-                                      }}
-                                      title="Prepare and dispatch official certified Delivery Note to customer (100% Paid)"
-                                    >
-                                      <Truck size={13} color="#0284c7" /> Delivery Note
-                                    </button>
-                                  </>
-                                ) : (
+                                {canShare('invoices') && (
                                   <button
-                                    onClick={() => handleSendDemandNotice(inv)}
+                                    onClick={() => handleSendInvoiceEmail(inv)}
                                     className="btn-secondary"
-                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.35)', background: 'rgba(220, 38, 38, 0.05)' }}
-                                    title="Dispatch official Statutory Demand Notice email to customer for overdue balance"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.3)' }}
+                                    title="Dispatch official invoice email notification to customer with PDF & copy to sales admin"
                                   >
-                                    <BellRing size={13} color="#dc2626" /> Demand Notice
+                                    <Mail size={13} color="#0d9488" /> Email
                                   </button>
                                 )}
 
-                                {inv.status !== 'Cancelled' && (
+                                {isPaid ? (
+                                  <>
+                                    {canShare('invoices') && (
+                                      <button
+                                        onClick={() => handleSendReceipt(inv.id, inv.invoice_number, inv.customer_email)}
+                                        className="btn-secondary"
+                                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#16a34a', border: '1px solid rgba(22, 163, 74, 0.3)' }}
+                                        title="Dispatch official paid tax receipt to customer with PDF attached"
+                                      >
+                                        <Mail size={13} color="#16a34a" /> Receipt
+                                      </button>
+                                    )}
+
+                                    {canShare('invoices') && (
+                                      <button
+                                        onClick={() => handleOpenDeliveryNoteModal(inv)}
+                                        className="btn-secondary"
+                                        style={{ 
+                                          padding: '0.35rem 0.65rem', 
+                                          fontSize: '0.75rem', 
+                                          gap: '4px', 
+                                          color: '#0284c7', 
+                                          border: '1px solid rgba(2, 132, 199, 0.35)', 
+                                          background: 'rgba(2, 132, 199, 0.06)',
+                                          fontWeight: '700'
+                                        }}
+                                        title="Prepare and dispatch official certified Delivery Note to customer (100% Paid)"
+                                      >
+                                        <Truck size={13} color="#0284c7" /> Delivery Note
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  canShare('invoices') && (
+                                    <button
+                                      onClick={() => handleSendDemandNotice(inv)}
+                                      className="btn-secondary"
+                                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.35)', background: 'rgba(220, 38, 38, 0.05)' }}
+                                      title="Dispatch official Statutory Demand Notice email to customer for overdue balance"
+                                    >
+                                      <BellRing size={13} color="#dc2626" /> Demand Notice
+                                    </button>
+                                  )
+                                )}
+
+                                {inv.status !== 'Cancelled' && canUpdate('invoices') && (
                                   <button
                                     onClick={() => handleCancelInvoice(inv)}
                                     className="btn-secondary"
@@ -8908,13 +9170,13 @@ const normalizeTabName = (rawTab) => {
                                   </button>
                                 )}
 
-                                {canDeleteSystemRecords && (
+                                {(canDelete('invoices') || canDeleteSystemRecords) && (
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteInvoice(inv.id, inv.invoice_number)}
                                     className="btn-secondary"
                                     style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.05)' }}
-                                    title="Permanently delete this invoice (Super Admin only)"
+                                    title="Permanently delete this invoice"
                                   >
                                     <Trash size={13} color="#ef4444" /> Delete Invoice
                                   </button>
@@ -8984,37 +9246,41 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadQuotationsCSV(rawQuotes)}
-                        className="btn-secondary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                        title="Download CSV export of quotations"
-                      >
-                        <Download size={15} /> Export Quotations CSV
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingQuotation(null);
-                          setQuotationForm({
-                            customer_name: '',
-                            customer_email: '',
-                            customer_phone: '',
-                            company: '',
-                            valid_until: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-                            notes: 'Quotation valid for 30 days from date of issuance. Remittance details attached.',
-                            vat_exempt: false,
-                            items: [
-                              { name: storeProducts[0]?.name || 'Nova Cloud Edge VPS Server (Standard)', quantity: 1, unit_price: Number(storeProducts[0]?.price || 280000), discount_pct: 0, total: Number(storeProducts[0]?.price || 280000) }
-                            ]
-                          });
-                          setShowQuotationModal(true);
-                        }}
-                        className="btn-primary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0d9488' }}
-                      >
-                        <Plus size={16} /> New Commercial Quotation
-                      </button>
+                      {(canShare('quotations') || canRead('quotations')) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadQuotationsCSV(rawQuotes)}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                          title="Download CSV export of quotations"
+                        >
+                          <Download size={15} /> Export Quotations CSV
+                        </button>
+                      )}
+                      {canCreate('quotations') && (
+                        <button
+                          onClick={() => {
+                            setEditingQuotation(null);
+                            setQuotationForm({
+                              customer_name: '',
+                              customer_email: '',
+                              customer_phone: '',
+                              company: '',
+                              valid_until: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                              notes: 'Quotation valid for 30 days from date of issuance. Remittance details attached.',
+                              vat_exempt: false,
+                              items: [
+                                { name: storeProducts[0]?.name || 'Nova Cloud Edge VPS Server (Standard)', quantity: 1, unit_price: Number(storeProducts[0]?.price || 280000), discount_pct: 0, total: Number(storeProducts[0]?.price || 280000) }
+                              ]
+                            });
+                            setShowQuotationModal(true);
+                          }}
+                          className="btn-primary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0d9488' }}
+                        >
+                          <Plus size={16} /> New Commercial Quotation
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -9107,7 +9373,7 @@ const normalizeTabName = (rawTab) => {
 
                           {/* Action Buttons Row */}
                           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', flexWrap: 'wrap' }}>
-                            {!isConverted && (
+                            {!isConverted && (canCreate('invoices') || canUpdate('quotations')) && (
                               <button
                                 onClick={() => handleConvertToInvoice(q)}
                                 className="btn-secondary"
@@ -9118,23 +9384,27 @@ const normalizeTabName = (rawTab) => {
                               </button>
                             )}
 
-                            <button
-                              onClick={() => handleDuplicateQuotation(q)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                              title="Duplicate commercial quotation for this customer"
-                            >
-                              <Copy size={13} /> Duplicate
-                            </button>
+                            {canCreate('quotations') && (
+                              <button
+                                onClick={() => handleDuplicateQuotation(q)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Duplicate commercial quotation for this customer"
+                              >
+                                <Copy size={13} /> Duplicate
+                              </button>
+                            )}
 
-                            <button
-                              onClick={() => handleSendQuotationEmail(q)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                              title="Email official Commercial Quotation with PDF attached"
-                            >
-                              <Mail size={13} /> Send Email
-                            </button>
+                            {canShare('quotations') && (
+                              <button
+                                onClick={() => handleSendQuotationEmail(q)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Email official Commercial Quotation with PDF attached"
+                              >
+                                <Mail size={13} /> Send Email
+                              </button>
+                            )}
 
                             <button
                               onClick={() => generateQuotationPDF(q, { siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label, bankAccounts: bankAccountsList })}
@@ -9145,14 +9415,16 @@ const normalizeTabName = (rawTab) => {
                               <Download size={13} color="#0d9488" /> PDF
                             </button>
 
-                            <button
-                              onClick={() => handleOpenShareModal('quote', q)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
-                              title="Share public quotation link with customer"
-                            >
-                              <Share2 size={13} /> Share
-                            </button>
+                            {(canShare('quotations') || currentRole === 'customer' || user?.role === 'customer') && (
+                              <button
+                                onClick={() => handleOpenShareModal('quote', q)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                                title="Share public quotation link with customer"
+                              >
+                                <Share2 size={13} /> Share
+                              </button>
+                            )}
 
                             <button
                               onClick={() => handleOpenVerifyModal('quote', q.quote_number)}
@@ -9163,12 +9435,12 @@ const normalizeTabName = (rawTab) => {
                               <QrCode size={13} /> Verify
                             </button>
 
-                            {canDeleteSystemRecords && (
+                            {(canDelete('quotations') || canDeleteSystemRecords) && (
                               <button
                                 onClick={() => handleDeleteQuotation(q.id, q.quote_number)}
                                 className="btn-secondary"
                                 style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#ef4444' }}
-                                title="Delete quotation (Super Admin only)"
+                                title="Delete quotation"
                               >
                                 <Trash size={13} />
                               </button>
@@ -9208,7 +9480,7 @@ const normalizeTabName = (rawTab) => {
             {activeTab === 'work_orders' && (() => {
               const allOrders = Array.isArray(workOrdersList) ? workOrdersList : [];
               const rawOrders = currentRole === 'customer' ? [] 
-                : (isSuperAdmin || isSalesAdmin || isHrManager || isWebAdmin) ? allOrders 
+                : (isSuperAdmin || canRead('work_orders') || isSalesAdmin || isHrManager || isWebAdmin) ? allOrders 
                 : allOrders.filter(o => (o.assigned_staff_name && o.assigned_staff_name === user?.name) || (o.assigned_staff_id && o.assigned_staff_id == user?.id));
 
               const filteredOrders = rawOrders.filter(o =>
@@ -9233,36 +9505,40 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadWorkOrdersCSV(rawOrders)}
-                        className="btn-secondary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                        title="Download CSV export of work orders"
-                      >
-                        <Download size={15} /> Export Work Orders CSV
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingWorkOrder(null);
-                          setWorkOrderForm({
-                            task_title: '',
-                            client_site: '',
-                            assigned_staff_id: '',
-                            assigned_staff_name: '',
-                            charging_mode: 'per_day',
-                            rate: 150000,
-                            quantity: 1,
-                            scheduled_date: new Date().toISOString().split('T')[0],
-                            description: ''
-                          });
-                          setShowWorkOrderModal(true);
-                        }}
-                        className="btn-primary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#eab308', color: '#000', fontWeight: '800' }}
-                      >
-                        <Plus size={16} /> Schedule Work Order
-                      </button>
+                      {(canShare('work_orders') || canRead('work_orders')) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadWorkOrdersCSV(rawOrders)}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                          title="Download CSV export of work orders"
+                        >
+                          <Download size={15} /> Export Work Orders CSV
+                        </button>
+                      )}
+                      {canCreate('work_orders') && (
+                        <button
+                          onClick={() => {
+                            setEditingWorkOrder(null);
+                            setWorkOrderForm({
+                              task_title: '',
+                              client_site: '',
+                              assigned_staff_id: '',
+                              assigned_staff_name: '',
+                              charging_mode: 'per_day',
+                              rate: 150000,
+                              quantity: 1,
+                              scheduled_date: new Date().toISOString().split('T')[0],
+                              description: ''
+                            });
+                            setShowWorkOrderModal(true);
+                          }}
+                          className="btn-primary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#eab308', color: '#000', fontWeight: '800' }}
+                        >
+                          <Plus size={16} /> Schedule Work Order
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -9354,7 +9630,7 @@ const normalizeTabName = (rawTab) => {
                           </div>
 
                           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', flexWrap: 'wrap' }}>
-                            {!isCompleted && (
+                            {!isCompleted && (canApprove('work_orders') || canUpdate('work_orders')) && (
                               <button
                                 onClick={() => handleCompleteWorkOrder(wo)}
                                 className="btn-primary"
@@ -9374,23 +9650,27 @@ const normalizeTabName = (rawTab) => {
                               <Printer size={13} /> Print
                             </button>
 
-                            <button
-                              onClick={() => handleDuplicateWorkOrder(wo)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                              title="Duplicate work order for this assigned staff"
-                            >
-                              <Copy size={13} /> Duplicate
-                            </button>
+                            {canCreate('work_orders') && (
+                              <button
+                                onClick={() => handleDuplicateWorkOrder(wo)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Duplicate work order for this assigned staff"
+                              >
+                                <Copy size={13} /> Duplicate
+                              </button>
+                            )}
 
-                            <button
-                              onClick={() => handleSendWorkOrderEmail(wo)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                              title="Email official Work Order with certified PDF attached"
-                            >
-                              <Mail size={13} /> Send Email
-                            </button>
+                            {canShare('work_orders') && (
+                              <button
+                                onClick={() => handleSendWorkOrderEmail(wo)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Email official Work Order with certified PDF attached"
+                              >
+                                <Mail size={13} /> Send Email
+                              </button>
+                            )}
 
                             {isCompleted ? (
                               <button
@@ -9411,35 +9691,37 @@ const normalizeTabName = (rawTab) => {
                                 <Lock size={13} /> Locked
                               </button>
                             ) : (
-                              <button
-                                onClick={() => {
-                                  setEditingWorkOrder(wo);
-                                  setWorkOrderForm({
-                                    task_title: wo.task_title,
-                                    client_site: wo.client_site,
-                                    assigned_staff_id: wo.assigned_staff_id,
-                                    assigned_staff_name: wo.assigned_staff_name,
-                                    charging_mode: wo.charging_mode,
-                                    rate: wo.rate,
-                                    quantity: wo.quantity,
-                                    scheduled_date: wo.scheduled_date,
-                                    description: wo.description
-                                  });
-                                  setShowWorkOrderModal(true);
-                                }}
-                                className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                              >
-                                <Edit3 size={13} /> Edit
-                              </button>
+                              canUpdate('work_orders') && (
+                                <button
+                                  onClick={() => {
+                                    setEditingWorkOrder(wo);
+                                    setWorkOrderForm({
+                                      task_title: wo.task_title,
+                                      client_site: wo.client_site,
+                                      assigned_staff_id: wo.assigned_staff_id,
+                                      assigned_staff_name: wo.assigned_staff_name,
+                                      charging_mode: wo.charging_mode,
+                                      rate: wo.rate,
+                                      quantity: wo.quantity,
+                                      scheduled_date: wo.scheduled_date,
+                                      description: wo.description
+                                    });
+                                    setShowWorkOrderModal(true);
+                                  }}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                                >
+                                  <Edit3 size={13} /> Edit
+                                </button>
+                              )
                             )}
 
-                            {canDeleteSystemRecords && (
+                            {(canDelete('work_orders') || canDeleteSystemRecords) && (
                               <button
                                 onClick={() => handleDeleteWorkOrder(wo.id, wo.order_number)}
                                 className="btn-secondary"
                                 style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
-                                title="Delete work order (Super Admin only)"
+                                title="Delete work order"
                               >
                                 <Trash size={13} />
                               </button>
@@ -9998,7 +10280,7 @@ const normalizeTabName = (rawTab) => {
                       <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Hosting</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Monitor active licenses linked with active tax invoices, view calculated expiry dates, extend terms, or suspend/terminate subscriptions mid-term.</p>
                     </div>
-                    {(currentRole !== 'customer' && user?.role !== 'customer') && (
+                    {canCreate('subscriptions') && (
                       <button onClick={() => setShowSubscriptionModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
                         <Plus size={16} /> Log New Subscription Renewal
                       </button>
@@ -10032,7 +10314,7 @@ const normalizeTabName = (rawTab) => {
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '460px', margin: '0 auto 1.5rem' }}>
                           No active subscriptions match your current filter. You can log a new customer subscription renewal below.
                         </p>
-                        {(currentRole !== 'customer' && user?.role !== 'customer') && (
+                        {canCreate('subscriptions') && (
                           <button onClick={() => setShowSubscriptionModal(true)} className="btn-primary" style={{ margin: '0 auto', padding: '0.7rem 1.25rem', fontSize: '0.875rem' }}>
                             <Plus size={16} /> Log New Subscription Renewal
                           </button>
@@ -10150,62 +10432,68 @@ const normalizeTabName = (rawTab) => {
                         {/* Mid-Term Action Controls — Staff Access */}
                         {(currentRole !== 'customer' && user?.role !== 'customer') && (
                           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            {s.status === 'Active' ? (
+                            {canUpdate('subscriptions') && (
                               <>
+                                {s.status === 'Active' ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleUpdateSubscriptionStatus(s.id, 'Suspended')}
+                                      className="btn-secondary"
+                                      style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#f59e0b', borderColor: '#f59e0b', justifyContent: 'center' }}
+                                      title="Suspend subscription"
+                                    >
+                                      Suspend
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateSubscriptionStatus(s.id, 'Ended')}
+                                      className="btn-secondary"
+                                      style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
+                                      title="Terminate subscription"
+                                    >
+                                      Terminate
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => handleUpdateSubscriptionStatus(s.id, 'Active')}
+                                    className="btn-primary"
+                                    style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
+                                    title="Re-activate subscription"
+                                  >
+                                    Re-Activate
+                                  </button>
+                                )}
+
                                 <button
-                                  onClick={() => handleUpdateSubscriptionStatus(s.id, 'Suspended')}
-                                  className="btn-secondary"
-                                  style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#f59e0b', borderColor: '#f59e0b', justifyContent: 'center' }}
-                                  title="Suspend subscription (Super Admin only)"
+                                  onClick={() => {
+                                    setSelectedSubForExtend(s);
+                                    setExtendForm({
+                                      duration: s.duration || '1 Year',
+                                      start_date: s.start_date || new Date().toISOString().split('T')[0],
+                                      expiry_date: ''
+                                    });
+                                    setShowExtendModal(true);
+                                  }}
+                                  className="btn-primary"
+                                  style={{ flex: 1.2, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
+                                  title="Extend subscription term"
                                 >
-                                  Suspend
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateSubscriptionStatus(s.id, 'Ended')}
-                                  className="btn-secondary"
-                                  style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
-                                  title="Terminate subscription (Super Admin only)"
-                                >
-                                  Terminate
+                                  Extend Term
                                 </button>
                               </>
-                            ) : (
-                              <button
-                                onClick={() => handleUpdateSubscriptionStatus(s.id, 'Active')}
-                                className="btn-primary"
-                                style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
-                                title="Re-activate subscription (Super Admin only)"
-                              >
-                                Re-Activate
-                              </button>
                             )}
 
-                            <button
-                              onClick={() => {
-                                setSelectedSubForExtend(s);
-                                setExtendForm({
-                                  duration: s.duration || '1 Year',
-                                  start_date: s.start_date || new Date().toISOString().split('T')[0],
-                                  expiry_date: ''
-                                });
-                                setShowExtendModal(true);
-                              }}
-                              className="btn-primary"
-                              style={{ flex: 1.2, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
-                              title="Extend subscription term (Super Admin only)"
-                            >
-                              Extend Term
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSubscription(s.id, s.plan_name, s.customer_name)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
-                              title="Delete subscription record (Super Admin only)"
-                            >
-                              <Trash size={12} />
-                            </button>
+                            {(canDelete('subscriptions') || canDeleteSystemRecords) && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubscription(s.id, s.plan_name, s.customer_name)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
+                                title="Delete subscription record"
+                              >
+                                <Trash size={12} />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -11810,7 +12098,7 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {(isHrManager || isSuperAdmin) && (
+                      {(canCreate('hr') || isSuperAdmin) && (
                         <button
                           onClick={() => {
                             setEditingPayroll(null);
@@ -11942,60 +12230,68 @@ const normalizeTabName = (rawTab) => {
                             </div>
 
                             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', flexWrap: 'wrap' }}>
-                              <button
-                                onClick={() => {
-                                  const refCode = exp.receipt_ref || `EXP-REC-${exp.id}`;
-                                  const shareUrl = `${window.location.origin}/?view=expense&ref=${encodeURIComponent(refCode)}`;
-                                  navigator.clipboard.writeText(shareUrl);
-                                  showToast(`Expense #${refCode} share link copied to clipboard!`, 'success');
-                                  handleOpenShareModal('expense', exp);
-                                }}
-                                className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
-                                title="Click to copy public expense verification link"
-                              >
-                                <Share2 size={13} /> Share Link
-                              </button>
+                              {canShare('expenses') && (
+                                <button
+                                  onClick={() => {
+                                    const refCode = exp.receipt_ref || `EXP-REC-${exp.id}`;
+                                    const shareUrl = `${window.location.origin}/?view=expense&ref=${encodeURIComponent(refCode)}`;
+                                    navigator.clipboard.writeText(shareUrl);
+                                    showToast(`Expense #${refCode} share link copied to clipboard!`, 'success');
+                                    handleOpenShareModal('expense', exp);
+                                  }}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                                  title="Click to copy public expense verification link"
+                                >
+                                  <Share2 size={13} /> Share Link
+                                </button>
+                              )}
 
-                              <button
-                                onClick={() => handleDuplicateExpense(exp)}
-                                className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                                title="Duplicate expense voucher for this staff"
-                              >
-                                <Copy size={13} /> Duplicate
-                              </button>
+                              {canCreate('expenses') && (
+                                <button
+                                  onClick={() => handleDuplicateExpense(exp)}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                  title="Duplicate expense voucher for this staff"
+                                >
+                                  <Copy size={13} /> Duplicate
+                                </button>
+                              )}
 
-                              <button
-                                onClick={() => handleSendExpenseEmail(exp)}
-                                className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
-                                title="Email official Expenditure Voucher with PDF attached"
-                              >
-                                <Mail size={13} /> Send Email
-                              </button>
+                              {canShare('expenses') && (
+                                <button
+                                  onClick={() => handleSendExpenseEmail(exp)}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                  title="Email official Expenditure Voucher with PDF attached"
+                                >
+                                  <Mail size={13} /> Send Email
+                                </button>
+                              )}
 
-                              <button
-                                onClick={() => {
-                                  setEditingExpense(exp);
-                                  setExpenseForm({
-                                    staff_name: exp.staff_name || '',
-                                    staff_email: exp.staff_email || '',
-                                    category: exp.category || 'Field Infrastructure Deployment',
-                                    description: exp.description || '',
-                                    amount: exp.amount || 0,
-                                    receipt_ref: exp.receipt_ref || '',
-                                    status: exp.status || 'Pending',
-                                    date: exp.date || new Date().toISOString().split('T')[0],
-                                    notes: exp.notes || ''
-                                  });
-                                  setShowExpenseModal(true);
-                                }}
-                                className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px' }}
-                              >
-                                <Edit3 size={13} /> Edit
-                              </button>
+                              {canUpdate('expenses') && (
+                                <button
+                                  onClick={() => {
+                                    setEditingExpense(exp);
+                                    setExpenseForm({
+                                      staff_name: exp.staff_name || '',
+                                      staff_email: exp.staff_email || '',
+                                      category: exp.category || 'Field Infrastructure Deployment',
+                                      description: exp.description || '',
+                                      amount: exp.amount || 0,
+                                      receipt_ref: exp.receipt_ref || '',
+                                      status: exp.status || 'Pending',
+                                      date: exp.date || new Date().toISOString().split('T')[0],
+                                      notes: exp.notes || ''
+                                    });
+                                    setShowExpenseModal(true);
+                                  }}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px' }}
+                                >
+                                  <Edit3 size={13} /> Edit
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -16139,13 +16435,11 @@ const normalizeTabName = (rawTab) => {
                         onChange={e => setUserForm({ ...userForm, role: e.target.value })}
                         required
                       >
-                        <option value="super_admin">Super Admin (Full CRUDAS & System Authority)</option>
-                        <option value="sales_admin">Sales Admin (Invoices, Quotes & Catalog)</option>
-                        <option value="web_admin">Web Admin (CMS, Sliders & Careers)</option>
-                        <option value="hr_manager">HR Manager (Staff Roll, Payroll & Expenses)</option>
-                        <option value="staff">Staff Specialist (Work Orders & Vouchers)</option>
-                        <option value="reviewer">Auditor / Reviewer (Read & Share Only)</option>
-                        <option value="customer">Client (Customer Self-Service Portal)</option>
+                        {availableRoles.map(r => (
+                          <option key={r.code} value={r.code}>
+                            {r.name} {r.desc ? `— ${r.desc}` : ''} {r.isCustom ? '★ (Custom Enterprise Role)' : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -19229,11 +19523,11 @@ const normalizeTabName = (rawTab) => {
                       onChange={e => setHireForm({ ...hireForm, role: e.target.value })}
                       required
                     >
-                      <option value="staff">Staff Specialist (Engineering / Finance / Operations)</option>
-                      <option value="sales_admin">Sales Admin (Invoices & Subscriptions)</option>
-                      <option value="web_admin">Web Admin (Content & Sliders)</option>
-                      <option value="hr_manager">HR Manager (Personnel & Payroll)</option>
-                      <option value="customer">Customer (Portal & Billing)</option>
+                      {availableRoles.filter(r => r.code !== 'super_admin').map(r => (
+                        <option key={r.code} value={r.code}>
+                          {r.name} {r.desc ? `(${r.desc})` : ''} {r.isCustom ? '★ (Custom Role)' : ''}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -19739,14 +20033,23 @@ const normalizeTabName = (rawTab) => {
                       };
 
                       const togglePerm = (action) => {
-                        const next = {
-                          ...userPerms,
-                          [mod.key]: {
-                            ...perms,
-                            [action]: !perms[action]
-                          }
-                        };
-                        setSelectedUserForPerms({ ...selectedUserForPerms, custom_permissions: next });
+                        // Use functional updater to always work on the latest state,
+                        // preventing stale-closure bugs when multiple checkboxes are toggled.
+                        setSelectedUserForPerms(prev => {
+                          const latestPerms = prev.custom_permissions || {};
+                          const defaultPerms = { create: false, read: true, update: false, delete: false, approve: false, share: false };
+                          const modulePerms = latestPerms[mod.key] || defaultPerms;
+                          return {
+                            ...prev,
+                            custom_permissions: {
+                              ...latestPerms,
+                              [mod.key]: {
+                                ...modulePerms,
+                                [action]: !modulePerms[action]
+                              }
+                            }
+                          };
+                        });
                       };
 
                       return (
