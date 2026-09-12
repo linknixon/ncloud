@@ -164,25 +164,42 @@ function drawA4ExecutiveHeader(doc, {
 
   // Status Stamp Box
   if (status) {
-    const stampW = 40;
-    const stampH = 6.8;
-    const stampX = 196 - stampW;
-    const stampY = refNumber ? 28 : 23;
     const sLower = status.toLowerCase();
     const isPaid = sLower.includes('paid') || sLower.includes('settled') || sLower.includes('approved') || sLower.includes('active') || sLower.includes('cleared') || sLower.includes('accepted');
-    const isOverdue = sLower.includes('overdue') || sLower.includes('rejected') || sLower.includes('failed');
-    const badgeBg = isPaid ? [240, 253, 244] : isOverdue ? [254, 242, 242] : [254, 243, 199];
-    const badgeBorder = isPaid ? [34, 197, 94] : isOverdue ? [239, 68, 68] : [217, 119, 6];
-    const badgeText = isPaid ? BRAND.colors.emerald : isOverdue ? BRAND.colors.crimson : BRAND.colors.amber;
+    const customPaidStamp = typeof window !== 'undefined' ? localStorage.getItem('nova_paid_stamp') : null;
 
-    doc.setFillColor(...badgeBg);
-    doc.setDrawColor(...badgeBorder);
-    doc.setLineWidth(0.4);
-    doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-    doc.setFont('TrebuchetMS', 'bold');
-    doc.setFontSize(6.8);
-    doc.setTextColor(...badgeText);
-    doc.text(status.toUpperCase(), stampX + stampW / 2, stampY + 4.7, { align: 'center' });
+    if (isPaid && customPaidStamp) {
+      // Use Custom Image Stamp
+      const stampW = 45;
+      const stampH = 15;
+      const stampX = 196 - stampW;
+      const stampY = refNumber ? 20 : 15;
+      try {
+        const ext = customPaidStamp.includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(customPaidStamp, ext, stampX, stampY, stampW, stampH);
+      } catch (e) {
+        console.warn('Failed to render custom paid stamp in PDF', e);
+      }
+    } else {
+      // Default Text Badge
+      const stampW = 40;
+      const stampH = 6.8;
+      const stampX = 196 - stampW;
+      const stampY = refNumber ? 28 : 23;
+      const isOverdue = sLower.includes('overdue') || sLower.includes('rejected') || sLower.includes('failed');
+      const badgeBg = isPaid ? [240, 253, 244] : isOverdue ? [254, 242, 242] : [254, 243, 199];
+      const badgeBorder = isPaid ? [34, 197, 94] : isOverdue ? [239, 68, 68] : [217, 119, 6];
+      const badgeText = isPaid ? BRAND.colors.emerald : isOverdue ? BRAND.colors.crimson : BRAND.colors.amber;
+
+      doc.setFillColor(...badgeBg);
+      doc.setDrawColor(...badgeBorder);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
+      doc.setFont('TrebuchetMS', 'bold');
+      doc.setFontSize(6.8);
+      doc.setTextColor(...badgeText);
+      doc.text(status.toUpperCase(), stampX + stampW / 2, stampY + 4.7, { align: 'center' });
+    }
   }
 
   // Separator Rule
