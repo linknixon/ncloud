@@ -818,3 +818,26 @@ select option {
     white-space: nowrap !important;
   }
 }
+
+/* Marquee Slider */
+.marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 1rem 0;
+}
+.marquee-track {
+  display: flex;
+  gap: 1.75rem;
+  animation: scrollMarquee 25s linear infinite;
+}
+.marquee-container:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes scrollMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50% - 0.875rem)); }
+}
