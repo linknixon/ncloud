@@ -116,7 +116,7 @@ export default function AuthModal({ setActivePage }) {
         } catch (e) {
           console.error('Turnstile render exception:', e);
         }
-      } else if (attempts < 25) {
+      } else if (attempts < 100) {
         timer = setTimeout(tryRender, 120);
       }
     };
