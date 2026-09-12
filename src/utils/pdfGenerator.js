@@ -2224,29 +2224,181 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
 // ============================================================================
 
 export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
-  // Translate the payment data format into the standard Invoice format
-  // so it utilizes the exact same A4 base64 PDF engine.
-  const mappedInv = {
-    id: paymentData?.id || paymentData?.reference,
-    invoice_number: paymentData?.invoice_number || paymentData?.receipt_ref || `REC-${Date.now()}`,
-    created_at: paymentData?.payment_date || paymentData?.created_at || new Date(),
-    due_date: paymentData?.payment_date || paymentData?.created_at || new Date(),
-    status: '100% Paid', // Forces the Paid stamp and zeroes out balance
-    amount: Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || 0),
-    paid_amount: Number(paymentData?.paid_amount || paymentData?.amount_paid || paymentData?.totalPaid || paymentData?.amount || 0),
-    customer_name: paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Customer',
-    customer_email: paymentData?.customer_email || paymentData?.party_email || paymentData?.email || '',
-    customer_phone: paymentData?.customer_phone || paymentData?.phone || '',
-    items: paymentData?.items || paymentData?.lines || [{
-      name: paymentData?.item || 'Payment / Installment',
-      description: `Payment Ref: ${paymentData?.reference || paymentData?.receipt_ref || 'Direct E-Payment'}`,
-      quantity: 1,
-      unit_price: Number(paymentData?.amount_paid || paymentData?.amount || 0)
-    }]
-  };
+  // 1. Initialize an 80mm thermal receipt
+  // 80mm is approx 226 points (1mm = 2.83465 pt). Let's use pt for precise thermal positioning.
+  const receiptWidth = 226; 
+  
+  // Dynamically calculate height based on items
+  const items = paymentData?.items || paymentData?.lines || [{
+    name: paymentData?.item || 'Payment / Installment',
+    description: `Payment Ref: ${paymentData?.reference || paymentData?.receipt_ref || 'Direct E-Payment'}`,
+    quantity: 1,
+    unit_price: Number(paymentData?.amount_paid || paymentData?.amount || paymentData?.amountPaid || paymentData?.totalPaid || 0)
+  }];
+  
+  const estimatedHeight = 350 + (items.length * 40);
+  
+  // We use standard jsPDF
+  // Note: we assume jsPDF is available in scope just like in generateInvoicePDF
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: [receiptWidth, estimatedHeight]
+  });
 
-  // Generate an identical A4 PDF, but rename the title header
-  return generateInvoicePDF(mappedInv, { ...options, documentTitle: 'OFFICIAL PAYMENT RECEIPT' });
+  let cursorY = 20;
+  const margin = 15;
+  const center = receiptWidth / 2;
+
+  // 2. Company Logo or Title
+  const siteLogo = localStorage.getItem('nova_site_logo');
+  if (siteLogo && siteLogo.startsWith('data:image')) {
+    try {
+      const imgProps = doc.getImageProperties(siteLogo);
+      const imgWidth = 100;
+      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+      doc.addImage(siteLogo, imgProps.fileType, center - (imgWidth / 2), cursorY, imgWidth, imgHeight);
+      cursorY += imgHeight + 15;
+    } catch (e) {
+      // Fallback to text if image fails
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 58, 138); // Deep Blue
+      doc.text("NOVA CLOUD EDGES", center, cursorY, { align: 'center' });
+      cursorY += 20;
+    }
+  } else {
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138); // Deep Blue
+    doc.text("NOVA CLOUD EDGES", center, cursorY, { align: 'center' });
+    cursorY += 20;
+  }
+
+  // 3. Receipt Header (Blue colors)
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(2, 132, 199); // Accent Blue
+  doc.text("OFFICIAL PAYMENT RECEIPT", center, cursorY, { align: 'center' });
+  cursorY += 15;
+  
+  // Standard text color
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text("Lugga Zone, Ndejje, Wakiso", center, cursorY, { align: 'center' });
+  cursorY += 10;
+  doc.text("support@ncloud.co.ug | +256 790 001 631", center, cursorY, { align: 'center' });
+  cursorY += 20;
+
+  // Draw separator line
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 15;
+
+  // 4. Receipt Details
+  const receiptNum = sanitizePdfText(paymentData?.invoice_number || paymentData?.receipt_ref || `REC-${Date.now()}`);
+  const dateStr = paymentData?.payment_date || paymentData?.created_at ? new Date(paymentData?.payment_date || paymentData?.created_at).toLocaleDateString() : new Date().toLocaleDateString();
+  const customerName = sanitizePdfText(paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Customer');
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Receipt No:`, margin, cursorY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(receiptNum, margin + 50, cursorY);
+  cursorY += 12;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Date:`, margin, cursorY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dateStr, margin + 50, cursorY);
+  cursorY += 12;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Customer:`, margin, cursorY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(customerName, margin + 50, cursorY);
+  cursorY += 15;
+
+  // Draw separator line
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 15;
+
+  // 5. Items
+  doc.setFont('helvetica', 'bold');
+  doc.text("ITEM", margin, cursorY);
+  doc.text("AMOUNT", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 15;
+  doc.setFont('helvetica', 'normal');
+
+  items.forEach(item => {
+    const itemName = sanitizePdfText(item.name || item.description || 'Service/Product');
+    const price = Number(item.unit_price || item.price || item.amount || 0);
+    
+    // Auto-wrap item name
+    const splitName = doc.splitTextToSize(itemName, 120);
+    doc.text(splitName, margin, cursorY);
+    
+    doc.text(price.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
+    cursorY += (splitName.length * 10) + 5;
+  });
+
+  cursorY += 5;
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 15;
+
+  // 6. Totals
+  const totalAmount = Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || paymentData?.amountPaid || paymentData?.totalPaid || 0);
+  
+  // FIX: Extremely robust parsing for amount received
+  const amountReceived = Number(
+    paymentData?.amount_paid || 
+    paymentData?.amountPaid || 
+    paymentData?.paid_amount || 
+    paymentData?.totalPaid || 
+    paymentData?.amount || 
+    totalAmount || 
+    0
+  );
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Total Due:", margin, cursorY);
+  doc.text(totalAmount.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 15;
+
+  // Deep Blue for Amount Received
+  doc.setTextColor(30, 58, 138); 
+  doc.setFontSize(10);
+  doc.text("Amount Received:", margin, cursorY);
+  doc.text(amountReceived.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 20;
+
+  // Standard color for status
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.text("Status:", margin, cursorY);
+  
+  doc.setTextColor(2, 132, 199); // Accent Blue for PAID
+  doc.text("100% PAID", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 25;
+
+  doc.setTextColor(0, 0, 0);
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 15;
+
+  // 7. Footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.text("Thank you for your business!", center, cursorY, { align: 'center' });
+  cursorY += 10;
+  doc.text("This is an electronically generated receipt.", center, cursorY, { align: 'center' });
+
+  // 8. Output Base64
+  const pdfBase64 = doc.output('datauristring');
+  return pdfBase64;
 }
 
 
