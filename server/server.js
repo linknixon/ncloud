@@ -107,9 +107,11 @@ export async function sendMail({ to, subject, text, html, attachments }) {
           .trim()
       : '');
 
-    // Sanitize subject: eliminate em-dashes and bullet characters that trigger emoji conversion
+    // Sanitize subject: eliminate em-dashes and aggressively strip emojis to avoid spam filters
     const cleanSubject = (subject || 'Nova Cloud Edges Official Notification')
       .replace(/[•→—]/g, '-')
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+      .replace(/\s+/g, ' ')
       .trim();
 
     // Standardize attachments with explicit content disposition
@@ -124,6 +126,7 @@ export async function sendMail({ to, subject, text, html, attachments }) {
 
     const mailOptions = {
       from: `"${senderName}" <${senderEmail}>`,
+      replyTo: senderEmail,
       to: formattedTo,
       subject: cleanSubject,
       text: cleanPlainText,
@@ -1129,48 +1132,18 @@ async function sendVerificationEmail(user, req) {
 
   const verifyUrl = `${baseUrl}/verify-email?token=${user.verification_token}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
-        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .header { background: #0a192f; padding: 30px; text-align: center; color: #ffffff; }
-        .content { padding: 35px 30px; line-height: 1.6; }
-        .btn { display: inline-block; background: #2563eb; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0; }
-        .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-        .url-box { background: #f8fafc; padding: 10px; border-radius: 6px; font-size: 11px; word-break: break-all; border: 1px dashed #cbd5e1; margin-top: 15px; color: #475569; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="header">
-          ${(memoryStore.site_logo && memoryStore.site_logo !== '') ? `<img src="${memoryStore.site_logo.startsWith('/') ? 'https://ncloud.co.ug' + memoryStore.site_logo : memoryStore.site_logo}" alt="Nova Cloud Edges Logo" style="max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px;" />` : '<h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>'}
-          <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
-        </div>
-        <div class="content">
-          <h3 style="margin-top: 0; color: #0f172a;">Activate Your Account</h3>
-          <p>Dear <strong>${user.name || 'Valued Customer'}</strong>,</p>
-          <p>Thank you for registering with Nova Cloud Edges. To activate your cloud portal account and verify your email address, please click the button below:</p>
-          <div style="text-align: center;">
-            <a href="${verifyUrl}" class="btn" target="_blank">Verify & Activate Account</a>
-          </div>
-          <p style="font-size: 13px; color: #64748b;">This verification link will expire in 24 hours. For security reasons, you cannot log in until your email is confirmed.</p>
-          <div class="url-box">
-            If the button doesn't work, copy and paste this URL into your browser:<br>
-            <a href="${verifyUrl}" style="color: #2563eb;">${verifyUrl}</a>
-          </div>
-        </div>
-        <div class="footer">
-          Lugga Zone, Ndejje, Wakiso, Uganda | support@ncloud.co.ug | +256 790 001 631<br>
-          © ${new Date().getFullYear()} Nova Cloud Edges (U) Ltd. All rights reserved.
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const html = generateCorporateEmailHtml({
+    title: 'Account Verification Required',
+    preheader: 'Complete your registration',
+    recipientName: user.name,
+    badgeText: 'Action Required',
+    introText: 'Thank you for registering with Nova Cloud Edges. To activate your account and access your dashboard, please verify your email address by clicking the button below.',
+    ctaText: 'Verify Email Address',
+    ctaLink: verifyUrl,
+    shareLink: verifyUrl,
+    hidePaymentMethods: true,
+    attachmentName: false
+  });
 
   return await sendMail({
     to: user.email,
@@ -1186,52 +1159,35 @@ async function sendAdminCreatedUserEmail(user, rawPassword, req) {
   const baseUrl = host.includes('ncloud.co.ug') 
     ? 'https://ncloud.co.ug' 
     : `${protocol}://${host || 'localhost:3000'}`;
+  const loginUrl = `${baseUrl}/login`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
-        .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .header { background: #0a192f; padding: 30px; text-align: center; color: #ffffff; }
-        .content { padding: 35px 30px; line-height: 1.6; }
-        .btn { display: inline-block; background: #059669; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 20px 0; }
-        .cred-box { background: #f1f5f9; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 15px 0; }
-        .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="header">
-          ${(memoryStore.site_logo && memoryStore.site_logo !== '') ? `<img src="${memoryStore.site_logo.startsWith('/') ? 'https://ncloud.co.ug' + memoryStore.site_logo : memoryStore.site_logo}" alt="Nova Cloud Edges Logo" style="max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px;" />` : '<h2 style="margin: 0; font-size: 22px; letter-spacing: 0.5px;">NOVA CLOUD EDGES (U) LIMITED</h2>'}
-          <p style="margin: 6px 0 0 0; font-size: 13px; color: #94a3b8;">Enterprise Cloud Infrastructure & IT Solutions</p>
-        </div>
-        <div class="content">
-          <h3 style="margin-top: 0; color: #0f172a;">Welcome to Nova Cloud Portal</h3>
-          <p>Dear <strong>${user.name}</strong>,</p>
-          <p>An administrator has created an authorized portal account for you at Nova Cloud Edges with the assigned role: <strong>${user.role || 'Member'}</strong>.</p>
-          <div class="cred-box">
-            <strong>Portal Access Credentials:</strong><br>
-            <span style="color: #475569;">Login Email:</span> <strong>${user.email}</strong><br>
-            ${rawPassword ? `<span style="color: #475569;">Temporary Password:</span> <strong style="font-family: monospace; font-size: 14px;">${rawPassword}</strong><br>` : ''}
-            <span style="color: #475569;">Account Status:</span> <span style="color: #059669; font-weight: bold;">● Active & Ready</span>
-          </div>
-          <p>Your account is already activated and does not require email confirmation. You can immediately log in to access your services and dashboard:</p>
-          <div style="text-align: center;">
-            <a href="${baseUrl}" class="btn" target="_blank">Sign In to Cloud Portal</a>
-          </div>
-          <p style="font-size: 13px; color: #64748b;">For security reasons, we strongly recommend changing your password after signing in for the first time.</p>
-        </div>
-        <div class="footer">
-          Lugga Zone, Ndejje, Wakiso, Uganda | support@ncloud.co.ug | +256 790 001 631<br>
-          © ${new Date().getFullYear()} Nova Cloud Edges (U) Ltd. All rights reserved.
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const html = generateCorporateEmailHtml({
+    title: 'Welcome to Nova Cloud Portal',
+    preheader: 'Your corporate account has been provisioned',
+    recipientName: user.name,
+    badgeText: 'Account Provisioned',
+    introText: `An administrator has created an authorized portal account for you at Nova Cloud Edges with the assigned role: <strong>${user.role || 'Member'}</strong>.`,
+    itemsRows: `
+      <tr>
+        <td colspan="3" style="padding: 16px; background: #e0f2fe; border-radius: 8px; border-left: 4px solid #0284c7;">
+          <strong style="color: #0f172a;">Login URL:</strong> <a href="${loginUrl}" style="color: #0284c7; word-break: break-all;">${loginUrl}</a><br><br>
+          <strong style="color: #0f172a;">Login Email:</strong> ${user.email}<br>
+          ${rawPassword ? `<strong style="color: #0f172a;">Temporary Password:</strong> <span style="font-family: monospace; background: #bae6fd; padding: 2px 6px; border-radius: 4px; color: #0f172a;">${rawPassword}</span><br><br>` : ''}
+          <strong style="color: #0f172a;">Account Status:</strong> <span style="color: #059669; font-weight: bold;">Active & Ready</span>
+        </td>
+      </tr>
+      ${rawPassword ? `
+      <tr>
+        <td colspan="3" style="padding: 16px; font-size: 13px; color: #dc2626; font-weight: 600;">
+          IMPORTANT: For your security, please log in immediately and change your password in your Account Settings.
+        </td>
+      </tr>` : ''}
+    `,
+    ctaText: 'Access Client Portal',
+    ctaLink: loginUrl,
+    hidePaymentMethods: true,
+    attachmentName: false
+  });
 
   return await sendMail({
     to: user.email,
@@ -7605,59 +7561,69 @@ function generateCorporateEmailHtml({
 
   return `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title || 'Nova Cloud Edges Official Notification'}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #0f172a; margin: 0; padding: 24px 12px; }
-    .email-wrapper { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06); }
-    .email-header { background: #0f172a; padding: 24px; text-align: center; border-bottom: 3px solid #0284c7; }
-    .email-logo-img { max-height: 48px; max-width: 190px; object-fit: contain; margin-bottom: 8px; }
-    .company-title { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; margin: 0; text-transform: uppercase; }
-    .company-subtitle { font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
-    .email-body { padding: 28px 24px; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 16px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
-    .doc-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0; line-height: 1.3; }
-    .salutation { font-size: 14px; color: #334155; margin-bottom: 12px; }
-    .intro-paragraph { font-size: 14px; line-height: 1.65; color: #475569; margin-bottom: 20px; }
-    .attachment-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin: 18px 0; }
-    .table-container { background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; padding: 14px; margin-bottom: 20px; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; }
-    .data-table th { text-align: left; padding: 8px 4px; border-bottom: 1.5px solid #cbd5e1; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .data-table td { padding: 9px 4px; border-bottom: 1px solid #f1f5f9; }
-    .btn-container { text-align: center; margin: 24px 0 16px 0; }
-    .primary-btn { display: inline-block; background: #0284c7; color: #ffffff !important; text-decoration: none; padding: 13px 28px; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: 0.2px; }
-    .email-footer { background: #f8fafc; padding: 22px 20px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6; border-top: 1px solid #e2e8f0; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 15px; -webkit-font-smoothing: antialiased; }
+    .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+    
+    /* Header (Deep Blue) */
+    .email-header { background-color: #1e3a8a; background-image: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%); padding: 35px 30px; text-align: center; }
+    .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
+    .company-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
+    .company-subtitle { font-size: 11px; color: #bae6fd; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; }
+    
+    /* Body */
+    .email-body { padding: 40px 35px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0284c7; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 20px; border: 1px solid #bae6fd; }
+    .doc-title { font-size: 26px; font-weight: 800; color: #1e3a8a; margin: 0 0 16px 0; line-height: 1.3; letter-spacing: -0.5px; }
+    .salutation { font-size: 16px; color: #334155; margin-bottom: 16px; font-weight: 500; }
+    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #475569; margin-bottom: 24px; }
+    
+    /* Attachments */
+    .attachment-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin: 24px 0; border-left: 4px solid #0284c7; }
+    .attachment-title { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 4px; }
+    .attachment-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+    
+    /* Tables */
+    .table-container { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #ffffff; }
+    .data-table th { background: #f8fafc; text-align: left; padding: 14px 16px; border-bottom: 2px solid #e2e8f0; color: #1e3a8a; font-size: 12px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    .data-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .total-row { background: #f8fafc; }
+    .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #cbd5e1; }
+    .total-amount { color: #0284c7 !important; font-size: 18px !important; }
+    
+    /* Buttons */
+    .btn-container { text-align: center; margin: 35px 0 25px 0; }
+    .primary-btn { display: inline-block; background-color: #0284c7; background-image: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%); color: #ffffff !important; text-decoration: none; padding: 16px 36px; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: all 0.2s ease; }
+    
+    /* Footer */
+    .email-footer { background: #f1f5f9; padding: 30px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.7; border-top: 1px solid #e2e8f0; }
+    .footer-highlight { color: #1e3a8a; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div class="email-wrapper">
+  <div class="email-container">
     <div class="email-header">
       ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>'}
       <div class="company-subtitle">Enterprise Cloud Infrastructure & IT Solutions</div>
     </div>
+    
     <div class="email-body">
       ${badgeText ? `<div class="badge">${badgeText}</div>` : ''}
       <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
-      <p class="salutation">Dear <strong>${finalRecipient}</strong>,</p>
+      <p class="salutation">Dear <strong style="color: #1e3a8a;">${finalRecipient}</strong>,</p>
       <div class="intro-paragraph">${finalIntro}</div>
 
       ${attachmentName ? `
       <div class="attachment-card">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="width: 38px; vertical-align: middle;">
-              <div style="width: 30px; height: 26px; border-radius: 5px; background: #0284c7; color: #ffffff; text-align: center; line-height: 26px; font-size: 10px; font-weight: 900; letter-spacing: 0.5px; font-family: monospace;">PDF</div>
-            </td>
-            <td style="vertical-align: middle; padding-left: 8px;">
-              <div style="font-weight: 700; font-size: 13px; color: #1e40af;">Official Verifiable PDF Attached</div>
-              <div style="font-size: 11.5px; color: #3b82f6;">${attachmentName} generated & digitally certified for your accounting and statutory audit records.</div>
-              ${downloadUrl ? `<div style="margin-top: 6px;"><a href="${downloadUrl}" style="display: inline-block; background: #0284c7; color: #ffffff; text-decoration: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700;">Download Official Document</a></div>` : ''}
-            </td>
-          </tr>
-        </table>
+        <div class="attachment-title">Official Document Attached</div>
+        <div class="attachment-desc">${attachmentName} has been generated and securely attached to this email.</div>
+        ${downloadUrl ? `<div style="margin-top: 12px;"><a href="${downloadUrl}" style="color: #0284c7; font-weight: 600; text-decoration: none;">Download Secure Copy &rarr;</a></div>` : ''}
       </div>
       ` : ''}
 
@@ -7677,17 +7643,17 @@ function generateCorporateEmailHtml({
             ${itemsRows}
             ${isInvoice ? `
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #64748b; padding-top: 10px;">Subtotal:</td>
-              <td style="text-align: right; font-weight: 700; color: #0f172a; padding-top: 10px;">${subtotalText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #64748b; text-align: right; padding-top: 16px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600; color: #334155; padding-top: 16px;">${subtotalText || ''}</td>
             </tr>
             ${discountRowHtml || ''}
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #64748b;">VAT (18% Statutory / Clearance):</td>
-              <td style="text-align: right; font-weight: 700; color: #0f172a;">${vatText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #64748b; text-align: right;">VAT (18% Statutory):</td>
+              <td style="text-align: right; font-weight: 600; color: #334155;">${vatText || ''}</td>
             </tr>
-            <tr style="border-top: 2px solid #cbd5e1;">
-              <td colspan="2" style="font-size: 14px; font-weight: 900; color: #0f172a; padding-top: 10px;">Total Amount:</td>
-              <td style="text-align: right; font-size: 15px; font-weight: 900; color: #0284c7; padding-top: 10px;">${totalAmountText || ''}</td>
+            <tr class="total-row">
+              <td colspan="2" style="text-align: right;">Total Amount:</td>
+              <td class="total-amount" style="text-align: right;">${totalAmountText || ''}</td>
             </tr>
             ` : ''}
           </tbody>
@@ -7699,20 +7665,23 @@ function generateCorporateEmailHtml({
 
       ${(ctaLink || shareLink) ? `
       <div class="btn-container">
-        <a href="${ctaLink || shareLink || 'https://ncloud.co.ug'}" class="primary-btn">${ctaText || 'Access Client Portal Online'}</a>
+        <a href="${ctaLink || shareLink || 'https://ncloud.co.ug'}" class="primary-btn">${ctaText || 'Access Client Portal'}</a>
       </div>
       ` : ''}
 
       ${shareLink ? `
-      <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 14px; word-break: break-all;">
-        <strong>Direct Verification Link:</strong><br/>
-        <a href="${shareLink}" style="color: #0284c7;">${shareLink}</a>
+      <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 20px;">
+        Or access directly via this secure link:<br/>
+        <a href="${shareLink}" style="color: #0284c7; word-break: break-all;">${shareLink}</a>
       </p>
       ` : ''}
     </div>
+    
     <div class="email-footer">
-      <strong>Nova Cloud Edges (U) Limited</strong>  |  Lugga Zone, Ndejje, Wakiso, Republic of Uganda<br/>
-      TIN: 1014892019  |  URA Tax Compliant  |  Hotline: +256 790 001 631  |  Email: billing@ncloud.co.ug<br/>
+      <span class="footer-highlight">Nova Cloud Edges (U) Limited</span><br/>
+      Lugga Zone, Ndejje, Wakiso, Republic of Uganda<br/>
+      TIN: 1014892019 &nbsp;|&nbsp; URA Tax Compliant<br/>
+      Support: <a href="mailto:billing@ncloud.co.ug" style="color: #64748b; text-decoration: none;">billing@ncloud.co.ug</a> &nbsp;|&nbsp; Phone: +256 790 001 631<br/><br/>
       ${footerNote || 'This is an official automated transaction dispatch. All attached documents carry digital certification.'}
     </div>
   </div>
