@@ -19,6 +19,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import TermsPage from './pages/TermsPage';
 import AboutPage from './pages/AboutPage';
 import NewsPage from './pages/NewsPage';
+import EventsPage from './pages/EventsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import VerifyDocumentPage from './pages/VerifyDocumentPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -48,7 +49,8 @@ export default function App() {
         '/shop': 'shop',
         '/services': 'services',
         '/jobs': 'jobs',
-        '/careers': 'jobs',
+        '/careers': 'careers',
+        '/events': 'events',
         '/contact': 'contact',
         '/about': 'about',
         '/news': 'news',
@@ -103,7 +105,8 @@ export default function App() {
             '/shop': 'shop',
             '/services': 'services',
             '/jobs': 'jobs',
-            '/careers': 'jobs',
+            '/careers': 'careers',
+            '/events': 'events',
             '/contact': 'contact',
             '/about': 'about',
             '/news': 'news',
@@ -146,6 +149,10 @@ export default function App() {
         return <AboutPage setActivePage={setActivePage} />;
       case 'news':
         return <NewsPage />;
+      case 'events':
+        return <EventsPage setActivePage={setActivePage} />;
+      case 'careers':
+        return <JobsPage setActivePage={setActivePage} />;
       case 'terms':
         return <TermsPage setActivePage={setActivePage} />;
       case 'privacy':

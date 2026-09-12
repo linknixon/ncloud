@@ -1,11 +1,12 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Calendar, ArrowRight, Tag, Search } from 'lucide-react';
+import { Newspaper, Calendar, ArrowRight, Tag, Search, X } from 'lucide-react';
 
 export default function NewsPage() {
   const [news, setNews] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedArticle, setSelectedArticle] = useState(null);
 
   useEffect(() => {
     fetch('/api/news')
@@ -19,11 +20,11 @@ export default function NewsPage() {
 
   const filteredNews = news.filter(n =>
     n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    n.summary.toLowerCase().includes(searchTerm.toLowerCase())
+    (n.content || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
+    <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem', position: 'relative' }}>
       <SEO title="News & Insights | Nova Cloud" description="Stay updated with the latest news and announcements from Nova Cloud." keywords="technology news uganda, ISP updates, cloud trends" />
       <div className="container">
         
@@ -60,52 +61,112 @@ export default function NewsPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.25rem' }}>
-            {filteredNews.map(item => (
-              <div key={item.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  style={{ width: '100%', height: '220px', objectFit: 'cover' }}
-                />
-                <div style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.8rem' }}>
-                    <span className="badge-tag" style={{ fontSize: '0.7rem' }}>{item.category}</span>
-                    <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Calendar size={14} /> {item.date}
-                    </span>
+            {filteredNews.map(item => {
+              const previewContent = item.content ? (item.content.length > 150 ? item.content.substring(0, 150) + '...' : item.content) : '';
+              
+              return (
+                <div key={item.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    style={{ width: '100%', height: '220px', objectFit: 'cover' }}
+                  />
+                  <div style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.8rem' }}>
+                      <span className="badge-tag" style={{ fontSize: '0.7rem' }}>{item.category}</span>
+                      <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={14} /> {item.date}
+                      </span>
+                    </div>
+
+                    <h2 style={{ fontSize: '1.25rem', marginBottom: '0.65rem', lineHeight: '1.35' }}>
+                      {item.title}
+                    </h2>
+
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', flex: 1, marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                      {previewContent}
+                    </p>
+
+                    <button
+                      onClick={() => setSelectedArticle(item)}
+                      style={{
+                        background: 'none',
+                        color: 'var(--primary)',
+                        fontWeight: '700',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginTop: 'auto',
+                        cursor: 'pointer',
+                        border: 'none',
+                        padding: 0
+                      }}
+                    >
+                      Read Full Article <ArrowRight size={16} />
+                    </button>
+
                   </div>
-
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '0.65rem', lineHeight: '1.35' }}>
-                    {item.title}
-                  </h2>
-
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', flex: 1, marginBottom: '1.5rem', lineHeight: '1.6' }}>
-                    {item.summary}
-                  </p>
-
-                  <button
-                    style={{
-                      background: 'none',
-                      color: 'var(--primary)',
-                      fontWeight: '700',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      marginTop: 'auto'
-                    }}
-                  >
-                    Read Full Article <ArrowRight size={16} />
-                  </button>
-
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
       </div>
+
+      {/* FULL ARTICLE MODAL */}
+      {selectedArticle && (
+        <div className="modal-overlay" onClick={() => setSelectedArticle(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ position: 'relative' }}>
+              <img 
+                src={selectedArticle.image} 
+                alt={selectedArticle.title} 
+                style={{ width: '100%', height: '300px', objectFit: 'cover' }}
+              />
+              <button 
+                onClick={() => setSelectedArticle(null)}
+                style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: 'none',
+                  color: '#fff',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '2rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <span className="badge-tag">{selectedArticle.category}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Calendar size={14} /> {selectedArticle.date}
+                </span>
+              </div>
+              
+              <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '1.5rem', lineHeight: '1.3' }}>
+                {selectedArticle.title}
+              </h2>
+              
+              <div style={{ color: '#e2e8f0', lineHeight: '1.8', fontSize: '1.05rem', whiteSpace: 'pre-wrap' }}>
+                {selectedArticle.content}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

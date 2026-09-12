@@ -288,6 +288,7 @@ export default function AdminDashboard({ setActivePage }) {
         cms: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         sliders: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         news: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        events: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         settings: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         team_mgmt: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         partners: { create: true, read: true, update: true, delete: true, approve: true, share: true },
@@ -896,6 +897,19 @@ const normalizeTabName = (rawTab) => {
     content: ''
   });
 
+  // Events State
+  const [eventsList, setEventsList] = useState([]);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    location: 'Virtual',
+    description: '',
+    image: ''
+  });
+
+
   // Company Expenditures & Staff Attachment State (Sales Manager / HR / Admin)
   const [companyExpensesList, setCompanyExpensesList] = useState([]);
   const [showCompanyExpenseModal, setShowCompanyExpenseModal] = useState(false);
@@ -1157,7 +1171,8 @@ const normalizeTabName = (rawTab) => {
       if (resData.companyExpenses && Array.isArray(resData.companyExpenses)) setCompanyExpensesList(resData.companyExpenses);
       if (resData.sliders && Array.isArray(resData.sliders)) setSlidersList(resData.sliders);
       if (resData.partners && Array.isArray(resData.partners)) setPartnersList(resData.partners);
-      if (resData.news && Array.isArray(resData.news)) setNewsList(resData.news);
+        if (resData.news && Array.isArray(resData.news)) setNewsList(resData.news);
+        if (resData.events && Array.isArray(resData.events)) setEventsList(resData.events);
       if (resData.applications && Array.isArray(resData.applications)) setApplicationsList(resData.applications);
       if (resData.quotations && Array.isArray(resData.quotations)) setQuotationsList(resData.quotations);
       if (resData.work_orders && Array.isArray(resData.work_orders)) setWorkOrdersList(resData.work_orders);
@@ -1355,8 +1370,13 @@ const normalizeTabName = (rawTab) => {
         .catch(() => {});
 
       fetch('/api/news')
-        .then(res => res.json())
+        .then(r => r.json())
         .then(nw => { if (Array.isArray(nw) && nw.length > 0) setNewsList(nw); })
+        .catch(() => {});
+
+      fetch('/api/events')
+        .then(r => r.json())
+        .then(ev => { if (Array.isArray(ev) && ev.length > 0) setEventsList(ev); })
         .catch(() => {});
     };
 
@@ -2472,6 +2492,50 @@ const normalizeTabName = (rawTab) => {
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message || 'News post removed!', 'success');
       setNewsList(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  // Event Handlers
+  const handleSaveEvent = async (e) => {
+    e.preventDefault();
+    try {
+      const method = editingEvent ? 'PUT' : 'POST';
+      const url = editingEvent ? `/api/admin/events/${editingEvent.id}` : '/api/admin/events';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to save event');
+      
+      showToast(resData.message || (editingEvent ? 'Event updated!' : 'Event posted!'), 'success');
+      setShowEventModal(false);
+      setEditingEvent(null);
+      setEventForm({
+        title: '',
+        date: new Date().toISOString().split('T')[0],
+        location: 'Virtual',
+        description: '',
+        image: ''
+      });
+      fetch('/api/events').then(r => r.json()).then(data => Array.isArray(data) && setEventsList(data));
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleDeleteEvent = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to remove event "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to delete');
+      showToast(resData.message || 'Event removed!', 'success');
+      setEventsList(prev => prev.filter(e => e.id !== id));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -4212,6 +4276,15 @@ const normalizeTabName = (rawTab) => {
       show: canRead('news') || isWebAdmin || isSuperAdmin
     },
     {
+      id: 'events',
+      title: 'Events',
+      desc: 'Conferences and webinar registrations',
+      icon: Calendar,
+      color: '#8b5cf6',
+      btnText: 'Manage Events',
+      show: canRead('events') || isWebAdmin || isSuperAdmin
+    },
+    {
       id: 'hr',
       title: 'HR & Payroll',
       desc: 'Manage staff roll, approve business expense claims, and issue monthly payroll slips.',
@@ -4741,6 +4814,26 @@ const normalizeTabName = (rawTab) => {
               <Newspaper size={15} /> News
             </button>
           )}
+
+          {(isWebAdmin || isSuperAdmin || canRead('events')) && (
+            <button
+              onClick={() => updateActiveTab('events')}
+              className="btn-secondary"
+              style={{
+                padding: '0.55rem 1.1rem',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                background: activeTab === 'events' ? '#8b5cf6' : 'transparent',
+                color: activeTab === 'events' ? '#fff' : 'var(--text-main)',
+                border: activeTab === 'events' ? 'none' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Calendar size={15} /> Events
+            </button>
+          )}
+
 
           {(isHrManager || isStaff || isSuperAdmin || canRead('hr')) && (
             <button
@@ -8027,6 +8120,107 @@ const normalizeTabName = (rawTab) => {
               </div>
             )}
 
+            {/* EVENTS MODULE */}
+            {activeTab === 'events' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Events</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Publish upcoming events and view public registrations.
+                    </p>
+                  </div>
+                  {canCreate('events') && (
+                    <button
+                      onClick={() => {
+                        setEditingEvent(null);
+                        setEventForm({
+                          title: '',
+                          date: new Date().toISOString().split('T')[0],
+                          location: 'Virtual',
+                          description: '',
+                          image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80'
+                        });
+                        setShowEventModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#8b5cf6' }}
+                    >
+                      <Plus size={16} /> Add Event
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                  {eventsList.map((item, idx) => (
+                    <div key={item.id || idx} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
+                      <img src={item.image} alt={item.title} style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
+                      <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <span className="badge-tag" style={{ fontSize: '0.7rem', background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa' }}>{item.location}</span>
+                          <span>{item.date}</span>
+                        </div>
+                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', lineHeight: '1.35', marginBottom: '0.6rem' }}>{item.title}</h4>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '1.25rem', flex: 1 }}>
+                          {item.description || item.title}
+                        </p>
+                        
+                        <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Registrations:</span>
+                            <span className="badge" style={{ background: 'var(--primary)', color: '#fff' }}>
+                              {item.registrations?.length || 0}
+                            </span>
+                          </div>
+                          {item.registrations && item.registrations.length > 0 && (
+                            <div style={{ marginTop: '0.5rem', maxHeight: '100px', overflowY: 'auto' }}>
+                              {item.registrations.map((reg, ri) => (
+                                <div key={ri} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.2rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                  {reg.name} ({reg.email})
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                          {canUpdate('events') && (
+                            <button
+                              onClick={() => {
+                                setEditingEvent(item);
+                                setEventForm({
+                                  title: item.title,
+                                  date: item.date || new Date().toISOString().split('T')[0],
+                                  location: item.location || 'Virtual',
+                                  image: item.image || '',
+                                  description: item.description || ''
+                                });
+                                setShowEventModal(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                            >
+                              <Edit3 size={13} /> Edit
+                            </button>
+                          )}
+                          {(canDelete('events') || canDeleteSystemRecords) && (
+                            <button
+                              onClick={() => handleDeleteEvent(item.id, item.title)}
+                              className="btn-secondary"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#ef4444' }}
+                              title="Remove event"
+                            >
+                              <Trash size={13} /> Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* PAYMENTS MODULE */}
             {activeTab === 'payments' && (
               <div>
@@ -10600,7 +10794,7 @@ const normalizeTabName = (rawTab) => {
                           </div>
                         )}
                         
-                        {c.status !== 'replied' && replyingToId !== c.id && canDeleteSystemRecords && (
+                        {c.status !== 'replied' && replyingToId !== c.id && canUpdate('contacts') && (
                           <button 
                             className="btn-primary" 
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginTop: '0.5rem' }}
@@ -19386,7 +19580,7 @@ const normalizeTabName = (rawTab) => {
                 <div className="form-group">
                   <label style={{ fontWeight: '700' }}>Post Content / Summary *</label>
                   <textarea
-                    rows="4"
+                    rows="10"
                     className="form-input"
                     placeholder="Provide full text or summary details of the technical advisory / company announcement."
                     value={newsForm.content}
@@ -19400,6 +19594,92 @@ const normalizeTabName = (rawTab) => {
                     {editingNews ? 'Update Post' : 'Publish Post'}
                   </button>
                   <button type="button" onClick={() => setShowNewsModal(false)} className="btn-secondary">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* EVENT MODAL */}
+        {showEventModal && (
+          <div className="modal-overlay" onClick={() => setShowEventModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+              <h2 style={{ fontSize: '1.4rem', marginBottom: '0.25rem', fontWeight: '800' }}>
+                {editingEvent ? 'Edit Event' : 'Create New Event'}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                Configure the event details and upload a poster.
+              </p>
+
+              <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Event Title *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Cyber Security Summit 2026"
+                      value={eventForm.title}
+                      onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Date *</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={eventForm.date}
+                      onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700' }}>Location / Venue *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Kampala Serena Hotel or Virtual (Zoom)"
+                    value={eventForm.location}
+                    onChange={e => setEventForm({ ...eventForm, location: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700' }}>Poster Image URL *</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="Base64 or external URL"
+                    value={eventForm.image}
+                    onChange={e => setEventForm({ ...eventForm, image: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700' }}>Description *</label>
+                  <textarea
+                    rows="6"
+                    className="form-input"
+                    placeholder="Provide full details of the event."
+                    value={eventForm.description}
+                    onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
+                  <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#8b5cf6' }}>
+                    {editingEvent ? 'Update Event' : 'Publish Event'}
+                  </button>
+                  <button type="button" onClick={() => setShowEventModal(false)} className="btn-secondary">
                     Cancel
                   </button>
                 </div>

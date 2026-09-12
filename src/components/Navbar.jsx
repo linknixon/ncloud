@@ -140,6 +140,7 @@ export default function Navbar({ activePage, setActivePage }) {
     { id: 'services', label: 'Services' },
     { id: 'shop', label: 'Shop' },
     { id: 'jobs', label: 'Careers' },
+    { id: 'events', label: 'Events' },
     { id: 'subscription', label: 'Hosting' },
     { id: 'contact', label: 'Contact' }
   ];

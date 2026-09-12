@@ -375,6 +375,7 @@ const memoryStore = {
   ],
   applications: [],
   contacts: [],
+  events: [],
   subscriptions: [],
   invoices: [],
   payroll: [],
@@ -988,6 +989,89 @@ app.delete('/api/admin/news/:id', requireSuperAdmin, async (req, res) => {
 });
 
 app.get('/api/iso', (req, res) => {
+  res.json(memoryStore.iso_certificates || []);
+});
+
+// ==========================================
+// EVENTS API
+// ==========================================
+app.get('/api/events', (req, res) => {
+  res.json(memoryStore.events || []);
+});
+
+app.post('/api/admin/events', (req, res) => {
+  const { title, date, location, description, image } = req.body;
+  if (!title) return res.status(400).json({ error: 'Event title is required' });
+  const newEvent = {
+    id: Date.now(),
+    title,
+    date: date || new Date().toISOString().split('T')[0],
+    location: location || 'Virtual',
+    description: description || '',
+    image: image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+    registrations: []
+  };
+  if (!memoryStore.events) memoryStore.events = [];
+  memoryStore.events.unshift(newEvent);
+  savePersistentStore();
+  res.json({ message: 'Event posted successfully!', event: newEvent });
+});
+
+app.put('/api/admin/events/:id', (req, res) => {
+  const { id } = req.params;
+  const { title, date, location, description, image } = req.body;
+  const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
+  if (event) {
+    if (title) event.title = title;
+    if (date) event.date = date;
+    if (location) event.location = location;
+    if (description) event.description = description;
+    if (image) event.image = image;
+    savePersistentStore();
+    return res.json({ message: 'Event updated successfully!', event });
+  }
+  res.status(404).json({ error: 'Event not found' });
+});
+
+app.delete('/api/admin/events/:id', requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  memoryStore.events = (memoryStore.events || []).filter(e => String(e.id) !== String(id));
+  savePersistentStore();
+  return res.json({ message: 'Event removed successfully!' });
+});
+
+app.post('/api/events/:id/register', verifyTurnstile, (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone, company } = req.body;
+  
+  if (!name || !email) return res.status(400).json({ error: 'Name and email are required to register.' });
+
+  const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
+  if (!event) return res.status(404).json({ error: 'Event not found' });
+
+  if (!event.registrations) event.registrations = [];
+  
+  // Prevent duplicate registration for the same event
+  const alreadyRegistered = event.registrations.find(r => r.email.toLowerCase() === email.toLowerCase());
+  if (alreadyRegistered) {
+    return res.status(400).json({ error: 'You are already registered for this event.' });
+  }
+
+  const registration = {
+    id: Date.now(),
+    name,
+    email,
+    phone: phone || '',
+    company: company || '',
+    registered_at: new Date().toISOString()
+  };
+
+  event.registrations.push(registration);
+  savePersistentStore();
+  
+  res.json({ success: true, message: 'You have successfully registered for this event!' });
+});
+
   const seed = getSeedData();
   res.json(seed ? seed.isoStandards : []);
 });
