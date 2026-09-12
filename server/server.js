@@ -1072,6 +1072,7 @@ app.post('/api/events/:id/register', verifyTurnstile, (req, res) => {
   res.json({ success: true, message: 'You have successfully registered for this event!' });
 });
 
+app.get('/api/iso-standards', (req, res) => {
   const seed = getSeedData();
   res.json(seed ? seed.isoStandards : []);
 });
