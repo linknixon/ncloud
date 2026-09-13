@@ -2398,7 +2398,12 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 
   // 8. Output Base64
   const pdfBase64 = doc.output('datauristring');
-  return pdfBase64;
+  
+  if (options.download !== false) {
+    openPdfInBrowser(doc, `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`);
+  }
+  
+  return doc;
 }
 
 
