@@ -63,7 +63,7 @@ export function savePersistentStore(immediate = false) {
 }
 
 // Real SMTP Email Transport Helper (Nodemailer Socket Connection)
-export async function sendMail({ to, subject, text, html, attachments }) {
+export async function sendMail({ to, cc, subject, text, html, attachments }) {
   const settings = memoryStore?.smtp_settings || {};
   const host = (settings.host && settings.host.trim()) || process.env.SMTP_HOST;
   const port = Number(settings.port) || Number(process.env.SMTP_PORT) || 587;
@@ -128,6 +128,7 @@ export async function sendMail({ to, subject, text, html, attachments }) {
       from: `"${senderName}" <${senderEmail}>`,
       replyTo: senderEmail,
       to: formattedTo,
+      ...(cc ? { cc: (typeof cc === 'string' && cc.includes(',')) ? cc.split(',').map(e => e.trim()).filter(Boolean) : cc } : {}),
       subject: cleanSubject,
       text: cleanPlainText,
       html: html || `<p>${cleanPlainText}</p>`,
@@ -3312,7 +3313,7 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
 // ----------------------------------------------------
 app.post('/api/admin/contacts/:id/reply', async (req, res) => {
   const { id } = req.params;
-  const { response } = req.body;
+  const { response, cc, attachment } = req.body; // attachment expects { filename, content }
   
   if (!response) {
     return res.status(400).json({ error: 'Response message is required.' });
@@ -3342,10 +3343,18 @@ app.post('/api/admin/contacts/:id/reply', async (req, res) => {
     footerNote: 'Nova Cloud Edges (U) Limited • Lugga Zone, Ndejje, Wakiso, Uganda'
   });
 
+  const emailAttachments = attachment ? [{
+    filename: attachment.filename || 'attachment',
+    content: attachment.content.split('base64,')[1] || attachment.content,
+    encoding: 'base64'
+  }] : undefined;
+
   await sendMail({
     to: contact.email,
+    cc: cc || undefined,
     subject: `Re: ${contact.subject || 'General Inquiry'}`,
-    html: customerHtml
+    html: customerHtml,
+    attachments: emailAttachments
   });
 
   // Update DB and Memory Store
@@ -3357,6 +3366,29 @@ app.post('/api/admin/contacts/:id/reply', async (req, res) => {
   await saveStore();
 
   res.json({ success: true, message: 'Response sent successfully and recorded.', contact });
+});
+
+// Admin Update Contact Status (Complete or Closed)
+app.put('/api/admin/contacts/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status || !['replied', 'complete', 'closed'].includes(status)) {
+    return res.status(400).json({ error: 'Valid status is required.' });
+  }
+
+  const contactIdx = memoryStore.contacts.findIndex(c => String(c.id) === String(id));
+  if (contactIdx === -1) {
+    return res.status(404).json({ error: 'Contact inquiry not found.' });
+  }
+
+  const contact = memoryStore.contacts[contactIdx];
+  contact.status = status;
+
+  await query('UPDATE contacts SET status = ? WHERE id = ?', [status, id]);
+  await saveStore();
+
+  res.json({ success: true, message: `Ticket marked as ${status}.`, contact });
 });
 
 app.get('/api/admin/overview', async (req, res) => {

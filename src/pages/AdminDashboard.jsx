@@ -1024,6 +1024,10 @@ const normalizeTabName = (rawTab) => {
   const [replyMessage, setReplyMessage] = useState('');
   const [replyingToId, setReplyingToId] = useState(null);
   const [isReplying, setIsReplying] = useState(false);
+  const [contactsPage, setContactsPage] = useState(1);
+  const CONTACTS_PER_PAGE = 10;
+  const [replyCc, setReplyCc] = useState('');
+  const [replyAttachment, setReplyAttachment] = useState(null);
 
   // Payments & Settings Modals State
   const [paymentsTab, setPaymentsTab] = useState('customer');
@@ -4090,21 +4094,52 @@ const normalizeTabName = (rawTab) => {
     if (!replyMessage.trim()) return showToast('Please enter a response message.', 'error');
     setIsReplying(true);
     try {
+      let attachmentPayload = null;
+      if (replyAttachment) {
+        attachmentPayload = {
+          filename: replyAttachment.name,
+          content: await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(replyAttachment);
+          })
+        };
+      }
+
       const res = await fetch(`/api/admin/contacts/${contactId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ response: replyMessage })
+        body: JSON.stringify({ response: replyMessage, cc: replyCc, attachment: attachmentPayload })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send reply');
       showToast('Response sent to customer successfully.', 'success');
       setReplyingToId(null);
       setReplyMessage('');
+      setReplyCc('');
+      setReplyAttachment(null);
       fetchData(); // Refresh list
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
       setIsReplying(false);
+    }
+  };
+
+  const handleUpdateContactStatus = async (contactId, status) => {
+    try {
+      const res = await fetch(`/api/admin/contacts/${contactId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update ticket status');
+      showToast(`Ticket marked as ${status}.`, 'success');
+      fetchData();
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -10744,11 +10779,17 @@ const normalizeTabName = (rawTab) => {
                 (c.message || '').toLowerCase().includes(contactSearch.toLowerCase())
               );
 
+              const totalContactsPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE) || 1;
+              const paginatedContacts = filteredContacts.slice(
+                (contactsPage - 1) * CONTACTS_PER_PAGE,
+                contactsPage * CONTACTS_PER_PAGE
+              );
+
               return (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Messages</h3>
+                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Ticketing & Messages</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Customer contact form submissions, enterprise support tickets, and service inquiries.</p>
                     </div>
                   </div>
@@ -10760,19 +10801,19 @@ const normalizeTabName = (rawTab) => {
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="Search messages by sender name, email, subject, or contents..."
+                        placeholder="Search tickets by sender name, email, subject, or contents..."
                         value={contactSearch}
-                        onChange={e => setContactSearch(e.target.value)}
+                        onChange={e => { setContactSearch(e.target.value); setContactsPage(1); }}
                         style={{ paddingLeft: '2.5rem', width: '100%' }}
                       />
                     </div>
                     <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                      Showing {filteredContacts.length} of {allContacts.length} Customer Inquiries
+                      Showing {paginatedContacts.length} of {filteredContacts.length} Customer Tickets
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {filteredContacts.map(c => (
+                    {paginatedContacts.map(c => (
                       <div key={c.id} className="glass-card" style={{ padding: '1.25rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                           <h4 style={{ fontSize: '1.1rem' }}>{c.name} ({c.email})</h4>
@@ -10780,28 +10821,58 @@ const normalizeTabName = (rawTab) => {
                             {new Date(c.created_at || Date.now()).toLocaleDateString()}
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.5rem' }}>
-                          Subject: {c.subject}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--primary)' }}>
+                            Subject: {c.subject}
+                          </div>
+                          <div>
+                            <span style={{
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              background: c.status === 'replied' ? 'rgba(16, 185, 129, 0.15)' : c.status === 'complete' ? 'rgba(59, 130, 246, 0.15)' : c.status === 'closed' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                              color: c.status === 'replied' ? '#10b981' : c.status === 'complete' ? '#3b82f6' : c.status === 'closed' ? '#94a3b8' : '#f59e0b'
+                            }}>
+                              {c.status === 'replied' ? 'Replied' : c.status === 'complete' ? 'Complete' : c.status === 'closed' ? 'Closed' : 'Open'}
+                            </span>
+                          </div>
                         </div>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: '1.6', marginBottom: '1rem' }}>
                           "{c.message}"
                         </p>
                         
-                        {c.status === 'replied' && c.response && (
-                          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem' }}>
+                        {['replied', 'complete', 'closed'].includes(c.status) && c.response && (
+                          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem', marginBottom: '1rem' }}>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Admin Response ({new Date(c.replied_at).toLocaleDateString()}):</div>
                             <p style={{ fontSize: '0.875rem', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>{c.response}</p>
                           </div>
                         )}
                         
-                        {c.status !== 'replied' && replyingToId !== c.id && canUpdate('contacts') && (
-                          <button 
-                            className="btn-primary" 
-                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', marginTop: '0.5rem' }}
-                            onClick={() => { setReplyingToId(c.id); setReplyMessage(''); }}
-                          >
-                            Reply to Customer
-                          </button>
+                        {c.status !== 'closed' && c.status !== 'complete' && replyingToId !== c.id && canUpdate('contacts') && (
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <button 
+                              className="btn-primary" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                              onClick={() => { setReplyingToId(c.id); setReplyMessage(''); setReplyCc(''); setReplyAttachment(null); }}
+                            >
+                              Reply to Ticket
+                            </button>
+                            <button 
+                              className="btn-secondary" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                              onClick={() => handleUpdateContactStatus(c.id, 'complete')}
+                            >
+                              <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Complete
+                            </button>
+                            <button 
+                              className="btn-secondary" 
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(100, 116, 139, 0.1)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)' }}
+                              onClick={() => handleUpdateContactStatus(c.id, 'closed')}
+                            >
+                              <XCircle size={14} style={{ marginRight: '4px' }} /> Mark Closed
+                            </button>
+                          </div>
                         )}
                         
                         {replyingToId === c.id && (
@@ -10816,6 +10887,22 @@ const normalizeTabName = (rawTab) => {
                               required
                               style={{ width: '100%', marginBottom: '1rem', padding: '0.75rem' }}
                             ></textarea>
+                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>CC (comma separated emails, optional)</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. manager@example.com, support@ncloud.co.ug"
+                              value={replyCc}
+                              onChange={(e) => setReplyCc(e.target.value)}
+                              style={{ width: '100%', marginBottom: '1rem', padding: '0.75rem' }}
+                            />
+                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Attachment (optional)</label>
+                            <input
+                              type="file"
+                              className="form-input"
+                              onChange={(e) => setReplyAttachment(e.target.files[0])}
+                              style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }}
+                            />
                             <div style={{ display: 'flex', gap: '1rem' }}>
                               <button type="submit" className="btn-primary" disabled={isReplying}>
                                 {isReplying ? 'Sending...' : 'Send Reply'}
@@ -10828,7 +10915,39 @@ const normalizeTabName = (rawTab) => {
                         )}
                       </div>
                     ))}
+                    {filteredContacts.length === 0 && (
+                      <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+                        <Mail size={48} style={{ color: 'var(--text-muted)', opacity: 0.5, margin: '0 auto 1rem' }} />
+                        <h3 style={{ color: 'var(--text-muted)' }}>No tickets found matching your criteria.</h3>
+                      </div>
+                    )}
                   </div>
+
+                  {totalContactsPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        Page {contactsPage} of {totalContactsPages}
+                      </span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn-secondary"
+                          disabled={contactsPage === 1}
+                          onClick={() => setContactsPage(p => Math.max(1, p - 1))}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                          Previous
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          disabled={contactsPage === totalContactsPages}
+                          onClick={() => setContactsPage(p => Math.min(totalContactsPages, p + 1))}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}

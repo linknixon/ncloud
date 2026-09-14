@@ -4,14 +4,13 @@ echo "=========================================="
 echo "🚀 NOVA CLOUD SAFE UPDATE SCRIPT"
 echo "=========================================="
 
-echo "1. Stashing any accidental tracking changes..."
-git stash --quiet
+echo "1. Preparing for update..."
 
 echo "2. Fetching latest code from GitHub..."
 git fetch origin
 
-echo "3. Safely resetting codebase (Untracked database is safe!)..."
-git reset --hard origin/main
+echo "3. Safely pulling code (Local changes and untracked database are preserved)..."
+git pull --rebase --autostash origin main
 
 echo "4. Installing dependencies..."
 npm install --silent
