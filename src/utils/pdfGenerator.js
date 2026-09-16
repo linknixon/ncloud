@@ -2408,15 +2408,20 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 
 
 // ============================================================================
-// 10. GENERATE WORK ORDER POS RECEIPT 80MM (THERMAL FIELD SERVICE)
+// 10. GENERATE WORK ORDER PDF (A4 EXECUTIVE DESIGN)
 // ============================================================================
 
 export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
+
   const orderNum = sanitizePdfText(workOrder?.order_number || `WO-${workOrder?.id || '2026-0001'}`);
+  const creationDate = formatNinjaDate(workOrder?.created_at || workOrder?.date || new Date());
+  const scheduledDate = sanitizePdfText(workOrder?.scheduled_date || 'Immediate Dispatch');
   const staffName = sanitizePdfText(workOrder?.assigned_staff_name || 'Field Support Specialist');
   const siteLocation = sanitizePdfText(workOrder?.client_site || 'Nova Primary Datacenter');
   const taskTitle = sanitizePdfText(workOrder?.task_title || 'Field Operations Technical Deployment');
-  const desc = sanitizePdfText(workOrder?.description || 'Deliver scheduled technical deployment, cabling, server rack assembly, or optical fiber splicing as per corporate engineering guidelines.');
+  const desc = sanitizePdfText(workOrder?.description || 'Deliver scheduled technical deployment as per corporate engineering guidelines.');
   const modeLabel = workOrder?.charging_mode === 'per_hour' ? 'Hourly Rate' : 'Daily Project Rate';
   const rateVal = Number(workOrder?.rate || 0);
   const qtyVal = Number(workOrder?.quantity || 1);
@@ -2428,224 +2433,197 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(orderNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
 
-  // Measure wrapped lines using a dummy document so no words ever go away or clip off
-  const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
-  registerTrebuchetFont(dummyDoc);
-  const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
-  const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
-  const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
+  // Top 3-Tone Accent Bar
+  drawInvoiceNinja3ToneBar(doc, 0, 4);
 
-  const calculatedHeight = Math.max(160, 175 + (taskLines.length * 4.2) + (descLines.length * 3.8) + (siteLines.length * 3.8));
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
-  registerTrebuchetFont(doc);
+  // Logo Left
+  drawInvoiceNinjaBurgundyLogo(doc, 14, 10, activeLogo);
 
-  let y = 6;
+  // Top Right Solid Box for Document Meta
+  doc.setFillColor(30, 58, 138); // Dark Blue
+  doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  // Header Logo (Centered)
-  if (activeLogo) {
-    try {
-      doc.addImage(activeLogo, 'PNG', 24, y, 32, 10.67);
-      y += 13;
-    } catch {
-      y += 2;
-    }
-  }
-
-  // Header Titles
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
+  doc.setTextColor(255, 255, 255);
+
+  const metaRows = [
+    { label: 'WORK ORDER VOUCHER', val: `#${orderNum}` },
+    { label: 'Creation Date:', val: creationDate },
+    { label: 'Scheduled Date:', val: scheduledDate },
+    { label: 'Current Status:', val: workOrder?.status || 'Active Dispatch' }
+  ];
+
+  metaRows.forEach((r, idx) => {
+    const rowY = 13 + idx * 6;
+    doc.text(r.label, 127, rowY);
+    doc.text(r.val, 193, rowY, { align: 'right' });
+  });
+
+  let y = 46;
+
+  // Header Title
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(14);
   doc.setTextColor(15, 23, 42);
-  doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
-  y += 4.5;
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(30, 58, 138); // Dark Blue
-  doc.text('FIELD SERVICE WORK ORDER', 40, y, { align: 'center' });
-  y += 4;
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
-  y += 3.5;
-  doc.text('Tel: (+256) 790 001631 / 33 • support@ncloud.co.ug', 40, y, { align: 'center' });
-  y += 4;
+  doc.text('OFFICIAL FIELD SERVICE DISPATCH', 105, y, { align: 'center' });
+  y += 6;
 
   // Dashed divider
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.3);
-  doc.setLineDashPattern([1.5, 1.5], 0);
-  doc.line(5, y, 75, y);
-  doc.setLineDashPattern([], 0);
-  y += 5;
+  doc.line(14, y, 196, y);
+  y += 8;
 
-  // Work Order Ref & Status Box
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('WORK ORDER REF:', 8, y + 4.8);
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text(`#${orderNum}`, 72, y + 4.8, { align: 'right' });
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Scheduled Date:', 8, y + 9.5);
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(workOrder?.scheduled_date || 'Immediate', 72, y + 9.5, { align: 'right' });
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.text('Status:', 8, y + 13.5);
-  doc.setFont('TrebuchetMS', 'bold');
-  const isCompleted = workOrder?.status === 'Completed';
-  doc.setTextColor(isCompleted ? 22 : 217, isCompleted ? 163 : 119, isCompleted ? 74 : 6);
-  doc.text(`[ ${workOrder?.status || 'Active Dispatch'} ]`, 72, y + 13.5, { align: 'right' });
-
-  y += 18;
-
-  // Deployment Site & Staff Details
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text('DISPATCH & TARGET SITE DETAILS:', 5, y);
-  y += 4.5;
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Assigned Engineer:', 5, y);
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text(staffName, 75, y, { align: 'right' });
-  y += 4.2;
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Deployment Site / Client:', 5, y);
-  y += 3.8;
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setTextColor(15, 23, 42);
-  siteLines.forEach(line => {
-    doc.text(line, 5, y);
-    y += 3.8;
-  });
-
-  // Dashed divider
-  y += 1;
-  doc.setLineDashPattern([1.5, 1.5], 0);
-  doc.line(5, y, 75, y);
-  doc.setLineDashPattern([], 0);
-  y += 5;
-
-  // Scope & Task Section (Dynamic from Database)
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text('ASSIGNED TECHNICAL SCOPE OF WORK:', 5, y);
-  y += 4.5;
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  taskLines.forEach(line => {
-    doc.text(line, 5, y);
-    y += 4;
-  });
-
-  if (descLines.length > 0 && descLines[0] !== '') {
-    doc.setFont('TrebuchetMS', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    descLines.forEach(line => {
-      doc.text(line, 5, y);
-      y += 3.6;
-    });
-  }
-
-  // Dashed divider
-  y += 2;
-  doc.setLineDashPattern([1.5, 1.5], 0);
-  doc.line(5, y, 75, y);
-  doc.setLineDashPattern([], 0);
-  y += 5;
-
-  // Operations & Charging Schedule
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(30, 58, 138);
-  doc.text('OPERATIONS & BILLING SCHEDULE:', 5, y);
-  y += 4.5;
-
-  const printMetric = (label, val) => {
-    doc.setFont('TrebuchetMS', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text(label, 5, y);
-    doc.setFont('TrebuchetMS', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text(String(val), 75, y, { align: 'right' });
-    y += 4.2;
-  };
-
-  printMetric('Charging Method:', modeLabel);
-  printMetric('Operational Unit Rate:', formatNinjaUGX(rateVal));
-  const unitStr = `${qtyVal} ${workOrder?.charging_mode === 'per_hour' ? (qtyVal > 1 ? 'Hours' : 'Hour') : (qtyVal > 1 ? 'Days' : 'Day')}`;
-  printMetric('Time / Units Logged:', unitStr);
-
-  y += 1;
-
-  // Approved Job Cost Card (Prominent & High-Contrast)
+  // Two Column Layout
+  // Column 1: Client & Site Info
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
+  doc.roundedRect(14, y, 88, 30, 1.5, 1.5, 'FD');
 
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('DEPLOYMENT SITE & CLIENT DETAILS', 18, y + 6);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  const siteLines = doc.splitTextToSize(siteLocation, 80);
+  doc.text(siteLines, 18, y + 12);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('TOTAL APPROVED JOB VALUE:', 8, y + 4.5);
+  doc.text(workOrder?.client_name ? `Client: ${workOrder.client_name}` : 'Corporate Client', 18, y + 20 + (siteLines.length > 1 ? 4 : 0));
+  doc.text(workOrder?.client_contact ? `Contact: ${workOrder.client_contact}` : 'Contact on file', 18, y + 25 + (siteLines.length > 1 ? 4 : 0));
+
+
+  // Column 2: Assigned Staff Info
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(108, y, 88, 30, 1.5, 1.5, 'FD');
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('ASSIGNED FIELD ENGINEER', 112, y + 6);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(staffName, 112, y + 13);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Nova Operations & Engineering Dept', 112, y + 19);
+
+  y += 40;
+
+  // Scope Section
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 58, 138);
+  doc.text('ASSIGNED TECHNICAL SCOPE OF WORK', 14, y);
+  y += 6;
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  const taskLines = doc.splitTextToSize(taskTitle, 180);
+  doc.text(taskLines, 14, y);
+  y += taskLines.length * 5;
+
+  if (desc) {
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    const descLines = doc.splitTextToSize(desc, 180);
+    doc.text(descLines, 14, y);
+    y += descLines.length * 5;
+  }
+  
+  y += 5;
+
+  // Billing & Operations Schedule Table
+  doc.setFillColor(30, 58, 138);
+  doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Charging Method', 18, y + 5.5);
+  doc.text('Unit Rate (UGX)', 80, y + 5.5);
+  doc.text('Units Logged', 130, y + 5.5);
+  doc.text('Total Cost (UGX)', 190, y + 5.5, { align: 'right' });
+  
+  y += 8;
+
+  doc.setFillColor(248, 250, 252);
+  doc.rect(14, y, 182, 12, 'F');
+  
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  
+  doc.text(modeLabel, 18, y + 7.5);
+  doc.text(formatNinjaUGX(rateVal).replace(' UGX', ''), 80, y + 7.5);
+  
+  const unitStr = `${qtyVal} ${workOrder?.charging_mode === 'per_hour' ? (qtyVal > 1 ? 'Hours' : 'Hour') : (qtyVal > 1 ? 'Days' : 'Day')}`;
+  doc.text(unitStr, 130, y + 7.5);
+  
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text(formatNinjaUGX(totalCost).replace(' UGX', ''), 190, y + 7.5, { align: 'right' });
+
+  // Border bottom for table
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.line(14, y + 12, 196, y + 12);
+  
+  y += 18;
+
+  // Total Card
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(124, y, 72, 14, 1.5, 1.5, 'FD');
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('APPROVED JOB VALUE:', 128, y + 5.5);
 
   doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
-  doc.text(formatNinjaUGX(totalCost), 72, y + 10, { align: 'right' });
+  doc.text(formatNinjaUGX(totalCost), 192, y + 10, { align: 'right' });
 
-  y += 18;
-
-  // Verification Section (Centered without overflowing)
+  // Digital Verification section on left
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
-  doc.text('Verify the Document here:', 40, y, { align: 'center' });
-  y += 3.8;
+  doc.text('Verify the Document here:', 14, y + 4);
 
   doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
-  doc.text(verifyUrl, 40, y, { align: 'center' });
-  y += 4;
+  doc.text(verifyUrl, 14, y + 8.5);
 
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 30, y, 20, 20);
-      y += 22;
+      doc.addImage(qrDataUrl, 'PNG', 14, y + 11, 20, 20);
     } catch {}
   }
 
-  // Bottom text
+  // Footer text
   doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Official Field Operations Deployment Voucher', 40, y, { align: 'center' });
-  y += 3.2;
-  doc.text('Nova Cloud Edges (U) Limited • ncloud.co.ug', 40, y, { align: 'center' });
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 58, 138);
+  doc.text('Page 1 of 1', 105, 288, { align: 'center' });
+  drawInvoiceNinja3ToneBar(doc, 293, 4);
 
   openPdfInBrowser(doc, `Work_Order_${orderNum}.pdf`);
   return doc;

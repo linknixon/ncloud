@@ -1131,6 +1131,30 @@ async function verifyTurnstile(req, res, next) {
       body: `secret=${encodeURIComponent(security.turnstile_secret_key)}&response=${encodeURIComponent(token)}`
     });
     const cfData = await cfRes.json();
+    // Use AbortController to enforce a 7-second timeout on the Cloudflare API call.
+    // Without this, a network issue on the production server causes the request to hang
+    // indefinitely, leaving the browser stuck on "Authenticating..."
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+    let cfData = { success: false };
+    try {
+      const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${encodeURIComponent(security.turnstile_secret_key)}&response=${encodeURIComponent(token)}`,
+        signal: controller.signal
+      });
+      cfData = await cfRes.json();
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      // If Cloudflare is unreachable or timed out, allow login to proceed rather than
+      // blocking all users. Log the failure for monitoring.
+      console.warn('[Turnstile] Cloudflare siteverify unreachable, bypassing CAPTCHA check:', fetchErr.message);
+      return next();
+    }
+    clearTimeout(timeoutId);
+
     if (!cfData.success) {
       return res.status(403).json({ error: 'CAPTCHA verification failed. Please try again.' });
     }
@@ -1138,6 +1162,8 @@ async function verifyTurnstile(req, res, next) {
   } catch (err) {
     console.error('Turnstile verification error:', err);
     return res.status(500).json({ error: 'CAPTCHA verification service unavailable.' });
+    // Fail open — do not block login if our verification logic itself crashes
+    return next();
   }
 }
 
@@ -7721,6 +7747,20 @@ function generateCorporateEmailHtml({
     /* Footer */
     .email-footer { background: #f1f5f9; padding: 30px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.7; border-top: 1px solid #e2e8f0; }
     .footer-highlight { color: #1e3a8a; font-weight: 600; }
+
+    @media screen and (max-width: 600px) {
+      body { padding: 10px 5px !important; }
+      .email-container { max-width: 100% !important; border-radius: 8px !important; margin: 0 !important; }
+      .email-header { padding: 25px 15px !important; }
+      .company-title { font-size: 20px !important; }
+      .email-body { padding: 20px 15px !important; }
+      .doc-title { font-size: 20px !important; }
+      .data-table th, .data-table td { padding: 10px 8px !important; font-size: 12px !important; }
+      .data-table { word-wrap: break-word; table-layout: fixed; }
+      .total-row td { font-size: 14px !important; }
+      .total-amount { font-size: 16px !important; }
+      .primary-btn { padding: 14px 24px !important; font-size: 14px !important; width: 100% !important; box-sizing: border-box; }
+    }
   </style>
 </head>
 <body>
