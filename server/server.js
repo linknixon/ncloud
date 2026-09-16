@@ -6621,7 +6621,11 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
   registerTrebuchetFont(dummyDoc);
+  dummyDoc.setFont('TrebuchetMS', 'bold');
+  dummyDoc.setFontSize(7.5);
   const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
+  dummyDoc.setFont('TrebuchetMS', 'normal');
+  dummyDoc.setFontSize(7);
   const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
   const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
 
@@ -6856,7 +6860,11 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
   registerTrebuchetFont(dummyDoc);
+  dummyDoc.setFont('TrebuchetMS', 'normal');
+  dummyDoc.setFontSize(7.5);
   const descLines = dummyDoc.splitTextToSize(desc, 68);
+  dummyDoc.setFont('TrebuchetMS', 'bold');
+  dummyDoc.setFontSize(7.5);
   const catLines = dummyDoc.splitTextToSize(category, 68);
   const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
