@@ -14589,7 +14589,7 @@ const normalizeTabName = (rawTab) => {
                               type="number"
                               min="1"
                               className="form-input"
-                              value={lineItem.quantity || 1}
+                              value={lineItem.quantity === 0 ? '' : lineItem.quantity} onFocus={e => e.target.select()}
                               onChange={(e) => {
                                 const next = [...(invoiceForm.items || [])];
                                 next[idx] = { ...next[idx], quantity: Math.max(1, parseInt(e.target.value) || 1) };
@@ -14610,7 +14610,7 @@ const normalizeTabName = (rawTab) => {
                               type="number"
                               min="0"
                               className="form-input"
-                              value={lineItem.unit_price || 0}
+                              value={lineItem.unit_price === 0 ? '' : lineItem.unit_price} onFocus={e => e.target.select()}
                               onChange={(e) => {
                                 const next = [...(invoiceForm.items || [])];
                                 next[idx] = { ...next[idx], unit_price: Number(e.target.value) || 0 };
@@ -15495,7 +15495,7 @@ const normalizeTabName = (rawTab) => {
                                 type="number"
                                 min="1"
                                 className="form-input"
-                                value={it.quantity || 1}
+                                value={it.quantity === 0 ? '' : it.quantity} onFocus={e => e.target.select()}
                                 onChange={e => {
                                   const updated = [...(quotationForm.items || [])];
                                   updated[idx].quantity = Math.max(1, parseInt(e.target.value) || 1);
@@ -15514,7 +15514,7 @@ const normalizeTabName = (rawTab) => {
                                 type="number"
                                 min="0"
                                 className="form-input"
-                                value={it.unit_price || 0}
+                                value={it.unit_price === 0 ? '' : it.unit_price} onFocus={e => e.target.select()}
                                 onChange={e => {
                                   const updated = [...(quotationForm.items || [])];
                                   updated[idx].unit_price = Number(e.target.value) || 0;
@@ -15765,7 +15765,7 @@ const normalizeTabName = (rawTab) => {
                         type="number"
                         min="1"
                         className="form-input"
-                        value={workOrderForm.quantity || 1}
+                        value={workOrderForm.quantity === 0 ? '' : workOrderForm.quantity} onFocus={e => e.target.select()}
                         onChange={e => setWorkOrderForm({ ...workOrderForm, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
                         required
                       />

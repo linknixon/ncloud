@@ -5878,9 +5878,16 @@ app.post('/api/admin/users', async (req, res) => {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const existing = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === cleanEmail);
-  if (existing) {
+  const existingEmail = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === cleanEmail);
+  if (existingEmail) {
     return res.status(400).json({ error: 'A user with this email address already exists.' });
+  }
+
+  if (phone) {
+    const existingPhone = (memoryStore.users || []).find(u => u && u.phone && u.phone.trim() === phone.trim());
+    if (existingPhone) {
+      return res.status(400).json({ error: 'A user with this phone number already exists.' });
+    }
   }
 
   const rawPassword = (password && password.trim()) || `NovaCloud@${Math.floor(1000 + Math.random() * 9000)}`;
