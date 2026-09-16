@@ -146,6 +146,81 @@
       "password_changed_at": "2026-09-01T13:30:18.681Z",
       "passwordHash": "$2b$10$UlVNHnPl9BDcmjoWLg8RJeeJPGWOz4xSYuzvzoM8z16nhrPs90Jb6",
       "password_hash": "$2b$10$UlVNHnPl9BDcmjoWLg8RJeeJPGWOz4xSYuzvzoM8z16nhrPs90Jb6"
+    },
+    {
+      "id": 1789559699696,
+      "name": "daniellanabwirefaith",
+      "email": "daniellanabwirefaith@gmail.com",
+      "passwordHash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "password_hash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0000000000",
+      "company": "Recovered User",
+      "status": "Active",
+      "is_verified": true,
+      "created_at": "2026-09-16T11:54:59.696Z"
+    },
+    {
+      "id": 1789559699704,
+      "name": "dkakama",
+      "email": "dkakama@ucu.ac.ug",
+      "passwordHash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "password_hash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0000000000",
+      "company": "Recovered User",
+      "status": "Active",
+      "is_verified": true,
+      "created_at": "2026-09-16T11:54:59.703Z"
+    },
+    {
+      "id": 1789559699705,
+      "name": "blessedavins",
+      "email": "blessedavins@gmail.com",
+      "passwordHash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "password_hash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0000000000",
+      "company": "Recovered User",
+      "status": "Active",
+      "is_verified": true,
+      "created_at": "2026-09-16T11:54:59.703Z"
+    },
+    {
+      "id": 1789559699706,
+      "name": "nixonkamugishademo",
+      "email": "nixonkamugishademo@gmail.com",
+      "passwordHash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "password_hash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0000000000",
+      "company": "Recovered User",
+      "status": "Active",
+      "is_verified": true,
+      "created_at": "2026-09-16T11:54:59.703Z"
+    },
+    {
+      "id": 1789559699707,
+      "name": "emmanuelokure168",
+      "email": "emmanuelokure168@gmail.com",
+      "passwordHash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "password_hash": "$2b$10$6fU4G9bexzPWcKrfBN6cGOXELmxeq5zAY/Y0iX9D7QQeoKbWLv0ou",
+      "role": "customer",
+      "position": "Customer",
+      "title": "Customer",
+      "phone": "0000000000",
+      "company": "Recovered User",
+      "status": "Active",
+      "is_verified": true,
+      "created_at": "2026-09-16T11:54:59.703Z"
     }
   ],
   "services": [
@@ -1034,6 +1109,75 @@
       "demand_notice_sent": true,
       "demand_notice_date": "2026-08-29T05:44:44.721Z",
       "reminder_count": 1
+    },
+    {
+      "id": 1789559700703,
+      "invoice_number": "INV-2026-3122",
+      "customer_name": "Recovered Client",
+      "customer_email": "pending@ncedges.com",
+      "company": "Recovered Company",
+      "item_name": "Recovered Non-Hosting Product",
+      "plan_name": "Recovered Non-Hosting Product",
+      "amount": 0,
+      "paid_amount": 0,
+      "balance": 0,
+      "status": "Pending",
+      "due_date": "2026-09-16",
+      "created_at": "2026-09-16T11:54:59.703Z",
+      "items": [
+        {
+          "name": "Recovered Product",
+          "quantity": 1,
+          "unit_price": 0,
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "id": 1789559700704,
+      "invoice_number": "INV-2026-5102",
+      "customer_name": "Recovered Client",
+      "customer_email": "pending@ncedges.com",
+      "company": "Recovered Company",
+      "item_name": "Recovered Non-Hosting Product",
+      "plan_name": "Recovered Non-Hosting Product",
+      "amount": 0,
+      "paid_amount": 0,
+      "balance": 0,
+      "status": "Pending",
+      "due_date": "2026-09-16",
+      "created_at": "2026-09-16T11:54:59.703Z",
+      "items": [
+        {
+          "name": "Recovered Product",
+          "quantity": 1,
+          "unit_price": 0,
+          "amount": 0
+        }
+      ]
+    },
+    {
+      "id": 1789559700705,
+      "invoice_number": "INV-2026-6153",
+      "customer_name": "Recovered Client",
+      "customer_email": "pending@ncedges.com",
+      "company": "Recovered Company",
+      "item_name": "Recovered Non-Hosting Product",
+      "plan_name": "Recovered Non-Hosting Product",
+      "amount": 0,
+      "paid_amount": 0,
+      "balance": 0,
+      "status": "Pending",
+      "due_date": "2026-09-16",
+      "created_at": "2026-09-16T11:54:59.703Z",
+      "items": [
+        {
+          "name": "Recovered Product",
+          "quantity": 1,
+          "unit_price": 0,
+          "amount": 0
+        }
+      ]
     }
   ],
   "payroll": [],
