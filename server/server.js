@@ -1125,12 +1125,6 @@ async function verifyTurnstile(req, res, next) {
   }
 
   try {
-    const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${encodeURIComponent(security.turnstile_secret_key)}&response=${encodeURIComponent(token)}`
-    });
-    const cfData = await cfRes.json();
     // Use AbortController to enforce a 7-second timeout on the Cloudflare API call.
     // Without this, a network issue on the production server causes the request to hang
     // indefinitely, leaving the browser stuck on "Authenticating..."
