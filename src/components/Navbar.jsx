@@ -936,6 +936,7 @@ export default function Navbar({ activePage, setActivePage }) {
                 }}
               >
                 <Edit3 size={14} /> Edit Profile Settings
+              </button>
             </div>
           )}
           

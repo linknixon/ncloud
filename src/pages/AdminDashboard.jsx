@@ -5042,7 +5042,7 @@ const normalizeTabName = (rawTab) => {
                 {!isCustomer && (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 250px))',
+                    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(200px, 250px))',
                     gap: '1rem'
                   }}>
                     {(canRead('invoices') || isSuperAdmin) && (
@@ -5332,7 +5332,7 @@ const normalizeTabName = (rawTab) => {
                         const top3Headlines = rawNews.slice(0, 3);
 
                         return (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                             {top3Headlines.map((newsItem, idx) => (
                               <div
                                 key={newsItem.id || idx}
@@ -5390,7 +5390,7 @@ const normalizeTabName = (rawTab) => {
                         </div>
                       );
                       return (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
                           {myOrders.slice(0, 3).map(wo => (
                             <div key={wo.id} className="glass-card" style={{ padding: '1rem', borderLeft: '4px solid #eab308' }}>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{wo.order_number}</div>
@@ -5420,7 +5420,7 @@ const normalizeTabName = (rawTab) => {
                 ) : (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
                     gap: '1.25rem',
                     width: '100%'
                   }}>
@@ -5714,7 +5714,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* 4 Roles Per Row Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedRoles.map(role => {
                       const permKeys = Object.keys(role.permissions || {});
                       const activePermsCount = permKeys.filter(k => {
@@ -5942,7 +5942,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Summary Metric KPI Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="glass-card" style={{ padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #6366f1' }}>
                       <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1' }}>
                         <Users size={20} />
@@ -6106,7 +6106,7 @@ const normalizeTabName = (rawTab) => {
                     <>
                       {/* VIEW 1: ELEGANT 4-PER-ROW GRID VIEW */}
                       {usersViewMode === 'grid' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                           {paginatedUsers.map(u => {
                             const badge = getRoleBadgeStyle(u.role);
                             const isActive = (u.status || 'Active') === 'Active';
@@ -6882,7 +6882,7 @@ const normalizeTabName = (rawTab) => {
                   </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
                   {(slidersList.length > 0 ? slidersList : (data?.sliders || [])).map(slide => (
                     <div key={slide.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px', opacity: slide.active !== false ? 1 : 0.75 }}>
                       <div style={{ position: 'relative', height: '170px', width: '100%', background: '#050a14' }}>
@@ -7185,7 +7185,7 @@ const normalizeTabName = (rawTab) => {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                         {storeProducts.filter(p => {
                           const matchesSearch = !catalogSearch ||
                             (p.name || '').toLowerCase().includes(catalogSearch.toLowerCase()) ||
@@ -7322,7 +7322,7 @@ const normalizeTabName = (rawTab) => {
 
                 {/* TAB 2: CORE SERVICES LIST */}
                 {catalogTab === 'services' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                     {servicesList.filter(s => !catalogSearch || (s.title || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.summary || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.description || '').toLowerCase().includes(catalogSearch.toLowerCase())).map(s => (
                       <div key={s.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: '14px' }}>
                         <div>
@@ -7464,7 +7464,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 {/* Summary Metrics */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                   <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Total Company Spend</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#ef4444' }}>
@@ -7502,7 +7502,7 @@ const normalizeTabName = (rawTab) => {
 
                   return (
                     <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                         {paginatedExpenses.map(e => {
                           const isApproved = e.status === 'Approved by Supervisor' || e.status === 'Approved';
                           const isRejected = e.status === 'Rejected by Supervisor' || e.status === 'Rejected';
@@ -7754,7 +7754,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 {/* 2 items per row grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem' }}>
                   {jobsList.filter(j => !jobSearch || (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.department || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.location || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.description || '').toLowerCase().includes(jobSearch.toLowerCase())).map(j => (
                     <div key={j.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: '14px' }}>
                       <div>
@@ -7874,7 +7874,7 @@ const normalizeTabName = (rawTab) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                   {teamList.filter(m => !teamSearch || (m.name || '').toLowerCase().includes(teamSearch.toLowerCase()) || (m.role || '').toLowerCase().includes(teamSearch.toLowerCase()) || (m.bio || '').toLowerCase().includes(teamSearch.toLowerCase())).map((m, idx) => (
                     <div key={m.id || idx} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '14px' }}>
                       <img
@@ -7969,7 +7969,7 @@ const normalizeTabName = (rawTab) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                   {partnersList.filter(p => !partnerSearch || (p.name || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.website || '').toLowerCase().includes(partnerSearch.toLowerCase())).map((p, idx) => (
                     <div key={p.id || idx} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '14px' }}>
                       <div style={{
@@ -8104,7 +8104,7 @@ const normalizeTabName = (rawTab) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                   {newsList.filter(n => !newsSearch || (n.title || '').toLowerCase().includes(newsSearch.toLowerCase()) || (n.category || '').toLowerCase().includes(newsSearch.toLowerCase()) || (n.content || '').toLowerCase().includes(newsSearch.toLowerCase()) || (n.summary || '').toLowerCase().includes(newsSearch.toLowerCase())).map((item, idx) => (
                     <div key={item.id || idx} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
                       <img src={item.image} alt={item.title} style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
@@ -8186,7 +8186,7 @@ const normalizeTabName = (rawTab) => {
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                   {eventsList.map((item, idx) => (
                     <div key={item.id || idx} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
                       <img src={item.image} alt={item.title} style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
@@ -8565,7 +8565,7 @@ const normalizeTabName = (rawTab) => {
                   return (
                     <div>
                       {paginatedCards.length > 0 ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', alignItems: 'start', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', alignItems: 'start', marginBottom: '1.5rem' }}>
                           {paginatedCards.map(card => (
                             <div
                               key={card.id}
@@ -9046,7 +9046,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Responsive Invoices Grid Layout */}
-                  <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedInvoices.map(inv => {
                       const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
                       const isCancelled = inv.status === 'Cancelled' || inv.status === 'Canceled';
@@ -9567,7 +9567,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Quotations Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedQuotes.map(q => {
                       const isConverted = q.status === 'Converted to Invoice';
                       return (
@@ -9825,7 +9825,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* 3 Records Per Row Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedOrders.map(wo => {
                       const isCompleted = wo.status === 'Completed';
                       return (
@@ -10106,7 +10106,7 @@ const normalizeTabName = (rawTab) => {
                       <p style={{ fontSize: '0.85rem' }}>Generate new vouchers using the button above.</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                       {paginatedVouchers.map(v => (
                         <div
                           key={v.id}
@@ -10406,7 +10406,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Bank Accounts Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {filteredBanks.map(b => (
                       <div
                         key={b.id}
@@ -10570,7 +10570,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Subscriptions Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                     {filteredSubs.length === 0 ? (
                       <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3.5rem 1.5rem', borderRadius: '16px' }}>
                         <CreditCard size={44} style={{ margin: '0 auto 1rem', color: 'var(--primary)' }} />
@@ -10985,7 +10985,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Workflow Status Metrics */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Total Candidate Submissions</div>
                       <div style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--primary)' }}>
@@ -11031,7 +11031,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* 4 Candidate Applications Per Row Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedApps.map(app => {
                       const isHrPending = app.status === 'Pending HR Review' || app.status === 'pending';
                       const isHrRejected = app.status === 'Rejected by HR';
@@ -11212,7 +11212,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
                   {/* Card 1: Official Brand Logo */}
                   <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
@@ -11554,7 +11554,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
 
                       <form onSubmit={handleSaveAnnouncement}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Visibility</label>
                             <select
@@ -11632,7 +11632,7 @@ const normalizeTabName = (rawTab) => {
                           />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.75rem' }}>Button Text</label>
                             <input
@@ -11781,7 +11781,7 @@ const normalizeTabName = (rawTab) => {
 
                       <form onSubmit={handleSaveTopbar}>
                         {/* Visibility and 24/7 NOC Toggle */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Bar Visibility</label>
                             <select
@@ -12128,7 +12128,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
 
                       <form onSubmit={handleSaveSmtpSettings}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>SMTP Host *</label>
                             <input
@@ -12161,7 +12161,7 @@ const normalizeTabName = (rawTab) => {
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Encryption *</label>
                             <select
@@ -12199,7 +12199,7 @@ const normalizeTabName = (rawTab) => {
                           />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>SMTP User</label>
                             <input
@@ -12352,7 +12352,7 @@ const normalizeTabName = (rawTab) => {
                           </select>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
                           <div className="form-group">
                             <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Turnstile Site Key</label>
                             <input
@@ -12525,7 +12525,7 @@ const normalizeTabName = (rawTab) => {
                   {hrTab === 'expenses' ? (
                     <div>
                       {/* Expenses List */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
                         {(Array.isArray(data?.staff_expenses) ? data.staff_expenses : []).map(exp => (
                           <div
                             key={exp.id}
@@ -12666,7 +12666,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
 
                   {/* Payroll Summary Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Total Monthly Payroll</div>
                       <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f97316' }}>
@@ -12696,7 +12696,7 @@ const normalizeTabName = (rawTab) => {
 
                     return (
                       <div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                           {paginatedPayrolls.map(p => (
                             <div
                               key={p.id}
@@ -12967,7 +12967,7 @@ const normalizeTabName = (rawTab) => {
                     <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#8b5cf6', textTransform: 'uppercase', marginBottom: '0.6rem', letterSpacing: '0.04em' }}>
                       Instant Financial Statement & Audit PDF Exports:
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
                       <button
                         onClick={() => generateBalanceSheetPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                         className="btn-primary"
@@ -13000,7 +13000,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Executive KPI Metric Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700' }}>Total Invoiced Sales</div>
                       <div style={{ fontSize: '1.45rem', fontWeight: '900', color: 'var(--primary)', marginTop: '4px' }}>
@@ -13053,7 +13053,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* 2-Column: Star Selling Performers vs Items Needing Push */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {/* Column 1: Star Performers */}
                     <div className="glass-card" style={{ padding: '1.25rem' }}>
                       <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#16a34a', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -13127,7 +13127,7 @@ const normalizeTabName = (rawTab) => {
                         No expenditure records in system database yet.
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
                         {categoryBreakdown.map((cat, i) => {
                           const totalExpenditure = metrics.total_expenditures || 1;
                           const pct = Math.min(100, Math.round(((cat.total_amount || 0) / totalExpenditure) * 100));
@@ -13710,7 +13710,7 @@ const normalizeTabName = (rawTab) => {
                       });
 
                       return userSubs.length > 0 ? (
-                        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                           {userSubs.map(sub => (
                             <div key={sub.id} style={{ padding: '0.85rem 1rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.3rem' }}>
@@ -13764,7 +13764,7 @@ const normalizeTabName = (rawTab) => {
 
                       return userInvoices.length > 0 ? (
                         <div>
-                          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                             {paginatedPortalInvoices.map(inv => (
                               <div
                                 key={inv.id}
@@ -13968,7 +13968,7 @@ const normalizeTabName = (rawTab) => {
                     padding: '0.85rem 1rem',
                     border: '1px solid var(--border-color)',
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))',
                     gap: '0.75rem',
                     fontSize: '0.8rem'
                   }}>
@@ -17051,7 +17051,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 {/* Invoice Info Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
                   <div style={{ background: '#f8fafc', padding: '1.1rem', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#0284c7', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.04em' }}>Billed To:</div>
                     <div style={{ fontWeight: '900', fontSize: '1.05rem', color: '#0f172a', marginBottom: '0.2rem' }}>{selectedInvoice.customer_name}</div>
@@ -20161,7 +20161,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   <div style={{ maxHeight: '200px', overflowY: 'auto', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.75rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '0.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(190px, 1fr))', gap: '0.5rem' }}>
                       {[
                         { key: 'invoices', label: 'Invoices & Billing' },
                         { key: 'quotations', label: 'Commercial Quotations' },

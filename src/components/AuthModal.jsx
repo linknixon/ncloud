@@ -181,14 +181,7 @@ export default function AuthModal({ setActivePage }) {
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
-          turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '') 
-        })
-      });
+
       // Add a 15-second timeout so "Authenticating..." never spins forever
       // if the server is slow or a middleware (e.g. Cloudflare Turnstile) hangs.
       const controller = new AbortController();
