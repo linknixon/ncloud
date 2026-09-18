@@ -476,8 +476,8 @@ export async function generateInvoicePDF(inv, options = {}) {
   // Pre-calculate heights
   const preparedItems = items.map((it, idx) => {
     const numStr = String(idx + 1).padStart(2, '0');
-    const nameLines = doc.splitTextToSize(String(it.name || ''), 90);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 90);
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 75);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 75);
     const totalLines = nameLines.length + descLines.length;
     const rowH = Math.max(8.5, totalLines * 3.8 + 3.5);
     return { it, numStr, nameLines, descLines, rowH };
@@ -763,8 +763,8 @@ export async function generateQuotationPDF(quote, options = {}) {
 
   const preparedItems = items.map((it, idx) => {
     const numStr = String(idx + 1).padStart(2, '0');
-    const nameLines = doc.splitTextToSize(String(it.name || ''), 90);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 90);
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 75);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 75);
     const totalLines = nameLines.length + descLines.length;
     const rowH = Math.max(8.5, totalLines * 3.8 + 3.5);
     return { it, numStr, nameLines, descLines, rowH };
