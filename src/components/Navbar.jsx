@@ -915,6 +915,12 @@ export default function Navbar({ activePage, setActivePage }) {
               </button>
             </div>
           )}
+          
+          {/* Section Divider */}
+          <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }} />
+          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0.5rem 0.75rem', marginBottom: '0.2rem' }}>
+            Main Menu
+          </div>
 
           {navItems.map(item => (
             <button
@@ -933,6 +939,11 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           ))}
           
+          {/* Section Divider */}
+          <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0 1rem 0' }} />
+          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 0.75rem', marginBottom: '0.5rem' }}>
+            Account & Portal
+          </div>
           <button
             onClick={() => {
               setMobileOpen(false);
