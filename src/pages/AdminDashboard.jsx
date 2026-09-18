@@ -9045,8 +9045,8 @@ const normalizeTabName = (rawTab) => {
                     </span>
                   </div>
 
-                  {/* 3 Invoices per Row Grid Layout */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  {/* Responsive Invoices Grid Layout */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedInvoices.map(inv => {
                       const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
                       const isCancelled = inv.status === 'Cancelled' || inv.status === 'Canceled';
