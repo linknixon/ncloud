@@ -63,6 +63,18 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const authAction = params.get('auth');
+      if (authAction === 'signup' || authAction === 'register') {
+        openAuthModal('signup');
+      } else if (authAction === 'login') {
+        openAuthModal('login');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
