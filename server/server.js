@@ -47,6 +47,10 @@ export function savePersistentStore(immediate = false) {
   const executeSave = () => {
     try {
       if (typeof memoryStore !== 'undefined' && memoryStore) {
+        const dir = path.dirname(persistentStorePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
         fs.writeFileSync(persistentStorePath, JSON.stringify(memoryStore, null, 2), 'utf8');
       }
     } catch (err) {

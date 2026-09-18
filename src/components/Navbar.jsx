@@ -913,6 +913,27 @@ export default function Navbar({ activePage, setActivePage }) {
               >
                 <Edit3 size={14} /> Edit Profile Settings
               </button>
+              
+              <button
+                onClick={() => { logout(); setMobileOpen(false); }}
+                style={{
+                  width: '100%',
+                  marginTop: '0.4rem',
+                  padding: '0.5rem',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  fontWeight: '700',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogOut size={14} /> Sign Out
+              </button>
             </div>
           )}
           
@@ -964,25 +985,6 @@ export default function Navbar({ activePage, setActivePage }) {
           >
             Portal Dashboard
           </button>
-
-          {user && (
-            <button
-              onClick={() => { logout(); setMobileOpen(false); }}
-              style={{
-                textAlign: 'left',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#ef4444',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <LogOut size={16} /> Sign Out
-            </button>
-          )}
         </div>
       )}
     </header>
