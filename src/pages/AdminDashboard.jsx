@@ -5420,7 +5420,7 @@ const normalizeTabName = (rawTab) => {
                 ) : (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(340px, 1fr))',
                     gap: '1.25rem',
                     width: '100%'
                   }}>
@@ -6106,7 +6106,7 @@ const normalizeTabName = (rawTab) => {
                     <>
                       {/* VIEW 1: ELEGANT 4-PER-ROW GRID VIEW */}
                       {usersViewMode === 'grid' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                           {paginatedUsers.map(u => {
                             const badge = getRoleBadgeStyle(u.role);
                             const isActive = (u.status || 'Active') === 'Active';
@@ -7874,7 +7874,7 @@ const normalizeTabName = (rawTab) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
                   {teamList.filter(m => !teamSearch || (m.name || '').toLowerCase().includes(teamSearch.toLowerCase()) || (m.role || '').toLowerCase().includes(teamSearch.toLowerCase()) || (m.bio || '').toLowerCase().includes(teamSearch.toLowerCase())).map((m, idx) => (
                     <div key={m.id || idx} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '14px' }}>
                       <img
@@ -7969,7 +7969,7 @@ const normalizeTabName = (rawTab) => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
                   {partnersList.filter(p => !partnerSearch || (p.name || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.category || '').toLowerCase().includes(partnerSearch.toLowerCase()) || (p.website || '').toLowerCase().includes(partnerSearch.toLowerCase())).map((p, idx) => (
                     <div key={p.id || idx} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: '14px' }}>
                       <div style={{
@@ -9046,7 +9046,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Responsive Invoices Grid Layout */}
-                  <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedInvoices.map(inv => {
                       const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
                       const isCancelled = inv.status === 'Cancelled' || inv.status === 'Canceled';
@@ -13127,7 +13127,7 @@ const normalizeTabName = (rawTab) => {
                         No expenditure records in system database yet.
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem' }}>
                         {categoryBreakdown.map((cat, i) => {
                           const totalExpenditure = metrics.total_expenditures || 1;
                           const pct = Math.min(100, Math.round(((cat.total_amount || 0) / totalExpenditure) * 100));
@@ -13710,7 +13710,7 @@ const normalizeTabName = (rawTab) => {
                       });
 
                       return userSubs.length > 0 ? (
-                        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
                           {userSubs.map(sub => (
                             <div key={sub.id} style={{ padding: '0.85rem 1rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.3rem' }}>
@@ -13764,7 +13764,7 @@ const normalizeTabName = (rawTab) => {
 
                       return userInvoices.length > 0 ? (
                         <div>
-                          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                          <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                             {paginatedPortalInvoices.map(inv => (
                               <div
                                 key={inv.id}
