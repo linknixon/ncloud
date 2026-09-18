@@ -787,6 +787,10 @@ select option {
   }
 
   /* Form Inputs & Multi-Column Grids Mobile Optimization */
+  .mobile-grid-1 {
+    grid-template-columns: 1fr !important;
+  }
+  
   .responsive-2col,
   form [style*="gridTemplateColumns"],
   div[style*="gridTemplateColumns: '1fr 1fr'"],

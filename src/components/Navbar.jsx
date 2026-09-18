@@ -821,14 +821,38 @@ export default function Navbar({ activePage, setActivePage }) {
 
       {/* Mobile Menu Drawer */}
       {mobileOpen && (
-        <div style={{
-          background: 'var(--bg-card)',
-          borderBottom: '1px solid var(--border-color)',
-          padding: '1rem 1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem'
+        <div className="animate-slide-up" style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-main)',
+          padding: '1rem', borderBottom: '1px solid var(--border-color)', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+          display: 'flex', flexDirection: 'column', gap: '0.4rem', zIndex: 1000,
+          borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px',
+          maxHeight: 'calc(100vh - 75px)', overflowY: 'auto'
         }}>
+          {user && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <button
+                onClick={() => { logout(); setMobileOpen(false); }}
+                style={{
+                  width: '100%',
+                  padding: '0.6rem',
+                  borderRadius: '10px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  fontWeight: '800',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <LogOut size={16} /> Sign Out
+              </button>
+            </div>
+          )}
+
           {user && (
             <div style={{
               padding: '0.75rem',
@@ -912,28 +936,6 @@ export default function Navbar({ activePage, setActivePage }) {
                 }}
               >
                 <Edit3 size={14} /> Edit Profile Settings
-              </button>
-              
-              <button
-                onClick={() => { logout(); setMobileOpen(false); }}
-                style={{
-                  width: '100%',
-                  marginTop: '0.4rem',
-                  padding: '0.5rem',
-                  borderRadius: '8px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#ef4444',
-                  fontWeight: '700',
-                  fontSize: '0.8rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.4rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <LogOut size={14} /> Sign Out
-              </button>
             </div>
           )}
           
