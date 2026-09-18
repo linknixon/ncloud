@@ -266,7 +266,7 @@ class SettingsErrorBoundary extends React.Component {
 }
 
 export default function AdminDashboard({ setActivePage }) {
-  const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon, topbarSettings, updateTopbarSettings } = useApp();
+  const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon, topbarSettings, updateTopbarSettings, logout } = useApp();
   const [logoInput, setLogoInput] = useState(siteLogo || '');
   const [faviconInput, setFaviconInput] = useState(siteFavicon || '');
   
@@ -13657,9 +13657,19 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                   </div>
-                  <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', border: '1px solid rgba(110, 231, 183, 0.4)', padding: '3px 10px', fontSize: '0.725rem', fontWeight: '800', flexShrink: 0 }}>
-                    ● Account Active
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', border: '1px solid rgba(110, 231, 183, 0.4)', padding: '3px 10px', fontSize: '0.725rem', fontWeight: '800', flexShrink: 0 }}>
+                      ● Account Active
+                    </span>
+                    <button 
+                      onClick={() => logout()}
+                      style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: '1px solid rgba(248, 113, 113, 0.3)', padding: '4px 12px', fontSize: '0.75rem', fontWeight: '800', borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s' }}
+                      onMouseOver={e => e.target.style.background = 'rgba(239, 68, 68, 0.3)'}
+                      onMouseOut={e => e.target.style.background = 'rgba(239, 68, 68, 0.15)'}
+                    >
+                      Logout
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
