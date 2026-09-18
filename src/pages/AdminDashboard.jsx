@@ -9046,7 +9046,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Responsive Invoices Grid Layout */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                     {paginatedInvoices.map(inv => {
                       const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
                       const isCancelled = inv.status === 'Cancelled' || inv.status === 'Canceled';
@@ -13710,7 +13710,7 @@ const normalizeTabName = (rawTab) => {
                       });
 
                       return userSubs.length > 0 ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                           {userSubs.map(sub => (
                             <div key={sub.id} style={{ padding: '0.85rem 1rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.3rem' }}>
@@ -13764,7 +13764,7 @@ const normalizeTabName = (rawTab) => {
 
                       return userInvoices.length > 0 ? (
                         <div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
                             {paginatedPortalInvoices.map(inv => (
                               <div
                                 key={inv.id}
