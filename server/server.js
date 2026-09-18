@@ -8039,7 +8039,7 @@ app.post('/api/admin/smtp-test', async (req, res) => {
 
     // Step 2: Push real test email message via Nodemailer
     const mailHtml = `
-      <div style="font-family: Arial, sans-serif; padding: 25px; color: #0f172a; max-width: 600px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 12px; background: #ffffff;">
+      <div style="font-family: Arial, sans-serif; padding: 25px; color: #0f172a; width: 100%; max-width: 600px; margin: 0 auto; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 12px; background: #ffffff;">
         <h2 style="color: #2563eb; margin-top: 0;">Nova Cloud Edges SMTP Connectivity Test</h2>
         <p>This automated email confirms that your corporate SMTP mail server configuration is valid and pushing real outbound messages.</p>
         
@@ -9870,7 +9870,7 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
         introText: `This is an official <strong>Statutory Demand Notice</strong> regarding your outstanding payment requisition for Tax Invoice <strong>#${inv.invoice_number}</strong> which was due on <strong>${inv.due_date}</strong>.`,
         itemsRows: `
           <tr>
-            <td><strong>Billed Item:</strong> ${inv.item_name || 'Enterprise Cloud Infrastructure'}</td>
+            <td><strong>Billed Item:</strong> ${inv.item_name || 'Nova Cloud Service'}</td>
             <td style="text-align: center;">-</td>
             <td style="text-align: right; color: #dc2626; font-weight: 800;">UGX ${remainingDue.toLocaleString()}</td>
           </tr>
@@ -9931,7 +9931,7 @@ app.post('/api/admin/invoices/:id/remind', async (req, res) => {
         introText: `This is a courteous reminder that payment for Tax Invoice <strong>#${invoice.invoice_number}</strong> (UGX ${remainingDue.toLocaleString()}) is currently pending. Please find the official invoice attached for your accounts department.`,
         itemsRows: `
           <tr>
-            <td>${invoice.item_name || 'Enterprise Cloud Infrastructure'}</td>
+            <td>${invoice.item_name || 'Nova Cloud Service'}</td>
             <td style="text-align: center;">${invoice.quantity || 1}</td>
             <td style="text-align: right;">UGX ${remainingDue.toLocaleString()}</td>
           </tr>

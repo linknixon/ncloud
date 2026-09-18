@@ -189,6 +189,30 @@ export default function AuthModal({ setActivePage }) {
           turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '') 
         })
       });
+      // Add a 15-second timeout so "Authenticating..." never spins forever
+      // if the server is slow or a middleware (e.g. Cloudflare Turnstile) hangs.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      let res;
+      try {
+        res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...formData,
+            turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '')
+          }),
+          signal: controller.signal
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Connection timed out. Please check your network and try again.');
+        }
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      clearTimeout(timeoutId);
 
       const rawText = await res.text();
       let data = {};
