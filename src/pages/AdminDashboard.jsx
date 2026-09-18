@@ -6301,7 +6301,7 @@ const normalizeTabName = (rawTab) => {
                       {/* VIEW 2: DETAILED TABLE VIEW */}
                       {usersViewMode === 'table' && (
                         <div className="glass-card" style={{ overflowX: 'auto', padding: 0, marginBottom: '1.5rem' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                          <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                             <thead>
                               <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                                 <th style={{ padding: '0.9rem 1.1rem' }}>User Profile</th>
@@ -6437,7 +6437,7 @@ const normalizeTabName = (rawTab) => {
                                 );
                               })}
                             </tbody>
-                          </table>
+                          </table></div>
                         </div>
                       )}
 
@@ -6714,7 +6714,7 @@ const normalizeTabName = (rawTab) => {
 
                   {/* Forensics Table */}
                   <div className="glass-card" style={{ overflowX: 'auto', padding: 0, marginBottom: '1rem' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                           <th style={{ padding: '0.85rem 1rem', width: '40px' }}>
@@ -6839,7 +6839,7 @@ const normalizeTabName = (rawTab) => {
                           );
                         })}
                       </tbody>
-                    </table>
+                    </table></div>
                   </div>
 
                   {totalLogPages > 1 && (
@@ -10281,7 +10281,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   <div className="glass-card" style={{ overflowX: 'auto', padding: 0 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                           <th style={{ padding: '1rem 1.25rem' }}>Cron Task Name</th>
@@ -10342,7 +10342,7 @@ const normalizeTabName = (rawTab) => {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></div>
                   </div>
                 </div>
               );
@@ -13456,7 +13456,7 @@ const normalizeTabName = (rawTab) => {
 
                           {/* Ledger Table */}
                           <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
+                            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
                               <thead>
                                 <tr style={{ background: 'var(--bg-card-hover)', borderBottom: '2px solid var(--border-color)' }}>
                                   <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.725rem', letterSpacing: '0.04em', width: '130px' }}>Ref / ID</th>
@@ -13616,7 +13616,7 @@ const normalizeTabName = (rawTab) => {
                                   })
                                 )}
                               </tbody>
-                            </table>
+                            </table></div>
                           </div>
                         </>
                       );
@@ -17060,7 +17060,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
               {/* Itemized Line Items Table */}
-              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '1.5rem', fontSize: '0.875rem', color: '#0f172a' }}>
+              <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '1.5rem', fontSize: '0.875rem', color: '#0f172a' }}>
                 <thead>
                   <tr style={{ background: 'linear-gradient(90deg, #1e3a8a 0%, #1e40af 65%, rgba(30, 58, 138, 0.82) 100%)', color: '#ffffff', textAlign: 'left' }}>
                     <th style={{ padding: '0.8rem 1rem', color: '#ffffff', borderTopLeftRadius: '10px', borderBottomLeftRadius: '10px', fontWeight: '800' }}>
@@ -17207,7 +17207,7 @@ const normalizeTabName = (rawTab) => {
                     ));
                   })()}
                 </tbody>
-              </table>
+              </table></div>
 
               {/* Total Calculation Breakdown & Paid Stamp */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -17402,7 +17402,7 @@ const normalizeTabName = (rawTab) => {
 
                     {/* Payment Entries Table */}
                     {history.length > 0 ? (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', color: '#0f172a', background: '#ffffff', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
+                      <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', color: '#0f172a', background: '#ffffff', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                         <thead>
                           <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569', fontWeight: '800' }}>
                             <th style={{ padding: '0.45rem 0.65rem' }}>Date</th>
@@ -17427,7 +17427,7 @@ const normalizeTabName = (rawTab) => {
                             );
                           })}
                         </tbody>
-                      </table>
+                      </table></div>
                     ) : (
                       <div style={{ fontSize: '0.78rem', color: '#64748b', fontStyle: 'italic', textAlign: 'center', padding: '0.4rem 0' }}>
                         No partial installment payments recorded yet for this invoice.
@@ -18790,7 +18790,7 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                       <thead style={{ background: 'var(--bg-main)', position: 'sticky', top: 0 }}>
                         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <th style={{ padding: '0.6rem 0.75rem' }}>Product Name</th>
@@ -18817,7 +18817,7 @@ const normalizeTabName = (rawTab) => {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </table></div>
                   </div>
                 </div>
               )}
@@ -19872,7 +19872,7 @@ const normalizeTabName = (rawTab) => {
 
               {/* Existing Categories List */}
               <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                       <th style={{ padding: '0.6rem 0.75rem' }}>Category Name</th>
@@ -19915,7 +19915,7 @@ const normalizeTabName = (rawTab) => {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
@@ -20296,7 +20296,7 @@ const normalizeTabName = (rawTab) => {
 
               {/* Matrix Table */}
               <div className="glass-card" style={{ padding: 0, overflowX: 'auto', marginBottom: '1.5rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                       <th style={{ padding: '0.85rem 1.1rem' }}>Portal Module</th>
@@ -20367,7 +20367,7 @@ const normalizeTabName = (rawTab) => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               {/* Modal Save Actions */}
@@ -20431,7 +20431,7 @@ const normalizeTabName = (rawTab) => {
 
               {/* Matrix Table */}
               <div className="glass-card" style={{ padding: 0, overflowX: 'auto', marginBottom: '1.5rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
                       <th style={{ padding: '0.85rem 1.1rem' }}>Portal Module</th>
@@ -20507,7 +20507,7 @@ const normalizeTabName = (rawTab) => {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
               </div>
 
               {/* Modal Save Actions */}

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { NOVA_LOGO_BASE64 } from '../src/utils/logoBase64.js';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
@@ -5953,7 +5954,7 @@ app.get('/api/admin/invoices', (req, res) => {
 // ----------------------------------------------------
 const SERVER_BRAND = {
   name: 'NOVA CLOUD EDGES (U) LIMITED',
-  tagline: 'Enterprise Cloud Infrastructure & IT Solutions',
+  tagline: '',
   address: 'Lugga Zone, Ndejje, Wakiso, Republic of Uganda',
   tin: '1014892019',
   contact: 'billing@ncloud.co.ug | Hotline: +256 790 001 631 | https://ncloud.co.ug',
@@ -5987,7 +5988,7 @@ function sanitizePdfText(str) {
   return String(str).replace(/[\u200B-\u200D\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim();
 }
 
-const NOVA_SERVER_LOGO_BASE64 = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, '../public/nova_logo_official.png')).toString('base64')}`;
+const NOVA_SERVER_LOGO_BASE64 = NOVA_LOGO_BASE64;
 
 function formatNinjaDate(dateInput) {
   if (!dateInput) return '06/Jun/2026';
@@ -6171,8 +6172,8 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   const preparedItems = items.map((it, idx) => {
     const numStr = String(idx + 1).padStart(2, '0');
-    const nameLines = doc.splitTextToSize(String(it.name || ''), 110);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 110);
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 90);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 90);
     const totalLines = nameLines.length + descLines.length;
     const rowH = Math.max(8.5, totalLines * 3.8 + 3.5);
     return { it, numStr, nameLines, descLines, rowH };
@@ -6475,8 +6476,8 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
   const preparedItems = items.map((it, idx) => {
     const numStr = String(idx + 1).padStart(2, '0');
-    const nameLines = doc.splitTextToSize(String(it.name || ''), 110);
-    const descLines = doc.splitTextToSize(String(it.description || ''), 110);
+    const nameLines = doc.splitTextToSize(String(it.name || ''), 90);
+    const descLines = doc.splitTextToSize(String(it.description || ''), 90);
     const totalLines = nameLines.length + descLines.length;
     const rowH = Math.max(8.5, totalLines * 3.8 + 3.5);
     return { it, numStr, nameLines, descLines, rowH };
@@ -7067,7 +7068,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   const isCleared = pmt.status === '100% Paid' || pmt.status === 'Paid & Settled';
 
   const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(pmtRef)}`);
-  const activeLogo = options.logoDataUrl || memoryStore.site_logo;
+  const activeLogo = options.logoDataUrl || memoryStore.site_logo || NOVA_SERVER_LOGO_BASE64;
 
   // Top Accent Bar
   doc.setFillColor(15, 23, 42);
@@ -7776,7 +7777,7 @@ function generateCorporateEmailHtml({
   <div class="email-container">
     <div class="email-header">
       ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>'}
-      <div class="company-subtitle">Enterprise Cloud Infrastructure & IT Solutions</div>
+      <div class="company-subtitle"></div>
     </div>
     
     <div class="email-body">
