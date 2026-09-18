@@ -792,11 +792,10 @@ select option {
   }
   
   .responsive-2col,
-  form [style*="gridTemplateColumns"],
-  div[style*="gridTemplateColumns: '1fr 1fr'"],
-  div[style*="gridTemplateColumns: 1fr 1fr"],
-  div[style*="gridTemplateColumns: '1fr 1fr 1fr'"],
-  div[style*="gridTemplateColumns: 1fr 1fr 1fr"] {
+  form [style*="grid-template-columns"],
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  div[style*="grid-template-columns: repeat"] {
     grid-template-columns: 1fr !important;
   }
 
