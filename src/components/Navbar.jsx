@@ -829,11 +829,31 @@ export default function Navbar({ activePage, setActivePage }) {
           maxHeight: 'calc(100vh - 75px)', overflowY: 'auto'
         }}>
           {user && (
-            <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => { setActivePage('admin'); setMobileOpen(false); }}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem',
+                  borderRadius: '10px',
+                  background: 'var(--gradient-brand)',
+                  color: '#fff',
+                  fontWeight: '800',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  border: 'none'
+                }}
+              >
+                <LayoutDashboard size={16} /> Dashboard
+              </button>
               <button
                 onClick={() => { logout(); setMobileOpen(false); }}
                 style={{
-                  width: '100%',
+                  flex: 1,
                   padding: '0.6rem',
                   borderRadius: '10px',
                   background: 'rgba(239, 68, 68, 0.1)',
@@ -986,7 +1006,7 @@ export default function Navbar({ activePage, setActivePage }) {
               fontWeight: '700'
             }}
           >
-            Portal Dashboard
+            {!user ? 'Client Login / Register' : 'Portal Dashboard'}
           </button>
         </div>
       )}
