@@ -9225,8 +9225,9 @@ app.delete('/api/admin/invoices/:id', async (req, res) => {
 
   const idx = (memoryStore.invoices || []).findIndex(i => String(i.id) === String(id) || i.invoice_number === id);
   let deletedNum = id;
+  let deleted = null;
   if (idx !== -1) {
-    const deleted = memoryStore.invoices.splice(idx, 1)[0];
+    deleted = memoryStore.invoices.splice(idx, 1)[0];
     deletedNum = deleted.invoice_number || id;
     
     // Reverse any overpayment credit that came from this invoice
