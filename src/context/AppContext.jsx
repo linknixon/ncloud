@@ -66,9 +66,11 @@ export function AppProvider({ children }) {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const authAction = params.get('auth');
-      if (authAction === 'signup' || authAction === 'register') {
+      const path = window.location.pathname;
+      
+      if (authAction === 'signup' || authAction === 'register' || path === '/signup' || path === '/register') {
         openAuthModal('signup');
-      } else if (authAction === 'login') {
+      } else if (authAction === 'login' || path === '/login') {
         openAuthModal('login');
       }
     }
@@ -245,7 +247,14 @@ export function AppProvider({ children }) {
   }, [user]);
 
   const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('site_logo') || '/nova_logo_official.png');
-  const [siteFavicon, setSiteFavicon] = useState(() => localStorage.getItem('site_favicon') || '/favicon.png?v=2');
+  const [siteFavicon, setSiteFavicon] = useState(() => {
+    const saved = localStorage.getItem('site_favicon');
+    if (saved === '/nova_logo_official.png') {
+      localStorage.removeItem('site_favicon');
+      return '/favicon.png?v=2';
+    }
+    return saved || '/favicon.png?v=2';
+  });
 
   const applyFavicon = (url) => {
     if (!url) return;

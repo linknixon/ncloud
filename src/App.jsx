@@ -115,7 +115,10 @@ export default function App() {
             '/subscription': 'subscription',
             '/admin': 'admin',
             '/verify': 'verify',
-            '/verify-email': 'verify-email'
+            '/verify-email': 'verify-email',
+            '/signup': 'home',
+            '/register': 'home',
+            '/login': 'home'
           };
           if (pageMap[path]) {
             setActivePage(pageMap[path]);
