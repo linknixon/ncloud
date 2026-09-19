@@ -1,10 +1,10 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, ChevronLeft, ChevronRight, Info, X, Wifi } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide-react';
 
 export default function ShopPage({ setActivePage }) {
-  const { addToCart, openDirectCheckout, openSubscriptionCheckout } = useApp();
+  const { addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +66,17 @@ export default function ShopPage({ setActivePage }) {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setProducts(data.filter(p => !p.is_hidden));
+          const loadedProducts = data.filter(p => !p.is_hidden);
+          setProducts(loadedProducts);
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const itemSlug = params.get('item');
+            if (itemSlug) {
+              setSearchTerm(itemSlug.replace(/-/g, ' '));
+              const matchingProd = loadedProducts.find(p => (p.slug || '').includes(itemSlug) || (p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') === itemSlug);
+              if (matchingProd) setSelectedProductModal(matchingProd);
+            }
+          }
         } else {
           setProducts([]);
         }
@@ -427,6 +437,19 @@ export default function ShopPage({ setActivePage }) {
                               style={{ flex: 1, justifyContent: 'center', padding: '0.6rem 0.5rem', fontSize: '0.8rem', fontWeight: '800' }}
                             >
                               Buy Now
+                            </button>
+                            <button
+                              onClick={() => {
+                                const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                                const permalink = `${window.location.origin}/shop?item=${slug}`;
+                                navigator.clipboard.writeText(permalink).then(() => {
+                                  if (showToast) showToast('Product link copied to clipboard!', 'success');
+                                });
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.6rem 0.5rem', flexShrink: 0, title: 'Share Product' }}
+                            >
+                              <Share2 size={15} />
                             </button>
                           </div>
                         )}

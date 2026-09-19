@@ -1,8 +1,10 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
-import { Cloud, Cpu, Mail, ShieldCheck, Server, CheckCircle2, ArrowRight, PhoneCall, Radio, BarChart3, Code2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Cloud, Cpu, Mail, ShieldCheck, Server, CheckCircle2, ArrowRight, PhoneCall, Radio, BarChart3, Code2, Search, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 export default function ServicesPage({ setActivePage }) {
+  const { showToast } = useApp();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +18,14 @@ export default function ServicesPage({ setActivePage }) {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setServices(data);
+          // Check for permalink after data loads
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const itemSlug = params.get('item');
+            if (itemSlug) {
+              setSearchTerm(itemSlug.replace(/-/g, ' '));
+            }
+          }
         } else {
           setServices([]);
         }
@@ -191,6 +201,19 @@ export default function ServicesPage({ setActivePage }) {
                           Order Online <ArrowRight size={16} />
                         </button>
                       ) : null}
+                      <button
+                        onClick={() => {
+                          const slug = srv.slug || srv.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                          const permalink = `${window.location.origin}/services?item=${slug}`;
+                          navigator.clipboard.writeText(permalink).then(() => {
+                            if (showToast) showToast('Link copied to clipboard!', 'success');
+                          });
+                        }}
+                        className="btn-secondary"
+                        style={{ padding: '0.65rem', flexShrink: 0, title: 'Share Service' }}
+                      >
+                        <Share2 size={16} />
+                      </button>
                     </div>
 
                   </div>
