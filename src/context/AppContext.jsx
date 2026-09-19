@@ -245,7 +245,7 @@ export function AppProvider({ children }) {
   }, [user]);
 
   const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('site_logo') || '/nova_logo_official.png');
-  const [siteFavicon, setSiteFavicon] = useState(() => localStorage.getItem('site_favicon') || '/nova_logo_official.png');
+  const [siteFavicon, setSiteFavicon] = useState(() => localStorage.getItem('site_favicon') || '/favicon.png');
 
   const applyFavicon = (url) => {
     if (!url) return;

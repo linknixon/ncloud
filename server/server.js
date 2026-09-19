@@ -803,7 +803,7 @@ if (!memoryStore.site_logo) {
   memoryStore.site_logo = '/nova_logo_official.png';
 }
 if (!memoryStore.site_favicon) {
-  memoryStore.site_favicon = '/nova_logo_official.png';
+  memoryStore.site_favicon = '/favicon.png';
 }
 
 if (!memoryStore.delivery_notes) {
