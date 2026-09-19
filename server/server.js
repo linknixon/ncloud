@@ -2406,6 +2406,26 @@ app.post('/api/jobs/apply', async (req, res) => {
   };
 
   memoryStore.applications.push(applicationRecord);
+  savePersistentStore();
+
+  // Send confirmation email to applicant
+  const applicantEmailHtml = generateCorporateEmailHtml({
+    title: `Job Application Received: ${targetJob ? targetJob.title : 'General Position'}`,
+    badgeText: 'Application Received',
+    recipientName: applicant_name,
+    introText: `Thank you for your interest in joining Nova Cloud Edges. We have successfully received your job application and attached resume. Our HR department is currently reviewing your profile, and we will contact you once the initial screening is complete.`
+  });
+  sendMail({ to: email, subject: 'Job Application Received — Nova Cloud Edges', html: applicantEmailHtml }).catch(e => console.error("Failed to send applicant confirmation email:", e));
+
+  // Send alert email to HR
+  const hrEmail = memoryStore.notification_emails?.sales || 'hr@ncloud.co.ug';
+  const hrAlertHtml = generateCorporateEmailHtml({
+    title: `New Job Application Received`,
+    badgeText: 'HR Alert',
+    recipientName: 'HR Department',
+    introText: `A new job application has been submitted by <strong>${applicant_name}</strong> (${email}, ${phone}) for the position: <strong>${targetJob ? targetJob.title : 'General Position'}</strong> with ${experience_years} of experience.`
+  });
+  sendMail({ to: hrEmail, subject: `New Job Application: ${applicant_name}`, html: hrAlertHtml }).catch(e => console.error("Failed to send HR alert email:", e));
 
   res.json({
     message: 'Job application submitted successfully! Our HR team will contact you.',
@@ -2426,6 +2446,27 @@ app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
     appItem.status = 'Pending Super Admin Approval';
     appItem.hr_reviewed_by = hr_name || 'Systems Admin';
     appItem.hr_reviewed_at = new Date().toISOString();
+    savePersistentStore();
+
+    // Notify Applicant
+    const applicantEmailHtml = generateCorporateEmailHtml({
+      title: 'Application Advanced',
+      badgeText: 'Stage 1 Cleared',
+      recipientName: appItem.applicant_name,
+      introText: `Congratulations! Your job application has successfully passed the initial HR screening. It has now been advanced to executive management for final review. We will reach out to you shortly with the final hiring decision.`
+    });
+    sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
+
+    // Notify Super Admin
+    const adminEmail = memoryStore.notification_emails?.billing || 'management@ncloud.co.ug';
+    const adminAlertHtml = generateCorporateEmailHtml({
+      title: 'Final Hiring Approval Required',
+      badgeText: 'Management Alert',
+      recipientName: 'Super Admin',
+      introText: `Candidate <strong>${appItem.applicant_name}</strong> has passed HR screening. Their application is awaiting your final review and executive hiring approval on the dashboard.`
+    });
+    sendMail({ to: adminEmail, subject: 'Pending Hiring Decision', html: adminAlertHtml }).catch(e => console.error(e));
+
     return res.json({
       message: `Application for "${appItem.applicant_name}" approved by HR and submitted to Super Admin for final hiring approval!`,
       application: appItem
@@ -2443,6 +2484,17 @@ app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
     appItem.hr_rejection_reason = reason || 'Candidate screened out by HR';
     appItem.hr_reviewed_by = hr_name || 'Systems Admin';
     appItem.hr_reviewed_at = new Date().toISOString();
+    savePersistentStore();
+
+    // Notify Applicant
+    const applicantEmailHtml = generateCorporateEmailHtml({
+      title: 'Update on Your Application',
+      badgeText: 'Application Status',
+      recipientName: appItem.applicant_name,
+      introText: `Thank you for your interest in joining our team. After careful review, our HR team has decided not to advance your application at this time. We will keep your resume on file for future opportunities.`
+    });
+    sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
+
     return res.json({ message: `Application for "${appItem.applicant_name}" marked as Disapproved / Rejected by HR.`, application: appItem });
   }
   res.status(404).json({ error: 'Application not found' });
@@ -2480,6 +2532,16 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
       userRecord.role = assignedRole;
       if (position) userRecord.position = position;
     }
+    savePersistentStore();
+
+    // Notify Applicant
+    const applicantEmailHtml = generateCorporateEmailHtml({
+      title: 'Welcome to the Team!',
+      badgeText: 'You are Hired',
+      recipientName: appItem.applicant_name,
+      introText: `Congratulations! Executive management has approved your job application for the role of <strong>${assignedRole}</strong>. We are thrilled to welcome you to the Nova Cloud Edges team! Your corporate system account is currently being provisioned.`
+    });
+    sendMail({ to: appItem.email, subject: 'Congratulations! You are Hired — Nova Cloud Edges', html: applicantEmailHtml }).catch(e => console.error(e));
 
     return res.json({
       message: `Candidate "${appItem.applicant_name}" hired successfully! System user account created with role "${assignedRole}".`,
@@ -2497,6 +2559,17 @@ app.put('/api/admin/applications/:id/super-admin-reject', (req, res) => {
   if (appItem) {
     appItem.status = 'Rejected by Super Admin';
     appItem.super_admin_rejection_reason = reason || 'Candidate rejected at executive review';
+    savePersistentStore();
+
+    // Notify Applicant
+    const applicantEmailHtml = generateCorporateEmailHtml({
+      title: 'Update on Your Application',
+      badgeText: 'Application Status',
+      recipientName: appItem.applicant_name,
+      introText: `Thank you for your time and interest in joining our team. After final executive review, we have decided not to move forward with your application for this position. We appreciate your effort and wish you the best in your career journey.`
+    });
+    sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
+
     return res.json({ message: `Application for "${appItem.applicant_name}" disapproved by Super Admin.`, application: appItem });
   }
   res.status(404).json({ error: 'Application not found' });
