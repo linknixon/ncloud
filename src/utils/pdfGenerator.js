@@ -1584,8 +1584,17 @@ export async function generateExpenseVoucher80mmPDF(exp, options = {}) {
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
   registerTrebuchetFont(dummyDoc);
+  
+  dummyDoc.setFont('TrebuchetMS', 'normal');
+  dummyDoc.setFontSize(7);
   const descLines = dummyDoc.splitTextToSize(desc, 68);
+  
+  dummyDoc.setFont('TrebuchetMS', 'bold');
+  dummyDoc.setFontSize(7.5);
   const catLines = dummyDoc.splitTextToSize(category, 68);
+  
+  dummyDoc.setFont('TrebuchetMS', 'bold');
+  dummyDoc.setFontSize(8);
   const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
   const calculatedHeight = Math.max(160, 175 + (descLines.length * 3.8) + (catLines.length * 3.8) + (staffLines.length > 1 ? staffLines.length * 3.8 : 0));
@@ -1902,7 +1911,13 @@ export async function generateExpenseReportPDF(data = {}, options = {}) {
     const sName = sanitizePdfText(exp.staff_name || 'Staff Member');
     const cat = sanitizePdfText(exp.category || 'Expense');
     const desc = sanitizePdfText(exp.description || exp.purpose || '');
+    
+    dummyDoc.setFont('TrebuchetMS', 'bold');
+    dummyDoc.setFontSize(7);
     const catLines = dummyDoc.splitTextToSize(cat, 68);
+    
+    dummyDoc.setFont('TrebuchetMS', 'normal');
+    dummyDoc.setFontSize(7);
     const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
     const itemH = 14 + (catLines.length * 3.6) + (descLines.length * 3.4);
     itemHeights += itemH;
