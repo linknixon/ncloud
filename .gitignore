@@ -18,3 +18,4 @@ build
 *.log
 scratch/
 server/database/persistentStore.json
+server/database/*.json
