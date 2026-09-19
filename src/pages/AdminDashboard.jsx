@@ -15735,6 +15735,7 @@ const normalizeTabName = (rawTab) => {
                         }}
                         required
                       >
+                        <option value="">-- Select Assigned Staff --</option>
                         {(data?.users || []).map(u => (
                           <option key={u.id} value={u.name}>
                             {u.name} ({u.position || u.role})
