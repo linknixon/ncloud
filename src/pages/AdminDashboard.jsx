@@ -9744,7 +9744,7 @@ const normalizeTabName = (rawTab) => {
             {activeTab === 'work_orders' && (() => {
               const allOrders = Array.isArray(workOrdersList) ? workOrdersList : [];
               const rawOrders = currentRole === 'customer' ? [] 
-                : (isSuperAdmin || canRead('work_orders') || isSalesAdmin || isHrManager || isWebAdmin) ? allOrders 
+                : (isSuperAdmin || isSalesAdmin) ? allOrders 
                 : allOrders.filter(o => (o.assigned_staff_name && o.assigned_staff_name === user?.name) || (o.assigned_staff_id && o.assigned_staff_id == user?.id));
 
               const filteredOrders = rawOrders.filter(o =>
