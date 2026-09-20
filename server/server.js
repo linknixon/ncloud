@@ -5568,7 +5568,7 @@ app.get('/api/admin/schedules', (req, res) => {
   res.json(memoryStore.schedules || []);
 });
 
-app.post('/api/admin/schedules/:id/run-now', (req, res) => {
+app.post('/api/admin/schedules/:id/run-now', async (req, res) => {
   const { id } = req.params;
   const sch = (memoryStore.schedules || []).find(s => s.id == id);
   if (!sch) return res.status(404).json({ error: 'Schedule job not found' });
