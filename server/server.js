@@ -5432,6 +5432,57 @@ app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
   }
 });
 
+// Auto-generate vouchers directly via UniFi API
+app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
+  try {
+    const { quantity, duration_hours, data_quota_mb } = req.body;
+    
+    if (!quantity || !duration_hours) {
+      return res.status(400).json({ error: 'Quantity and duration are required.' });
+    }
+
+    const payload = {
+      count: Number(quantity),
+      timeLimitMinutes: Number(duration_hours) * 60,
+      usageQuota: 1,
+      note: "Generated via Nova Dashboard"
+    };
+
+    if (data_quota_mb && Number(data_quota_mb) > 0) {
+      payload.dataUsageLimitMBytes = Number(data_quota_mb);
+    }
+
+    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers`, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': UNIFI_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`UniFi API error: ${response.status} ${response.statusText}`);
+    }
+
+    // After creation, immediately run a sync to pull the newly generated codes down
+    const syncRes = await syncUniFiVouchers();
+    if (!syncRes.success) {
+      throw new Error('Vouchers created in UniFi, but failed to sync back to Nova: ' + syncRes.error);
+    }
+
+    res.json({ 
+      success: true,
+      message: `Successfully generated ${quantity} vouchers in UniFi and synced them to the inventory!`,
+      added: syncRes.added
+    });
+
+  } catch (err) {
+    console.error('Error auto-generating UniFi vouchers:', err);
+    res.status(500).json({ error: 'Failed to generate vouchers: ' + err.message });
+  }
+});
+
 // GET all vouchers (or filtered for customer)
 app.get('/api/admin/unifi/vouchers', (req, res) => {
   let vouchers = memoryStore.unifi_vouchers || [];

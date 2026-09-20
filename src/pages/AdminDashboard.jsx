@@ -696,6 +696,7 @@ const normalizeTabName = (rawTab) => {
 
   const [unifiVouchersList, setUnifiVouchersList] = useState([]);
   const [showUnifiModal, setShowUnifiModal] = useState(false);
+  const [unifiGenMode, setUnifiGenMode] = useState('auto');
   const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
   const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: 10 });
   const [unifiForm, setUnifiForm] = useState({
@@ -703,6 +704,7 @@ const normalizeTabName = (rawTab) => {
     duration_hours: 24,
     duration_label: '24 Hours',
     data_quota_mb: 0,
+    quantity: 10,
     package_name: '',
     customer_name: '',
     customer_email: ''
@@ -3527,7 +3529,9 @@ const normalizeTabName = (rawTab) => {
   const handleGenerateUnifiVouchers = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/unifi/generate', {
+      showToast(unifiGenMode === 'auto' ? 'Commanding UniFi to generate vouchers...' : 'Registering manually pasted vouchers...', 'info');
+      const endpoint = unifiGenMode === 'auto' ? '/api/admin/unifi/vouchers/generate' : '/api/admin/unifi/generate';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(unifiForm)
@@ -3536,7 +3540,7 @@ const normalizeTabName = (rawTab) => {
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message, 'success');
       setShowUnifiModal(false);
-      setUnifiForm({ voucher_codes: '', duration_hours: 24, duration_label: '24 Hours', data_quota_mb: 0, package_name: '', customer_name: '', customer_email: '' });
+      setUnifiForm({ voucher_codes: '', duration_hours: 24, duration_label: '24 Hours', data_quota_mb: 0, quantity: 10, package_name: '', customer_name: '', customer_email: '' });
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message, 'error');
@@ -15997,26 +16001,60 @@ const normalizeTabName = (rawTab) => {
                 Register UniFi WiFi Vouchers
               </h3>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                Copy voucher code(s) generated in your UniFi Controller and paste them here. The system stores them in your pool and automatically dispatches them to customers upon invoice payment.
+                Create new vouchers directly in the UniFi Controller, or manually paste codes you've already generated. The system stores them in your pool and automatically dispatches them to customers upon invoice payment.
               </p>
+              
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setUnifiGenMode('auto')} 
+                  style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', borderBottom: unifiGenMode === 'auto' ? '2px solid #0284c7' : '2px solid transparent', color: unifiGenMode === 'auto' ? '#0284c7' : 'var(--text-main)', fontWeight: unifiGenMode === 'auto' ? '700' : '500', cursor: 'pointer' }}
+                >
+                  Generate Automatically
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setUnifiGenMode('manual')} 
+                  style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', borderBottom: unifiGenMode === 'manual' ? '2px solid #0284c7' : '2px solid transparent', color: unifiGenMode === 'manual' ? '#0284c7' : 'var(--text-main)', fontWeight: unifiGenMode === 'manual' ? '700' : '500', cursor: 'pointer' }}
+                >
+                  Manual Entry (Paste)
+                </button>
+              </div>
+
               <form onSubmit={handleGenerateUnifiVouchers}>
 
-                {/* UniFi Voucher Code(s) Paste Field */}
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Voucher Code(s) *</label>
-                  <textarea
-                    rows={4}
-                    className="form-input"
-                    style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.5' }}
-                    placeholder={"Paste voucher code(s) from UniFi Controller:\ne.g. 54321-98765\n(Paste one code, or multiple codes one per line)"}
-                    value={unifiForm.voucher_codes}
-                    onChange={e => setUnifiForm({ ...unifiForm, voucher_codes: e.target.value })}
-                    required
-                  />
-                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                    Copy voucher tokens directly from UniFi Controller and paste them here. Separate multiple codes with newlines or commas.
-                  </small>
-                </div>
+                {unifiGenMode === 'auto' ? (
+                  <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Quantity to Generate *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-input"
+                      value={unifiForm.quantity}
+                      onChange={e => setUnifiForm({ ...unifiForm, quantity: Number(e.target.value) })}
+                      required={unifiGenMode === 'auto'}
+                    />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      The system will talk to your UniFi controller, command it to create {unifiForm.quantity} vouchers, and instantly sync them here.
+                    </small>
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Voucher Code(s) *</label>
+                    <textarea
+                      rows={4}
+                      className="form-input"
+                      style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.5' }}
+                      placeholder={"Paste voucher code(s) from UniFi Controller:\ne.g. 54321-98765\n(Paste one code, or multiple codes one per line)"}
+                      value={unifiForm.voucher_codes}
+                      onChange={e => setUnifiForm({ ...unifiForm, voucher_codes: e.target.value })}
+                      required={unifiGenMode === 'manual'}
+                    />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      Copy voucher tokens directly from UniFi Controller and paste them here. Separate multiple codes with newlines or commas.
+                    </small>
+                  </div>
+                )}
 
                 {/* Quick Preset Buttons */}
                 <div className="form-group">
@@ -16090,7 +16128,7 @@ const normalizeTabName = (rawTab) => {
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
                   <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#0284c7' }}>
-                    <Plus size={16} /> Save UniFi Voucher(s)
+                    {unifiGenMode === 'auto' ? <><Plus size={16} /> Auto Generate Vouchers</> : <><Plus size={16} /> Save Manually Pasted Vouchers</>}
                   </button>
                   <button type="button" onClick={() => setShowUnifiModal(false)} className="btn-secondary">
                     Cancel
