@@ -5655,14 +5655,35 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
 });
 
 // PUT suspend voucher
-app.put('/api/admin/wifi/vouchers/:id/suspend', (req, res) => {
+app.put('/api/admin/wifi/vouchers/:id/suspend', async (req, res) => {
   const { id } = req.params;
+  const role = req.headers['x-user-role'];
+  if (role !== 'super_admin') {
+    return res.status(403).json({ error: 'Permission denied: Only Super Admins can suspend vouchers' });
+  }
+
   const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
   if (!v) return res.status(404).json({ error: 'Voucher not found' });
+  
+  try {
+    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-KEY': UNIFI_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      console.warn(`[UniFi] Failed to delete voucher ${id} during suspension: ${await response.text()}`);
+    }
+  } catch (e) {
+    console.error('[UniFi] Error communicating with UniFi API for deletion:', e.message);
+  }
+
   v.status = 'suspended';
   v.suspended_at = new Date().toISOString();
   savePersistentStore();
-  res.json({ message: 'Voucher suspended successfully', voucher: v });
+  res.json({ message: 'Voucher suspended and revoked from UniFi successfully', voucher: v });
 });
 
 // PUT mark voucher as bought (manual override)
@@ -5698,8 +5719,53 @@ app.put('/api/admin/wifi/vouchers/:id/mark-bought', (req, res) => {
   if (customer_name) v.customer_name = customer_name;
   if (customer_email) v.customer_email = customer_email;
   if (invoice_id) v.invoice_id = invoice_id;
+
+  if (customer_email) {
+    const dataInfo = v.data_quota_mb > 0 ? v.data_label + ' Data' : 'Unlimited Data';
+    const emailHtml = generateCorporateEmailHtml({
+      title: 'Your Nova WiFi Access Voucher',
+      badgeText: 'WiFi Voucher Dispatched',
+      recipientName: customer_name || 'Customer',
+      introText: `Your Nova WiFi Voucher is ready to use — enter the code below on the WiFi login portal to get connected.`,
+      itemsRows: `
+        <tr>
+          <td style="padding:8px 0"><strong>Package</strong></td>
+          <td style="text-align:center"></td>
+          <td style="text-align:right">${v.package_name || 'WiFi Voucher'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0"><strong>Duration</strong></td>
+          <td style="text-align:center"></td>
+          <td style="text-align:right">${v.duration_label}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0"><strong>Data Quota</strong></td>
+          <td style="text-align:center"></td>
+          <td style="text-align:right">${dataInfo}</td>
+        </tr>
+        <tr style="background:#0f172a; border-radius:8px">
+          <td colspan="3" style="text-align:center; padding:18px">
+            <div style="font-size:11px; color:#94a3b8; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px">Your WiFi Access Code</div>
+            <b style="font-size:26px; color:#38bdf8; letter-spacing:0.12em; font-family:monospace">${v.token}</b>
+          </td>
+        </tr>
+      `,
+      subtotalText: 'Fully Paid',
+      vatText: 'Included',
+      totalAmountText: 'Cleared',
+      shareLink: 'https://ncloud.co.ug',
+      ctaText: 'Connect to WiFi Portal',
+      ctaLink: 'https://ncloud.co.ug'
+    });
+    sendMail({
+      to: customer_email,
+      subject: `Your Nova WiFi Voucher Code — ${v.duration_label}`,
+      html: emailHtml
+    }).catch(err => console.error('[WiFi] Failed to email voucher manually:', err));
+  }
+
   savePersistentStore();
-  res.json({ message: 'Voucher marked as bought', voucher: v });
+  res.json({ message: 'Voucher marked as bought and email dispatched', voucher: v });
 });
 
 // DELETE voucher

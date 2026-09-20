@@ -3535,18 +3535,6 @@ const normalizeTabName = (rawTab) => {
     setIsProcessing(false);
   };
 
-  const handleRevokeUnifiVoucher = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently revoke this voucher from both Nova and UniFi?")) return;
-    try {
-      showToast('Revoking voucher...', 'info');
-      const res = await fetch(`/api/admin/unifi/vouchers/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(await res.text());
-      showToast('Voucher permanently revoked', 'success');
-      fetchUnifiVouchers();
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
 
   const handleGenerateUnifiVouchers = async (e) => {
     e.preventDefault();
@@ -3586,9 +3574,12 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleSuspendWifiVoucher = async (id, token) => {
-    if (!window.confirm(`Suspend voucher ${token}? It will be locked from use.`)) return;
+    if (!window.confirm(`Suspend voucher ${token}? It will be locked from use and permanently revoked from the UniFi Controller.`)) return;
     try {
-      const res = await fetch(`/api/admin/wifi/vouchers/${id}/suspend`, { method: 'PUT' });
+      const res = await fetch(`/api/admin/wifi/vouchers/${id}/suspend`, { 
+        method: 'PUT',
+        headers: { 'x-user-role': currentRole || user?.role }
+      });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       showToast('Voucher suspended successfully', 'success');
@@ -3599,11 +3590,14 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleMarkVoucherBought = async (id) => {
+    const customerEmail = window.prompt("Enter customer email to instantly dispatch voucher (or leave blank to skip email):");
+    const customerName = customerEmail ? window.prompt("Enter customer name:") : null;
+
     try {
       const res = await fetch(`/api/admin/wifi/vouchers/${id}/mark-bought`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({ customer_email: customerEmail, customer_name: customerName })
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
@@ -10299,7 +10293,7 @@ const normalizeTabName = (rawTab) => {
                                 <Check size={12} /> Mark Bought
                               </button>
                             )}
-                            {v.status === 'available' && (isSuperAdmin || canUpdate('unifi')) && (
+                            {v.status === 'available' && isSuperAdmin && (
                               <button
                                 onClick={() => handleSuspendWifiVoucher(v.id, v.token)}
                                 className="btn-secondary"
