@@ -2684,10 +2684,7 @@ function docFontSizeSafe(doc, size) {
 // 8. GENERATE WIFI VOUCHERS PRINT GRID (A4)
 export async function generateWifiVoucherPrintoutPDF(vouchers, durationLabel) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  doc.addFileToVFS('TrebuchetMS.ttf', trebuchetMSFontBase64);
-  doc.addFont('TrebuchetMS.ttf', 'TrebuchetMS', 'normal');
-  doc.addFileToVFS('TrebuchetMS-Bold.ttf', trebuchetMSBoldFontBase64);
-  doc.addFont('TrebuchetMS-Bold.ttf', 'TrebuchetMS', 'bold');
+  registerTrebuchetFont(doc);
 
   // A4 size: 210 x 297 mm
   const startX = 15;

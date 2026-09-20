@@ -9634,6 +9634,17 @@ app.post('/api/admin/roles', (req, res) => {
   };
 
   memoryStore.roles.push(newRole);
+  
+  if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+  memoryStore.audit_logs.unshift({
+    id: memoryStore.audit_logs.length + 1,
+    timestamp: new Date().toISOString(),
+    user_name: 'Admin',
+    action: 'ROLE_CREATED',
+    details: `Created custom role: ${name} (${code})`,
+    ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1'
+  });
+
   savePersistentStore();
   res.json({ message: `Custom Role "${name}" created successfully and is now available for user assignment!`, role: newRole });
 });
@@ -9648,6 +9659,17 @@ app.put('/api/admin/roles/:id', (req, res) => {
     if (description !== undefined) r.description = description.trim();
     if (permissions) r.permissions = permissions;
     r.updated_at = new Date().toISOString();
+    
+    if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+    memoryStore.audit_logs.unshift({
+      id: memoryStore.audit_logs.length + 1,
+      timestamp: new Date().toISOString(),
+      user_name: 'Admin',
+      action: 'ROLE_UPDATED',
+      details: `Updated custom role details: ${r.name}`,
+      ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1'
+    });
+
     savePersistentStore();
     return res.json({ message: `Role "${r.name}" updated successfully`, role: r });
   }
@@ -9661,6 +9683,17 @@ app.put('/api/admin/roles/:id/permissions', (req, res) => {
   if (r) {
     r.permissions = permissions;
     r.updated_at = new Date().toISOString();
+
+    if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+    memoryStore.audit_logs.unshift({
+      id: memoryStore.audit_logs.length + 1,
+      timestamp: new Date().toISOString(),
+      user_name: 'Admin',
+      action: 'ROLE_PERMISSIONS_UPDATED',
+      details: `Updated granular permissions for role: ${r.name}`,
+      ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1'
+    });
+
     savePersistentStore();
     return res.json({ message: `Granular CRUDAS permissions updated for role "${r.name}"`, role: r });
   }
@@ -9676,6 +9709,17 @@ app.delete('/api/admin/roles/:id', requireSuperAdmin, (req, res) => {
       return res.status(400).json({ error: 'Cannot delete default Super Administrator role' });
     }
     const removed = memoryStore.roles.splice(idx, 1)[0];
+
+    if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+    memoryStore.audit_logs.unshift({
+      id: memoryStore.audit_logs.length + 1,
+      timestamp: new Date().toISOString(),
+      user_name: 'Super Admin',
+      action: 'ROLE_DELETED',
+      details: `Deleted custom role: ${removed.name}`,
+      ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1'
+    });
+
     savePersistentStore();
     return res.json({ message: `Custom role "${removed.name}" removed successfully` });
   }
