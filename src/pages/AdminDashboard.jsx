@@ -705,7 +705,10 @@ const normalizeTabName = (rawTab) => {
     duration_hours: 24,
     duration_label: '24 Hours',
     data_quota_mb: 0,
+    use_type: 'single',
     device_limit: 1,
+    download_limit_kbps: 0,
+    upload_limit_kbps: 0,
     quantity: 10,
     package_name: '',
     customer_name: '',
@@ -16137,20 +16140,62 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Device Limit / Quota</label>
-                  <input
-                    type="number"
-                    min="0"
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Voucher Use Type *</label>
+                  <select 
                     className="form-input"
-                    placeholder="1 = Single device, 0 = Unlimited"
-                    value={unifiForm.device_limit}
-                    onChange={e => setUnifiForm({ ...unifiForm, device_limit: Number(e.target.value) })}
-                  />
-                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    {unifiForm.device_limit > 0
-                      ? `Max ${unifiForm.device_limit} device${unifiForm.device_limit > 1 ? 's' : ''}`
-                      : 'Unlimited devices can share this voucher'}
-                  </small>
+                    value={unifiForm.use_type}
+                    onChange={e => {
+                      const type = e.target.value;
+                      let device_limit = unifiForm.device_limit;
+                      if (type === 'single') device_limit = 1;
+                      else if (type === 'unlimited') device_limit = 0;
+                      else if (type === 'multiple' && device_limit <= 1) device_limit = 2;
+                      setUnifiForm({ ...unifiForm, use_type: type, device_limit });
+                    }}
+                  >
+                    <option value="single">Single Use (1 Device)</option>
+                    <option value="multiple">Multiple Use (Custom Device Limit)</option>
+                    <option value="unlimited">Unlimited Uses / Devices</option>
+                  </select>
+                </div>
+
+                {unifiForm.use_type === 'multiple' && (
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Device Limit *</label>
+                    <input
+                      type="number"
+                      min="2"
+                      className="form-input"
+                      value={unifiForm.device_limit}
+                      onChange={e => setUnifiForm({ ...unifiForm, device_limit: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Download Limit (Kbps)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      placeholder="0 = Unlimited"
+                      value={unifiForm.download_limit_kbps}
+                      onChange={e => setUnifiForm({ ...unifiForm, download_limit_kbps: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Upload Limit (Kbps)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      placeholder="0 = Unlimited"
+                      value={unifiForm.upload_limit_kbps}
+                      onChange={e => setUnifiForm({ ...unifiForm, upload_limit_kbps: Number(e.target.value) })}
+                    />
+                  </div>
                 </div>
 
                 <div className="form-group">
