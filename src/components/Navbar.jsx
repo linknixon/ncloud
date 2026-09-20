@@ -848,7 +848,7 @@ export default function Navbar({ activePage, setActivePage }) {
                   border: 'none'
                 }}
               >
-                <LayoutDashboard size={16} /> Dashboard
+                <LayoutDashboard size={16} /> Portal Dashboard
               </button>
               <button
                 onClick={() => { logout(); setMobileOpen(false); }}
@@ -983,31 +983,31 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           ))}
           
-          {/* Section Divider */}
-          <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0 1rem 0' }} />
-          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 0.75rem', marginBottom: '0.5rem' }}>
-            Account & Portal
-          </div>
-          <button
-            onClick={() => {
-              setMobileOpen(false);
-              if (!user) {
-                openAuthModal('login');
-              } else {
-                setActivePage('admin');
-              }
-            }}
-            style={{
-              textAlign: 'left',
-              padding: '0.75rem',
-              borderRadius: '8px',
-              background: 'rgba(124, 58, 237, 0.1)',
-              color: 'var(--primary)',
-              fontWeight: '700'
-            }}
-          >
-            {!user ? 'Client Login / Register' : 'Portal Dashboard'}
-          </button>
+          {!user && (
+            <>
+              {/* Section Divider */}
+              <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0 1rem 0' }} />
+              <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 0.75rem', marginBottom: '0.5rem' }}>
+                Account & Portal
+              </div>
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  openAuthModal('login');
+                }}
+                style={{
+                  textAlign: 'left',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  background: 'rgba(124, 58, 237, 0.1)',
+                  color: 'var(--primary)',
+                  fontWeight: '700'
+                }}
+              >
+                Client Login / Register
+              </button>
+            </>
+          )}
         </div>
       )}
     </header>
