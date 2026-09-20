@@ -5456,7 +5456,7 @@ app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
 // Auto-generate vouchers directly via UniFi API
 app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
   try {
-    const { quantity, duration_hours, data_quota_mb } = req.body;
+    const { quantity, duration_hours, data_quota_mb, device_limit } = req.body;
     
     if (!quantity || !duration_hours) {
       return res.status(400).json({ error: 'Quantity and duration are required.' });
@@ -5465,7 +5465,8 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
     const payload = {
       count: Number(quantity),
       timeLimitMinutes: Number(duration_hours) * 60,
-      name: "Generated via Nova"
+      name: "Generated via Nova",
+      quota: device_limit !== undefined ? Number(device_limit) : 1
     };
 
     if (data_quota_mb && Number(data_quota_mb) > 0) {

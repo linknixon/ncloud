@@ -705,6 +705,7 @@ const normalizeTabName = (rawTab) => {
     duration_hours: 24,
     duration_label: '24 Hours',
     data_quota_mb: 0,
+    device_limit: 1,
     quantity: 10,
     package_name: '',
     customer_name: '',
@@ -16155,6 +16156,23 @@ const normalizeTabName = (rawTab) => {
                     {unifiForm.data_quota_mb > 0
                       ? `Quota: ${unifiForm.data_quota_mb >= 1024 ? (unifiForm.data_quota_mb/1024).toFixed(1)+' GB' : unifiForm.data_quota_mb+' MB'}`
                       : 'Unlimited data access'}
+                  </small>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Device Limit / Quota</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    placeholder="1 = Single device, 0 = Unlimited"
+                    value={unifiForm.device_limit}
+                    onChange={e => setUnifiForm({ ...unifiForm, device_limit: Number(e.target.value) })}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    {unifiForm.device_limit > 0
+                      ? `Max ${unifiForm.device_limit} device${unifiForm.device_limit > 1 ? 's' : ''}`
+                      : 'Unlimited devices can share this voucher'}
                   </small>
                 </div>
 
