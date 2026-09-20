@@ -699,6 +699,7 @@ const normalizeTabName = (rawTab) => {
   const [unifiGenMode, setUnifiGenMode] = useState('auto');
   const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
   const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: '', status: 'available' });
+  const [isProcessing, setIsProcessing] = useState(false);
   const [unifiForm, setUnifiForm] = useState({
     voucher_codes: '',
     duration_hours: 24,
@@ -3497,10 +3498,13 @@ const normalizeTabName = (rawTab) => {
 
   const handlePrintUnifiVouchers = async (e) => {
     e.preventDefault();
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       const targetVouchers = unifiVouchersList.filter(v => v.status === unifiPrintForm.status && v.duration_hours === Number(unifiPrintForm.duration_hours));
       if (targetVouchers.length < unifiPrintForm.quantity) {
         showToast(`Not enough ${unifiPrintForm.status} vouchers for this duration. (Found ${targetVouchers.length})`, 'error');
+        setIsProcessing(false);
         return;
       }
       
@@ -3528,6 +3532,7 @@ const normalizeTabName = (rawTab) => {
     } catch (err) {
       showToast(err.message, 'error');
     }
+    setIsProcessing(false);
   };
 
   const handleRevokeUnifiVoucher = async (id) => {
@@ -3545,6 +3550,8 @@ const normalizeTabName = (rawTab) => {
 
   const handleGenerateUnifiVouchers = async (e) => {
     e.preventDefault();
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       showToast(unifiGenMode === 'auto' ? 'Commanding UniFi to generate vouchers...' : 'Registering manually pasted vouchers...', 'info');
       const endpoint = unifiGenMode === 'auto' ? '/api/admin/unifi/vouchers/generate' : '/api/admin/unifi/generate';
@@ -3562,6 +3569,7 @@ const normalizeTabName = (rawTab) => {
     } catch (err) {
       showToast(err.message, 'error');
     }
+    setIsProcessing(false);
   };
 
   const handleDeleteWifiVoucher = async (id, token) => {
@@ -16022,11 +16030,11 @@ const normalizeTabName = (rawTab) => {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowUnifiPrintModal(false)}>
+                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowUnifiPrintModal(false)} disabled={isProcessing}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn-primary" style={{ flex: 1, background: '#0284c7' }}>
-                    <Printer size={16} /> Generate PDF
+                  <button type="submit" className="btn-primary" style={{ flex: 1, background: '#0284c7' }} disabled={isProcessing}>
+                    <Printer size={16} /> {isProcessing ? 'Generating...' : 'Generate PDF'}
                   </button>
                 </div>
               </form>
