@@ -5710,7 +5710,7 @@ app.put('/api/admin/wifi/vouchers/bulk-mark-bought', (req, res) => {
 });
 
 // PUT mark voucher as bought (manual override)
-app.put('/api/admin/wifi/vouchers/:id/mark-bought', (req, res) => {
+app.put('/api/admin/wifi/vouchers/:id/mark-bought', async (req, res) => {
   const { id } = req.params;
   const { customer_name, customer_email, invoice_id } = req.body;
   const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
@@ -5758,15 +5758,23 @@ app.put('/api/admin/wifi/vouchers/:id/mark-bought', (req, res) => {
       ctaText: 'Connect to WiFi Portal',
       ctaLink: 'https://ncloud.co.ug'
     });
-    sendMail({
-      to: customer_email,
-      subject: `Your Nova WiFi Voucher Code — ${v.duration_label}`,
-      html: emailHtml
-    }).catch(err => console.error('[WiFi] Failed to email voucher manually:', err));
+    try {
+      await sendMail({
+        to: customer_email,
+        cc: 'sales@ncloud.co.ug',
+        subject: `[100% Paid] Your Nova WiFi Voucher Code — ${v.duration_label}`,
+        html: emailHtml
+      });
+      console.log(`[WiFi] Successfully dispatched voucher ${v.token} to ${customer_email}`);
+    } catch (err) {
+      console.error('[WiFi] Failed to email voucher manually:', err);
+      // Return 500 so the frontend shows the SMTP error
+      return res.status(500).json({ error: 'Voucher marked as bought, but failed to send email: ' + err.message });
+    }
   }
 
   savePersistentStore();
-  res.json({ message: 'Voucher marked as bought and email dispatched', voucher: v });
+  res.json({ message: 'Voucher marked as bought and 100% Paid email dispatched to customer and sales!', voucher: v });
 });
 
 // DELETE voucher
