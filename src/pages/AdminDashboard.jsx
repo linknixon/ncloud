@@ -3564,29 +3564,16 @@ const normalizeTabName = (rawTab) => {
   const handleDeleteWifiVoucher = async (id, token) => {
     if (!window.confirm(`Delete voucher ${token}? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/admin/wifi/vouchers/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/wifi/vouchers/${id}`, { 
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole || user?.role }
+      });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message, 'success');
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message || 'Failed to delete voucher', 'error');
-    }
-  };
-
-  const handleSuspendWifiVoucher = async (id, token) => {
-    if (!window.confirm(`Suspend voucher ${token}? It will be locked from use and permanently revoked from the UniFi Controller.`)) return;
-    try {
-      const res = await fetch(`/api/admin/wifi/vouchers/${id}/suspend`, { 
-        method: 'PUT',
-        headers: { 'x-user-role': currentRole || user?.role }
-      });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
-      showToast('Voucher suspended successfully', 'success');
-      fetchUnifiVouchers();
-    } catch (err) {
-      showToast(err.message || 'Failed to suspend voucher', 'error');
     }
   };
 
@@ -10193,7 +10180,6 @@ const normalizeTabName = (rawTab) => {
                       <option value="all">All Statuses</option>
                       <option value="available">Available</option>
                       <option value="bought">Bought / Printed</option>
-                      <option value="suspended">Suspended</option>
                     </select>
                     <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
                       {filteredVouchers.length} voucher{filteredVouchers.length !== 1 ? 's' : ''} found
@@ -10294,16 +10280,7 @@ const normalizeTabName = (rawTab) => {
                                 <Check size={12} /> Mark Bought
                               </button>
                             )}
-                            {v.status === 'available' && isSuperAdmin && (
-                              <button
-                                onClick={() => handleSuspendWifiVoucher(v.id, v.token)}
-                                className="btn-secondary"
-                                style={{ padding: '0.32rem 0.6rem', fontSize: '0.73rem', gap: '4px', color: '#f59e0b' }}
-                              >
-                                <AlertTriangle size={12} /> Suspend
-                              </button>
-                            )}
-                            {(isSuperAdmin || canDelete('unifi')) && (
+                            {isSuperAdmin && (
                               <button
                                 onClick={() => handleDeleteWifiVoucher(v.id, v.token)}
                                 className="btn-secondary"

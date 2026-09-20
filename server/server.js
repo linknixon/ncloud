@@ -5655,37 +5655,7 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
   }
 });
 
-// PUT suspend voucher
-app.put('/api/admin/wifi/vouchers/:id/suspend', async (req, res) => {
-  const { id } = req.params;
-  const role = req.headers['x-user-role'];
-  if (role !== 'super_admin') {
-    return res.status(403).json({ error: 'Permission denied: Only Super Admins can suspend vouchers' });
-  }
-
-  const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
-  if (!v) return res.status(404).json({ error: 'Voucher not found' });
-  
-  try {
-    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'X-API-KEY': UNIFI_API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
-    if (!response.ok) {
-      console.warn(`[UniFi] Failed to delete voucher ${id} during suspension: ${await response.text()}`);
-    }
-  } catch (e) {
-    console.error('[UniFi] Error communicating with UniFi API for deletion:', e.message);
-  }
-
-  v.status = 'suspended';
-  v.suspended_at = new Date().toISOString();
-  savePersistentStore();
-  res.json({ message: 'Voucher suspended and revoked from UniFi successfully', voucher: v });
-});
+// Suspend has been removed, replaced by direct Delete.
 
 // PUT mark voucher as bought (manual override)
 app.put('/api/admin/wifi/vouchers/bulk-mark-bought', (req, res) => {
@@ -5778,13 +5748,35 @@ app.put('/api/admin/wifi/vouchers/:id/mark-bought', async (req, res) => {
 });
 
 // DELETE voucher
-app.delete('/api/admin/wifi/vouchers/:id', (req, res) => {
+app.delete('/api/admin/wifi/vouchers/:id', async (req, res) => {
   const { id } = req.params;
+  const role = req.headers['x-user-role'];
+  if (role !== 'super_admin') {
+    return res.status(403).json({ error: 'Permission denied: Only Super Admins can delete vouchers' });
+  }
+
   const idx = (memoryStore.unifi_vouchers || []).findIndex(item => item.id == id);
   if (idx === -1) return res.status(404).json({ error: 'Voucher not found' });
+
+  // Delete from UniFi first
+  try {
+    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-KEY': UNIFI_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${await response.text()}`);
+    }
+  } catch (e) {
+    console.error('[UniFi] Error communicating with UniFi API for deletion:', e.message);
+  }
+
   const removed = memoryStore.unifi_vouchers.splice(idx, 1)[0];
   savePersistentStore();
-  res.json({ message: 'Voucher ' + removed.token + ' deleted successfully' });
+  res.json({ message: 'Voucher ' + removed.token + ' permanently deleted from Nova and UniFi successfully' });
 });
 // ----------------------------------------------------
 // Schedules & Automated Cronjob Management
