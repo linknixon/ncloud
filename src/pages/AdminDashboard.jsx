@@ -698,7 +698,7 @@ const normalizeTabName = (rawTab) => {
   const [showUnifiModal, setShowUnifiModal] = useState(false);
   const [unifiGenMode, setUnifiGenMode] = useState('auto');
   const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
-  const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: 10 });
+  const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: 10, status: 'available' });
   const [unifiForm, setUnifiForm] = useState({
     voucher_codes: '',
     duration_hours: 24,
@@ -3498,27 +3498,31 @@ const normalizeTabName = (rawTab) => {
   const handlePrintUnifiVouchers = async (e) => {
     e.preventDefault();
     try {
-      const availableVouchers = unifiVouchersList.filter(v => v.status === 'available' && v.duration_hours === Number(unifiPrintForm.duration_hours));
-      if (availableVouchers.length < unifiPrintForm.quantity) {
-        showToast(`Not enough available vouchers for this duration. (Found ${availableVouchers.length})`, 'error');
+      const targetVouchers = unifiVouchersList.filter(v => v.status === unifiPrintForm.status && v.duration_hours === Number(unifiPrintForm.duration_hours));
+      if (targetVouchers.length < unifiPrintForm.quantity) {
+        showToast(`Not enough ${unifiPrintForm.status} vouchers for this duration. (Found ${targetVouchers.length})`, 'error');
         return;
       }
       
-      const vouchersToPrint = availableVouchers.slice(0, unifiPrintForm.quantity);
+      const vouchersToPrint = targetVouchers.slice(0, unifiPrintForm.quantity);
       const durationLabel = vouchersToPrint[0]?.duration_label || `${unifiPrintForm.duration_hours} Hours`;
       
       showToast('Generating physical printable PDF sheet...', 'info');
       await generateWifiVoucherPrintoutPDF(vouchersToPrint, durationLabel);
       
-      // Bulk mark as bought
-      const ids = vouchersToPrint.map(v => v.id);
-      await fetch('/api/admin/wifi/vouchers/bulk-mark-bought', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, customer_name: 'Physical Printout', customer_email: 'admin-print@ncloud.co.ug' })
-      });
+      if (unifiPrintForm.status === 'available') {
+        // Bulk mark as bought
+        const ids = vouchersToPrint.map(v => v.id);
+        await fetch('/api/admin/wifi/vouchers/bulk-mark-bought', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids, customer_name: 'Physical Printout', customer_email: 'admin-print@ncloud.co.ug' })
+        });
+        showToast(`Successfully printed and locked ${vouchersToPrint.length} vouchers!`, 'success');
+      } else {
+        showToast(`Successfully generated reprint for ${vouchersToPrint.length} bought vouchers!`, 'success');
+      }
       
-      showToast(`Successfully printed and locked ${vouchersToPrint.length} vouchers!`, 'success');
       setShowUnifiPrintModal(false);
       fetchUnifiVouchers();
     } catch (err) {
@@ -10085,6 +10089,7 @@ const normalizeTabName = (rawTab) => {
                 : (() => { window.__wifiStatusFilter = 'all'; window.__setWifiStatusFilter = v => { window.__wifiStatusFilter = v; }; return ['all', () => {}]; })();
 
               const filteredVouchers = rawVouchers.filter(v =>
+                (wifiStatusFilter === 'all' || v.status === wifiStatusFilter) &&
                 (!unifiSearch ||
                   v.token.toLowerCase().includes(unifiSearch.toLowerCase()) ||
                   (v.package_name || '').toLowerCase().includes(unifiSearch.toLowerCase()) ||
@@ -10150,7 +10155,7 @@ const normalizeTabName = (rawTab) => {
                     ))}
                   </div>
 
-                  {/* Search Bar */}
+                  {/* Search and Filters */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
                       <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -10163,6 +10168,17 @@ const normalizeTabName = (rawTab) => {
                         style={{ paddingLeft: '2.5rem', width: '100%' }}
                       />
                     </div>
+                    <select
+                      className="form-input"
+                      style={{ maxWidth: '200px' }}
+                      value={wifiStatusFilter}
+                      onChange={e => { setWifiStatusFilter(e.target.value); setUnifiPage(1); }}
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="available">Available</option>
+                      <option value="bought">Bought / Printed</option>
+                      <option value="suspended">Suspended</option>
+                    </select>
                     <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
                       {filteredVouchers.length} voucher{filteredVouchers.length !== 1 ? 's' : ''} found
                     </span>
@@ -15957,6 +15973,18 @@ const normalizeTabName = (rawTab) => {
               </p>
               <form onSubmit={handlePrintUnifiVouchers}>
                 <div className="form-group">
+                  <label className="form-label">Voucher Status to Print</label>
+                  <select
+                    className="form-input"
+                    value={unifiPrintForm.status}
+                    onChange={e => setUnifiPrintForm({ ...unifiPrintForm, status: e.target.value })}
+                    required
+                  >
+                    <option value="available">Available (Lock & Print as New)</option>
+                    <option value="bought">Already Bought (Reprint for Accountability)</option>
+                  </select>
+                </div>
+                <div className="form-group">
                   <label className="form-label">Voucher Duration</label>
                   <select
                     className="form-input"
@@ -15964,8 +15992,8 @@ const normalizeTabName = (rawTab) => {
                     onChange={e => setUnifiPrintForm({ ...unifiPrintForm, duration_hours: Number(e.target.value) })}
                     required
                   >
-                    {[...new Set((unifiVouchersList || []).filter(v => v.status === 'available').map(v => v.duration_hours))].sort((a,b)=>a-b).map(h => (
-                      <option key={h} value={h}>{unifiVouchersList.find(v => v.duration_hours === h)?.duration_label || `${h} Hours`} ({unifiVouchersList.filter(v => v.status === 'available' && v.duration_hours === h).length} available)</option>
+                    {[...new Set((unifiVouchersList || []).filter(v => v.status === unifiPrintForm.status).map(v => v.duration_hours))].sort((a,b)=>a-b).map(h => (
+                      <option key={h} value={h}>{unifiVouchersList.find(v => v.duration_hours === h)?.duration_label || `${h} Hours`} ({unifiVouchersList.filter(v => v.status === unifiPrintForm.status && v.duration_hours === h).length} {unifiPrintForm.status})</option>
                     ))}
                   </select>
                 </div>
