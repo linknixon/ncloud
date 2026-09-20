@@ -542,8 +542,8 @@ const memoryStore = {
       id: 4,
       name: 'UniFi WiFi Guest Token Expiration Janitor',
       description: 'Revokes expired UniFi Guest WiFi tokens and synchronizes voucher state.',
-      cron_expression: '*/3 * * * *',
-      frequency: 'Every 3 Minutes',
+      cron_expression: '*/30 * * * * *',
+      frequency: 'Every 30 Seconds',
       target: 'unifi_janitor',
       enabled: true,
       last_run: '2026-08-24T18:00:00Z',
@@ -5443,6 +5443,21 @@ async function syncUniFiVouchers() {
     return { success: false, error: err.message };
   }
 }
+
+// Background Task: Auto-sync UniFi vouchers every 30 seconds
+setInterval(() => {
+  const janitorSchedule = (memoryStore.schedules || []).find(s => s.target === 'unifi_janitor');
+  if (janitorSchedule && janitorSchedule.enabled) {
+    syncUniFiVouchers().then(res => {
+      janitorSchedule.last_run = new Date().toISOString();
+      if (res.success) {
+        janitorSchedule.last_status = `Success (Synced ${res.count} vouchers)`;
+      } else {
+        janitorSchedule.last_status = `Failed: ${res.error}`;
+      }
+    }).catch(err => console.error('[Cron] Unifi Sync failed:', err));
+  }
+}, 30 * 1000);
 
 app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
   const result = await syncUniFiVouchers();
