@@ -5444,8 +5444,7 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
     const payload = {
       count: Number(quantity),
       timeLimitMinutes: Number(duration_hours) * 60,
-      usageQuota: 1,
-      note: "Generated via Nova Dashboard"
+      name: "Generated via Nova"
     };
 
     if (data_quota_mb && Number(data_quota_mb) > 0) {
