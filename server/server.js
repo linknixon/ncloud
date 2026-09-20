@@ -5421,16 +5421,19 @@ async function syncUniFiVouchers() {
       }
     });
 
-    // 2. Cleanup: If an 'available' voucher in our system is NO LONGER unused in UniFi, mark it 'used'
-    memoryStore.unifi_vouchers.forEach(sysVoucher => {
+    // 2. Cleanup: If an 'available' voucher in our system is NO LONGER unused in UniFi, remove it completely to match UniFi (it was revoked or used).
+    // Note: We deliberately KEEP 'bought' or 'dispatched' vouchers for accountability, even if they disappear from UniFi.
+    const initialCount = memoryStore.unifi_vouchers.length;
+    memoryStore.unifi_vouchers = memoryStore.unifi_vouchers.filter(sysVoucher => {
       if (sysVoucher.status === 'available') {
         const rawSysCode = String(sysVoucher.token).replace(/-/g, '');
         const isStillUnused = activeUnusedVouchers.find(uv => String(uv.code).replace(/-/g, '') === rawSysCode);
         if (!isStillUnused) {
-          sysVoucher.status = 'used'; // It was activated or deleted directly in UniFi
           removedCount++;
+          return false; // Remove from Nova
         }
       }
+      return true; // Keep
     });
 
     savePersistentStore();
@@ -5615,8 +5618,40 @@ app.put('/api/admin/unifi/vouchers/:id', (req, res) => {
   if (customer_name !== undefined) v.customer_name = customer_name;
   if (customer_email !== undefined) v.customer_email = customer_email;
   if (invoice_id !== undefined) v.invoice_id = invoice_id;
+  
   savePersistentStore();
-  res.json({ message: 'WiFi Voucher updated successfully', voucher: v });
+  res.json({ success: true, voucher: v });
+});
+
+// DELETE revoke voucher from Nova and UniFi
+app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
+  const { id } = req.params;
+  const vIndex = (memoryStore.unifi_vouchers || []).findIndex(item => item.id == id);
+  if (vIndex === -1) return res.status(404).json({ error: 'WiFi Voucher not found in Nova' });
+  
+  const voucher = memoryStore.unifi_vouchers[vIndex];
+  
+  try {
+    // Delete from UniFi controller directly using its ID
+    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${voucher.id}`, {
+      method: 'DELETE',
+      headers: { 'X-API-KEY': UNIFI_API_KEY }
+    });
+    
+    // We ignore 404s from UniFi (it might have already been deleted there)
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`UniFi API error: ${response.status} ${response.statusText}`);
+    }
+
+    // Remove from Nova memory store
+    memoryStore.unifi_vouchers.splice(vIndex, 1);
+    savePersistentStore();
+    
+    res.json({ success: true, message: 'Voucher revoked from UniFi and Nova' });
+  } catch (err) {
+    console.error('Error revoking UniFi voucher:', err);
+    res.status(500).json({ error: 'Failed to revoke voucher: ' + err.message });
+  }
 });
 
 // PUT suspend voucher

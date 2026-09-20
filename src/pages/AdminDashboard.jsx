@@ -698,7 +698,7 @@ const normalizeTabName = (rawTab) => {
   const [showUnifiModal, setShowUnifiModal] = useState(false);
   const [unifiGenMode, setUnifiGenMode] = useState('auto');
   const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
-  const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: 10, status: 'available' });
+  const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: '', status: 'available' });
   const [unifiForm, setUnifiForm] = useState({
     voucher_codes: '',
     duration_hours: 24,
@@ -3524,6 +3524,19 @@ const normalizeTabName = (rawTab) => {
       }
       
       setShowUnifiPrintModal(false);
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleRevokeUnifiVoucher = async (id) => {
+    if (!window.confirm("Are you sure you want to permanently revoke this voucher from both Nova and UniFi?")) return;
+    try {
+      showToast('Revoking voucher...', 'info');
+      const res = await fetch(`/api/admin/unifi/vouchers/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      showToast('Voucher permanently revoked', 'success');
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message, 'error');
