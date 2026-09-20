@@ -5375,12 +5375,17 @@ async function syncUniFiVouchers() {
       throw new Error(`UniFi API responded with status: ${response.status}`);
     }
     const data = await response.json();
-    const activeVouchers = data.data || [];
+    const allVouchers = data.data || [];
+    
+    // Only consider vouchers that have NOT been activated yet
+    const activeUnusedVouchers = allVouchers.filter(v => !v.activatedAt);
 
     if (!memoryStore.unifi_vouchers) memoryStore.unifi_vouchers = [];
     let addedCount = 0;
+    let removedCount = 0;
 
-    activeVouchers.forEach(uv => {
+    // 1. Add any unused vouchers from UniFi that aren't in our system
+    activeUnusedVouchers.forEach(uv => {
       // Check if voucher code already exists internally (ignoring dashes)
       const rawUnifiCode = String(uv.code).replace(/-/g, '');
       const exists = memoryStore.unifi_vouchers.find(v => String(v.token).replace(/-/g, '') === rawUnifiCode);
@@ -5408,6 +5413,7 @@ async function syncUniFiVouchers() {
           data_limit: uv.dataUsageLimitMBytes ? `${uv.dataUsageLimitMBytes}MB` : 'Unlimited',
           status: 'available',
           created_at: uv.createdAt,
+          source: 'auto_sync',
           customer_name: null,
           customer_email: null
         });
@@ -5415,8 +5421,20 @@ async function syncUniFiVouchers() {
       }
     });
 
+    // 2. Cleanup: If an 'available' voucher in our system is NO LONGER unused in UniFi, mark it 'used'
+    memoryStore.unifi_vouchers.forEach(sysVoucher => {
+      if (sysVoucher.status === 'available') {
+        const rawSysCode = String(sysVoucher.token).replace(/-/g, '');
+        const isStillUnused = activeUnusedVouchers.find(uv => String(uv.code).replace(/-/g, '') === rawSysCode);
+        if (!isStillUnused) {
+          sysVoucher.status = 'used'; // It was activated or deleted directly in UniFi
+          removedCount++;
+        }
+      }
+    });
+
     savePersistentStore();
-    return { success: true, count: activeVouchers.length, added: addedCount };
+    return { success: true, count: activeUnusedVouchers.length, added: addedCount, removed: removedCount };
   } catch (err) {
     console.error('Error syncing UniFi vouchers:', err);
     return { success: false, error: err.message };
