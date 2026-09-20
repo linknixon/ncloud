@@ -5365,9 +5365,18 @@ async function syncUniFiVouchers() {
     let addedCount = 0;
 
     activeVouchers.forEach(uv => {
-      // Check if voucher code already exists internally
-      const exists = memoryStore.unifi_vouchers.find(v => String(v.token) === String(uv.code));
+      // Check if voucher code already exists internally (ignoring dashes)
+      const rawUnifiCode = String(uv.code).replace(/-/g, '');
+      const exists = memoryStore.unifi_vouchers.find(v => String(v.token).replace(/-/g, '') === rawUnifiCode);
+      
       if (!exists) {
+        // Format code with a dash in the middle (e.g. 1234567890 -> 12345-67890)
+        let formattedCode = String(uv.code);
+        if (!formattedCode.includes('-') && formattedCode.length > 4) {
+          const mid = Math.ceil(formattedCode.length / 2);
+          formattedCode = formattedCode.slice(0, mid) + '-' + formattedCode.slice(mid);
+        }
+
         // Create matching format
         const durationHours = Math.round(uv.timeLimitMinutes / 60);
         const label = durationHours >= 720 ? `${Math.round(durationHours/720)} Month(s)` 
@@ -5377,7 +5386,7 @@ async function syncUniFiVouchers() {
 
         memoryStore.unifi_vouchers.unshift({
           id: uv.id,
-          token: uv.code,
+          token: formattedCode,
           duration_hours: durationHours,
           duration_label: label,
           data_limit: uv.dataUsageLimitMBytes ? `${uv.dataUsageLimitMBytes}MB` : 'Unlimited',
