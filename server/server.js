@@ -5480,20 +5480,23 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
     const payload = {
       count: Number(quantity),
       timeLimitMinutes: Number(duration_hours) * 60,
-      name: "SysGen via Nova",
-      quota: device_limit !== undefined ? Number(device_limit) : 1
+      name: "SysGen via Nova"
     };
+
+    if (device_limit !== undefined) {
+      payload.authorizedGuestLimit = Number(device_limit) === 0 ? 0 : Number(device_limit);
+    }
 
     if (data_quota_mb && Number(data_quota_mb) > 0) {
       payload.dataUsageLimitMBytes = Number(data_quota_mb);
     }
 
     if (download_limit_kbps && Number(download_limit_kbps) > 0) {
-      payload.down = Number(download_limit_kbps);
+      payload.rxRateLimitKbps = Number(download_limit_kbps);
     }
     
     if (upload_limit_kbps && Number(upload_limit_kbps) > 0) {
-      payload.up = Number(upload_limit_kbps);
+      payload.txRateLimitKbps = Number(upload_limit_kbps);
     }
 
     const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers`, {
@@ -5506,7 +5509,8 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
     });
 
     if (!response.ok) {
-      throw new Error(`UniFi API error: ${response.status} ${response.statusText}`);
+      const errText = await response.text();
+      throw new Error(`UniFi API error: ${response.status} ${response.statusText} - ${errText}`);
     }
 
     // After creation, immediately run a sync to pull the newly generated codes down
