@@ -2680,3 +2680,83 @@ function docFontSizeSafe(doc, size) {
     doc.setFontSize(size);
   } catch {}
 }
+
+// 8. GENERATE WIFI VOUCHERS PRINT GRID (A4)
+export async function generateWifiVoucherPrintoutPDF(vouchers, durationLabel) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  doc.addFileToVFS('TrebuchetMS.ttf', trebuchetMSFontBase64);
+  doc.addFont('TrebuchetMS.ttf', 'TrebuchetMS', 'normal');
+  doc.addFileToVFS('TrebuchetMS-Bold.ttf', trebuchetMSBoldFontBase64);
+  doc.addFont('TrebuchetMS-Bold.ttf', 'TrebuchetMS', 'bold');
+
+  // A4 size: 210 x 297 mm
+  const startX = 15;
+  const startY = 15;
+  const cardWidth = 85;
+  const cardHeight = 45;
+  const colSpacing = 10;
+  const rowSpacing = 10;
+
+  let x = startX;
+  let y = startY;
+  
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(2, 132, 199);
+  doc.text(`Nova Cloud WiFi Vouchers - ${durationLabel}`, 105, 12, { align: 'center' });
+
+  y = 20;
+
+  for (let i = 0; i < vouchers.length; i++) {
+    const v = vouchers[i];
+
+    // Card Border
+    doc.setDrawColor(2, 132, 199);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3);
+
+    // Header Fill
+    doc.setFillColor(2, 132, 199);
+    doc.roundedRect(x, y, cardWidth, 12, 3, 3, 'F');
+    // Fill the bottom corners to make the top flush
+    doc.rect(x, y + 6, cardWidth, 6, 'F');
+
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text('NOVA CLOUD WIFI', x + cardWidth / 2, y + 8, { align: 'center' });
+
+    // Body
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(10);
+    doc.text(`Package: ${v.duration_label || durationLabel}`, x + 5, y + 20);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Data Limit: ${v.data_limit || 'Unlimited'}`, x + 5, y + 25);
+
+    // Token
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('ACCESS CODE:', x + cardWidth / 2, y + 33, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setTextColor(2, 132, 199);
+    doc.text(String(v.token), x + cardWidth / 2, y + 40, { align: 'center' });
+
+    x += cardWidth + colSpacing;
+    if (x + cardWidth > 210 - startX) {
+      x = startX;
+      y += cardHeight + rowSpacing;
+    }
+
+    if (y + cardHeight > 297 - startY) {
+      doc.addPage();
+      x = startX;
+      y = startY;
+    }
+  }
+
+  openPdfInBrowser(doc, `WiFi_Vouchers_${durationLabel.replace(/\s+/g, '_')}.pdf`);
+  return doc;
+}

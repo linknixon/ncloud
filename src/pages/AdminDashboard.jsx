@@ -12,7 +12,8 @@ import {
   generateExpenseVoucher80mmPDF,
   generateSalesReportPDF,
   generateForensicsAuditPDF,
-  generateWorkOrderPOSReceiptPDF
+  generateWorkOrderPOSReceiptPDF,
+  generateWifiVoucherPrintoutPDF
 } from '../utils/pdfGenerator';
 import { 
   LayoutDashboard, 
@@ -695,6 +696,8 @@ const normalizeTabName = (rawTab) => {
 
   const [unifiVouchersList, setUnifiVouchersList] = useState([]);
   const [showUnifiModal, setShowUnifiModal] = useState(false);
+  const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
+  const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: 10 });
   const [unifiForm, setUnifiForm] = useState({
     voucher_codes: '',
     duration_hours: 24,
@@ -3484,6 +3487,37 @@ const normalizeTabName = (rawTab) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to sync');
       showToast(data.message, 'success');
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handlePrintUnifiVouchers = async (e) => {
+    e.preventDefault();
+    try {
+      const availableVouchers = unifiVouchersList.filter(v => v.status === 'available' && v.duration_hours === Number(unifiPrintForm.duration_hours));
+      if (availableVouchers.length < unifiPrintForm.quantity) {
+        showToast(`Not enough available vouchers for this duration. (Found ${availableVouchers.length})`, 'error');
+        return;
+      }
+      
+      const vouchersToPrint = availableVouchers.slice(0, unifiPrintForm.quantity);
+      const durationLabel = vouchersToPrint[0]?.duration_label || `${unifiPrintForm.duration_hours} Hours`;
+      
+      showToast('Generating physical printable PDF sheet...', 'info');
+      await generateWifiVoucherPrintoutPDF(vouchersToPrint, durationLabel);
+      
+      // Bulk mark as bought
+      const ids = vouchersToPrint.map(v => v.id);
+      await fetch('/api/admin/wifi/vouchers/bulk-mark-bought', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, customer_name: 'Physical Printout', customer_email: 'admin-print@ncloud.co.ug' })
+      });
+      
+      showToast(`Successfully printed and locked ${vouchersToPrint.length} vouchers!`, 'success');
+      setShowUnifiPrintModal(false);
       fetchUnifiVouchers();
     } catch (err) {
       showToast(err.message, 'error');
@@ -10076,7 +10110,14 @@ const normalizeTabName = (rawTab) => {
                         </p>
                       </div>
                       {(isSuperAdmin || canCreate('unifi')) && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setShowUnifiPrintModal(true)}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          <Printer size={16} /> Print Vouchers
+                        </button>
                         <button
                           onClick={handleSyncUniFiVouchers}
                           className="btn-secondary"
@@ -10089,7 +10130,7 @@ const normalizeTabName = (rawTab) => {
                           className="btn-primary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
                         >
-                          <Plus size={16} /> Register UniFi Vouchers
+                          <Plus size={16} /> Register Vouchers
                         </button>
                       </div>
                     )}
@@ -15893,6 +15934,54 @@ const normalizeTabName = (rawTab) => {
                     style={{ padding: '0.6rem 1.5rem', fontWeight: '800', background: '#eab308', color: '#000', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                   >
                     <Check size={16} /> {editingWorkOrder ? 'Update & Save Work Order' : 'Schedule Work Order Task'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* UNIFI WIFI VOUCHER PRINT MODAL */}
+        {showUnifiPrintModal && (
+          <div className="modal-overlay" onClick={() => setShowUnifiPrintModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '0.35rem', fontWeight: '800', color: '#0284c7' }}>
+                Print Physical Vouchers
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                Generate an A4 grid of vouchers for physical printing. Printed vouchers will be permanently locked (marked as bought) so they are not sold online.
+              </p>
+              <form onSubmit={handlePrintUnifiVouchers}>
+                <div className="form-group">
+                  <label className="form-label">Voucher Duration</label>
+                  <select
+                    className="form-input"
+                    value={unifiPrintForm.duration_hours}
+                    onChange={e => setUnifiPrintForm({ ...unifiPrintForm, duration_hours: Number(e.target.value) })}
+                    required
+                  >
+                    {[...new Set((unifiVouchersList || []).filter(v => v.status === 'available').map(v => v.duration_hours))].sort((a,b)=>a-b).map(h => (
+                      <option key={h} value={h}>{unifiVouchersList.find(v => v.duration_hours === h)?.duration_label || `${h} Hours`} ({unifiVouchersList.filter(v => v.status === 'available' && v.duration_hours === h).length} available)</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Quantity to Print</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={unifiPrintForm.quantity}
+                    onChange={e => setUnifiPrintForm({ ...unifiPrintForm, quantity: parseInt(e.target.value) || 1 })}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowUnifiPrintModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary" style={{ flex: 1, background: '#0284c7' }}>
+                    <Printer size={16} /> Generate PDF
                   </button>
                 </div>
               </form>

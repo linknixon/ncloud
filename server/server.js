@@ -1966,13 +1966,17 @@ app.get('/api/products', async (req, res) => {
     return {
       ...p,
       stock,
+      _isWifiVoucher: isWifiVoucher,
       short_desc: p.short_desc || p.desc || '',
       desc: p.short_desc || p.desc || '',
       description: p.description || p.specs || p.details || '',
       specs: p.description || p.specs || p.details || '',
       details: p.description || p.specs || p.details || ''
     };
-  });
+  }).filter(p => !(p._isWifiVoucher && p.stock <= 0));
+
+  normalizedProducts.forEach(p => delete p._isWifiVoucher);
+
   res.json(normalizedProducts);
 });
 
@@ -5556,6 +5560,28 @@ app.put('/api/admin/wifi/vouchers/:id/suspend', (req, res) => {
   v.suspended_at = new Date().toISOString();
   savePersistentStore();
   res.json({ message: 'Voucher suspended successfully', voucher: v });
+});
+
+// PUT mark voucher as bought (manual override)
+app.put('/api/admin/wifi/vouchers/bulk-mark-bought', (req, res) => {
+  const { ids, customer_name, customer_email, invoice_id } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
+
+  let updatedCount = 0;
+  ids.forEach(id => {
+    const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
+    if (v) {
+      v.status = 'bought';
+      v.dispatched_at = new Date().toISOString();
+      if (customer_name) v.customer_name = customer_name;
+      if (customer_email) v.customer_email = customer_email;
+      if (invoice_id) v.invoice_id = invoice_id;
+      updatedCount++;
+    }
+  });
+
+  if (updatedCount > 0) savePersistentStore();
+  res.json({ message: `Bulk updated ${updatedCount} vouchers as bought` });
 });
 
 // PUT mark voucher as bought (manual override)
