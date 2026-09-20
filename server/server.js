@@ -34,6 +34,18 @@ function loadPersistentStore() {
       const data = JSON.parse(fs.readFileSync(persistentStorePath, 'utf8'));
       if (data && typeof data === 'object' && Object.keys(data).length > 0) {
         console.log('[Database Persistence] Successfully restored user database items & saved settings from persistentStore.json');
+        
+        // Auto-migrate legacy voucher tokens to include a dash
+        if (data.unifi_vouchers && Array.isArray(data.unifi_vouchers)) {
+          data.unifi_vouchers.forEach(v => {
+            let t = String(v.token);
+            if (!t.includes('-') && t.length > 4) {
+              const mid = Math.ceil(t.length / 2);
+              v.token = t.slice(0, mid) + '-' + t.slice(mid);
+            }
+          });
+        }
+        
         return data;
       }
     }
