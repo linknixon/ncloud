@@ -3474,6 +3474,22 @@ const normalizeTabName = (rawTab) => {
   // ----------------------------------------------------
   // UniFi WiFi Guest Voucher Generator Handlers
   // ----------------------------------------------------
+  const handleSyncUniFiVouchers = async () => {
+    try {
+      showToast('Syncing active vouchers from UniFi Controller...', 'info');
+      const res = await fetch('/api/admin/unifi/vouchers/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to sync');
+      showToast(data.message, 'success');
+      fetchUnifiVouchers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleGenerateUnifiVouchers = async (e) => {
     e.preventDefault();
     try {
@@ -10060,13 +10076,22 @@ const normalizeTabName = (rawTab) => {
                         </p>
                       </div>
                       {(isSuperAdmin || canCreate('unifi')) && (
-                      <button
-                        onClick={() => setShowUnifiModal(true)}
-                        className="btn-primary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
-                      >
-                        <Plus size={16} /> Register UniFi Vouchers
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={handleSyncUniFiVouchers}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          <RefreshCw size={16} /> Sync from UniFi
+                        </button>
+                        <button
+                          onClick={() => setShowUnifiModal(true)}
+                          className="btn-primary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
+                        >
+                          <Plus size={16} /> Register UniFi Vouchers
+                        </button>
+                      </div>
                     )}
                   </div>
 

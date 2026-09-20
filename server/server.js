@@ -5339,9 +5339,73 @@ app.get('/api/admin/work-orders/:id/pdf', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// Internal WiFi Guest Voucher Management Engine
-// (No UniFi Controller API — fully internal system)
+// UniFi Controller API Integration
 // ----------------------------------------------------
+
+const UNIFI_SITE_ID = '88f7af54-98f8-306a-a1c7-c9349722b1f6';
+const UNIFI_API_KEY = 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda';
+const UNIFI_BASE_URL = `https://unifi.ncloud.co.ug/proxy/network/integration/v1/sites/${UNIFI_SITE_ID}`;
+
+async function syncUniFiVouchers() {
+  try {
+    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers?filter=expired.eq(false)&limit=1000`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': UNIFI_API_KEY,
+        'Accept': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`UniFi API responded with status: ${response.status}`);
+    }
+    const data = await response.json();
+    const activeVouchers = data.data || [];
+
+    if (!memoryStore.unifi_vouchers) memoryStore.unifi_vouchers = [];
+    let addedCount = 0;
+
+    activeVouchers.forEach(uv => {
+      // Check if voucher code already exists internally
+      const exists = memoryStore.unifi_vouchers.find(v => String(v.token) === String(uv.code));
+      if (!exists) {
+        // Create matching format
+        const durationHours = Math.round(uv.timeLimitMinutes / 60);
+        const label = durationHours >= 720 ? `${Math.round(durationHours/720)} Month(s)` 
+                      : durationHours >= 168 ? `${Math.round(durationHours/168)} Week(s)` 
+                      : durationHours >= 24 ? `${Math.round(durationHours/24)} Day(s)` 
+                      : `${durationHours} Hour(s)`;
+
+        memoryStore.unifi_vouchers.unshift({
+          id: uv.id,
+          token: uv.code,
+          duration_hours: durationHours,
+          duration_label: label,
+          data_limit: uv.dataUsageLimitMBytes ? `${uv.dataUsageLimitMBytes}MB` : 'Unlimited',
+          status: 'available',
+          created_at: uv.createdAt,
+          customer_name: null,
+          customer_email: null
+        });
+        addedCount++;
+      }
+    });
+
+    savePersistentStore();
+    return { success: true, count: activeVouchers.length, added: addedCount };
+  } catch (err) {
+    console.error('Error syncing UniFi vouchers:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
+  const result = await syncUniFiVouchers();
+  if (result.success) {
+    res.json({ message: `Successfully synced! Fetched ${result.count} active vouchers, added ${result.added} new to inventory.` });
+  } else {
+    res.status(500).json({ error: 'Failed to sync UniFi vouchers: ' + result.error });
+  }
+});
 
 // GET all vouchers (or filtered for customer)
 app.get('/api/admin/unifi/vouchers', (req, res) => {
@@ -5521,7 +5585,12 @@ app.post('/api/admin/schedules/:id/run-now', (req, res) => {
   } else if (sch.target === 'executive_report') {
     executionDetails = `Compiled executive P&L, collections, and expense audit digest for Super Admin.`;
   } else if (sch.target === 'unifi_janitor') {
-    executionDetails = `UniFi API session refreshed. Expired guest tokens verified and purged.`;
+    const syncRes = await syncUniFiVouchers();
+    if (syncRes.success) {
+      executionDetails = `UniFi API session refreshed. Synced ${syncRes.count} active vouchers.`;
+    } else {
+      executionDetails = `Failed to sync UniFi API: ${syncRes.error}`;
+    }
   }
 
   res.json({
