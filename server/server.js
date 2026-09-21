@@ -19,6 +19,7 @@ const __dirname = path.dirname(__filename);
 const persistentStorePath = path.join(__dirname, 'database', 'persistentStore.json');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_cloud_edges_secret_key_2026';
 

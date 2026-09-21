@@ -140,7 +140,7 @@ function drawA4ExecutiveHeader(doc, {
   doc.text('NOVA CLOUD EDGES', textX, 18);
   doc.setFontSize(9);
   doc.setTextColor(...accentColor);
-  doc.text('(U) LIMITED', textX + 62, 18);
+  doc.text('(U) LIMITED', textX + 48, 18);
 
   doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
@@ -151,9 +151,10 @@ function drawA4ExecutiveHeader(doc, {
 
   // Header Right: Document Title & Reference
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(15);
+  const titleStr = (title || 'OFFICIAL DOCUMENT').toUpperCase();
+  doc.setFontSize(titleStr.length > 25 ? 11 : 14);
   doc.setTextColor(...BRAND.colors.navyDark);
-  doc.text((title || 'OFFICIAL DOCUMENT').toUpperCase(), 196, 19, { align: 'right' });
+  doc.text(titleStr, 196, 19, { align: 'right' });
 
   if (refNumber) {
     doc.setFont('TrebuchetMS', 'bold');
@@ -1193,15 +1194,15 @@ export function generateBalanceSheetPDF(data = {}, options = {}) {
   const refNum = `BS-${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
 
   const metrics = data?.metrics || {};
-  const cashCollected = Number(metrics.total_cash_collected ?? metrics.totalCashCollected ?? 48500000);
-  const receivables = Number(metrics.total_pending_receivables ?? metrics.totalPendingReceivables ?? 12400000);
-  const hardwareInventory = 18500000;
-  const fixedAssets = 35000000;
+  const cashCollected = Number(metrics.total_cash_collected ?? metrics.totalCashCollected ?? 0);
+  const receivables = Number(metrics.total_pending_receivables ?? metrics.totalPendingReceivables ?? 0);
+  const hardwareInventory = Number(metrics.hardware_inventory ?? metrics.hardwareInventory ?? 0);
+  const fixedAssets = Number(metrics.fixed_assets ?? metrics.fixedAssets ?? 0);
   const totalAssets = cashCollected + receivables + hardwareInventory + fixedAssets;
 
-  const accountsPayable = Number(metrics.total_expenditures ?? metrics.totalExpenses ?? 9800000);
-  const staffLiabilities = Number(metrics.total_staff_disbursements ?? metrics.totalStaffDisbursements ?? 4500000);
-  const customerCredits = Number(metrics.total_customer_credit_pool ?? metrics.totalExcessCredits ?? 1200000);
+  const accountsPayable = Number(metrics.total_expenditures ?? metrics.totalExpenses ?? 0);
+  const staffLiabilities = Number(metrics.total_staff_disbursements ?? metrics.totalStaffDisbursements ?? 0);
+  const customerCredits = Number(metrics.total_customer_credit_pool ?? metrics.totalExcessCredits ?? 0);
   const totalLiabilities = accountsPayable + staffLiabilities + customerCredits;
   const shareholderEquity = totalAssets - totalLiabilities;
   const totalLiabilitiesAndEquity = totalLiabilities + shareholderEquity;
@@ -1380,20 +1381,20 @@ export function generateProfitLossPDF(data = {}, options = {}) {
   const refNum = `PL-${year}`;
 
   const metrics = data?.metrics || {};
-  const grossSales = Number(metrics.total_invoiced_sales ?? metrics.totalInvoicedSales ?? 64500000);
+  const grossSales = Number(metrics.total_invoiced_sales ?? metrics.totalInvoicedSales ?? 0);
   const cashRevenue = Number(metrics.total_cash_collected ?? metrics.totalCashCollected ?? grossSales);
   
   // Cost of Goods Sold (COGS)
-  const cogsHosting = Math.round(cashRevenue * 0.18);
-  const cogsHardware = Math.round(cashRevenue * 0.12);
+  const cogsHosting = Number(metrics.cogs_hosting ?? 0);
+  const cogsHardware = Number(metrics.cogs_hardware ?? 0);
   const totalCogs = cogsHosting + cogsHardware;
   const grossProfit = cashRevenue - totalCogs;
-  const grossMargin = cashRevenue > 0 ? ((grossProfit / cashRevenue) * 100).toFixed(1) : '70.0';
+  const grossMargin = cashRevenue > 0 ? ((grossProfit / cashRevenue) * 100).toFixed(1) : '0.0';
 
   // Operating Expenses (OPEX)
-  const opexPayroll = Number(metrics.total_staff_disbursements ?? metrics.totalStaffDisbursements ?? 12500000);
-  const opexGeneral = Number(metrics.total_expenditures ?? metrics.totalExpenses ?? 8400000);
-  const opexMarketing = 1800000;
+  const opexPayroll = Number(metrics.total_staff_disbursements ?? metrics.totalStaffDisbursements ?? 0);
+  const opexGeneral = Number(metrics.total_expenditures ?? metrics.totalExpenses ?? 0);
+  const opexMarketing = Number(metrics.opex_marketing ?? 0);
   const totalOpex = opexPayroll + opexGeneral + opexMarketing;
 
   // Net Operating Profit
@@ -2161,7 +2162,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
   registerTrebuchetFont(doc);
 
   drawA4ExecutiveHeader(doc, {
-    title: 'CERTIFIED CYBERSECURITY & FORENSIC AUDIT TRAIL',
+    title: 'FORENSICS AUDIT TRAIL',
     refNumber: refNum,
     refLabel: 'AUDIT',
     dateStr,

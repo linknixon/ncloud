@@ -23,8 +23,10 @@ export default function ShopCheckoutModal() {
   const [successData, setSuccessData] = useState(null);
   
   const [paymentMethod, setPaymentMethod] = useState('invoice'); // 'invoice', 'mobile_money', 'card'
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState(user?.phone || user?.phone_number || '');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'
+  const [useTestNumber, setUseTestNumber] = useState(false);
   
   const [customerInfo, setCustomerInfo] = useState(() => {
     if (user) {
@@ -287,7 +289,7 @@ export default function ShopCheckoutModal() {
           method,
           amount: invoiceData.invoice?.total_amount_due || grandTotal,
           reference: invoiceData.invoice?.invoice_number || invoiceData.reference,
-          phone: customerInfo.phone,
+          phone: method === 'mobile_money' ? (mobileMoneyPhone || customerInfo.phone) : customerInfo.phone,
           email: customerInfo.email,
           notes: `Shop Order Payment for ${customerInfo.name}`
         })
@@ -739,12 +741,68 @@ export default function ShopCheckoutModal() {
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
                   </div>
                 </div>
+
+                {paymentMethod === 'mobile_money' && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.35rem', display: 'block', color: '#d97706' }}>Mobile Money Number *</label>
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="mm_number_type"
+                          checked={!useTestNumber}
+                          onChange={() => {
+                            setUseTestNumber(false);
+                            setMobileMoneyPhone(customerInfo.phone);
+                          }}
+                          style={{ accentColor: '#d97706' }}
+                        />
+                        Profile Number
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="mm_number_type"
+                          checked={useTestNumber}
+                          onChange={() => {
+                            setUseTestNumber(true);
+                            setMobileMoneyPhone('0111777777');
+                          }}
+                          style={{ accentColor: '#d97706' }}
+                        />
+                        Other Number (Test)
+                      </label>
+                    </div>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={mobileMoneyPhone || customerInfo.phone}
+                      onChange={e => setMobileMoneyPhone(e.target.value)}
+                      placeholder="e.g. 0111777777"
+                      required
+                      style={{ border: '1px solid #f59e0b', background: '#fffbeb' }}
+                      disabled={!useTestNumber}
+                    />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      To test, use your ioTec sandbox test number. Do NOT use a real number in test mode.
+                    </small>
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
                 className="btn-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem', fontWeight: '800' }}
+                style={{ 
+                  width: '100%', 
+                  justifyContent: 'center', 
+                  padding: '0.9rem', 
+                  fontSize: '0.95rem', 
+                  fontWeight: '800',
+                  background: paymentMethod === 'mobile_money' ? '#eab308' : paymentMethod === 'card' ? '#10b981' : 'var(--primary)',
+                  borderColor: paymentMethod === 'mobile_money' ? '#ca8a04' : paymentMethod === 'card' ? '#059669' : 'var(--primary)',
+                  color: '#fff'
+                }}
                 disabled={processing || selectedItems.length === 0}
               >
                 {processing ? 'Processing Order...' : paymentMethod === 'invoice' ? `Complete Order & Generate Tax Invoice (UGX ${grandTotal.toLocaleString()})` : `Pay UGX ${grandTotal.toLocaleString()} via ${paymentMethod === 'mobile_money' ? 'Mobile Money' : 'Card'}`} <Lock size={16} />

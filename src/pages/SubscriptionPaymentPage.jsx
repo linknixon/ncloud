@@ -12,6 +12,12 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
   const [currentPage, setCurrentPage] = useState(1);
   const hasInitializedRef = useRef(false);
 
+  const [paymentMethod, setPaymentMethod] = useState('invoice');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState(user?.phone || user?.phone_number || '');
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [useTestNumber, setUseTestNumber] = useState(false);
+
   const [selectedProducts, setSelectedProducts] = useState(() => {
     if (selectedSubscriptionItems && selectedSubscriptionItems.length > 0) {
       return selectedSubscriptionItems;
@@ -306,7 +312,11 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
           localStorage.setItem('user', JSON.stringify({ ...data.created_user, role: 'customer' }));
         }
         setSuccessData(data);
-        showToast('Order Has Been Received! Notification sent to Sales team.', 'success');
+        if (paymentMethod === 'mobile_money' || paymentMethod === 'card') {
+          initiatePayment(data, paymentMethod);
+        } else {
+          showToast('Order Has Been Received! Notification sent to Sales team.', 'success');
+        }
       } else {
         clearDraft();
         if (typeof clearCart === 'function') clearCart();
@@ -318,6 +328,76 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
     } finally {
       setProcessing(false);
     }
+  };
+
+  const initiatePayment = async (invoiceData, method) => {
+    setPaymentPolling(true);
+    setPaymentStatus('Initiating payment...');
+    try {
+      const res = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method,
+          amount: invoiceData.invoice?.total_amount_due || invoiceData.subscription?.amount || grandTotal,
+          reference: invoiceData.invoice?.invoice_number || invoiceData.subscription?.reference,
+          phone: method === 'mobile_money' ? (mobileMoneyPhone || customerInfo.phone) : customerInfo.phone,
+          email: customerInfo.email,
+          notes: `Subscription Payment for ${customerInfo.name}`
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Payment initiation failed', 'error');
+        setPaymentPolling(false);
+        return;
+      }
+
+      if (method === 'card' && data.cardRedirectUrl) {
+        window.location.href = data.cardRedirectUrl;
+        return;
+      }
+
+      if (method === 'mobile_money' && data.transactionId) {
+        setPaymentStatus('Please check your phone and enter your Mobile Money PIN...');
+        pollPaymentStatus(data.transactionId);
+      }
+    } catch (err) {
+      showToast('Failed to connect to payment gateway.', 'error');
+      setPaymentPolling(false);
+    }
+  };
+
+  const pollPaymentStatus = async (transactionId) => {
+    let attempts = 0;
+    const maxAttempts = 30; // Poll for about 2 minutes
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your messages.');
+        setTimeout(() => setPaymentPolling(false), 5000);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/payments/status/${transactionId}`);
+        const data = await res.json();
+        
+        if (data.status === 'Success') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Successful! Thank you.');
+          setTimeout(() => setPaymentPolling(false), 3000);
+        } else if (data.status === 'Failed') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Failed or Cancelled.');
+          setTimeout(() => setPaymentPolling(false), 4000);
+        }
+      } catch (err) {
+        console.error('Polling error', err);
+      }
+    }, 4000);
   };
 
   return (
@@ -413,6 +493,24 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
                 Return to Digital Shop
               </button>
             </div>
+
+            {paymentPolling && (
+              <div style={{
+                marginTop: '2rem',
+                background: 'rgba(255, 255, 255, 0.95)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '12px', padding: '2rem', border: '1px solid var(--border-color)'
+              }}>
+                <div className="spinner" style={{ width: '40px', height: '40px', borderTopColor: 'var(--primary)', marginBottom: '1.25rem' }}></div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', textAlign: 'center', color: 'var(--text-main)' }}>Processing Payment</h3>
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem', fontWeight: '600' }}>{paymentStatus}</p>
+                {paymentStatus.includes('check your phone') && (
+                  <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '1rem', background: '#fef3c7', padding: '0.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                    Awaiting USSD PIN approval on {mobileMoneyPhone || customerInfo.phone}...
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="responsive-subscription-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', alignItems: 'start' }}>
@@ -848,13 +946,108 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
                   </div>
                 </div>
 
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: '700', marginBottom: '0.5rem', display: 'block' }}>Select Payment Method *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                    <div 
+                      onClick={() => setPaymentMethod('invoice')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'invoice' ? 'var(--primary)' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'invoice' ? 'rgba(30, 58, 138, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700'
+                      }}
+                    >
+                      Generate Invoice Only
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Pay later via Bank</div>
+                    </div>
+                    <div 
+                      onClick={() => setPaymentMethod('mobile_money')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'mobile_money' ? '#f59e0b' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'mobile_money' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'mobile_money' ? '#d97706' : 'var(--text-main)'
+                      }}
+                    >
+                      Mobile Money
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
+                    </div>
+                    <div 
+                      onClick={() => setPaymentMethod('card')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'card' ? '#10b981' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'card' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'card' ? '#059669' : 'var(--text-main)'
+                      }}
+                    >
+                      Credit / Debit Card
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
+                    </div>
+                  </div>
+
+                  {paymentMethod === 'mobile_money' && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.35rem', display: 'block', color: '#d97706' }}>Mobile Money Number *</label>
+                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="mm_number_type"
+                            checked={!useTestNumber}
+                            onChange={() => {
+                              setUseTestNumber(false);
+                              setMobileMoneyPhone(customerInfo.phone);
+                            }}
+                            style={{ accentColor: '#d97706' }}
+                          />
+                          Profile Number
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name="mm_number_type"
+                            checked={useTestNumber}
+                            onChange={() => {
+                              setUseTestNumber(true);
+                              setMobileMoneyPhone('0111777777');
+                            }}
+                            style={{ accentColor: '#d97706' }}
+                          />
+                          Other Number (Test)
+                        </label>
+                      </div>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        value={mobileMoneyPhone || customerInfo.phone}
+                        onChange={e => setMobileMoneyPhone(e.target.value)}
+                        placeholder="e.g. 0111777777"
+                        required
+                        style={{ border: '1px solid #f59e0b', background: '#fffbeb' }}
+                        disabled={!useTestNumber}
+                      />
+                      <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                        To test, use your ioTec sandbox test number. Do NOT use a real number in test mode.
+                      </small>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="submit"
                   className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', padding: '0.9rem' }}
+                  style={{ 
+                    width: '100%', 
+                    justifyContent: 'center', 
+                    padding: '0.9rem', 
+                    fontSize: '0.95rem', 
+                    fontWeight: '800',
+                    background: paymentMethod === 'mobile_money' ? '#eab308' : paymentMethod === 'card' ? '#10b981' : 'var(--primary)',
+                    borderColor: paymentMethod === 'mobile_money' ? '#ca8a04' : paymentMethod === 'card' ? '#059669' : 'var(--primary)',
+                    color: '#fff'
+                  }}
                   disabled={processing || selectedProducts.length === 0}
                 >
-                  {processing ? 'Processing Order...' : `Complete Order (${selectedProducts.length} Items)`} <Lock size={16} />
+                  {processing ? 'Processing Order...' : paymentMethod === 'invoice' ? `Complete Order (${selectedProducts.length} Items)` : `Pay UGX ${grandTotal.toLocaleString()} via ${paymentMethod === 'mobile_money' ? 'Mobile Money' : 'Card'} (${selectedProducts.length} Items)`} <Lock size={16} />
                 </button>
               </form>
 

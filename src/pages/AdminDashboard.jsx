@@ -808,6 +808,7 @@ const normalizeTabName = (rawTab) => {
   const [showInvoicePaymentModal, setShowInvoicePaymentModal] = useState(false);
   const [invoiceToPay, setInvoiceToPay] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
   
@@ -1485,7 +1486,7 @@ const normalizeTabName = (rawTab) => {
           method,
           amount: inv.amount,
           reference: inv.invoice_number,
-          phone: user?.phone || user?.phone_number || '',
+          phone: method === 'mobile_money' ? (mobileMoneyPhone || user?.phone || user?.phone_number || '') : (user?.phone || user?.phone_number || ''),
           email: user?.email || '',
           notes: `Invoice Payment for ${inv.invoice_number}`
         })
@@ -6702,7 +6703,7 @@ const normalizeTabName = (rawTab) => {
                   (l.action || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
                   (l.ip_address || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
                   (l.device_type || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.resource_id || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
+                  String(l.resource_id || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
                   (l.details || '').toLowerCase().includes(forensicsSearch.toLowerCase());
 
                 const matchesAction = forensicsFilterAction === 'ALL' || l.action === forensicsFilterAction;
@@ -8453,7 +8454,7 @@ const normalizeTabName = (rawTab) => {
             )}
 
             {/* PAYMENTS MODULE */}
-            {activeTab === 'payments' && (
+            {activeTab === 'payments' && canRead('payments') && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                   <div>
@@ -9076,7 +9077,7 @@ const normalizeTabName = (rawTab) => {
             )}
 
             {/* INVOICES MODULE — 2 PER ROW, 6 PER PAGE, SEARCH & OVERPAYMENT CREDIT */}
-            {activeTab === 'invoices' && (() => {
+            {activeTab === 'invoices' && canRead('invoices') && (() => {
               const allInvoices = Array.isArray(data?.invoices) ? data.invoices : [];
               const rawInvoices = currentRole === 'customer' 
                 ? allInvoices.filter(inv => inv.customer_email === user?.email)
@@ -13162,7 +13163,10 @@ const normalizeTabName = (rawTab) => {
                 total_invoices_count: computedTotalInvoices,
                 paid_invoices_count: computedPaidInvoicesCount,
                 pending_invoices_count: computedPendingInvoices.length,
-                total_customer_credit_pool: computedCreditPool
+                total_customer_credit_pool: computedCreditPool,
+                total_staff_disbursements: computedPayrollSum,
+                total_company_expenses: computedStaffExpSum,
+                total_pending_receivables: computedPendingReceivables
               };
 
               // Expenditure Categories from live system database
@@ -14672,13 +14676,41 @@ const normalizeTabName = (rawTab) => {
                       Credit / Debit Card
                     </div>
                   </div>
+
+                  {paymentMethod === 'mobile_money' && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.35rem', display: 'block', color: '#d97706' }}>Mobile Money Number (Editable) *</label>
+                      <input
+                        type="tel"
+                        className="form-input"
+                        value={mobileMoneyPhone || user?.phone || user?.phone_number || ''}
+                        onChange={e => setMobileMoneyPhone(e.target.value)}
+                        placeholder="e.g. 256770000000"
+                        required
+                        disabled={paymentPolling}
+                        style={{ border: '1px solid #f59e0b', background: '#fffbeb' }}
+                      />
+                      <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                        To test, use your ioTec sandbox test number. Do NOT use a real number in test mode.
+                      </small>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => initiateInvoicePayment(invoiceToPay, paymentMethod)}
                   className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem', fontWeight: '800' }}
+                  style={{ 
+                    width: '100%', 
+                    justifyContent: 'center', 
+                    padding: '0.9rem', 
+                    fontSize: '0.95rem', 
+                    fontWeight: '800',
+                    background: paymentMethod === 'mobile_money' ? '#eab308' : paymentMethod === 'card' ? '#10b981' : 'var(--primary)',
+                    borderColor: paymentMethod === 'mobile_money' ? '#ca8a04' : paymentMethod === 'card' ? '#059669' : 'var(--primary)',
+                    color: '#fff'
+                  }}
                   disabled={paymentPolling}
                 >
                   Pay UGX {Number(invoiceToPay.amount).toLocaleString()} via {paymentMethod === 'mobile_money' ? 'MoMo' : 'Card'} <Lock size={16} />
@@ -18731,6 +18763,39 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                  {paymentForm.payment_method === 'Mobile Money (MTN/Airtel)' && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ flex: 1, justifyContent: 'center', background: '#d97706', color: '#fff', borderColor: '#d97706' }}
+                      onClick={async () => {
+                        const phone = prompt('Enter customer Mobile Money number to pull payment from (e.g. 0111777777):');
+                        if (!phone) return;
+                        try {
+                          showToast('Initiating Mobile Money pull request...', 'info');
+                          const res = await fetch('/api/payments/initiate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              method: 'mobile_money',
+                              amount: Number(paymentForm.amount_paid) || Number(paymentForm.amount_due),
+                              reference: paymentForm.invoice_number,
+                              phone: phone,
+                              email: paymentForm.party_email,
+                              notes: `Admin Payment Pull for ${paymentForm.party_name}`
+                            })
+                          });
+                          const data = await res.json();
+                          if (!res.ok || data.error) throw new Error(data.error || 'Failed to initiate pull');
+                          showToast('Pull initiated! Customer should check phone for PIN prompt.', 'success');
+                        } catch (err) {
+                          showToast(err.message, 'error');
+                        }
+                      }}
+                    >
+                      📡 Initiate Live Mobile Money Pull
+                    </button>
+                  )}
                   <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
                     Record Payment & Generate PAID Receipt
                   </button>
