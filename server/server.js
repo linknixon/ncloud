@@ -708,6 +708,53 @@ const memoryStore = {
         subscriptions: { create: false, read: true, update: true, delete: false, approve: false, share: true },
         settings: { create: false, read: false, update: false, delete: false, approve: false, share: false }
       }
+    },
+    {
+      id: 7,
+      name: 'Systems Administrator',
+      code: 'systems_admin',
+      badge_color: '#10b981',
+      description: 'Manages API integrations, infrastructure connectivity, and core system configurations.',
+      user_count: 1,
+      permissions: {
+        invoices: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        quotations: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        payments: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        expenses: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        hr: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        unifi: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        schedules: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        forensics: { create: true, read: true, update: false, delete: false, approve: false, share: true },
+        reports: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        users: { create: true, read: true, update: true, delete: false, approve: false, share: false },
+        roles: { create: true, read: true, update: true, delete: false, approve: false, share: false },
+        store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        subscriptions: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        settings: { create: true, read: true, update: true, delete: true, approve: true, share: true }
+      }
+    }
+  ],
+  api_integrations: [
+    {
+      id: 'iotec_pay',
+      name: 'ioTec PayGateway',
+      provider: 'ioTec Pay',
+      status: 'active',
+      client_id: '',
+      client_secret: '',
+      wallet_id: '',
+      last_updated: new Date().toISOString()
+    },
+    {
+      id: 'unifi_api',
+      name: 'UniFi OS Network Integration',
+      provider: 'Ubiquiti',
+      status: 'active',
+      client_id: '88f7af54-98f8-306a-a1c7-c9349722b1f6', // Site ID
+      client_secret: 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda', // API Key
+      wallet_id: '',
+      last_updated: new Date().toISOString()
     }
   ],
   audit_logs: [
@@ -5685,11 +5732,13 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
 // Suspend has been removed, replaced by direct Delete.
 
 // PUT mark voucher as bought (manual override)
-app.put('/api/admin/wifi/vouchers/bulk-mark-bought', (req, res) => {
+app.put('/api/admin/wifi/vouchers/bulk-mark-bought', async (req, res) => {
   const { ids, customer_name, customer_email, invoice_id } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
 
   let updatedCount = 0;
+  const updatedVouchers = [];
+  
   ids.forEach(id => {
     const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
     if (v) {
@@ -5698,11 +5747,65 @@ app.put('/api/admin/wifi/vouchers/bulk-mark-bought', (req, res) => {
       if (customer_name) v.customer_name = customer_name;
       if (customer_email) v.customer_email = customer_email;
       if (invoice_id) v.invoice_id = invoice_id;
+      updatedVouchers.push(v);
       updatedCount++;
     }
   });
 
   if (updatedCount > 0) savePersistentStore();
+  
+  if (customer_email && updatedVouchers.length > 0) {
+    let itemsRows = '';
+    updatedVouchers.forEach(v => {
+      const dataInfo = v.data_quota_mb > 0 ? v.data_label + ' Data' : 'Unlimited Data';
+      itemsRows += `
+        <tr>
+          <td style="padding:8px 0"><strong>Package</strong></td>
+          <td style="text-align:center"></td>
+          <td style="text-align:right">${v.package_name || 'WiFi Voucher'}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0"><strong>Duration / Quota</strong></td>
+          <td style="text-align:center"></td>
+          <td style="text-align:right">${v.duration_label} / ${dataInfo}</td>
+        </tr>
+        <tr style="background:#0f172a; border-radius:8px">
+          <td colspan="3" style="text-align:center; padding:18px; margin-bottom:12px; display:block">
+            <div style="font-size:11px; color:#94a3b8; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px">Your WiFi Access Code</div>
+            <b style="font-size:26px; color:#38bdf8; letter-spacing:0.12em; font-family:monospace">${v.token}</b>
+          </td>
+        </tr>
+      `;
+    });
+
+    const emailHtml = generateCorporateEmailHtml({
+      title: 'Your Nova WiFi Access Vouchers',
+      badgeText: `${updatedVouchers.length} WiFi Vouchers Dispatched`,
+      recipientName: customer_name || 'Customer',
+      introText: `Your Nova WiFi Vouchers are ready to use — enter the codes below on the WiFi login portal to get connected.`,
+      itemsRows,
+      subtotalText: 'Fully Paid',
+      vatText: 'Included',
+      totalAmountText: 'Cleared',
+      shareLink: 'https://ncloud.co.ug',
+      ctaText: 'Connect to WiFi Portal',
+      ctaLink: 'https://ncloud.co.ug'
+    });
+
+    try {
+      await sendMail({
+        to: customer_email,
+        cc: 'sales@ncloud.co.ug',
+        subject: `[100% Paid] Your Nova WiFi Voucher Codes`,
+        html: emailHtml
+      });
+      console.log(`[WiFi] Successfully dispatched ${updatedVouchers.length} vouchers to ${customer_email}`);
+    } catch (err) {
+      console.error('[WiFi] Failed to email vouchers manually:', err);
+      return res.status(500).json({ error: `Vouchers marked as bought, but failed to send email: ${err.message}` });
+    }
+  }
+
   res.json({ message: `Bulk updated ${updatedCount} vouchers as bought` });
 });
 
@@ -10514,6 +10617,234 @@ app.get(['/rss.xml', '/api/rss'], (req, res) => {
     </item>
   </channel>
 </rss>`);
+});
+
+// Authorization Middleware for API Integrations
+function requireSystemsAdmin(req, res, next) {
+  const rawRole = req.headers['x-user-role'] || req.body?.user_role || req.body?.admin_role || req.query?.user_role;
+  if (!rawRole) return res.status(401).json({ error: 'Unauthorized' });
+  const roleClean = String(rawRole).trim().toLowerCase().replace(/\s+/g, '_');
+  if (roleClean === 'super_admin' || roleClean === 'systems_admin' || roleClean === 'superadmin') {
+    return next();
+  }
+  return res.status(403).json({ error: 'Access Denied: Only Systems Admin can configure API integrations.' });
+}
+
+// ----------------------------------------------------
+// API Integrations Management
+// ----------------------------------------------------
+app.get('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
+  const integrations = (memoryStore.api_integrations || []).map(api => ({
+    ...api,
+    client_secret: api.client_secret ? '********' : ''
+  }));
+  res.json({ integrations });
+});
+
+app.put('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
+  const { id } = req.params;
+  const { client_id, client_secret, wallet_id } = req.body;
+  
+  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+  
+  const api = memoryStore.api_integrations.find(a => a.id === id);
+  if (api) {
+    if (client_id !== undefined) api.client_id = client_id;
+    if (client_secret && client_secret !== '********') api.client_secret = client_secret;
+    if (wallet_id !== undefined) api.wallet_id = wallet_id;
+    api.last_updated = new Date().toISOString();
+  }
+  savePersistentStore(true);
+  res.json({ message: 'API Configuration Saved' });
+});
+
+app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // 'active', 'suspended', 'revoked'
+  
+  if (!memoryStore.api_integrations) return res.status(404).json({error:'Not found'});
+  const api = memoryStore.api_integrations.find(a => a.id === id);
+  if (api) {
+    api.status = status;
+    api.last_updated = new Date().toISOString();
+    
+    if (status === 'revoked') {
+      api.client_id = '';
+      api.client_secret = '';
+      api.wallet_id = '';
+    }
+    
+    savePersistentStore(true);
+    res.json({ message: `API Integration marked as ${status}` });
+  } else {
+    res.status(404).json({ error: 'API not found' });
+  }
+});
+
+// ----------------------------------------------------
+// ioTec Pay Service Logic
+// ----------------------------------------------------
+let iotecAccessToken = null;
+let iotecTokenExpiry = 0;
+
+async function getIotecToken() {
+  const now = Date.now();
+  if (iotecAccessToken && now < iotecTokenExpiry) {
+    return iotecAccessToken;
+  }
+
+  const iotecConfig = (memoryStore.api_integrations || []).find(a => a.id === 'iotec_pay');
+  if (!iotecConfig || iotecConfig.status !== 'active' || !iotecConfig.client_id || !iotecConfig.client_secret) {
+    throw new Error('ioTec Pay is not configured or is inactive.');
+  }
+
+  const params = new URLSearchParams();
+  params.append('client_id', iotecConfig.client_id);
+  params.append('client_secret', iotecConfig.client_secret);
+  params.append('grant_type', 'client_credentials');
+
+  const response = await fetch('https://id.iotec.io/connect/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Failed to authenticate with ioTec: ${errText}`);
+  }
+
+  const data = await response.json();
+  iotecAccessToken = data.access_token;
+  iotecTokenExpiry = now + ((data.expires_in - 10) * 1000);
+  return iotecAccessToken;
+}
+
+app.post('/api/payments/initiate', async (req, res) => {
+  try {
+    const { method, amount, reference, phone, email, notes } = req.body;
+    
+    const iotecConfig = (memoryStore.api_integrations || []).find(a => a.id === 'iotec_pay');
+    if (!iotecConfig || iotecConfig.status !== 'active') {
+      return res.status(400).json({ error: 'ioTec Pay is currently disabled or not configured.' });
+    }
+
+    const token = await getIotecToken();
+
+    if (method === 'mobile_money') {
+      const payload = {
+        category: "MobileMoney",
+        currency: "UGX",
+        walletId: iotecConfig.wallet_id,
+        externalId: reference,
+        payer: phone,
+        amount: Number(amount),
+        payerNote: notes || `Payment for ${reference}`
+      };
+
+      const iotecRes = await fetch('https://pay.iotec.io/api/collections/collect', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!iotecRes.ok) {
+        const errText = await iotecRes.text();
+        return res.status(400).json({ error: `Mobile Money initiation failed: ${errText}` });
+      }
+
+      const data = await iotecRes.json();
+      return res.json({ success: true, transactionId: data.id, status: data.status });
+      
+    } else if (method === 'card') {
+      const payload = {
+        category: "Card",
+        currency: "UGX",
+        walletId: iotecConfig.wallet_id,
+        externalId: reference,
+        payer: email,
+        amount: Number(amount),
+        payerNote: notes || `Payment for ${reference}`,
+        redirectUrl: "https://ncloud.co.ug/shop"
+      };
+
+      const iotecRes = await fetch('https://pay.iotec.io/api/collections/collect/card', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!iotecRes.ok) {
+        const errText = await iotecRes.text();
+        return res.status(400).json({ error: `Card payment initiation failed: ${errText}` });
+      }
+
+      const data = await iotecRes.json();
+      return res.json({ success: true, transactionId: data.id, cardRedirectUrl: data.cardRedirectUrl });
+    } else {
+      return res.status(400).json({ error: 'Invalid payment method selected.' });
+    }
+  } catch (err) {
+    console.error('ioTec Initiate Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/payments/status/:id', async (req, res) => {
+  try {
+    const token = await getIotecToken();
+    const { id } = req.params;
+    
+    const iotecRes = await fetch(`https://pay.iotec.io/api/collections/status/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!iotecRes.ok) {
+      return res.status(400).json({ error: 'Failed to fetch status from ioTec' });
+    }
+    
+    const data = await iotecRes.json();
+    
+    if (data.status === 'Success' && data.externalId) {
+       const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === data.externalId);
+       if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== 'PAID') {
+         memoryStore.invoices[invIndex].status = 'PAID';
+         memoryStore.invoices[invIndex].date_paid = new Date().toISOString();
+         savePersistentStore();
+       }
+    }
+    
+    return res.json({ status: data.status, externalId: data.externalId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/webhooks/iotec', (req, res) => {
+  const { id, status, externalId, amount, currency } = req.body;
+  console.log(`[ioTec Webhook] Received status ${status} for transaction ${id}, externalId: ${externalId}`);
+  
+  if (status === 'Success' && externalId) {
+     const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === externalId);
+     if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== 'PAID') {
+       memoryStore.invoices[invIndex].status = 'PAID';
+       memoryStore.invoices[invIndex].date_paid = new Date().toISOString();
+       savePersistentStore();
+       console.log(`[ioTec Webhook] Invoice ${externalId} marked as PAID.`);
+     }
+  }
+  
+  res.status(200).send('OK');
 });
 
 // SPA Fallback Route for React Router / HTML5 History

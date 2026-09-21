@@ -21,7 +21,11 @@ export default function ShopCheckoutModal() {
   const [includeVat, setIncludeVat] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [successData, setSuccessData] = useState(null);
-
+  
+  const [paymentMethod, setPaymentMethod] = useState('invoice'); // 'invoice', 'mobile_money', 'card'
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'
+  
   const [customerInfo, setCustomerInfo] = useState(() => {
     if (user) {
       const userPhone = user.phone || user.phone_number || user.telephone || user.mobile || '';
@@ -240,25 +244,23 @@ export default function ShopCheckoutModal() {
         setSearchTerm('');
         setIncludeVat(false);
       };
+      
+      const fallbackData = {
+        reference: 'NV-SUB-' + Math.floor(1000 + Math.random() * 9000),
+        invoice: { invoice_number: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}` }
+      };
 
-      if (res.ok && (data.success || data.subscription || data.invoice)) {
-        setSuccessData(data.invoice ? data : {
-          reference: data.reference || ('NV-SUB-' + Math.floor(1000 + Math.random() * 9000)),
-          invoice: { invoice_number: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}` }
-        });
-        clearCart();
-        resetFormFields();
-        showToast('Order completed successfully! Tax Invoice generated.', 'success');
+      const invoiceData = data.invoice ? data : fallbackData;
+      setSuccessData(invoiceData);
+      clearCart();
+      resetFormFields();
+
+      if (paymentMethod === 'mobile_money' || paymentMethod === 'card') {
+        initiatePayment(invoiceData, paymentMethod);
       } else {
-        const fallbackData = {
-          reference: 'NV-SUB-' + Math.floor(1000 + Math.random() * 9000),
-          invoice: { invoice_number: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}` }
-        };
-        setSuccessData(data.invoice ? data : fallbackData);
-        clearCart();
-        resetFormFields();
-        showToast('Order Has Been Received! Tax Invoice generated.', 'success');
+        showToast('Order completed successfully! Tax Invoice generated.', 'success');
       }
+
     } catch (err) {
       console.error('Direct checkout order error:', err);
       const fallbackData = {
@@ -274,8 +276,84 @@ export default function ShopCheckoutModal() {
     }
   };
 
+  const initiatePayment = async (invoiceData, method) => {
+    setPaymentPolling(true);
+    setPaymentStatus('Initiating payment...');
+    try {
+      const res = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method,
+          amount: invoiceData.invoice?.total_amount_due || grandTotal,
+          reference: invoiceData.invoice?.invoice_number || invoiceData.reference,
+          phone: customerInfo.phone,
+          email: customerInfo.email,
+          notes: `Shop Order Payment for ${customerInfo.name}`
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Payment initiation failed', 'error');
+        setPaymentPolling(false);
+        return;
+      }
+
+      if (method === 'card' && data.cardRedirectUrl) {
+        window.location.href = data.cardRedirectUrl;
+        return;
+      }
+
+      if (method === 'mobile_money' && data.transactionId) {
+        setPaymentStatus('Please check your phone and enter your Mobile Money PIN...');
+        pollPaymentStatus(data.transactionId);
+      }
+    } catch (err) {
+      showToast('Failed to connect to payment gateway.', 'error');
+      setPaymentPolling(false);
+    }
+  };
+
+  const pollPaymentStatus = async (transactionId) => {
+    let attempts = 0;
+    const maxAttempts = 30; // Poll for about 2 minutes
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your messages.');
+        setTimeout(() => setPaymentPolling(false), 5000);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/payments/status/${transactionId}`);
+        const data = await res.json();
+        
+        if (data.status === 'Success') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Successful! Thank you.');
+          setTimeout(() => setPaymentPolling(false), 3000);
+        } else if (data.status === 'Failed') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Failed or Cancelled.');
+          setTimeout(() => setPaymentPolling(false), 4000);
+        }
+      } catch (err) {
+        console.error('Polling error', err);
+      }
+    }, 4000);
+  };
+
   const handleCloseModal = () => {
+    if (paymentPolling && paymentStatus === 'Please check your phone and enter your Mobile Money PIN...') {
+      if(!window.confirm("A payment request is pending on your phone. Are you sure you want to close this window? The invoice will still be updated automatically if you complete the payment.")) {
+        return;
+      }
+    }
     setSuccessData(null);
+    setPaymentPolling(false);
     setCustomerInfo({ name: '', email: '', phone: '', address: '', company: '', notes: '' });
     setSelectedItems([]);
     setSearchTerm('');
@@ -623,15 +701,79 @@ export default function ShopCheckoutModal() {
                 </div>
               </div>
 
+              {/* Payment Method Selector */}
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label style={{ fontWeight: '700', marginBottom: '0.5rem', display: 'block' }}>Select Payment Method *</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem' }}>
+                  <div 
+                    onClick={() => setPaymentMethod('invoice')}
+                    style={{
+                      padding: '1rem', border: `1.5px solid ${paymentMethod === 'invoice' ? 'var(--primary)' : 'var(--border-color)'}`,
+                      borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'invoice' ? 'rgba(30, 58, 138, 0.08)' : 'var(--bg-card)',
+                      textAlign: 'center', fontWeight: '700'
+                    }}
+                  >
+                    Generate Invoice Only
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Pay later via Bank</div>
+                  </div>
+                  <div 
+                    onClick={() => setPaymentMethod('mobile_money')}
+                    style={{
+                      padding: '1rem', border: `1.5px solid ${paymentMethod === 'mobile_money' ? '#f59e0b' : 'var(--border-color)'}`,
+                      borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'mobile_money' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                      textAlign: 'center', fontWeight: '700', color: paymentMethod === 'mobile_money' ? '#d97706' : 'var(--text-main)'
+                    }}
+                  >
+                    Mobile Money
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
+                  </div>
+                  <div 
+                    onClick={() => setPaymentMethod('card')}
+                    style={{
+                      padding: '1rem', border: `1.5px solid ${paymentMethod === 'card' ? '#10b981' : 'var(--border-color)'}`,
+                      borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'card' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
+                      textAlign: 'center', fontWeight: '700', color: paymentMethod === 'card' ? '#059669' : 'var(--text-main)'
+                    }}
+                  >
+                    Credit / Debit Card
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem', fontWeight: '800' }}
                 disabled={processing || selectedItems.length === 0}
               >
-                {processing ? 'Processing Order...' : `Complete Order & Generate Tax Invoice (UGX ${grandTotal.toLocaleString()})`} <Lock size={16} />
+                {processing ? 'Processing Order...' : paymentMethod === 'invoice' ? `Complete Order & Generate Tax Invoice (UGX ${grandTotal.toLocaleString()})` : `Pay UGX ${grandTotal.toLocaleString()} via ${paymentMethod === 'mobile_money' ? 'Mobile Money' : 'Card'}`} <Lock size={16} />
               </button>
             </form>
+          </div>
+        )}
+
+        {/* Polling Overlay Spinner */}
+        {paymentPolling && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(255, 255, 255, 0.95)', zIndex: 100,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            borderRadius: '18px'
+          }}>
+            <div className="spinner" style={{ width: '50px', height: '50px', borderTopColor: 'var(--primary)', marginBottom: '1.5rem' }}></div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', textAlign: 'center', color: 'var(--text-main)' }}>Processing Payment</h3>
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', maxWidth: '400px', marginTop: '0.5rem', fontWeight: '600' }}>{paymentStatus}</p>
+            {paymentStatus.includes('check your phone') && (
+              <p style={{ fontSize: '0.85rem', color: '#f59e0b', marginTop: '1rem', background: '#fef3c7', padding: '0.5rem 1rem', borderRadius: '8px' }}>
+                Awaiting USSD PIN approval on {customerInfo.phone}...
+              </p>
+            )}
+            {!paymentStatus.includes('Successful') && (
+              <button onClick={handleCloseModal} className="btn-secondary" style={{ marginTop: '2rem' }}>
+                Cancel or Run in Background
+              </button>
+            )}
           </div>
         )}
       </div>

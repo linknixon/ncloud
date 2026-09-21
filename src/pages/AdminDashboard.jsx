@@ -799,6 +799,18 @@ const normalizeTabName = (rawTab) => {
   const [bannerAutoDismissHours, setBannerAutoDismissHours] = useState(24);
   const [bannerCustomMsg, setBannerCustomMsg] = useState('Major Datacenter Expansion: 20 New 1U/2U High-Density Colocation Server Racks now live with 10Gbps Cross-Connects!');
 
+  // API Integrations State
+  const [apiIntegrations, setApiIntegrations] = useState([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [selectedApiConfig, setSelectedApiConfig] = useState(null);
+  
+  // Invoice Payment State
+  const [showInvoicePaymentModal, setShowInvoicePaymentModal] = useState(false);
+  const [invoiceToPay, setInvoiceToPay] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  
   // Search & Pagination on Nova Cloud Portal Modules
   const [moduleSearch, setModuleSearch] = useState('');
   const [modulePage, setModulePage] = useState(1);
@@ -1445,7 +1457,98 @@ const normalizeTabName = (rawTab) => {
       handleFetchSecuritySettings();
       handleFetchAnnouncement();
     }
+    if (activeTab === 'api_integrations' && (isSuperAdmin || currentRole === 'systems_admin')) {
+      fetchApiIntegrations();
+    }
   }, [activeTab]);
+
+  const fetchApiIntegrations = async () => {
+    try {
+      const res = await fetch('/api/admin/integrations', { headers: { 'x-user-role': currentRole } });
+      if (res.ok) {
+        const data = await res.json();
+        setApiIntegrations(data.integrations || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const initiateInvoicePayment = async (inv, method) => {
+    setPaymentPolling(true);
+    setPaymentStatus('Initiating payment...');
+    try {
+      const res = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({
+          method,
+          amount: inv.amount,
+          reference: inv.invoice_number,
+          phone: user?.phone || user?.phone_number || '',
+          email: user?.email || '',
+          notes: `Invoice Payment for ${inv.invoice_number}`
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Payment initiation failed', 'error');
+        setPaymentPolling(false);
+        return;
+      }
+
+      if (method === 'card' && data.cardRedirectUrl) {
+        window.location.href = data.cardRedirectUrl;
+        return;
+      }
+
+      if (method === 'mobile_money' && data.transactionId) {
+        setPaymentStatus('Please check your phone and enter your Mobile Money PIN...');
+        pollInvoicePaymentStatus(data.transactionId);
+      }
+    } catch (err) {
+      showToast('Failed to connect to payment gateway.', 'error');
+      setPaymentPolling(false);
+    }
+  };
+
+  const pollInvoicePaymentStatus = async (transactionId) => {
+    let attempts = 0;
+    const maxAttempts = 30; // Poll for about 2 minutes
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your messages.');
+        setTimeout(() => setPaymentPolling(false), 5000);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/payments/status/${transactionId}`, {
+          headers: { 'x-user-role': currentRole }
+        });
+        const data = await res.json();
+        
+        if (data.status === 'Success') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Successful! Thank you.');
+          setTimeout(() => {
+            setPaymentPolling(false);
+            setShowInvoicePaymentModal(false);
+            fetchInvoices(true); // refresh invoices
+          }, 3000);
+        } else if (data.status === 'Failed') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Failed or Cancelled.');
+          setTimeout(() => setPaymentPolling(false), 4000);
+        }
+      } catch (err) {
+        console.error('Polling error', err);
+      }
+    }, 4000);
+  };
 
   // Update role and set default appropriate card view (Restricted to Super Admin)
   const handleRoleSwitch = (newRole) => {
@@ -4474,6 +4577,15 @@ const normalizeTabName = (rawTab) => {
       show: canRead('settings') || isWebAdmin || isSuperAdmin
     },
     {
+      id: 'api_integrations',
+      title: 'API Integrations',
+      desc: 'Manage ioTec Pay, MTN, Airtel, PayPal, and UniFi connectivity credentials.',
+      icon: Settings2,
+      color: '#10b981',
+      btnText: 'Configure API Integrations',
+      show: isSuperAdmin || currentRole === 'systems_admin'
+    },
+    {
       id: 'customer_portal',
       title: 'Customer Portal',
       desc: 'View active subscriptions, process quick renewals, and download tax invoices.',
@@ -5070,6 +5182,26 @@ const normalizeTabName = (rawTab) => {
               }}
             >
               <ImageIcon size={15} /> Brand Settings
+            </button>
+          )}
+
+          {(isSuperAdmin || currentRole === 'systems_admin') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('api_integrations')}
+              className="btn-secondary"
+              style={{
+                padding: '0.55rem 1.1rem',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                background: activeTab === 'api_integrations' ? '#10b981' : 'transparent',
+                color: activeTab === 'api_integrations' ? '#fff' : 'var(--text-main)',
+                border: activeTab === 'api_integrations' ? 'none' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Settings2 size={15} /> API Integrations
             </button>
           )}
         </div>
@@ -11283,6 +11415,107 @@ const normalizeTabName = (rawTab) => {
               );
             })()}
 
+            {/* API INTEGRATIONS MODULE */}
+            {activeTab === 'api_integrations' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>API Integrations & Keys Management</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
+                      Securely manage payment gateways (ioTec Pay, MTN, Airtel) and core system APIs (UniFi).
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                  {apiIntegrations.map(api => (
+                    <div key={api.id} className="glass-card" style={{ padding: '1.5rem', position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div>
+                          <h4 style={{ fontWeight: '800', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {api.provider}
+                            {api.status === 'active' && <span style={{ fontSize: '0.7rem', background: '#10b98120', color: '#10b981', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>ACTIVE</span>}
+                            {api.status === 'suspended' && <span style={{ fontSize: '0.7rem', background: '#f59e0b20', color: '#f59e0b', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUSPENDED</span>}
+                            {api.status === 'revoked' && <span style={{ fontSize: '0.7rem', background: '#ef444420', color: '#ef4444', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>REVOKED</span>}
+                          </h4>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{api.name}</p>
+                        </div>
+                        <Settings2 size={24} color="var(--primary-color)" />
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                        <button 
+                          onClick={() => {
+                            setSelectedApiConfig(api);
+                            setShowConfigModal(true);
+                          }}
+                          className="btn-primary" 
+                          style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                        >
+                          Configure Keys
+                        </button>
+                        
+                        {api.status === 'active' ? (
+                          <button 
+                            onClick={async () => {
+                              await fetch(`/api/admin/integrations/${api.id}/status`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                body: JSON.stringify({ status: 'suspended' })
+                              });
+                              fetchApiIntegrations();
+                              showToast(`${api.provider} suspended successfully.`, 'info');
+                            }}
+                            className="btn-secondary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                          >
+                            Suspend
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={async () => {
+                              await fetch(`/api/admin/integrations/${api.id}/status`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                body: JSON.stringify({ status: 'active' })
+                              });
+                              fetchApiIntegrations();
+                              showToast(`${api.provider} activated successfully.`, 'success');
+                            }}
+                            className="btn-secondary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                          >
+                            Activate
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={async () => {
+                            if(window.confirm(`Are you sure you want to REVOKE ${api.provider}? This will delete the keys permanently.`)) {
+                              await fetch(`/api/admin/integrations/${api.id}/status`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                body: JSON.stringify({ status: 'revoked' })
+                              });
+                              fetchApiIntegrations();
+                              showToast(`${api.provider} credentials revoked.`, 'error');
+                            }
+                          }}
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem', fontSize: '0.85rem', color: '#ef4444', borderColor: '#ef4444' }}
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                      <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Last Updated: {new Date(api.last_updated).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* BRAND SETTINGS MODULE */}
             {activeTab === 'settings' && (
               <SettingsErrorBoundary>
@@ -13886,7 +14119,19 @@ const normalizeTabName = (rawTab) => {
                                     </div>
                                   )}
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                                  {(inv.status === 'PENDING' || inv.status === 'Pending') && (
+                                    <button
+                                      onClick={() => {
+                                        setInvoiceToPay(inv);
+                                        setShowInvoicePaymentModal(true);
+                                      }}
+                                      className="btn-primary"
+                                      style={{ flex: '1 1 100%', justifyContent: 'center', padding: '0.55rem', fontSize: '0.85rem', marginBottom: '0.25rem' }}
+                                    >
+                                      <CreditCard size={14} /> Pay Now
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => generateInvoicePDF(inv, { paidStamp, siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label })}
                                     className="btn-secondary"
@@ -14385,7 +14630,161 @@ const normalizeTabName = (rawTab) => {
           </div>
         )}
 
+        {/* INVOICE PAYMENT MODAL */}
+        {showInvoicePaymentModal && invoiceToPay && (
+          <div className="modal-overlay" onClick={() => !paymentPolling && setShowInvoicePaymentModal(false)}>
+            <div className="modal-content" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Pay Invoice {invoiceToPay.invoice_number}</h3>
+                {!paymentPolling && <button className="modal-close" onClick={() => setShowInvoicePaymentModal(false)}><X size={20} /></button>}
+              </div>
+              <div className="modal-body" style={{ position: 'relative' }}>
+                <div style={{ padding: '1.25rem', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Amount Due:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '1.1rem' }}>
+                      UGX {Number(invoiceToPay.amount).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ fontWeight: '700', marginBottom: '0.5rem', display: 'block' }}>Select Payment Method *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div 
+                      onClick={() => !paymentPolling && setPaymentMethod('mobile_money')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'mobile_money' ? '#f59e0b' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: paymentPolling ? 'not-allowed' : 'pointer', background: paymentMethod === 'mobile_money' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'mobile_money' ? '#d97706' : 'var(--text-main)'
+                      }}
+                    >
+                      Mobile Money
+                    </div>
+                    <div 
+                      onClick={() => !paymentPolling && setPaymentMethod('card')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'card' ? '#10b981' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: paymentPolling ? 'not-allowed' : 'pointer', background: paymentMethod === 'card' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'card' ? '#059669' : 'var(--text-main)'
+                      }}
+                    >
+                      Credit / Debit Card
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => initiateInvoicePayment(invoiceToPay, paymentMethod)}
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.9rem', fontSize: '0.95rem', fontWeight: '800' }}
+                  disabled={paymentPolling}
+                >
+                  Pay UGX {Number(invoiceToPay.amount).toLocaleString()} via {paymentMethod === 'mobile_money' ? 'MoMo' : 'Card'} <Lock size={16} />
+                </button>
+
+                {/* Polling Overlay */}
+                {paymentPolling && (
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(255, 255, 255, 0.95)', zIndex: 10,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '12px'
+                  }}>
+                    <div className="spinner" style={{ width: '40px', height: '40px', borderTopColor: 'var(--primary)', marginBottom: '1.25rem' }}></div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', textAlign: 'center', color: 'var(--text-main)' }}>Processing Payment</h3>
+                    <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem', fontWeight: '600' }}>{paymentStatus}</p>
+                    {paymentStatus.includes('check your phone') && (
+                      <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '1rem', background: '#fef3c7', padding: '0.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                        Awaiting USSD PIN approval on {user?.phone || user?.phone_number}...
+                      </p>
+                    )}
+                    {!paymentStatus.includes('Successful') && (
+                      <button onClick={() => { setPaymentPolling(false); setShowInvoicePaymentModal(false); }} className="btn-secondary" style={{ marginTop: '1.5rem', fontSize: '0.8rem' }}>
+                        Run in Background
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ISSUE INVOICE MODAL (Store Item & Customer Selection) */}
+        {/* API CONFIG MODAL */}
+        {showConfigModal && selectedApiConfig && (
+          <div className="modal-overlay" onClick={() => setShowConfigModal(false)}>
+            <div className="modal-content" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Configure {selectedApiConfig.provider}</h3>
+                <button className="modal-close" onClick={() => setShowConfigModal(false)}><X size={20} /></button>
+              </div>
+              <div className="modal-body">
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const res = await fetch(`/api/admin/integrations/${selectedApiConfig.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                      body: JSON.stringify({
+                        client_id: selectedApiConfig.client_id,
+                        client_secret: selectedApiConfig.client_secret,
+                        wallet_id: selectedApiConfig.wallet_id
+                      })
+                    });
+                    if (res.ok) {
+                      showToast('API Configuration saved successfully!', 'success');
+                      setShowConfigModal(false);
+                      fetchApiIntegrations();
+                    }
+                  } catch(err) {
+                    showToast('Failed to save API config', 'error');
+                  }
+                }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={selectedApiConfig.client_id || ''}
+                      onChange={e => setSelectedApiConfig({...selectedApiConfig, client_id: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder={selectedApiConfig.client_secret ? '********' : 'Enter Secret'}
+                      value={selectedApiConfig.client_secret || ''}
+                      onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
+                    />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to keep current secret.</small>
+                  </div>
+                  {selectedApiConfig.id === 'iotec_pay' && (
+                    <div className="form-group">
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={selectedApiConfig.wallet_id || ''}
+                        onChange={e => setSelectedApiConfig({...selectedApiConfig, wallet_id: e.target.value})}
+                      />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Credentials</button>
+                    <button type="button" className="btn-secondary" onClick={() => setShowConfigModal(false)}>Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showInvoiceModal && (
           <div className="modal-overlay" onClick={() => setShowInvoiceModal(false)}>
             <div
