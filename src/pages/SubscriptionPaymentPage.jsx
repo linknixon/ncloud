@@ -303,7 +303,7 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
         throw new Error(rawText ? 'Server returned an invalid response format.' : 'Server returned an empty response.');
       }
 
-      if (res.ok && data.subscription) {
+      if (res.ok && (data.subscription || data.invoice || data.success)) {
         clearDraft();
         if (typeof clearCart === 'function') clearCart();
         if (data.new_account_created && data.created_user) {
@@ -872,42 +872,22 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
                 )}
 
                 {/* Tax & VAT Option Checkbox */}
-                {(() => {
-                  const isAdmin = user && (user.role === 'super_admin' || user.role === 'admin');
-                  return (
-                    <div style={{
-                      background: 'var(--bg-main)',
-                      padding: '0.85rem 1rem',
-                      borderRadius: '10px',
-                      border: '1.5px solid var(--primary)',
-                      marginBottom: '1.25rem'
-                    }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: isAdmin ? 'pointer' : 'default', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={includeVat}
-                          disabled={!isAdmin}
-                          onChange={e => {
-                            if (isAdmin) setIncludeVat(e.target.checked);
-                          }}
-                          style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: isAdmin ? 'pointer' : 'not-allowed' }}
-                        />
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          Add 18% Value Added Tax (VAT) for Official Tax Invoice
-                          {!isAdmin ? (
-                            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
-                              Standard Uganda VAT (Admin override only)
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: '700' }}>
-                              Admin Override Active
-                            </span>
-                          )}
-                        </span>
-                      </label>
-                    </div>
-                  );
-                })()}
+                <div style={{
+                  background: 'var(--bg-main)',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  border: '1.5px solid var(--primary)',
+                  marginBottom: '1.25rem'
+                }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      Standard 18% Value Added Tax (VAT) Applied
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
+                        Compulsory Uganda VAT
+                      </span>
+                    </span>
+                  </label>
+                </div>
 
                 <div style={{
                   background: 'var(--bg-main)',
@@ -970,7 +950,7 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
                     >
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
                         <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/New-mtn-logo.jpg" alt="MTN" style={{ height: '18px', borderRadius: '3px' }} />
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fb/Airtel_logo.svg" alt="Airtel" style={{ height: '18px', borderRadius: '3px' }} />
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Airtel_logo.svg/512px-Airtel_logo.svg.png" alt="Airtel" style={{ height: '18px', borderRadius: '3px' }} />
                       </div>
                       Mobile Money
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>

@@ -7551,235 +7551,121 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
 }
 
 export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // Thermal Receipt Format: 80mm width. Height dynamically calculated or set to 200mm.
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
   registerTrebuchetFont(doc);
   const pmtRef = pmt.reference || `PAY-${pmt.id || '2026-0001'}`;
   const invNum = pmt.invoice_number || 'INV-2026-0001';
   const cName = pmt.party_name || options.customerName || 'Valued Corporate Customer';
-  const cEmail = pmt.party_email || options.customerEmail || 'billing@client.co.ug';
-  const paidAmt = Number(pmt.amount || 0);
-  const pmtMethod = pmt.payment_method || 'Stanbic Bank Wire Transfer';
-  const pmtDate = pmt.payment_date || pmt.timestamp || '2026-09-05';
-  const isCleared = pmt.status === '100% Paid' || pmt.status === 'Paid & Settled';
+  const paidAmt = Number(pmt.amount || pmt.amount_paid || 0);
+  const pmtMethod = pmt.payment_method || 'Direct Transfer';
+  const pmtDate = pmt.payment_date || pmt.timestamp || new Date().toISOString().split('T')[0];
+  const isCleared = pmt.status === '100% Paid' || pmt.status === 'Paid & Settled' || pmt.status === 'Paid' || pmt.status === 'PAID';
 
   const qrDataUrl = await getServerQrDataUrl(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(pmtRef)}`);
   const activeLogo = options.logoDataUrl || memoryStore.site_logo || NOVA_SERVER_LOGO_BASE64;
 
-  // Top Accent Bar
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, 210, 6, 'F');
-  doc.setFillColor(22, 163, 74);
-  doc.rect(0, 6, 210, 1.5, 'F');
+  let y = 6;
+  const centerX = 40;
 
-  // Header Left
-  let textX = 14;
   if (activeLogo) {
     try {
-      doc.addImage(activeLogo, 'PNG', 14, 13, 24, 20);
-      textX = 42;
+      doc.addImage(activeLogo, 'PNG', 26, y, 28, 22);
+      y += 26;
     } catch {}
+  } else {
+    y += 10;
   }
 
+  // Header
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(14);
+  doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text('NOVA CLOUD EDGES', textX, 18);
-  doc.setFontSize(9);
-  doc.setTextColor(22, 163, 74);
-  doc.text('(U) LIMITED', textX + 62, 18);
-
+  doc.text('NOVA CLOUD EDGES (U) LTD', centerX, y, { align: 'center' });
+  y += 4;
+  
   doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(SERVER_BRAND.tagline, textX, 23);
-  doc.text(`${SERVER_BRAND.address} • TIN: ${SERVER_BRAND.tin}`, textX, 27.5);
-  doc.text(SERVER_BRAND.contact, textX, 32);
-
-  // Header Right
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(15, 23, 42);
-  doc.text('PAYMENT RECEIPT', 196, 19, { align: 'right' });
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text(pmtRef, 196, 25, { align: 'right' });
-
-  // Status Stamp Box
-  const stampW = 42;
-  const stampH = 7;
-  const stampX = 196 - stampW;
-  const stampY = 28;
-  doc.setFillColor(isCleared ? 240 : 254, isCleared ? 253 : 243, isCleared ? 244 : 199);
-  doc.setDrawColor(isCleared ? 34 : 217, isCleared ? 197 : 119, isCleared ? 94 : 6);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(stampX, stampY, stampW, stampH, 1, 1, 'FD');
-  doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(7);
-  doc.setTextColor(isCleared ? 22 : 180, isCleared ? 163 : 83, isCleared ? 74 : 9);
-  doc.text(isCleared ? '100% CLEARANCE CONFIRMED' : 'PARTIAL REMITTANCE', stampX + stampW / 2, stampY + 4.8, { align: 'center' });
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(14, 38, 196, 38);
-
-  // Cards
-  const metaY = 42;
-  const colW = 88;
-
-  // Payee Card
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, metaY, colW, 30, 2, 2, 'FD');
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('RECEIVED FROM (PAYEE DETAILS):', 18, metaY + 6);
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text(cName.substring(0, 36), 18, metaY + 11.5);
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Email: ${cEmail}`, 18, metaY + 16.5);
-  doc.text(`Payment Classification: ${pmt.payment_type === 'staff' ? 'Staff Payout' : 'Customer Account Settlement'}`, 18, metaY + 21);
-  doc.text(`Settled Against Invoice: #${invNum}`, 18, metaY + 25.5);
+  doc.text(SERVER_BRAND.address, centerX, y, { align: 'center' });
+  y += 3.5;
+  doc.text(`TIN: ${SERVER_BRAND.tin}`, centerX, y, { align: 'center' });
+  y += 3.5;
+  doc.text('support@ncloud.co.ug', centerX, y, { align: 'center' });
+  y += 6;
 
-  // Settlement Metrics Card
-  const rX = 108;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(rX, metaY, colW, 30, 2, 2, 'FD');
-
+  // Title
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('SETTLEMENT AUDIT METRICS:', rX + 4, metaY + 6);
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text('Transaction Ref:', rX + 4, metaY + 12);
-  doc.text('Remittance Channel:', rX + 4, metaY + 16.5);
-  doc.text('Settlement Timestamp:', rX + 4, metaY + 21);
-  doc.text('Reconciliation State:', rX + 4, metaY + 25.5);
-
-  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(12);
   doc.setTextColor(15, 23, 42);
-  doc.text(pmtRef, rX + 40, metaY + 12);
-  doc.text(pmtMethod, rX + 40, metaY + 16.5);
-  doc.text(pmtDate.replace('T', ' ').substring(0, 19), rX + 40, metaY + 21);
-  doc.setTextColor(22, 163, 74);
-  doc.text(isCleared ? '100% Cleared & Verified' : 'Partially Cleared', rX + 40, metaY + 25.5);
+  doc.text('PAYMENT RECEIPT', centerX, y, { align: 'center' });
+  y += 4;
 
-  // Prominent Received Amount Banner
-  const bannerY = 76;
-  doc.setFillColor(240, 253, 244);
-  doc.setDrawColor(34, 197, 94);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(14, bannerY, 182, 38, 2, 2, 'FD');
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineDashPattern([1, 1], 0);
+  doc.line(6, y, 74, y);
+  y += 5;
+  doc.setLineDashPattern([], 0);
 
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('OFFICIAL SETTLEMENT DISCHARGE CONFIRMATION', 18, bannerY + 7);
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Nova Cloud Edges Finance Automation confirms successful receipt and reconciliation of payment', 18, bannerY + 14);
-  doc.text(`credited against Tax Invoice #${invNum} via ${pmtMethod}.`, 18, bannerY + 19);
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(15);
-  doc.setTextColor(21, 128, 61);
-  doc.text(`AMOUNT RECEIVED: UGX ${paidAmt.toLocaleString()}`, 18, bannerY + 31);
-
-  // Financial Breakdown Card
-  const detailY = 120;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, detailY, 182, 40, 2, 2, 'FD');
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text('PAYMENT BREAKDOWN', 18, detailY + 6.5);
-
-  const printRow = (lbl, val, yOff, isBold = false, col = [15, 23, 42]) => {
-    doc.setFont('TrebuchetMS', isBold ? 'bold' : 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(isBold ? 15 : 100, isBold ? 23 : 116, isBold ? 42 : 139);
-    doc.text(lbl, 20, detailY + yOff);
+  // Tx Details
+  const printRow = (lbl, val) => {
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(lbl, 6, y);
     doc.setFont('TrebuchetMS', 'bold');
-    doc.setTextColor(...col);
-    doc.text(val, 190, detailY + yOff, { align: 'right' });
+    doc.setTextColor(15, 23, 42);
+    // wrap text if too long
+    const splitVal = doc.splitTextToSize(val, 40);
+    doc.text(splitVal, 74, y, { align: 'right' });
+    y += (splitVal.length * 3.5) + 1;
   };
 
-  printRow('Settled Installment Amount:', `UGX ${paidAmt.toLocaleString()}`, 14, false);
-  printRow('Clearance Fee / Processing Charge:', 'UGX 0 (Absorbed by Nova Cloud)', 20, false);
-  printRow('Statutory Tax Status:', 'URA EFRIS Verified Tax Invoice Settlement', 26, false);
-  printRow('Net Amount Credited to Account:', `UGX ${paidAmt.toLocaleString()}`, 33, true, [22, 163, 74]);
+  printRow('Receipt No:', pmtRef);
+  printRow('Date:', pmtDate.replace('T', ' ').substring(0, 19));
+  printRow('Invoice No:', invNum);
+  printRow('Customer:', cName);
+  printRow('Method:', pmtMethod);
+  printRow('Status:', isCleared ? 'Cleared' : 'Partial');
 
-  // Signatory & QR Verification Card
-  const signBlockY = detailY + 46;
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(14, signBlockY, 182, 34, 2, 2, 'FD');
+  y += 2;
+  doc.setLineDashPattern([1, 1], 0);
+  doc.line(6, y, 74, y);
+  y += 5;
+  doc.setLineDashPattern([], 0);
 
+  // Amount
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(22, 163, 74);
+  doc.text('AMOUNT RECEIVED', 6, y);
+  doc.text(`UGX ${paidAmt.toLocaleString()}`, 74, y, { align: 'right' });
+  y += 6;
+  
+  doc.setLineDashPattern([1, 1], 0);
+  doc.line(6, y, 74, y);
+  y += 5;
+  doc.setLineDashPattern([], 0);
+
+  // Footer & QR
   if (qrDataUrl) {
     try {
-      doc.addImage(qrDataUrl, 'PNG', 18, signBlockY + 4, 26, 26);
+      doc.addImage(qrDataUrl, 'PNG', 26, y, 28, 28);
+      y += 30;
     } catch {}
+  } else {
+    y += 10;
   }
 
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 23, 42);
-  doc.text('OFFICIAL PAYMENT VERIFICATION', 48, signBlockY + 9);
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 116, 139);
-  doc.text('This electronic receipt constitutes an official legal discharge for the funds stated.', 48, signBlockY + 14);
-  doc.text('Verify authenticity online at ncloud.co.ug/verify.', 48, signBlockY + 18.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text(`https://ncloud.co.ug/verify?doc=${encodeURIComponent(pmtRef)}`, 48, signBlockY + 23);
-
-  // Right Signatory
-  doc.setDrawColor(203, 213, 225);
-  doc.line(135, signBlockY + 21, 190, signBlockY + 21);
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text(SERVER_BRAND.signatory, 162.5, signBlockY + 18, { align: 'center' });
-
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(15, 23, 42);
-  doc.text('AUTHORIZED FINANCE OFFICER', 162.5, signBlockY + 25, { align: 'center' });
-
   doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(6.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Treasury & Billing Automation', 162.5, signBlockY + 29, { align: 'center' });
-
-  // Footer
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.4);
-  doc.line(14, 282, 196, 282);
-
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text(`Official Receipt issued by ${SERVER_BRAND.name} • Certified URA Tax Compliant • Page 1 of 1`, 105, 287, { align: 'center' });
+  doc.setTextColor(71, 85, 105);
+  doc.text('Thank you for your business.', centerX, y, { align: 'center' });
+  y += 4;
+  doc.text('Scan QR to verify authenticity online.', centerX, y, { align: 'center' });
+  y += 4;
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('ncloud.co.ug', centerX, y, { align: 'center' });
 
   return Buffer.from(doc.output('arraybuffer'));
 }
@@ -8215,7 +8101,8 @@ function generateCorporateEmailHtml({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title || 'Nova Cloud Edges Official Notification'}</title>
   <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 15px; -webkit-font-smoothing: antialiased; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 15px; -webkit-font-smoothing: antialiased; }
     .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
     
     /* Header (Deep Blue) */
