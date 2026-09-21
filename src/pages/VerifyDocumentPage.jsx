@@ -20,7 +20,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
   // Payment State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
-  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('0111777777');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [useTestNumber, setUseTestNumber] = useState(true);
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -835,7 +835,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                        <img src="/mtn_airtel.jpg" alt="MTN and Airtel" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                      <div>
+                        <img src="/mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
+                        <img src="/airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                      </div>
                       </div>
                       Mobile Money
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
@@ -862,36 +865,13 @@ export default function VerifyDocumentPage({ setActivePage }) {
                   <div className="form-group" style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '1rem', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <label style={{ fontWeight: '800', margin: 0, color: '#b45309' }}>Mobile Money Number</label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer', color: '#b45309' }}>
-                        <input
-                          type="radio"
-                          name="v_mm_number_type"
-                          checked={useTestNumber}
-                          onChange={() => {
-                            setUseTestNumber(true);
-                            setMobileMoneyPhone('0111777777');
-                          }}
-                          style={{ accentColor: '#d97706' }}
-                        />
-                        Use Test Sandbox Number
-                      </label>
                     </div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer', color: '#b45309', marginBottom: '0.5rem' }}>
-                      <input
-                        type="radio"
-                        name="v_mm_number_type"
-                        checked={!useTestNumber}
-                        onChange={() => setUseTestNumber(false)}
-                        style={{ accentColor: '#d97706' }}
-                      />
-                      Use Real Number
-                    </label>
                     <input
                       type="tel"
                       className="form-input"
                       value={mobileMoneyPhone}
                       onChange={e => setMobileMoneyPhone(e.target.value)}
-                      placeholder="e.g. 0111777777"
+                      placeholder="e.g. +256 790 000 000"
                       required
                       style={{ border: '1px solid #f59e0b', background: '#ffffff', color: '#000' }}
                     />

@@ -18769,7 +18769,7 @@ const normalizeTabName = (rawTab) => {
                       className="btn-secondary"
                       style={{ flex: 1, justifyContent: 'center', background: '#d97706', color: '#fff', borderColor: '#d97706' }}
                       onClick={async () => {
-                        const phone = prompt('Enter customer Mobile Money number to pull payment from (e.g. 0111777777):');
+                        const phone = prompt('Enter customer Mobile Money number to pull payment from (e.g. +256790000000):');
                         if (!phone) return;
                         try {
                           showToast('Initiating Mobile Money pull request...', 'info');

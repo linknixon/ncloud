@@ -23,7 +23,7 @@ export default function ShopCheckoutModal() {
   const [successData, setSuccessData] = useState(null);
   
   const [paymentMethod, setPaymentMethod] = useState('invoice'); // 'invoice', 'mobile_money', 'card'
-  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('0111777777');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'
   const [useTestNumber, setUseTestNumber] = useState(true);
@@ -707,7 +707,10 @@ export default function ShopCheckoutModal() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                      <img src="/mtn_airtel.jpg" alt="MTN and Airtel" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                      <div>
+                        <img src="/mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
+                        <img src="/airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                      </div>
                     </div>
                     Mobile Money
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
@@ -752,26 +755,23 @@ export default function ShopCheckoutModal() {
                           checked={useTestNumber}
                           onChange={() => {
                             setUseTestNumber(true);
-                            setMobileMoneyPhone('0111777777');
+                            setMobileMoneyPhone('');
                           }}
                           style={{ accentColor: '#d97706' }}
                         />
-                        Other Number (Test)
+                        Other Number
                       </label>
                     </div>
                     <input
                       type="tel"
                       className="form-input"
-                      value={mobileMoneyPhone || customerInfo.phone}
+                      value={useTestNumber ? mobileMoneyPhone : (customerInfo.phone || '')}
                       onChange={e => setMobileMoneyPhone(e.target.value)}
-                      placeholder="e.g. 0111777777"
+                      placeholder="e.g. +256 790 000 000"
                       required
                       style={{ border: '1px solid #f59e0b', background: '#fffbeb', color: '#000000' }}
                       disabled={!useTestNumber}
                     />
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                      To test, use your ioTec sandbox test number. Do NOT use a real number in test mode.
-                    </small>
                   </div>
                 )}
               </div>
