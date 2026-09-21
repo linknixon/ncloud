@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Trash2, ArrowRight, ShieldCheck, ShoppingBag } from 'lucide-react';
 
 export default function CartDrawer({ onCheckout }) {
-  const { isCartOpen, setIsCartOpen, cart, updateCartQuantity, removeFromCart, clearCart, showToast, openDirectCheckout } = useApp();
+  const { isCartOpen, setIsCartOpen, cart, updateCartQuantity, removeFromCart, clearCart, showToast, openDirectCheckout, openSubscriptionCheckout } = useApp();
 
   if (!isCartOpen) return null;
 
@@ -24,6 +24,7 @@ export default function CartDrawer({ onCheckout }) {
     const hasNonHosting = cart.some(item => !isHostingCategoryItem(item));
 
     if (hasHosting && !hasNonHosting) {
+      if (openSubscriptionCheckout) openSubscriptionCheckout(cart);
       onCheckout();
     } else {
       openDirectCheckout(cart);

@@ -1008,7 +1008,7 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
                         onChange={e => setMobileMoneyPhone(e.target.value)}
                         placeholder="e.g. 0111777777"
                         required
-                        style={{ border: '1px solid #f59e0b', background: '#fffbeb' }}
+                        style={{ border: '1px solid #f59e0b', background: '#fffbeb', color: '#000000' }}
                         disabled={!useTestNumber}
                       />
                       <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
