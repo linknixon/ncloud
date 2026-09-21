@@ -10817,12 +10817,7 @@ app.get('/api/payments/status/:id', async (req, res) => {
     const data = await iotecRes.json();
     
     if (data.status === 'Success' && data.externalId) {
-       const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === data.externalId);
-       if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== 'PAID') {
-         memoryStore.invoices[invIndex].status = 'PAID';
-         memoryStore.invoices[invIndex].date_paid = new Date().toISOString();
-         savePersistentStore();
-       }
+       await processSuccessfulPayment(data.externalId, data.amount || 0, id, 'Mobile Money');
     }
     
     return res.json({ status: data.status, externalId: data.externalId });
@@ -10831,22 +10826,165 @@ app.get('/api/payments/status/:id', async (req, res) => {
   }
 });
 
-app.post('/api/webhooks/iotec', (req, res) => {
+app.post('/api/webhooks/iotec', async (req, res) => {
   const { id, status, externalId, amount, currency } = req.body;
   console.log(`[ioTec Webhook] Received status ${status} for transaction ${id}, externalId: ${externalId}`);
   
   if (status === 'Success' && externalId) {
-     const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === externalId);
-     if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== 'PAID') {
-       memoryStore.invoices[invIndex].status = 'PAID';
-       memoryStore.invoices[invIndex].date_paid = new Date().toISOString();
-       savePersistentStore();
-       console.log(`[ioTec Webhook] Invoice ${externalId} marked as PAID.`);
-     }
+     await processSuccessfulPayment(externalId, amount || 0, id, 'Mobile Money');
   }
   
   res.status(200).send('OK');
 });
+
+async function processSuccessfulPayment(externalId, amount, transactionId, method) {
+  const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === externalId);
+  if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== '100% Paid' && memoryStore.invoices[invIndex].status !== 'Paid' && memoryStore.invoices[invIndex].status !== 'PAID' && memoryStore.invoices[invIndex].status !== 'Paid & Settled') {
+    const inv = memoryStore.invoices[invIndex];
+    const paid = Number(amount) || Number(inv.balance) || Number(inv.amount);
+    const due = Number(inv.amount) || paid;
+
+    const currentTotalPaid = (Number(inv.paid_amount) || 0) + paid;
+    const totalInvAmount = Number(inv.amount) || due;
+    inv.paid_amount = currentTotalPaid;
+    inv.balance = Math.max(0, totalInvAmount - currentTotalPaid);
+    
+    const percentPaid = Math.min(100, Math.round((currentTotalPaid / (totalInvAmount || 1)) * 100));
+    const isFullyCleared = currentTotalPaid >= totalInvAmount || inv.balance === 0 || (due > 0 && paid >= due);
+
+    if (isFullyCleared) {
+      inv.status = '100% Paid';
+      inv.balance = 0;
+    } else if (currentTotalPaid > 0) {
+      inv.status = 'Partial';
+      inv.payment_status_label = `Partially Paid (${percentPaid}% Paid)`;
+    } else {
+      inv.status = 'Pending';
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    const dateTimeStr = `${dateStr} ${timeStr}`;
+
+    const newPayment = {
+      id: (memoryStore.payments || []).length + 1,
+      payment_type: 'customer',
+      invoice_number: inv.invoice_number,
+      party_name: inv.customer_name || 'Corporate Customer',
+      party_email: inv.customer_email || 'client@company.co.ug',
+      amount_due: due,
+      amount_paid: paid,
+      excess_amount: currentTotalPaid > totalInvAmount ? currentTotalPaid - totalInvAmount : 0,
+      payment_method: method || 'Mobile Money',
+      reference: transactionId || `TXN-REF-${Math.floor(100000 + Math.random() * 900000)}`,
+      status: inv.status,
+      date: dateTimeStr,
+      payment_date: dateTimeStr,
+      created_at_time: dateTimeStr,
+      updated_by: 'System Auto-Capture',
+      created_at: now.toISOString()
+    };
+
+    if (!memoryStore.payments) memoryStore.payments = [];
+    memoryStore.payments.unshift(newPayment);
+
+    if (!Array.isArray(inv.payment_history)) inv.payment_history = [];
+    inv.payment_history.push({
+      id: newPayment.id,
+      payment_id: newPayment.id,
+      amount: paid,
+      amount_paid: paid,
+      payment_method: newPayment.payment_method,
+      reference: newPayment.reference,
+      date: dateTimeStr,
+      payment_date: dateTimeStr,
+      created_at_time: dateTimeStr,
+      recorded_by: newPayment.updated_by,
+      running_balance: inv.balance,
+      percent_paid: percentPaid,
+      status: inv.status,
+      created_at: newPayment.created_at
+    });
+
+    if (inv.status === '100% Paid' || inv.status === 'Paid' || isFullyCleared) {
+      if (typeof createSubscriptionForInvoice === 'function') {
+        createSubscriptionForInvoice(inv);
+      }
+    }
+
+    savePersistentStore();
+    console.log(`[Payment Auto-Capture] Invoice ${externalId} processed. Status: ${inv.status}`);
+    
+    try {
+      const pdfBuffer = await generateServerPaymentReceiptPDFBuffer(newPayment, {
+        customerName: newPayment.party_name,
+        customerEmail: newPayment.party_email
+      });
+
+      const customerHtml = generateCorporateEmailHtml({
+        title: isFullyCleared ? 'Official 100% Clearance Payment Receipt' : 'Official Payment Installment Receipt',
+        badgeText: isFullyCleared ? '100% Paid & Settled' : 'Payment Recorded',
+        recipientName: newPayment.party_name,
+        attachmentName: `Payment_Receipt_${newPayment.reference}.pdf`,
+        introText: `Nova Cloud Edges Finance Department has received and confirmed your payment of <strong>UGX ${paid.toLocaleString()}</strong> towards Invoice <strong>#${newPayment.invoice_number}</strong> via <strong>${newPayment.payment_method}</strong>. Your digitally certified payment receipt is attached to this email.`,
+        itemsRows: `
+          <tr><td><strong>Transaction Reference</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold;">${newPayment.reference}</td></tr>
+          <tr><td><strong>Payment Method</strong></td><td style="text-align: right; font-weight: bold;">${newPayment.payment_method}</td></tr>
+          <tr><td><strong>Settlement Timestamp</strong></td><td style="text-align: right;">${dateTimeStr}</td></tr>
+          <tr><td><strong>Invoice Clearance Status</strong></td><td style="text-align: right; font-weight: bold; color: ${isFullyCleared ? '#16a34a' : '#d97706'};">${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</td></tr>
+        `,
+        subtotalText: `UGX ${paid.toLocaleString()}`,
+        vatText: 'Clearance Confirmed',
+        totalAmountText: `UGX ${paid.toLocaleString()}`,
+        shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`,
+        ctaText: 'Verify Receipt Online',
+        ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`
+      });
+
+      if (newPayment.party_email && newPayment.party_email.includes('@')) {
+        sendMail({
+          to: newPayment.party_email,
+          subject: `Payment Receipt - ${newPayment.reference}`,
+          html: customerHtml,
+          attachments: [
+            {
+              filename: `Payment_Receipt_${newPayment.reference}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            }
+          ]
+        }).catch(err => console.error('[Payment Receipt Email Warning]', err.message));
+      }
+
+      const adminHtml = generateCorporateEmailHtml({
+        title: 'New Customer Payment Received',
+        badgeText: 'Payment Alert',
+        recipientName: 'Sales Team',
+        introText: `A new payment of <strong>UGX ${paid.toLocaleString()}</strong> was just received from <strong>${newPayment.party_name}</strong> for Invoice <strong>#${newPayment.invoice_number}</strong> via <strong>${newPayment.payment_method}</strong>.`,
+        itemsRows: `
+          <tr><td><strong>Transaction Reference</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold;">${newPayment.reference}</td></tr>
+          <tr><td><strong>Invoice Status</strong></td><td style="text-align: right; font-weight: bold; color: ${isFullyCleared ? '#16a34a' : '#d97706'};">${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</td></tr>
+        `,
+        subtotalText: `UGX ${paid.toLocaleString()}`,
+        vatText: '-',
+        totalAmountText: `UGX ${paid.toLocaleString()}`,
+        shareLink: `https://ncloud.co.ug/admin`,
+        ctaText: 'View Dashboard',
+        ctaLink: `https://ncloud.co.ug/admin`
+      });
+
+      sendMail({
+        to: 'sales@ncloud.co.ug',
+        subject: `Payment Alert - ${newPayment.party_name} (${newPayment.reference})`,
+        html: adminHtml
+      }).catch(err => console.error('[Admin Alert Email Warning]', err.message));
+
+    } catch (e) {
+      console.error('[Payment Processing Email Error]', e.message);
+    }
+  }
+}
 
 // SPA Fallback Route for React Router / HTML5 History
 app.get(/(.*)/, (req, res) => {

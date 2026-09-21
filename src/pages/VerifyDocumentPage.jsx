@@ -824,15 +824,40 @@ export default function VerifyDocumentPage({ setActivePage }) {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div className="form-group">
-                  <label style={{ fontWeight: '800' }}>Select Payment Method</label>
-                  <select 
-                    className="form-input" 
-                    value={paymentMethod}
-                    onChange={e => setPaymentMethod(e.target.value)}
-                  >
-                    <option value="mobile_money">Mobile Money (MTN/Airtel)</option>
-                    <option value="card">Visa / Mastercard / Amex</option>
-                  </select>
+                  <label style={{ fontWeight: '800', marginBottom: '0.5rem', display: 'block' }}>Select Payment Method</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div 
+                      onClick={() => setPaymentMethod('mobile_money')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'mobile_money' ? '#f59e0b' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'mobile_money' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'mobile_money' ? '#d97706' : 'var(--text-main)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/New-mtn-logo.jpg" alt="MTN" style={{ height: '18px', borderRadius: '3px' }} />
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fb/Airtel_logo.svg" alt="Airtel" style={{ height: '18px', borderRadius: '3px' }} />
+                      </div>
+                      Mobile Money
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
+                    </div>
+                    
+                    <div 
+                      onClick={() => setPaymentMethod('card')}
+                      style={{
+                        padding: '1rem', border: `1.5px solid ${paymentMethod === 'card' ? '#10b981' : 'var(--border-color)'}`,
+                        borderRadius: '8px', cursor: 'pointer', background: paymentMethod === 'card' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
+                        textAlign: 'center', fontWeight: '700', color: paymentMethod === 'card' ? '#059669' : 'var(--text-main)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" style={{ height: '18px', objectFit: 'contain' }} />
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/Mastercard_2019_logo.svg" alt="Mastercard" style={{ height: '18px', objectFit: 'contain' }} />
+                      </div>
+                      Credit / Debit Card
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
+                    </div>
+                  </div>
                 </div>
 
                 {paymentMethod === 'mobile_money' && (
