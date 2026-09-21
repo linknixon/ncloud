@@ -2268,7 +2268,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   const center = receiptWidth / 2;
 
   // 2. Company Logo or Title
-  const siteLogo = localStorage.getItem('nova_site_logo');
+  const siteLogo = localStorage.getItem('nova_site_logo') || NOVA_LOGO_BASE64;
   if (siteLogo && siteLogo.startsWith('data:image')) {
     try {
       const imgProps = doc.getImageProperties(siteLogo);
@@ -2405,8 +2405,28 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
   cursorY += 15;
 
-  // 7. Footer
+  // 7. Verification & Footer
+  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(receiptNum)}`;
+  
+  try {
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 });
+    const qrWidth = 80;
+    doc.addImage(qrDataUrl, 'PNG', center - (qrWidth / 2), cursorY, qrWidth, qrWidth);
+    cursorY += qrWidth + 10;
+  } catch(e) {}
+
   doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(0, 0, 0);
+  doc.text("Verify authenticity online:", center, cursorY, { align: 'center' });
+  cursorY += 10;
+  
+  doc.setTextColor(2, 132, 199);
+  doc.setFont('helvetica', 'normal');
+  doc.text(verifyUrl, center, cursorY, { align: 'center' });
+  cursorY += 20;
+
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'italic');
   doc.text("Thank you for your business!", center, cursorY, { align: 'center' });
   cursorY += 10;
