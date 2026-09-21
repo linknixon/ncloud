@@ -8158,28 +8158,30 @@ function renderConfiguredBankAccountsHtml() {
       ];
 
   const banksHtml = banks.map(b => `
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;">
-      <div style="margin-bottom: 4px;">
-        <strong style="color: #0f172a; font-size: 13px;">${b.bank_name}</strong>
-        <span style="display: inline-block; background: #e0f2fe; color: #0284c7; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-left: 6px;">${b.currency || 'UGX'}</span>
+    <div style="background: #27272a; border: 1px solid #3f3f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
+      <div style="margin-bottom: 6px;">
+        <strong style="color: #f4f4f5; font-size: 14px; letter-spacing: 0.3px;">${b.bank_name}</strong>
+        <span style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">${b.currency || 'UGX'}</span>
       </div>
-      <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-        <div>Account Name: <strong>${b.account_name || SERVER_BRAND.name}</strong></div>
-        <div>Account Number: <strong style="color: #0f172a; font-family: monospace; font-size: 13px;">${b.account_number}</strong></div>
-        <div style="color: #64748b; font-size: 11px;">Branch: ${b.branch || 'Main Branch'} ${b.swift_code ? ` | SWIFT: ${b.swift_code}` : ''}</div>
+      <div style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">
+        <div>Account Name: <strong style="color: #e4e4e7;">${b.account_name || SERVER_BRAND.name}</strong></div>
+        <div>Account Number: <strong style="color: #f4f4f5; font-family: monospace; font-size: 14px; letter-spacing: 0.5px;">${b.account_number}</strong></div>
+        <div style="color: #71717a; font-size: 11px; margin-top: 4px;">Branch: ${b.branch || 'Main Branch'} ${b.swift_code ? ` | SWIFT: ${b.swift_code}` : ''}</div>
       </div>
     </div>
   `).join('');
 
   return `
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 20px 0;">
-      <div style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+    <div style="background: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 20px; margin: 24px 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
+      <div style="font-size: 11px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
         Approved Settlement & Remittance Details
       </div>
       ${banksHtml}
-      <div style="background: #f1f5f9; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #475569; margin-top: 8px; line-height: 1.5;">
-        <strong>Mobile Money Merchant Remittance:</strong> MTN MoMo Pay Merchant Code: <strong>628100</strong> | Airtel Money Merchant Pay: <strong>430192</strong><br/>
-        <em>* Please quote your Document Number on your remittance transaction reference.</em>
+      <div style="background: #27272a; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #a1a1aa; margin-top: 12px; line-height: 1.6; border-left: 3px solid #f59e0b;">
+        <strong style="color: #e4e4e7;">Mobile Money Merchant Remittance:</strong><br/>
+        MTN MoMo Pay Merchant Code: <strong style="color: #f59e0b; font-family: monospace;">628100</strong> | 
+        Airtel Money Merchant Pay: <strong style="color: #f59e0b; font-family: monospace;">430192</strong><br/>
+        <em style="color: #71717a; font-size: 11px; margin-top: 4px; display: block;">* Please quote your Document Number on your remittance transaction reference.</em>
       </div>
     </div>
   `;
@@ -8227,77 +8229,77 @@ function generateCorporateEmailHtml({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body, table, td, a { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
-    body { background-color: #f8fafc; color: #0f172a; margin: 0; padding: 40px 15px; }
-    .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+    body { background-color: #09090b; color: #e4e4e7; margin: 0; padding: 40px 15px; }
+    .email-container { max-width: 640px; margin: 0 auto; background: #18181b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); border: 1px solid #27272a; }
     
-    /* Header (Deep Blue) */
-    .email-header { background-color: #1e3a8a; background-image: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%); padding: 35px 30px; text-align: center; }
+    /* Header (Dark Premium) */
+    .email-header { background-color: #0f172a; padding: 40px 30px; text-align: center; border-bottom: 1px solid #27272a; }
     .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
-    .company-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
-    .company-subtitle { font-size: 11px; color: #bae6fd; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; }
+    .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
+    .company-title span { color: #38bdf8; }
     
     /* Body */
-    .email-body { padding: 40px 35px; }
-    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0284c7; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 20px; border: 1px solid #bae6fd; }
-    .doc-title { font-size: 26px; font-weight: 800; color: #1e3a8a; margin: 0 0 16px 0; line-height: 1.3; letter-spacing: -0.5px; }
-    .salutation { font-size: 16px; color: #334155; margin-bottom: 16px; font-weight: 500; }
-    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #475569; margin-bottom: 24px; }
+    .email-body { padding: 45px 40px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.2); box-shadow: 0 0 10px rgba(56, 189, 248, 0.1); }
+    .doc-title { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 20px 0; line-height: 1.3; letter-spacing: -0.5px; }
+    .salutation { font-size: 16px; color: #e4e4e7; margin-bottom: 16px; font-weight: 500; }
+    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #a1a1aa; margin-bottom: 30px; }
     
     /* Attachments */
-    .attachment-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin: 24px 0; border-left: 4px solid #0284c7; }
-    .attachment-title { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 4px; }
-    .attachment-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+    .attachment-card { background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 18px 24px; margin: 24px 0; border-left: 4px solid #818cf8; position: relative; overflow: hidden; }
+    .attachment-title { font-weight: 700; font-size: 14px; color: #ffffff; margin-bottom: 6px; letter-spacing: 0.3px; }
+    .attachment-desc { font-size: 13px; color: #a1a1aa; line-height: 1.6; }
     
     /* Tables */
-    .table-container { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #ffffff; }
-    .data-table th { background: #f8fafc; text-align: left; padding: 14px 16px; border-bottom: 2px solid #e2e8f0; color: #1e3a8a; font-size: 12px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .data-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-    .total-row { background: #f8fafc; }
-    .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #cbd5e1; }
-    .total-amount { color: #0284c7 !important; font-size: 18px !important; }
+    .table-container { border-radius: 12px; border: 1px solid #27272a; overflow: hidden; margin-bottom: 30px; background: #09090b; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .data-table th { background: #18181b; text-align: left; padding: 16px; border-bottom: 1px solid #27272a; color: #a1a1aa; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+    .data-table td { padding: 16px; border-bottom: 1px solid #18181b; color: #e4e4e7; }
+    .total-row { background: #18181b; }
+    .total-row td { font-size: 16px; font-weight: 800; color: #ffffff; border-top: 2px solid #3f3f46; }
+    .total-amount { color: #38bdf8 !important; font-size: 20px !important; letter-spacing: 0.5px; }
     
     /* Buttons */
-    .btn-container { text-align: center; margin: 35px 0 25px 0; }
-    .primary-btn { display: inline-block; background-color: #0284c7; background-image: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%); color: #ffffff !important; text-decoration: none; padding: 16px 36px; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: all 0.2s ease; }
+    .btn-container { text-align: center; margin: 40px 0 30px 0; }
+    .primary-btn { display: inline-block; background-color: #0ea5e9; color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(2, 132, 199, 0.4); border: 1px solid rgba(255,255,255,0.1); }
     
     /* Footer */
-    .email-footer { background: #f1f5f9; padding: 30px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.7; border-top: 1px solid #e2e8f0; }
-    .footer-highlight { color: #1e3a8a; font-weight: 600; }
+    .email-footer { background: #09090b; padding: 35px 30px; text-align: center; font-size: 12px; color: #71717a; line-height: 1.8; border-top: 1px solid #27272a; }
+    .footer-highlight { color: #a1a1aa; font-weight: 600; }
 
     @media screen and (max-width: 600px) {
-      body { padding: 10px 5px !important; }
-      .email-container { max-width: 100% !important; border-radius: 8px !important; margin: 0 !important; }
-      .email-header { padding: 25px 15px !important; }
-      .company-title { font-size: 20px !important; }
-      .email-body { padding: 20px 15px !important; }
-      .doc-title { font-size: 20px !important; }
-      .data-table th, .data-table td { padding: 10px 8px !important; font-size: 12px !important; }
+      body { padding: 0 !important; }
+      .email-container { max-width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
+      .email-header { padding: 30px 20px !important; }
+      .company-title { font-size: 22px !important; }
+      .email-body { padding: 30px 20px !important; }
+      .doc-title { font-size: 22px !important; }
+      .data-table th, .data-table td { padding: 12px 10px !important; font-size: 13px !important; }
       .data-table { word-wrap: break-word; table-layout: fixed; }
-      .total-row td { font-size: 14px !important; }
-      .total-amount { font-size: 16px !important; }
-      .primary-btn { padding: 14px 24px !important; font-size: 14px !important; width: 100% !important; box-sizing: border-box; }
+      .total-row td { font-size: 15px !important; }
+      .total-amount { font-size: 18px !important; }
+      .primary-btn { padding: 16px 24px !important; font-size: 14px !important; width: 100% !important; box-sizing: border-box; }
     }
   </style>
 </head>
-<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 40px 15px;">
+<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; margin: 0; padding: 40px 15px;">
   <div class="email-container">
     <div class="email-header">
-      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span style="color: #38bdf8;">CLOUD EDGES</span></div>'}
+      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span>CLOUD EDGES</span></div>'}
       <div class="company-subtitle"></div>
     </div>
     
     <div class="email-body">
       ${badgeText ? `<div class="badge">${badgeText}</div>` : ''}
       <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
-      <p class="salutation">Dear <strong style="color: #1e3a8a;">${finalRecipient}</strong>,</p>
+      <p class="salutation">Dear <strong style="color: #ffffff;">${finalRecipient}</strong>,</p>
       <div class="intro-paragraph">${finalIntro}</div>
 
       ${attachmentName ? `
       <div class="attachment-card">
         <div class="attachment-title">Official Document Attached</div>
         <div class="attachment-desc">${attachmentName} has been generated and securely attached to this email.</div>
-        ${downloadUrl ? `<div style="margin-top: 12px;"><a href="${downloadUrl}" style="color: #0284c7; font-weight: 600; text-decoration: none;">Download Secure Copy &rarr;</a></div>` : ''}
+        ${downloadUrl ? `<div style="margin-top: 14px;"><a href="${downloadUrl}" style="color: #818cf8; font-weight: 700; text-decoration: none; letter-spacing: 0.5px;">Download Secure Copy &rarr;</a></div>` : ''}
       </div>
       ` : ''}
 
@@ -8308,8 +8310,8 @@ function generateCorporateEmailHtml({
           <thead>
             <tr>
               <th>Description</th>
-              <th style="text-align: center;">Qty</th>
-              <th style="text-align: right;">Amount (UGX)</th>
+              <th style="text-align: center; width: 15%;">Qty</th>
+              <th style="text-align: right; width: 35%;">Amount (UGX)</th>
             </tr>
           </thead>
           ` : ''}
@@ -8317,13 +8319,13 @@ function generateCorporateEmailHtml({
             ${itemsRows}
             ${isInvoice ? `
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #64748b; text-align: right; padding-top: 16px;">Subtotal:</td>
-              <td style="text-align: right; font-weight: 600; color: #334155; padding-top: 16px;">${subtotalText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #71717a; text-align: right; padding-top: 20px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600; color: #e4e4e7; padding-top: 20px;">${subtotalText || ''}</td>
             </tr>
             ${discountRowHtml || ''}
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #64748b; text-align: right;">VAT (18% Statutory):</td>
-              <td style="text-align: right; font-weight: 600; color: #334155;">${vatText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #71717a; text-align: right;">VAT (18% Statutory):</td>
+              <td style="text-align: right; font-weight: 600; color: #e4e4e7;">${vatText || ''}</td>
             </tr>
             <tr class="total-row">
               <td colspan="2" style="text-align: right;">Total Amount:</td>
@@ -8344,19 +8346,20 @@ function generateCorporateEmailHtml({
       ` : ''}
 
       ${shareLink ? `
-      <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 20px;">
+      <p style="font-size: 13px; color: #71717a; text-align: center; margin-top: 30px; line-height: 1.6;">
         Or access directly via this secure link:<br/>
-        <a href="${shareLink}" style="color: #0284c7; word-break: break-all;">${shareLink}</a>
+        <a href="${shareLink}" style="color: #38bdf8; word-break: break-all; text-decoration: none;">${shareLink}</a>
       </p>
       ` : ''}
     </div>
     
     <div class="email-footer">
-      <span class="footer-highlight">Nova Cloud Edges (U) Limited</span><br/>
-      Lugga Zone, Ndejje, Wakiso, Republic of Uganda<br/>
-      TIN: 1014892019 &nbsp;|&nbsp; URA Tax Compliant<br/>
-      Support: <a href="mailto:billing@ncloud.co.ug" style="color: #64748b; text-decoration: none;">billing@ncloud.co.ug</a> &nbsp;|&nbsp; Phone: +256 790 001 631<br/><br/>
-      ${footerNote || 'This is an official automated transaction dispatch. All attached documents carry digital certification.'}
+      <div>This is an automatically generated communication from <span class="footer-highlight">Nova Cloud Edges (U) Limited</span>.</div>
+      <div style="margin-top: 10px;">Lugga Zone, Ndejje, Wakiso, Uganda | TIN: 1014892019</div>
+      ${footerNote ? `<div style="margin-top: 16px; color: #a1a1aa; font-style: italic;">${footerNote}</div>` : ''}
+      <div style="margin-top: 20px; font-size: 10px; color: #52525b; text-transform: uppercase; letter-spacing: 1px;">
+        &copy; ${new Date().getFullYear()} Nova Cloud Edges. All rights reserved.
+      </div>
     </div>
   </div>
 </body>
