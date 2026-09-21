@@ -2937,6 +2937,129 @@ function isHostingCategoryProduct(strOrObj) {
   return hostingKeywords.some(kw => s.includes(kw));
 }
 
+// Helper to dispatch a WiFi voucher token when an invoice is fully paid
+function dispatchWifiVoucherForInvoice(inv) {
+  if (!inv) return;
+  
+// Handle WiFi Voucher shop purchases — auto-dispatch on 100% payment
+  let dispatchedVoucher = null;
+  if (inv.items && Array.isArray(inv.items)) {
+    for (const item of inv.items) {
+      // Match any item that references a WiFi/Voucher purchase
+      const isWifiItem = item.name && (
+        item.name.toLowerCase().includes('wifi voucher') ||
+        item.name.toLowerCase().includes('wifi - ') ||
+        item.name.toLowerCase().includes('nova wifi')
+      );
+      if (isWifiItem) {
+        // Parse duration from item name: e.g. "8 Hours", "24 Hours", "7 Days", "1 Month"
+        const durationMatch = item.name.match(/(\d+)\s*(hour|day|week|month)/i);
+        let matchedVoucher = null;
+
+        if (durationMatch) {
+    const num = parseInt(durationMatch[1]);
+    const unit = durationMatch[2].toLowerCase();
+    const durationHours = unit.startsWith('hour') ? num
+      : unit.startsWith('day') ? num * 24
+      : unit.startsWith('week') ? num * 168
+      : num * 720; // month
+
+    // First: try exact duration match
+    matchedVoucher = (memoryStore.unifi_vouchers || []).find(v =>
+      v.status === 'available' && v.duration_hours === durationHours
+    );
+    // Fallback: any available voucher with similar label
+    if (!matchedVoucher) {
+      matchedVoucher = (memoryStore.unifi_vouchers || []).find(v =>
+        v.status === 'available' &&
+        v.duration_label && v.duration_label.toLowerCase().includes(durationMatch[1])
+      );
+    }
+        }
+
+        // Last resort: any available voucher
+        if (!matchedVoucher) {
+    matchedVoucher = (memoryStore.unifi_vouchers || []).find(v => v.status === 'available');
+        }
+
+        if (matchedVoucher) {
+    matchedVoucher.status = 'bought';
+    matchedVoucher.customer_name = inv.customer_name;
+    matchedVoucher.customer_email = inv.customer_email;
+    matchedVoucher.invoice_id = inv.id;
+    matchedVoucher.invoice_number = inv.invoice_number;
+    matchedVoucher.dispatched_at = new Date().toISOString();
+
+    inv.wifi_voucher_id = matchedVoucher.id;
+    inv.wifi_voucher_token = matchedVoucher.token;
+    dispatchedVoucher = matchedVoucher;
+
+    // Email the voucher to customer
+    if (inv.customer_email) {
+      const dataInfo = matchedVoucher.data_quota_mb > 0
+        ? matchedVoucher.data_label + ' Data'
+        : 'Unlimited Data';
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'Your Nova WiFi Access Voucher',
+        badgeText: 'WiFi Voucher Dispatched',
+        recipientName: inv.customer_name,
+        introText: `Your payment for Invoice <b>#${inv.invoice_number}</b> has been received and fully cleared. Your Nova WiFi Voucher is ready to use — enter the code below on the WiFi login portal to get connected.`,
+        itemsRows: `
+          <tr>
+      <td style="padding:8px 0"><strong>Package</strong></td>
+      <td style="text-align:center"></td>
+      <td style="text-align:right">${matchedVoucher.package_name}</td>
+          </tr>
+          <tr>
+      <td style="padding:8px 0"><strong>Duration</strong></td>
+      <td style="text-align:center"></td>
+      <td style="text-align:right">${matchedVoucher.duration_label}</td>
+          </tr>
+          <tr>
+      <td style="padding:8px 0"><strong>Data Quota</strong></td>
+      <td style="text-align:center"></td>
+      <td style="text-align:right">${dataInfo}</td>
+          </tr>
+          <tr style="background:#0f172a; border-radius:8px">
+      <td colspan="3" style="text-align:center; padding:18px">
+        <div style="font-size:11px; color:#94a3b8; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px">Your WiFi Access Code</div>
+        <b style="font-size:26px; color:#38bdf8; letter-spacing:0.12em; font-family:monospace">${matchedVoucher.token}</b>
+      </td>
+          </tr>
+        `,
+        subtotalText: 'Fully Paid',
+        vatText: 'Included',
+        totalAmountText: 'Cleared',
+        shareLink: 'https://ncloud.co.ug',
+        ctaText: 'Connect to WiFi Portal',
+        ctaLink: 'https://ncloud.co.ug'
+      });
+      sendMail({
+        to: inv.customer_email,
+        subject: `Your Nova WiFi Voucher Code — ${matchedVoucher.duration_label}`,
+        html: emailHtml
+      }).catch(err => console.error('[WiFi] Failed to email voucher:', err));
+    }
+    break;
+        } else {
+    console.warn('[WiFi] No available vouchers to dispatch for invoice', inv.invoice_number);
+        }
+      }
+    }
+  }
+
+  // Handle pre-assigned voucher (manually linked by admin before payment)
+  if (!dispatchedVoucher && inv.wifi_voucher_id) {
+    const v = (memoryStore.unifi_vouchers || []).find(voucher => voucher.id == inv.wifi_voucher_id);
+    if (v) {
+      v.status = 'bought';
+      v.customer_name = inv.customer_name;
+      v.customer_email = inv.customer_email;
+      v.dispatched_at = new Date().toISOString();
+    }
+  }
+}
+
 // Helper to create & activate subscription ONLY when an invoice is 100% Paid and belongs to Hosting Category
 function createSubscriptionForInvoice(inv) {
   if (!inv) return null;
@@ -9416,123 +9539,7 @@ app.put('/api/admin/invoices/:id', async (req, res) => {
           inv.payment_date = new Date().toISOString();
         }
         createSubscriptionForInvoice(inv);
-        // Handle WiFi Voucher shop purchases — auto-dispatch on 100% payment
-        let dispatchedVoucher = null;
-        if (inv.items && Array.isArray(inv.items)) {
-          for (const item of inv.items) {
-            // Match any item that references a WiFi/Voucher purchase
-            const isWifiItem = item.name && (
-              item.name.toLowerCase().includes('wifi voucher') ||
-              item.name.toLowerCase().includes('wifi - ') ||
-              item.name.toLowerCase().includes('nova wifi')
-            );
-            if (isWifiItem) {
-              // Parse duration from item name: e.g. "8 Hours", "24 Hours", "7 Days", "1 Month"
-              const durationMatch = item.name.match(/(\d+)\s*(hour|day|week|month)/i);
-              let matchedVoucher = null;
-
-              if (durationMatch) {
-                const num = parseInt(durationMatch[1]);
-                const unit = durationMatch[2].toLowerCase();
-                const durationHours = unit.startsWith('hour') ? num
-                  : unit.startsWith('day') ? num * 24
-                  : unit.startsWith('week') ? num * 168
-                  : num * 720; // month
-
-                // First: try exact duration match
-                matchedVoucher = (memoryStore.unifi_vouchers || []).find(v =>
-                  v.status === 'available' && v.duration_hours === durationHours
-                );
-                // Fallback: any available voucher with similar label
-                if (!matchedVoucher) {
-                  matchedVoucher = (memoryStore.unifi_vouchers || []).find(v =>
-                    v.status === 'available' &&
-                    v.duration_label && v.duration_label.toLowerCase().includes(durationMatch[1])
-                  );
-                }
-              }
-
-              // Last resort: any available voucher
-              if (!matchedVoucher) {
-                matchedVoucher = (memoryStore.unifi_vouchers || []).find(v => v.status === 'available');
-              }
-
-              if (matchedVoucher) {
-                matchedVoucher.status = 'bought';
-                matchedVoucher.customer_name = inv.customer_name;
-                matchedVoucher.customer_email = inv.customer_email;
-                matchedVoucher.invoice_id = inv.id;
-                matchedVoucher.invoice_number = inv.invoice_number;
-                matchedVoucher.dispatched_at = new Date().toISOString();
-
-                inv.wifi_voucher_id = matchedVoucher.id;
-                inv.wifi_voucher_token = matchedVoucher.token;
-                dispatchedVoucher = matchedVoucher;
-
-                // Email the voucher to customer
-                if (inv.customer_email) {
-                  const dataInfo = matchedVoucher.data_quota_mb > 0
-                    ? matchedVoucher.data_label + ' Data'
-                    : 'Unlimited Data';
-                  const emailHtml = generateCorporateEmailHtml({
-                    title: 'Your Nova WiFi Access Voucher',
-                    badgeText: 'WiFi Voucher Dispatched',
-                    recipientName: inv.customer_name,
-                    introText: `Your payment for Invoice <b>#${inv.invoice_number}</b> has been received and fully cleared. Your Nova WiFi Voucher is ready to use — enter the code below on the WiFi login portal to get connected.`,
-                    itemsRows: `
-                      <tr>
-                        <td style="padding:8px 0"><strong>Package</strong></td>
-                        <td style="text-align:center"></td>
-                        <td style="text-align:right">${matchedVoucher.package_name}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0"><strong>Duration</strong></td>
-                        <td style="text-align:center"></td>
-                        <td style="text-align:right">${matchedVoucher.duration_label}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0"><strong>Data Quota</strong></td>
-                        <td style="text-align:center"></td>
-                        <td style="text-align:right">${dataInfo}</td>
-                      </tr>
-                      <tr style="background:#0f172a; border-radius:8px">
-                        <td colspan="3" style="text-align:center; padding:18px">
-                          <div style="font-size:11px; color:#94a3b8; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px">Your WiFi Access Code</div>
-                          <b style="font-size:26px; color:#38bdf8; letter-spacing:0.12em; font-family:monospace">${matchedVoucher.token}</b>
-                        </td>
-                      </tr>
-                    `,
-                    subtotalText: 'Fully Paid',
-                    vatText: 'Included',
-                    totalAmountText: 'Cleared',
-                    shareLink: 'https://ncloud.co.ug',
-                    ctaText: 'Connect to WiFi Portal',
-                    ctaLink: 'https://ncloud.co.ug'
-                  });
-                  sendMail({
-                    to: inv.customer_email,
-                    subject: `Your Nova WiFi Voucher Code — ${matchedVoucher.duration_label}`,
-                    html: emailHtml
-                  }).catch(err => console.error('[WiFi] Failed to email voucher:', err));
-                }
-                break;
-              } else {
-                console.warn('[WiFi] No available vouchers to dispatch for invoice', inv.invoice_number);
-              }
-            }
-          }
-        }
-
-        // Handle pre-assigned voucher (manually linked by admin before payment)
-        if (!dispatchedVoucher && inv.wifi_voucher_id) {
-          const v = (memoryStore.unifi_vouchers || []).find(voucher => voucher.id == inv.wifi_voucher_id);
-          if (v) {
-            v.status = 'bought';
-            v.customer_name = inv.customer_name;
-            v.customer_email = inv.customer_email;
-            v.dispatched_at = new Date().toISOString();
-          }
-        }
+                dispatchWifiVoucherForInvoice(inv);
       }
     }
     if (vat_exempt !== undefined) inv.vat_exempt = vat_exempt;
@@ -10799,6 +10806,9 @@ async function processSuccessfulPayment(externalId, amount, transactionId, metho
     if (inv.status === '100% Paid' || inv.status === 'Paid' || isFullyCleared) {
       if (typeof createSubscriptionForInvoice === 'function') {
         createSubscriptionForInvoice(inv);
+      }
+      if (typeof dispatchWifiVoucherForInvoice === 'function') {
+        dispatchWifiVoucherForInvoice(inv);
       }
     }
 
