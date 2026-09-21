@@ -23,10 +23,10 @@ export default function ShopCheckoutModal() {
   const [successData, setSuccessData] = useState(null);
   
   const [paymentMethod, setPaymentMethod] = useState('invoice'); // 'invoice', 'mobile_money', 'card'
-  const [mobileMoneyPhone, setMobileMoneyPhone] = useState(user?.phone || user?.phone_number || '');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('0111777777');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'
-  const [useTestNumber, setUseTestNumber] = useState(false);
+  const [useTestNumber, setUseTestNumber] = useState(true);
   
   const [customerInfo, setCustomerInfo] = useState(() => {
     if (user) {

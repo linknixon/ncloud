@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Search, Download, CheckCircle, AlertCircle, 
   FileText, Building, Calendar, Phone, Mail, ArrowLeft, 
-  Printer, ExternalLink, Award, Copy, Check
+  Printer, ExternalLink, Award, Copy, Check, Lock
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { generateInvoicePDF, generateQuotationPDF } from '../utils/pdfGenerator';
@@ -16,6 +16,14 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const [error, setError] = useState(null);
   const [docQrImg, setDocQrImg] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Payment State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('0111777777');
+  const [useTestNumber, setUseTestNumber] = useState(true);
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('');
 
   // Auto-verify if query parameter is in URL (e.g. ?doc=INV-2026-0041 or ?type=invoice&ref=INV-2026-0041)
   useEffect(() => {
@@ -103,6 +111,78 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const initiatePayment = async () => {
+    setPaymentPolling(true);
+    setPaymentStatus('Initiating payment...');
+    try {
+      const res = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: paymentMethod,
+          amount: balanceDue,
+          reference: verifyResult.document_number,
+          phone: mobileMoneyPhone,
+          email: verifyResult.customer_email || 'client@company.com',
+          notes: `Public Payment for ${verifyResult.document_number}`
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Payment initiation failed', 'error');
+        setPaymentPolling(false);
+        return;
+      }
+
+      if (paymentMethod === 'card' && data.cardRedirectUrl) {
+        window.location.href = data.cardRedirectUrl;
+        return;
+      }
+
+      if (paymentMethod === 'mobile_money' && data.transactionId) {
+        setPaymentStatus('Please check your phone and enter your Mobile Money PIN...');
+        pollPaymentStatus(data.transactionId);
+      }
+    } catch (err) {
+      showToast('Failed to connect to payment gateway.', 'error');
+      setPaymentPolling(false);
+    }
+  };
+
+  const pollPaymentStatus = async (transactionId) => {
+    let attempts = 0;
+    const maxAttempts = 30; // 2 minutes
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your messages.');
+        setTimeout(() => setPaymentPolling(false), 5000);
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/payments/status/${transactionId}`);
+        const data = await res.json();
+        
+        if (data.status === 'Success') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Successful! Thank you.');
+          setTimeout(() => {
+            setPaymentPolling(false);
+            setShowPaymentModal(false);
+            performVerification('invoice', verifyResult.document_number);
+          }, 3000);
+        } else if (data.status === 'Failed') {
+          clearInterval(pollInterval);
+          setPaymentStatus('Payment Failed or Cancelled.');
+          setTimeout(() => setPaymentPolling(false), 4000);
+        }
+      } catch (err) {}
+    }, 4000);
   };
 
   // Derive itemized rows
@@ -223,6 +303,16 @@ export default function VerifyDocumentPage({ setActivePage }) {
               >
                 <Download size={15} /> Download Official PDF
               </button>
+
+              {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem', background: '#d97706' }}
+                >
+                  💳 Pay Now
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -707,6 +797,106 @@ export default function VerifyDocumentPage({ setActivePage }) {
         )}
 
       </div>
+
+      {/* PAYMENT MODAL */}
+      {showPaymentModal && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '460px', width: '90%' }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Lock size={22} color="#10b981" /> Secure Payment
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              You are paying <strong>{verifyResult?.document_number}</strong>. Amount Due: <strong>UGX {balanceDue.toLocaleString()}</strong>.
+            </p>
+
+            {paymentPolling ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
+                <div style={{ fontWeight: '800', color: 'var(--text-main)', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                  {paymentStatus}
+                </div>
+                {paymentMethod === 'mobile_money' && (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    A prompt has been sent to your phone. Enter your PIN to approve. Do not close this window until complete.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="form-group">
+                  <label style={{ fontWeight: '800' }}>Select Payment Method</label>
+                  <select 
+                    className="form-input" 
+                    value={paymentMethod}
+                    onChange={e => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="mobile_money">Mobile Money (MTN/Airtel)</option>
+                    <option value="card">Visa / Mastercard / Amex</option>
+                  </select>
+                </div>
+
+                {paymentMethod === 'mobile_money' && (
+                  <div className="form-group" style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <label style={{ fontWeight: '800', margin: 0, color: '#b45309' }}>Mobile Money Number</label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer', color: '#b45309' }}>
+                        <input
+                          type="radio"
+                          name="v_mm_number_type"
+                          checked={useTestNumber}
+                          onChange={() => {
+                            setUseTestNumber(true);
+                            setMobileMoneyPhone('0111777777');
+                          }}
+                          style={{ accentColor: '#d97706' }}
+                        />
+                        Use Test Sandbox Number
+                      </label>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer', color: '#b45309', marginBottom: '0.5rem' }}>
+                      <input
+                        type="radio"
+                        name="v_mm_number_type"
+                        checked={!useTestNumber}
+                        onChange={() => setUseTestNumber(false)}
+                        style={{ accentColor: '#d97706' }}
+                      />
+                      Use Real Number
+                    </label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={mobileMoneyPhone}
+                      onChange={e => setMobileMoneyPhone(e.target.value)}
+                      placeholder="e.g. 0111777777"
+                      required
+                      style={{ border: '1px solid #f59e0b', background: '#ffffff', color: '#000' }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button 
+                    onClick={initiatePayment} 
+                    className="btn-primary" 
+                    style={{ flex: 1, justifyContent: 'center', background: '#10b981', padding: '0.75rem', fontSize: '0.9rem' }}
+                  >
+                    Pay UGX {balanceDue.toLocaleString()}
+                  </button>
+                  <button 
+                    onClick={() => setShowPaymentModal(false)} 
+                    className="btn-secondary" 
+                    style={{ padding: '0.75rem 1rem' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

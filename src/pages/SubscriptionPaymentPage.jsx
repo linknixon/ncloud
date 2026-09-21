@@ -13,10 +13,10 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
   const hasInitializedRef = useRef(false);
 
   const [paymentMethod, setPaymentMethod] = useState('invoice');
-  const [mobileMoneyPhone, setMobileMoneyPhone] = useState(user?.phone || user?.phone_number || '');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('0111777777');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
-  const [useTestNumber, setUseTestNumber] = useState(false);
+  const [useTestNumber, setUseTestNumber] = useState(true);
 
   const [selectedProducts, setSelectedProducts] = useState(() => {
     if (selectedSubscriptionItems && selectedSubscriptionItems.length > 0) {
