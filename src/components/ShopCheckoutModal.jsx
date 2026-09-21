@@ -706,9 +706,8 @@ export default function ShopCheckoutModal() {
                       textAlign: 'center', fontWeight: '700', color: paymentMethod === 'mobile_money' ? '#d97706' : 'var(--text-main)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/New-mtn-logo.jpg" alt="MTN" style={{ height: '18px', borderRadius: '3px' }} />
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Airtel_logo.svg/512px-Airtel_logo.svg.png" alt="Airtel" style={{ height: '18px', borderRadius: '3px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+                      <img src="/mtn_airtel.jpg" alt="MTN and Airtel" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                     </div>
                     Mobile Money
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>MTN / Airtel</div>
@@ -721,9 +720,8 @@ export default function ShopCheckoutModal() {
                       textAlign: 'center', fontWeight: '700', color: paymentMethod === 'card' ? '#059669' : 'var(--text-main)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" style={{ height: '18px', objectFit: 'contain' }} />
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/Mastercard_2019_logo.svg" alt="Mastercard" style={{ height: '18px', objectFit: 'contain' }} />
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+                      <img src="/visa_mastercard.jpg" alt="Visa and Mastercard" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                     </div>
                     Credit / Debit Card
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
