@@ -1250,15 +1250,23 @@ const normalizeTabName = (rawTab) => {
 
   const handleSetVoucherPrice = async (duration_hours, price) => {
     try {
-      const res = await fetch('/api/admin/wifi/voucher-prices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ duration_hours, price: Number(price) })
-      });
+      let res;
+      if (price === '' || Number(price) <= 0) {
+        res = await fetch(`/api/admin/wifi/voucher-prices/${duration_hours}`, {
+          method: 'DELETE',
+          headers: { 'x-user-role': currentRole }
+        });
+      } else {
+        res = await fetch('/api/admin/wifi/voucher-prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+          body: JSON.stringify({ duration_hours, price: Number(price) })
+        });
+      }
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
       setWifiVoucherPrices(d.prices || {});
-      showToast(`Price for ${duration_hours}h vouchers updated to UGX ${Number(price).toLocaleString()}`, 'success');
+      showToast(d.message, 'success');
       // Refresh shop products too
       fetch('/api/products').then(r => r.json()).then(p => Array.isArray(p) && setStoreProducts(p));
     } catch (err) {
@@ -10364,14 +10372,14 @@ const normalizeTabName = (rawTab) => {
                                     key={`price-${key}-${currentPrice}`}
                                     onBlur={e => {
                                       const val = e.target.value.trim();
-                                      if (val !== '' && val !== String(currentPrice)) {
+                                      if (val !== String(currentPrice)) {
                                         handleSetVoucherPrice(v.duration_hours, val);
                                       }
                                     }}
                                     onKeyDown={e => {
                                       if (e.key === 'Enter') {
                                         const val = e.target.value.trim();
-                                        if (val !== '') handleSetVoucherPrice(v.duration_hours, val);
+                                        handleSetVoucherPrice(v.duration_hours, val);
                                       }
                                     }}
                                   />
@@ -16660,7 +16668,8 @@ const normalizeTabName = (rawTab) => {
                   <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Duration (Hours) *</label>
                   <input
                     type="number"
-                    min="1"
+                    step="0.01"
+                    min="0.01"
                     className="form-input"
                     value={unifiForm.duration_hours}
                     onChange={e => setUnifiForm({ ...unifiForm, duration_hours: Number(e.target.value), duration_label: '' })}
