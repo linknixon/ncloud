@@ -1240,6 +1240,32 @@ const normalizeTabName = (rawTab) => {
       .catch(() => {});
   };
 
+  const [wifiVoucherPrices, setWifiVoucherPrices] = useState({});
+  const fetchWifiVoucherPrices = () => {
+    fetch('/api/admin/wifi/voucher-prices')
+      .then(r => r.json())
+      .then(p => p && typeof p === 'object' && setWifiVoucherPrices(p))
+      .catch(() => {});
+  };
+
+  const handleSetVoucherPrice = async (duration_hours, price) => {
+    try {
+      const res = await fetch('/api/admin/wifi/voucher-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({ duration_hours, price: Number(price) })
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      setWifiVoucherPrices(d.prices || {});
+      showToast(`Price for ${duration_hours}h vouchers updated to UGX ${Number(price).toLocaleString()}`, 'success');
+      // Refresh shop products too
+      fetch('/api/products').then(r => r.json()).then(p => Array.isArray(p) && setStoreProducts(p));
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const fetchSchedules = () => {
     fetch('/api/admin/schedules')
       .then(r => r.json())
@@ -1413,6 +1439,7 @@ const normalizeTabName = (rawTab) => {
       fetchQuotations();
       fetchWorkOrders();
       fetchUnifiVouchers();
+      fetchWifiVoucherPrices();
       fetchSchedules();
       fetchForensics();
       loadAnalyticsData();
@@ -10294,7 +10321,75 @@ const normalizeTabName = (rawTab) => {
                     ))}
                   </div>
 
-                  {/* Search and Filters */}
+                  {/* === WiFi Voucher Shop Pricing Panel === */}
+                  {(() => {
+                    const uniqueDurations = [...new Map(
+                      rawVouchers.filter(v => v.status === 'available')
+                        .map(v => [String(v.duration_hours), v])
+                    ).values()].sort((a, b) => a.duration_hours - b.duration_hours);
+
+                    if (uniqueDurations.length === 0) return null;
+
+                    return (
+                      <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem', borderRadius: '14px', border: '1px solid rgba(2,132,199,0.2)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(2,132,199,0.12)', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Tag size={16} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0 }}>Shop Pricing per Voucher Duration</h4>
+                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>Set the selling price for each auto-synced WiFi voucher duration. Changes reflect on the Shop instantly.</p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.85rem' }}>
+                          {uniqueDurations.map(v => {
+                            const key = String(v.duration_hours);
+                            const currentPrice = wifiVoucherPrices[key] !== undefined ? wifiVoucherPrices[key] : '';
+                            const stockCount = rawVouchers.filter(rv => rv.status === 'available' && rv.duration_hours === v.duration_hours).length;
+                            return (
+                              <div key={key} style={{ background: 'var(--bg-main)', borderRadius: '10px', padding: '0.85rem', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                  <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#0284c7' }}>{v.duration_label}</span>
+                                  <span style={{ fontSize: '0.72rem', background: 'rgba(16,185,129,0.12)', color: '#10b981', padding: '0.15rem 0.5rem', borderRadius: '6px', fontWeight: '700' }}>{stockCount} in stock</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>UGX</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="form-input"
+                                    style={{ flex: 1, padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                                    placeholder="0"
+                                    defaultValue={currentPrice}
+                                    key={`price-${key}-${currentPrice}`}
+                                    onBlur={e => {
+                                      const val = e.target.value.trim();
+                                      if (val !== '' && val !== String(currentPrice)) {
+                                        handleSetVoucherPrice(v.duration_hours, val);
+                                      }
+                                    }}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        const val = e.target.value.trim();
+                                        if (val !== '') handleSetVoucherPrice(v.duration_hours, val);
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                {currentPrice === '' || currentPrice === 0 ? (
+                                  <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0.35rem 0 0', fontWeight: '600' }}>⚠ No price set — hidden until priced</p>
+                                ) : (
+                                  <p style={{ fontSize: '0.7rem', color: '#10b981', margin: '0.35rem 0 0', fontWeight: '600' }}>✓ Showing on Shop at UGX {Number(currentPrice).toLocaleString()}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
                       <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
