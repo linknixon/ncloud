@@ -505,7 +505,11 @@ export default function AdminDashboard({ setActivePage }) {
   const isWebAdmin = false;
   const isHrManager = false;
   const isStaff = false;
-  const canDeleteSystemRecords = isSuperAdmin || (availableRoles.find(r => r.code === currentRole)?.permissions && Object.values(availableRoles.find(r => r.code === currentRole).permissions).some(p => p && p.delete));
+  // Grant delete access to actual super_admin accounts even when simulating another role via the role switcher
+  const canDeleteSystemRecords = (user?.role === 'super_admin' || user?.role === 'admin') ||
+    isSuperAdmin ||
+    (availableRoles.find(r => r.code === currentRole)?.permissions &&
+      Object.values(availableRoles.find(r => r.code === currentRole).permissions).some(p => p && p.delete));
 
   useEffect(() => {
     if (!user) {
@@ -10321,7 +10325,7 @@ const normalizeTabName = (rawTab) => {
 
                   {/* Stats bar */}
                   <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-                    {[{label:'Total',val:rawVouchers.length,color:'var(--primary)'},{label:'Available',val:availableCount,color:'#10b981'},{label:'Bought',val:boughtCount,color:'#0284c7'},{label:'Suspended',val:suspendedCount,color:'#ef4444'}].map(s => (
+                    {[{label:'Total',val:rawVouchers.length,color:'var(--primary)'},{label:'Available',val:availableCount,color:'#10b981'},{label:'Bought',val:boughtCount,color:'#0284c7'}].map(s => (
                       <div key={s.label} className="glass-card" style={{ padding:'0.65rem 1.2rem', display:'flex', alignItems:'center', gap:'0.6rem', borderRadius:'10px' }}>
                         <span style={{ fontSize:'1.4rem', fontWeight:'900', color:s.color }}>{s.val}</span>
                         <span style={{ fontSize:'0.78rem', color:'var(--text-muted)', fontWeight:'600' }}>{s.label}</span>
@@ -10331,10 +10335,25 @@ const normalizeTabName = (rawTab) => {
 
                   {/* === WiFi Voucher Shop Pricing Panel === */}
                   {(() => {
+                    // Build unique durations — for sub-hour vouchers, ensure label is generated if missing
                     const uniqueDurations = [...new Map(
-                      rawVouchers.filter(v => v.status === 'available')
-                        .map(v => [String(v.duration_hours), v])
-                    ).values()].sort((a, b) => a.duration_hours - b.duration_hours);
+                      rawVouchers
+                        .filter(v => v.status === 'available')
+                        .map(v => {
+                          // Generate a proper label if missing or if it incorrectly shows 0 hours
+                          const dh = Number(v.duration_hours) || 0;
+                          let label = v.duration_label;
+                          if (!label || label === '0 Hours' || label === '0 Hour(s)') {
+                            if (dh <= 0) label = v.duration_label || 'Unknown';
+                            else if (dh >= 720) label = `${Math.round(dh/720)} Month(s)`;
+                            else if (dh >= 168) label = `${Math.round(dh/168)} Week(s)`;
+                            else if (dh >= 24) label = `${Math.round(dh/24)} Day(s)`;
+                            else if (dh >= 1) label = `${Math.round(dh)} Hour(s)`;
+                            else label = `${Math.round(dh * 60)} Minute(s)`;
+                          }
+                          return [String(dh), { ...v, duration_label: label }];
+                        })
+                    ).values()].sort((a, b) => Number(a.duration_hours) - Number(b.duration_hours));
 
                     if (uniqueDurations.length === 0) return null;
 
@@ -10476,7 +10495,17 @@ const normalizeTabName = (rawTab) => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.77rem', color: 'var(--text-muted)' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Duration:</span>
-                                <strong style={{ color: 'var(--text-main)' }}>{v.duration_label || `${v.duration_hours}h`}</strong>
+                                <strong style={{ color: 'var(--text-main)' }}>{(() => {
+                                  const lbl = v.duration_label;
+                                  const dh = Number(v.duration_hours);
+                                  if (lbl && lbl !== '0 Hours' && lbl !== '0 Hour(s)') return lbl;
+                                  if (dh <= 0) return 'Unknown';
+                                  if (dh >= 720) return `${Math.round(dh/720)} Month(s)`;
+                                  if (dh >= 168) return `${Math.round(dh/168)} Week(s)`;
+                                  if (dh >= 24) return `${Math.round(dh/24)} Day(s)`;
+                                  if (dh >= 1) return `${Math.round(dh)} Hour(s)`;
+                                  return `${Math.round(dh * 60)} Minute(s)`;
+                                })()}</strong>
                               </div>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>Data Quota:</span>
@@ -16639,6 +16668,8 @@ const normalizeTabName = (rawTab) => {
                   <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Quick Duration Preset</label>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {[
+                      { label: '30 Min', hours: 0.5 },
+                      { label: '1 Hour', hours: 1 },
                       { label: '8 Hours', hours: 8 },
                       { label: '24 Hours', hours: 24 },
                       { label: '1 Week', hours: 168 },
@@ -16665,7 +16696,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Duration (Hours) *</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Duration in Hours <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>(use decimals for minutes — e.g. 0.5 = 30 min, 1.5 = 90 min)</span></label>
                   <input
                     type="number"
                     step="0.01"

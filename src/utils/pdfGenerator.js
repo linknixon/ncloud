@@ -329,9 +329,12 @@ export async function generateInvoicePDF(inv, options = {}) {
   const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
-  // Mandatory 18% VAT Breakdown
-  const subtotalAmt = Math.round((totalAmt / 1.18) * 100) / 100;
-  const vatAmt = Math.round((totalAmt - subtotalAmt) * 100) / 100;
+  // VAT Breakdown — respect vat_exempt flag (e.g. WiFi voucher orders are VAT-exempt)
+  const isVatExempt = Boolean(inv?.vat_exempt);
+  const subtotalAmt = isVatExempt
+    ? totalAmt  // no VAT reverse-engineering: subtotal = total
+    : Math.round((totalAmt / 1.18) * 100) / 100;
+  const vatAmt = isVatExempt ? 0 : Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
   // Sanitized Customer & Contact details from Database
   const cName = sanitizePdfText(inv?.customer_name || inv?.company || inv?.party_name || 'Valued Corporate Client');
@@ -576,23 +579,26 @@ export async function generateInvoicePDF(inv, options = {}) {
     } catch {}
   }
 
-  if (isPaid && inv?.wifi_voucher_token) {
+  // WiFi voucher token — show whenever a token is present (paid or pending)
+  if (inv?.wifi_voucher_token) {
     const wifiY = verifyY + 30;
     doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(2, 132, 199);
     doc.text('Your WiFi Access Token:', 14, wifiY);
-    
+
     doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
     doc.text(inv.wifi_voucher_token, 14, wifiY + 6);
   }
 
-  // Totals on Right with MANDATORY 18% STATUTORY VAT
+  // Totals on Right — suppress/replace VAT row for VAT-exempt invoices (e.g. WiFi vouchers)
+  const vatRowLabel = isVatExempt ? 'Value Added Tax:' : 'Value Added Tax (18% Statutory):';
+  const vatRowVal   = isVatExempt ? 'EXEMPT (0%)' : formatNinjaUGX(vatAmt);
   const totalRows = [
     { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) },
-    { label: 'Value Added Tax (18% Statutory):', val: formatNinjaUGX(vatAmt) },
+    { label: vatRowLabel, val: vatRowVal, exempt: isVatExempt },
     { label: 'Total Invoiced:', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Amount Paid to Date:', val: formatNinjaUGX(paidAmt) },
     { label: 'Balance Outstanding:', val: formatNinjaUGX(balanceDue), bold: true, color: [30, 58, 138] }
@@ -602,7 +608,12 @@ export async function generateInvoicePDF(inv, options = {}) {
     const rY = totalsY + idx * 5.2;
     doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
+    // Colour VAT-exempt row in blue to highlight exemption
+    if (r.exempt) {
+      doc.setTextColor(2, 132, 199);
+    } else {
+      doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
+    }
     doc.text(r.label, 150, rY, { align: 'right' });
     doc.text(r.val, 194, rY, { align: 'right' });
   });

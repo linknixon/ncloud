@@ -3482,6 +3482,18 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
     const isVatIncluded = req.body.include_vat !== false;
     const computedVat = isVatIncluded ? calculatedVatAmount : 0;
 
+    // Detect if ALL items in this order are WiFi vouchers → force VAT-exempt
+    const allItemsAreWifi = inputItems.length > 0 && inputItems.every(it => {
+      const n = (it.name || it.description || '').toLowerCase();
+      return n.includes('wifi voucher') || n.includes('nova wifi') || n.includes('wifi –') || n.includes('wifi -');
+    });
+    const finalVatExempt = allItemsAreWifi ? true : !isVatIncluded;
+    const finalVatAmount  = allItemsAreWifi ? 0 : computedVat;
+    if (allItemsAreWifi) {
+      // Recalculate total without VAT for WiFi-only orders
+      amount = calculatedTotalAmount;
+    }
+
     const invoiceRecord = {
       id: Date.now() + 1,
       invoice_number: invNum,
@@ -3500,9 +3512,9 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
       duration: dur,
       reference: reference,
       payment_method: payment_method || 'Direct Subscription Multi-Checkout',
-      include_vat: isVatIncluded,
-      vat_exempt: !isVatIncluded,
-      vat_amount: computedVat,
+      include_vat: !finalVatExempt,
+      vat_exempt: finalVatExempt,
+      vat_amount: finalVatAmount,
       items: inputItems,
       shareable_url: `https://ncloud.co.ug/verify?doc=${invNum}`,
       created_at: new Date().toISOString()
@@ -5688,27 +5700,25 @@ async function syncUniFiVouchers() {
     let addedCount = 0;
     let removedCount = 0;
 
-    // 1. Add any unused vouchers from UniFi that aren't in our system
     activeUnusedVouchers.forEach(uv => {
       // Check if voucher code already exists internally (ignoring dashes)
       const rawUnifiCode = String(uv.code).replace(/-/g, '');
-      const exists = memoryStore.unifi_vouchers.find(v => String(v.token).replace(/-/g, '') === rawUnifiCode);
+      const existing = memoryStore.unifi_vouchers.find(v => String(v.token).replace(/-/g, '') === rawUnifiCode);
       
-      if (!exists) {
+      const durationHours = parseFloat((uv.timeLimitMinutes / 60).toFixed(4));
+      const label = durationHours >= 720 ? `${Math.round(durationHours/720)} Month(s)` 
+                    : durationHours >= 168 ? `${Math.round(durationHours/168)} Week(s)` 
+                    : durationHours >= 24 ? `${Math.round(durationHours/24)} Day(s)` 
+                    : durationHours >= 1 ? `${Math.round(durationHours)} Hour(s)`
+                    : `${Math.round(durationHours * 60)} Minute(s)`;
+
+      if (!existing) {
         // Format code with a dash in the middle (e.g. 1234567890 -> 12345-67890)
         let formattedCode = String(uv.code);
         if (!formattedCode.includes('-') && formattedCode.length > 4) {
           const mid = Math.ceil(formattedCode.length / 2);
           formattedCode = formattedCode.slice(0, mid) + '-' + formattedCode.slice(mid);
         }
-
-        // Create matching format
-        const durationHours = parseFloat((uv.timeLimitMinutes / 60).toFixed(4));
-        const label = durationHours >= 720 ? `${Math.round(durationHours/720)} Month(s)` 
-                      : durationHours >= 168 ? `${Math.round(durationHours/168)} Week(s)` 
-                      : durationHours >= 24 ? `${Math.round(durationHours/24)} Day(s)` 
-                      : durationHours >= 1 ? `${Math.round(durationHours)} Hour(s)`
-                      : `${Math.round(durationHours * 60)} Minute(s)`;
 
         memoryStore.unifi_vouchers.unshift({
           id: uv.id,
@@ -5723,6 +5733,12 @@ async function syncUniFiVouchers() {
           customer_email: null
         });
         addedCount++;
+      } else {
+        // Fix for previously synced vouchers stuck at 0 hours
+        if (existing.duration_hours === 0 && durationHours > 0) {
+          existing.duration_hours = durationHours;
+          existing.duration_label = label;
+        }
       }
     });
 
@@ -5843,8 +5859,27 @@ app.get('/api/admin/unifi/vouchers', (req, res) => {
     const cMail = (req.userEmail || '').toLowerCase();
     vouchers = vouchers.filter(v => (v.customer_email || '').toLowerCase() === cMail);
   }
+
+  // Healing pass: fix any voucher with missing or incorrect duration_label
+  vouchers = vouchers.map(v => {
+    const dh = Number(v.duration_hours);
+    const lbl = v.duration_label;
+    if (!lbl || lbl === '0 Hours' || lbl === '0 Hour(s)') {
+      let fixedLabel;
+      if (dh <= 0) fixedLabel = lbl || 'Unknown';
+      else if (dh >= 720) fixedLabel = `${Math.round(dh/720)} Month(s)`;
+      else if (dh >= 168) fixedLabel = `${Math.round(dh/168)} Week(s)`;
+      else if (dh >= 24) fixedLabel = `${Math.round(dh/24)} Day(s)`;
+      else if (dh >= 1) fixedLabel = `${Math.round(dh)} Hour(s)`;
+      else fixedLabel = `${Math.round(dh * 60)} Minute(s)`;
+      return { ...v, duration_label: fixedLabel };
+    }
+    return v;
+  });
+
   res.json(vouchers);
 });
+
 
 // POST register new UniFi vouchers copied manually from UniFi controller (admin only)
 app.post('/api/admin/unifi/generate', (req, res) => {
@@ -6804,8 +6839,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
-  const subtotalAmt = Math.round((totalAmt / 1.18) * 100) / 100;
-  const vatAmt = Math.round((totalAmt - subtotalAmt) * 100) / 100;
+  // VAT Breakdown — respect vat_exempt flag (e.g. WiFi voucher orders are VAT-exempt)
+  const isVatExempt = Boolean(inv?.vat_exempt);
+  const subtotalAmt = isVatExempt
+    ? totalAmt  // no VAT reverse-engineering: subtotal = total
+    : Math.round((totalAmt / 1.18) * 100) / 100;
+  const vatAmt = isVatExempt ? 0 : Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
   const cName = sanitizePdfText(inv?.customer_name || inv?.company || inv?.party_name || 'Valued Corporate Client');
   const cCode = sanitizePdfText(inv?.customer_code || inv?.client_id || (inv?.id ? String(inv.id) : ''));
@@ -7053,9 +7092,25 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     } catch {}
   }
 
+  // WiFi voucher token — show whenever present (paid or pending)
+  if (inv?.wifi_voucher_token) {
+    const wifiY = verifyY + 30;
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(2, 132, 199);
+    doc.text('Your WiFi Access Token:', 14, wifiY);
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text(inv.wifi_voucher_token, 14, wifiY + 6);
+  }
+
+  // Totals — suppress/replace VAT row for VAT-exempt invoices (e.g. WiFi vouchers)
+  const vatRowLabel = isVatExempt ? 'Value Added Tax:' : 'Value Added Tax (18% Statutory):';
+  const vatRowVal   = isVatExempt ? 'EXEMPT (0%)' : formatNinjaUGX(vatAmt);
   const totalRows = [
     { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) },
-    { label: 'Value Added Tax (18% Statutory):', val: formatNinjaUGX(vatAmt) },
+    { label: vatRowLabel, val: vatRowVal, exempt: isVatExempt },
     { label: 'Total Invoiced:', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Amount Paid to Date:', val: formatNinjaUGX(paidAmt) },
     { label: 'Balance Outstanding:', val: formatNinjaUGX(balanceDue), bold: true, color: [30, 58, 138] }
@@ -7065,7 +7120,11 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     const rY = totalsY + idx * 5.2;
     doc.setFont('TrebuchetMS', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
+    if (r.exempt) {
+      doc.setTextColor(2, 132, 199);
+    } else {
+      doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
+    }
     doc.text(r.label, 150, rY, { align: 'right' });
     doc.text(r.val, 194, rY, { align: 'right' });
   });
