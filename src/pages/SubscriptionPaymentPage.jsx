@@ -3,8 +3,8 @@ import { useApp } from '../context/AppContext';
 import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
 import { CheckCircle2, Lock, Search, ChevronLeft, ChevronRight, Check, User } from 'lucide-react';
 
-export default function SubscriptionPaymentPage({ cart = [], setActivePage = () => {} }) {
-  const { user, setUser, clearCart, showToast, selectedSubscriptionItems } = useApp();
+export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
+  const { user, setUser, clearCart, showToast, cart, addToCart, removeFromCart, updateCartQuantity } = useApp();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,20 +16,7 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
   const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
-  const [useTestNumber, setUseTestNumber] = useState(true);
-
-  const [selectedProducts, setSelectedProducts] = useState(() => {
-    if (selectedSubscriptionItems && selectedSubscriptionItems.length > 0) {
-      return selectedSubscriptionItems;
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    if (selectedSubscriptionItems && selectedSubscriptionItems.length > 0) {
-      setSelectedProducts(selectedSubscriptionItems);
-    }
-  }, [selectedSubscriptionItems]);
+  const [useTestNumber, setUseTestNumber] = useState(false);
   const [subscriptionDuration, setSubscriptionDuration] = useState('1 Year');
   const [includeVat, setIncludeVat] = useState(true);
   const [customerInfo, setCustomerInfo] = useState(() => {
@@ -155,6 +142,8 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
 
   const totalPages = Math.ceil(products.length / packagesPerPage);
 
+  const selectedProducts = cart.filter(p => isHostingItem(p));
+
   const isProductSelected = (prod) => {
     if (!prod) return false;
     return selectedProducts.some(p => 
@@ -166,33 +155,23 @@ export default function SubscriptionPaymentPage({ cart = [], setActivePage = () 
 
   const toggleProductSelection = (product) => {
     if (!product) return;
-    setSelectedProducts(prev => {
-      const exists = prev.some(p => 
-        String(p.id) === String(product.id) || 
-        (p.slug && product.slug && p.slug === product.slug) ||
-        (p.name && product.name && p.name.toLowerCase() === product.name.toLowerCase())
-      );
-      if (exists) {
-        return prev.filter(p => 
-          String(p.id) !== String(product.id) && 
-          (!p.slug || !product.slug || p.slug !== product.slug) &&
-          (!p.name || !product.name || p.name.toLowerCase() !== product.name.toLowerCase())
-        );
-      } else {
-        return [...prev, { ...product, quantity: product.quantity || 1 }];
+    const exists = cart.some(p => 
+      String(p.id) === String(product.id) || 
+      (p.slug && product.slug && p.slug === product.slug) ||
+      (p.name && product.name && p.name.toLowerCase() === product.name.toLowerCase())
+    );
+    if (exists) {
+      const existingProduct = cart.find(p => String(p.id) === String(product.id) || (p.slug && product.slug && p.slug === product.slug));
+      if (existingProduct) {
+        removeFromCart(existingProduct.id);
       }
-    });
+    } else {
+      addToCart(product, product.quantity || 1);
+    }
   };
 
   const updatePackageQuantity = (productId, qty) => {
-    const parsedQty = Math.max(1, parseInt(qty) || 1);
-    setSelectedProducts(prev =>
-      prev.map(p => 
-        String(p.id) === String(productId) || (p.slug && p.slug === productId) 
-          ? { ...p, quantity: parsedQty } 
-          : p
-      )
-    );
+    updateCartQuantity(productId, qty);
   };
 
   const filteredProducts = products.filter(p => {

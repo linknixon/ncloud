@@ -11426,6 +11426,26 @@ const normalizeTabName = (rawTab) => {
                       Securely manage payment gateways (ioTec Pay, MTN, Airtel) and core system APIs (UniFi).
                     </p>
                   </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={async () => {
+                      await fetch('/api/admin/integrations/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                        body: JSON.stringify({ id: 'iotec_pay' })
+                      });
+                      fetchApiIntegrations();
+                      showToast('ioTec API configuration restored.', 'success');
+                    }} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>Restore ioTec API</button>
+                    <button onClick={async () => {
+                      await fetch('/api/admin/integrations/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                        body: JSON.stringify({ id: 'unifi_controller' })
+                      });
+                      fetchApiIntegrations();
+                      showToast('UniFi API configuration restored.', 'success');
+                    }} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>Restore UniFi API</button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>

@@ -2949,7 +2949,8 @@ function dispatchWifiVoucherForInvoice(inv) {
       const isWifiItem = item.name && (
         item.name.toLowerCase().includes('wifi voucher') ||
         item.name.toLowerCase().includes('wifi - ') ||
-        item.name.toLowerCase().includes('nova wifi')
+        item.name.toLowerCase().includes('nova wifi') ||
+        item.name.toLowerCase().includes('ticket')
       );
       if (isWifiItem) {
         // Parse duration from item name: e.g. "8 Hours", "24 Hours", "7 Days", "1 Month"
@@ -3259,7 +3260,8 @@ setInterval(processSubscriptionLifecycles, 4 * 60 * 60 * 1000);
 // ----------------------------------------------------
 app.post('/api/subscriptions/checkout', async (req, res) => {
   try {
-    const { plan_name, amount, currency, payment_method, user_email, customer_name, customer_email, customer_phone, customer_address, company, duration, start_date } = req.body;
+    const { plan_name, currency, payment_method, user_email, customer_name, customer_email, customer_phone, customer_address, company, duration, start_date } = req.body;
+    let { amount } = req.body;
     if (!plan_name || !amount) {
       return res.status(400).json({ error: 'Plan name and amount are required.' });
     }
@@ -3334,20 +3336,67 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
     // 2. Generate Pending Invoice
     const invNum = `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const isVatIncluded = req.body.include_vat !== false;
-    const computedVat = isVatIncluded ? (req.body.vat_amount || Math.round(amount * 0.18 / 1.18)) : 0;
-
+    let calculatedTotalAmount = 0;
+    let calculatedVatAmount = 0;
+    
     const inputItems = Array.isArray(req.body.items) && req.body.items.length > 0
-      ? req.body.items.map(it => ({
-          name: it.name || it.description || 'Digital Product',
-          description: it.description || it.name || 'Digital Product',
-          quantity: Number(it.quantity || it.qty || 1),
-          qty: Number(it.quantity || it.qty || 1),
-          unit_price: Number(it.unit_price || it.price || 0),
-          price: Number(it.unit_price || it.price || 0),
-          amount: Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || it.qty || 1)))
-        }))
-      : [{ name: plan_name, description: plan_name, quantity: 1, qty: 1, unit_price: amount, price: amount, amount: amount }];
+      ? req.body.items.map(it => {
+          const itemQty = Number(it.quantity || it.qty || 1);
+          let authenticPrice = Number(it.unit_price || it.price || 0);
+          
+          // Secure price validation from database
+          const dbProduct = (memoryStore.products || []).find(p => p.name === it.name || p.id == it.id);
+          if (dbProduct && dbProduct.price !== undefined) {
+            authenticPrice = Number(dbProduct.price);
+          }
+          
+          const itemAmount = authenticPrice * itemQty;
+          calculatedTotalAmount += itemAmount;
+
+          const isWifi = it.name && (
+            it.name.toLowerCase().includes('wifi voucher') ||
+            it.name.toLowerCase().includes('ticket') ||
+            it.name.toLowerCase().includes('wifi - ') ||
+            it.name.toLowerCase().includes('nova wifi')
+          );
+
+          if (!isWifi) {
+            calculatedVatAmount += itemAmount * 0.18;
+          }
+
+          return {
+            name: it.name || it.description || 'Digital Product',
+            description: it.description || it.name || 'Digital Product',
+            quantity: itemQty,
+            qty: itemQty,
+            unit_price: authenticPrice,
+            price: authenticPrice,
+            amount: itemAmount
+          };
+        })
+      : (() => {
+          // Fallback if no items array
+          let fallbackPrice = Number(amount || 0);
+          const dbProduct = (memoryStore.products || []).find(p => p.name === plan_name);
+          if (dbProduct && dbProduct.price !== undefined) {
+            fallbackPrice = Number(dbProduct.price);
+          }
+          calculatedTotalAmount = fallbackPrice;
+          
+          const isWifi = plan_name && (
+            plan_name.toLowerCase().includes('wifi voucher') ||
+            plan_name.toLowerCase().includes('ticket') ||
+            plan_name.toLowerCase().includes('wifi - ') ||
+            plan_name.toLowerCase().includes('nova wifi')
+          );
+          if (!isWifi) calculatedVatAmount = fallbackPrice * 0.18;
+          
+          return [{ name: plan_name, description: plan_name, quantity: 1, qty: 1, unit_price: fallbackPrice, price: fallbackPrice, amount: fallbackPrice }];
+        })();
+
+    amount = calculatedTotalAmount + calculatedVatAmount;
+    const isVatIncluded = req.body.include_vat !== false;
+    const computedVat = isVatIncluded ? calculatedVatAmount : 0;
 
     const invoiceRecord = {
       id: Date.now() + 1,
@@ -10581,6 +10630,41 @@ app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, (req, res) =
   }
 });
 
+app.post('/api/admin/integrations/restore', requireSystemsAdmin, (req, res) => {
+  const { id } = req.body;
+  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+  
+  if (id === 'iotec_pay' && !memoryStore.api_integrations.find(a => a.id === 'iotec_pay')) {
+    memoryStore.api_integrations.push({
+      id: 'iotec_pay',
+      name: 'ioTec Payment Gateway',
+      provider: 'ioTec Pay',
+      type: 'payment',
+      status: 'suspended',
+      client_id: '',
+      client_secret: '',
+      wallet_id: '',
+      last_updated: new Date().toISOString()
+    });
+  } else if (id === 'unifi_controller' && !memoryStore.api_integrations.find(a => a.id === 'unifi_controller')) {
+    memoryStore.api_integrations.push({
+      id: 'unifi_controller',
+      name: 'UniFi Network API',
+      provider: 'Ubiquiti UniFi',
+      type: 'network',
+      status: 'suspended',
+      client_id: '',
+      client_secret: '',
+      host_url: 'https://192.168.1.1:8443',
+      site_id: 'default',
+      last_updated: new Date().toISOString()
+    });
+  }
+  
+  savePersistentStore(true);
+  res.json({ message: 'API Integration Restored' });
+});
+
 // ----------------------------------------------------
 // ioTec Pay Service Logic
 // ----------------------------------------------------
@@ -10729,8 +10813,26 @@ app.post('/api/webhooks/iotec', async (req, res) => {
   const { id, status, externalId, amount, currency } = req.body;
   console.log(`[ioTec Webhook] Received status ${status} for transaction ${id}, externalId: ${externalId}`);
   
-  if (status === 'Success' && externalId) {
-     await processSuccessfulPayment(externalId, amount || 0, id, 'Mobile Money');
+  if (status === 'Success' && id) {
+    try {
+      const token = await getIotecToken();
+      const iotecRes = await fetch(`https://pay.iotec.io/api/collections/status/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (iotecRes.ok) {
+        const data = await iotecRes.json();
+        if (data.status === 'Success' && data.externalId) {
+          console.log(`[ioTec Webhook] Verified transaction ${id}. Proceeding to payment capture.`);
+          await processSuccessfulPayment(data.externalId, data.amount || 0, id, 'Mobile Money');
+        } else {
+          console.error(`[ioTec Webhook] Verification failed for ${id}. Status from gateway: ${data.status}`);
+        }
+      } else {
+        console.error(`[ioTec Webhook] Verification request failed with status: ${iotecRes.status}`);
+      }
+    } catch (err) {
+      console.error(`[ioTec Webhook] Verification error:`, err);
+    }
   }
   
   res.status(200).send('OK');

@@ -26,7 +26,7 @@ export default function ShopCheckoutModal() {
   const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'
-  const [useTestNumber, setUseTestNumber] = useState(true);
+  const [useTestNumber, setUseTestNumber] = useState(false);
   
   const [customerInfo, setCustomerInfo] = useState(() => {
     if (user) {
@@ -175,7 +175,18 @@ export default function ShopCheckoutModal() {
   });
 
   const subtotalAmount = selectedItems.reduce((acc, item) => acc + (Number(item.price) * (item.quantity || 1)), 0);
-  const vatAmount = includeVat ? subtotalAmount * 0.18 : 0;
+  
+  const vatAmount = includeVat ? selectedItems.reduce((acc, item) => {
+    const isWifi = item.name && (
+      item.name.toLowerCase().includes('wifi voucher') ||
+      item.name.toLowerCase().includes('ticket') ||
+      item.name.toLowerCase().includes('wifi - ') ||
+      item.name.toLowerCase().includes('nova wifi')
+    );
+    if (isWifi) return acc;
+    return acc + (Number(item.price) * (item.quantity || 1) * 0.18);
+  }, 0) : 0;
+  
   const grandTotal = subtotalAmount + vatAmount;
 
   const handleOrderSubmit = async (e) => {
@@ -419,6 +430,23 @@ export default function ShopCheckoutModal() {
               <div style={{ marginBottom: '6px' }}><strong>Bill To:</strong> {customerInfo.name || 'Customer'}</div>
               <div><strong>Grand Total Paid / Due:</strong> <span style={{ fontWeight: '800', color: 'var(--primary)' }}>UGX {grandTotal.toLocaleString()}</span></div>
             </div>
+
+            {successData.invoice?.wifi_voucher_token && (
+              <div style={{
+                background: '#f0f9ff',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                border: '2px solid #38bdf8',
+                textAlign: 'center',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Your WiFi Access Token</div>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0c4a6e', letterSpacing: '0.1em', fontFamily: 'monospace' }}>
+                  {successData.invoice.wifi_voucher_token}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#0ea5e9', marginTop: '8px' }}>Connect to the Nova WiFi network and enter this code to browse.</div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button

@@ -568,12 +568,25 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
-  doc.text(verifyUrl, 14, verifyY + 4.5);
+  doc.textWithLink(verifyUrl, 14, verifyY + 4.5, { url: verifyUrl });
 
   if (qrDataUrl) {
     try {
       doc.addImage(qrDataUrl, 'PNG', 14, verifyY + 7, 20, 20);
     } catch {}
+  }
+
+  if (isPaid && inv?.wifi_voucher_token) {
+    const wifiY = verifyY + 30;
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(2, 132, 199);
+    doc.text('Your WiFi Access Token:', 14, wifiY);
+    
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text(inv.wifi_voucher_token, 14, wifiY + 6);
   }
 
   // Totals on Right with MANDATORY 18% STATUTORY VAT
@@ -2414,6 +2427,19 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
     doc.addImage(qrDataUrl, 'PNG', center - (qrWidth / 2), cursorY, qrWidth, qrWidth);
     cursorY += qrWidth + 10;
   } catch(e) {}
+  
+  if (paymentData?.wifi_voucher_token) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(2, 132, 199);
+    doc.text("Your WiFi Access Token:", center, cursorY, { align: 'center' });
+    cursorY += 15;
+    
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42);
+    doc.text(paymentData.wifi_voucher_token, center, cursorY, { align: 'center' });
+    cursorY += 20;
+  }
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');

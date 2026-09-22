@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide-react';
 
 export default function ShopPage({ setActivePage }) {
-  const { addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
+  const { cart, addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,7 +52,8 @@ export default function ShopPage({ setActivePage }) {
   const handleBuyNow = (prod, qty = 1) => {
     const isHosting = isHostingCategoryItem(prod);
     if (isHosting) {
-      if (openSubscriptionCheckout) openSubscriptionCheckout([{ ...prod, quantity: qty }]);
+      const exists = cart.some(item => item.id === prod.id);
+      if (!exists) addToCart(prod, qty);
       if (setActivePage) setActivePage('subscription');
     } else {
       if (openDirectCheckout) openDirectCheckout([{ ...prod, quantity: qty }]);
