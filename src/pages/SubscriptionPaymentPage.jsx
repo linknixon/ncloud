@@ -139,7 +139,16 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
       });
   }, []);
 
-  const totalPages = Math.ceil(products.length / packagesPerPage);
+  const filteredProducts = products.filter(prod => {
+    const matchesSearch = (prod.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (prod.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || (prod.category || '') === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const totalPages = Math.ceil(filteredProducts.length / packagesPerPage) || 1;
+  const startIndex = (currentPage - 1) * packagesPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + packagesPerPage);
 
   const selectedProducts = cart;
 
