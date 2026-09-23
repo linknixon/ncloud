@@ -8854,15 +8854,32 @@ const normalizeTabName = (rawTab) => {
                                 <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
                                   <button
                                     onClick={() => {
+                                      // Build items from actual invoice line items, not payment transaction lines
+                                      const rawInv = card.rawInvoice || {};
+                                      const receiptItems = Array.isArray(rawInv.items) && rawInv.items.length > 0
+                                        ? rawInv.items.map(it => ({
+                                            name: it.name || it.item_name || rawInv.item_name || 'Service',
+                                            quantity: Number(it.quantity || it.qty || 1),
+                                            unit_price: Number(it.unit_price || it.price || 0),
+                                            amount: Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || 1)) || 0)
+                                          }))
+                                        : [{
+                                            name: rawInv.item_name || rawInv.plan_name || 'Service / Product',
+                                            quantity: 1,
+                                            unit_price: card.totalBilled,
+                                            amount: card.totalBilled
+                                          }];
                                       generatePaymentReceipt80mmPDF({
                                         invoice_number: card.invoice_number,
                                         customer_name: card.party_name,
                                         customer_email: card.party_email,
                                         amount: card.totalBilled,
+                                        amount_paid: card.totalPaid,
                                         paid_amount: card.totalPaid,
                                         balance: card.balanceDue,
                                         status: card.status,
-                                        lines: card.lines
+                                        items: receiptItems,
+                                        wifi_voucher_token: rawInv.wifi_voucher_token || null
                                       }, {
                                         siteLogo: logoInput || siteLogo,
                                         userName: user?.name,
@@ -8993,16 +9010,37 @@ const normalizeTabName = (rawTab) => {
 
                                             <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                               <button
-                                                onClick={() => generatePaymentReceipt80mmPDF({
-                                                  invoice_number: card.invoice_number,
-                                                  customer_name: card.party_name,
-                                                  customer_email: card.party_email,
-                                                  amount: card.totalBilled,
-                                                  paid_amount: line.amount_paid,
-                                                  balance: Math.max(0, card.totalBilled - line.amount_paid),
-                                                  status: line.status === '100% Paid' ? 'Paid' : 'Partial',
-                                                  lines: [line]
-                                                }, { siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label })}
+                                                onClick={() => {
+                                                  const rawInv = card.rawInvoice || {};
+                                                  const receiptItems = Array.isArray(rawInv.items) && rawInv.items.length > 0
+                                                    ? rawInv.items.map(it => ({
+                                                        name: it.name || it.item_name || rawInv.item_name || 'Service',
+                                                        quantity: Number(it.quantity || it.qty || 1),
+                                                        unit_price: Number(it.unit_price || it.price || 0),
+                                                        amount: Number(it.amount || (it.unit_price || it.price || 0) * (it.quantity || 1) || 0)
+                                                      }))
+                                                    : [{
+                                                        name: rawInv.item_name || rawInv.plan_name || 'Service / Product',
+                                                        quantity: 1,
+                                                        unit_price: Number(line.amount_paid || 0),
+                                                        amount: Number(line.amount_paid || 0)
+                                                      }];
+                                                  generatePaymentReceipt80mmPDF({
+                                                    invoice_number: card.invoice_number,
+                                                    customer_name: card.party_name,
+                                                    customer_email: card.party_email,
+                                                    amount: card.totalBilled,
+                                                    amount_paid: Number(line.amount_paid || 0),
+                                                    paid_amount: Number(line.amount_paid || 0),
+                                                    balance: Math.max(0, card.totalBilled - Number(line.amount_paid || 0)),
+                                                    payment_date: line.date || line.payment_date,
+                                                    payment_method: line.payment_method,
+                                                    reference: line.reference,
+                                                    status: line.status === '100% Paid' ? 'Paid' : 'Partial',
+                                                    items: receiptItems,
+                                                    wifi_voucher_token: rawInv.wifi_voucher_token || null
+                                                  }, { siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label });
+                                                }}
                                                 className="btn-secondary"
                                                 style={{ padding: '0.2rem 0.45rem', fontSize: '0.675rem', gap: '2px' }}
                                                 title="Download receipt for this installment"
@@ -10341,17 +10379,22 @@ const normalizeTabName = (rawTab) => {
                         .filter(v => v.status === 'available')
                         .map(v => {
                           // Generate a proper label if missing or if it incorrectly shows 0 hours
-                          const dh = Number(v.duration_hours) || 0;
+                          const dh = Number(v.duration_hours);
                           let label = v.duration_label;
                           if (!label || label === '0 Hours' || label === '0 Hour(s)') {
-                            if (dh <= 0) label = v.duration_label || 'Unknown';
-                            else if (dh >= 720) label = `${Math.round(dh/720)} Month(s)`;
+                            if (dh <= 0) {
+                              // Duration stored as 0 — try to derive from label or default
+                              label = label || 'Unknown';
+                            } else if (dh >= 720) label = `${Math.round(dh/720)} Month(s)`;
                             else if (dh >= 168) label = `${Math.round(dh/168)} Week(s)`;
                             else if (dh >= 24) label = `${Math.round(dh/24)} Day(s)`;
                             else if (dh >= 1) label = `${Math.round(dh)} Hour(s)`;
                             else label = `${Math.round(dh * 60)} Minute(s)`;
                           }
-                          return [String(dh), { ...v, duration_label: label }];
+                          // Use composite key: for sub-hour, use the label so different minute
+                          // durations (e.g. 30min vs 60min) are not collapsed if stored as dh=0
+                          const mapKey = dh > 0 && dh < 1 ? `min-${label}` : (dh > 0 ? String(dh) : `zero-${label}`);
+                          return [mapKey, { ...v, duration_hours: dh > 0 ? dh : v.duration_hours, duration_label: label, _mapKey: mapKey }];
                         })
                     ).values()].sort((a, b) => Number(a.duration_hours) - Number(b.duration_hours));
 
@@ -10370,9 +10413,18 @@ const normalizeTabName = (rawTab) => {
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.85rem' }}>
                           {uniqueDurations.map(v => {
-                            const key = String(v.duration_hours);
-                            const currentPrice = wifiVoucherPrices[key] !== undefined ? wifiVoucherPrices[key] : '';
-                            const stockCount = rawVouchers.filter(rv => rv.status === 'available' && rv.duration_hours === v.duration_hours).length;
+                            // Use _mapKey for price lookup (matches the key used in the Map and sent to server)
+                            const key = v._mapKey || String(v.duration_hours);
+                            // Price is always keyed by duration_hours (as string) on the server
+                            const priceKey = String(v.duration_hours);
+                            const currentPrice = wifiVoucherPrices[priceKey] !== undefined ? wifiVoucherPrices[priceKey] : '';
+                            // stockCount: match by duration_hours if > 0, fallback to label match for zero-duration vouchers
+                            const stockCount = rawVouchers.filter(rv =>
+                              rv.status === 'available' &&
+                              (rv.duration_hours > 0
+                                ? rv.duration_hours === v.duration_hours
+                                : (rv.duration_label || '').toLowerCase() === (v.duration_label || '').toLowerCase())
+                            ).length;
                             return (
                               <div key={key} style={{ background: 'var(--bg-main)', borderRadius: '10px', padding: '0.85rem', border: '1px solid var(--border-color)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
