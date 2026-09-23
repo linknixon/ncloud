@@ -223,9 +223,9 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const isExpense = docTypeStr.includes('expense') || docTypeStr.includes('voucher') || docNumStr.startsWith('EXP');
   const isDeliveryNote = docTypeStr.includes('delivery') || docNumStr.startsWith('DN');
 
-  const issueDateStr = verifyResult.issued_date || Date.now();
+  const issueDateStr = verifyResult?.issued_date || Date.now();
   const baseIssueDate = new Date(issueDateStr);
-  let finalDueDateStr = verifyResult.due_date || verifyResult.valid_until;
+  let finalDueDateStr = verifyResult?.due_date || verifyResult?.valid_until;
 
   if (!finalDueDateStr) {
     const defaultDays = isQuotation ? 30 : 14;
