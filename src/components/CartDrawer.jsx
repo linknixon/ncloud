@@ -20,15 +20,7 @@ export default function CartDrawer({ onCheckout }) {
 
   const handleCheckoutClick = () => {
     setIsCartOpen(false);
-    const hasHosting = cart.some(item => isHostingCategoryItem(item));
-    const hasNonHosting = cart.some(item => !isHostingCategoryItem(item));
-
-    if (hasHosting && !hasNonHosting) {
-      if (openSubscriptionCheckout) openSubscriptionCheckout(cart);
-      onCheckout();
-    } else {
-      openDirectCheckout(cart);
-    }
+    onCheckout();
   };
 
   return (

@@ -830,8 +830,10 @@ const normalizeTabName = (rawTab) => {
     salary: 3500000,
     company: 'Nova Cloud Edges (U) Ltd',
     supervisor_id: 1,
-    supervisor_name: ''
+    supervisor_name: '',
+    comments: ''
   });
+  const [reviewAppModal, setReviewAppModal] = useState({ show: false, appId: null, action: null, comments: '', reason: '' });
 
   // Product & Categories Modal State
   const [productCategories, setProductCategories] = useState([]);
@@ -1967,35 +1969,39 @@ const normalizeTabName = (rawTab) => {
   };
 
   // Job Application 2-Stage Review Handlers (HR + Super Admin)
-  const handleHrApproveApp = async (id) => {
+  const handleHrApproveApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'hr_approve', comments: '', reason: '' });
+  const handleHrRejectApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'hr_reject', comments: '', reason: '' });
+  const handleSuperAdminRejectApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'admin_reject', comments: '', reason: '' });
+
+  const submitAppReview = async () => {
+    const { appId, action, reason, comments } = reviewAppModal;
+    if (!appId || !action) return;
+
+    let endpoint = '';
+    let payload = { comments };
+
+    if (action === 'hr_approve') {
+      endpoint = `/api/admin/applications/${appId}/hr-approve`;
+      payload.hr_name = user?.name || 'Systems Admin';
+    } else if (action === 'hr_reject') {
+      endpoint = `/api/admin/applications/${appId}/hr-reject`;
+      payload.hr_name = user?.name || 'Systems Admin';
+      payload.reason = reason || 'Candidate qualifications do not match role requirements';
+    } else if (action === 'admin_reject') {
+      endpoint = `/api/admin/applications/${appId}/super-admin-reject`;
+      payload.reason = reason || 'Role on hold or candidate mismatch';
+    }
+
     try {
-      const res = await fetch(`/api/admin/applications/${id}/hr-approve`, {
+      const res = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hr_name: user?.name || 'Systems Admin' })
+        body: JSON.stringify(payload)
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
       showToast(resData.message, 'success');
-      fetchDashboardData();
-      fetch('/api/admin/applications').then(r => r.json()).then(apps => Array.isArray(apps) && setApplicationsList(apps));
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
-  const handleHrRejectApp = async (id) => {
-    const reason = window.prompt('Enter HR screening rejection reason:', 'Candidate qualifications do not match role requirements');
-    if (reason === null) return;
-    try {
-      const res = await fetch(`/api/admin/applications/${id}/hr-reject`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason, hr_name: user?.name || 'Systems Admin' })
-      });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
-      showToast(resData.message, 'info');
+      setReviewAppModal({ show: false, appId: null, action: null, comments: '', reason: '' });
       fetchDashboardData();
       fetch('/api/admin/applications').then(r => r.json()).then(apps => Array.isArray(apps) && setApplicationsList(apps));
     } catch (err) {
@@ -2020,25 +2026,6 @@ const normalizeTabName = (rawTab) => {
       fetchDashboardData();
       fetch('/api/admin/applications').then(r => r.json()).then(apps => Array.isArray(apps) && setApplicationsList(apps));
       fetch('/api/admin/overview', { cache: 'no-store' }).then(r => r.json()).then(ov => ov.users && setData(prev => ({ ...prev, users: ov.users })));
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
-  const handleSuperAdminRejectApp = async (id) => {
-    const reason = window.prompt('Enter Super Admin executive rejection reason:', 'Role on hold or candidate mismatch');
-    if (reason === null) return;
-    try {
-      const res = await fetch(`/api/admin/applications/${id}/super-admin-reject`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
-      });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
-      showToast(resData.message, 'info');
-      fetchDashboardData();
-      fetch('/api/admin/applications').then(r => r.json()).then(apps => Array.isArray(apps) && setApplicationsList(apps));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -10415,9 +10402,7 @@ const normalizeTabName = (rawTab) => {
                           {uniqueDurations.map(v => {
                             // Use _mapKey for price lookup (matches the key used in the Map and sent to server)
                             const key = v._mapKey || String(v.duration_hours);
-                            // Price is always keyed by duration_hours (as string) on the server
-                            const priceKey = String(v.duration_hours);
-                            const currentPrice = wifiVoucherPrices[priceKey] !== undefined ? wifiVoucherPrices[priceKey] : '';
+                            const currentPrice = wifiVoucherPrices[key] !== undefined ? wifiVoucherPrices[key] : '';
                             // stockCount: match by duration_hours if > 0, fallback to label match for zero-duration vouchers
                             const stockCount = rawVouchers.filter(rv =>
                               rv.status === 'available' &&
@@ -10444,13 +10429,13 @@ const normalizeTabName = (rawTab) => {
                                     onBlur={e => {
                                       const val = e.target.value.trim();
                                       if (val !== String(currentPrice)) {
-                                        handleSetVoucherPrice(v.duration_hours, val);
+                                        handleSetVoucherPrice(key, val);
                                       }
                                     }}
                                     onKeyDown={e => {
                                       if (e.key === 'Enter') {
                                         const val = e.target.value.trim();
-                                        handleSetVoucherPrice(v.duration_hours, val);
+                                        handleSetVoucherPrice(key, val);
                                       }
                                     }}
                                   />
@@ -11438,6 +11423,18 @@ const normalizeTabName = (rawTab) => {
                       const isSuperAdminRejected = app.status === 'Rejected by Super Admin';
                       const isHired = (app.status || '').includes('Hired');
 
+                      const hrStageColor = isHrPending ? '#f59e0b' : (isHrRejected ? '#ef4444' : '#10b981');
+                      const hrStageIcon = isHrPending ? '1' : (isHrRejected ? '✕' : '✓');
+                      
+                      const execStageColor = isSuperAdminPending ? '#8b5cf6' : (isHired ? '#10b981' : (isSuperAdminRejected ? '#ef4444' : 'transparent'));
+                      const execStageBorder = (isSuperAdminPending || isHired || isSuperAdminRejected) ? 'none' : '2px solid var(--border-color)';
+                      const execStageIcon = isHired ? '✓' : (isSuperAdminRejected ? '✕' : '2');
+                      const execStageOpacity = (isSuperAdminPending || isHired || isSuperAdminRejected) ? 1 : 0.4;
+
+                      const nameParts = (app.applicant_name || app.name || 'U').split(' ');
+                      const initials = (nameParts.length > 1 ? nameParts[0][0] + nameParts[1][0] : nameParts[0][0]).toUpperCase();
+                      const avatarColor = `hsl(${((app.id || 1) * 137) % 360}, 70%, 50%)`;
+
                       return (
                         <div
                           key={app.id}
@@ -11453,42 +11450,58 @@ const normalizeTabName = (rawTab) => {
                           }}
                         >
                           <div>
-                            {/* Candidate Header & Status Badge */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.6rem' }}>
-                              <h4 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
-                                {app.applicant_name || app.name}
-                              </h4>
-                              <span
-                                className="badge-tag"
-                                style={{
-                                  fontSize: '0.7rem',
-                                  fontWeight: '800',
-                                  flexShrink: 0,
-                                  background: isHired ? 'rgba(16, 185, 129, 0.15)' : isSuperAdminPending ? 'rgba(139, 92, 246, 0.15)' : isHrPending ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                  color: isHired ? 'var(--accent-emerald)' : isSuperAdminPending ? '#8b5cf6' : isHrPending ? '#f59e0b' : '#ef4444'
-                                }}
-                              >
-                                {isHired ? 'Hired' : isSuperAdminPending ? 'Pending Super Admin' : isHrPending ? 'Pending HR' : app.status}
-                              </span>
+                            {/* Application Timeline Progress Tracker */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', padding: '0.25rem 0' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: hrStageColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: '800' }}>
+                                    {hrStageIcon}
+                                  </div>
+                                  <span style={{ fontSize: '0.65rem', color: hrStageColor, marginTop: '4px', fontWeight: '700' }}>HR Review</span>
+                               </div>
+                               <div style={{ flex: 1, height: '2px', background: !isHrPending ? '#10b981' : 'var(--border-color)', margin: '0 8px', marginBottom: '14px' }}></div>
+                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: execStageOpacity }}>
+                                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: execStageColor, border: execStageBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (isSuperAdminPending || isHired || isSuperAdminRejected) ? '#fff' : 'var(--text-muted)', fontSize: '11px', fontWeight: '800' }}>
+                                    {execStageIcon}
+                                  </div>
+                                  <span style={{ fontSize: '0.65rem', color: (isSuperAdminPending || isHired || isSuperAdminRejected) ? execStageColor : 'var(--text-muted)', marginTop: '4px', fontWeight: '700' }}>Exec Review</span>
+                               </div>
                             </div>
 
-                            {/* Job Position Tag */}
-                            <div style={{ marginBottom: '0.6rem' }}>
-                              <span className="badge-tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9', fontSize: '0.75rem' }}>
-                                {app.job_title || app.position || 'General Vacancy'}
-                              </span>
+                            {/* Candidate Header & Status Badge */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.8rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: avatarColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.9rem', flexShrink: 0, boxShadow: `0 2px 8px ${avatarColor}40` }}>
+                                  {initials}
+                                </div>
+                                <div>
+                                  <h4 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0, color: 'var(--text-main)', lineHeight: '1.2' }}>
+                                    {app.applicant_name || app.name}
+                                  </h4>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '600', marginTop: '2px' }}>
+                                    {app.job_title || app.position || 'General Vacancy'}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
 
                             {/* Contact Details */}
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.45' }}>
-                              <div>{app.email}</div>
-                              {app.phone && <div>{app.phone}</div>}
-                              <div>Experience: <strong>{app.experience_years || '1-3 Years'}</strong></div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.45', background: 'var(--bg-main)', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}><strong>Email:</strong> {app.email}</div>
+                              {app.phone && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}><strong>Phone:</strong> {app.phone}</div>}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><strong>Experience:</strong> {app.experience_years || '1-3 Years'}</div>
                             </div>
 
                             {/* Cover Letter Snippet */}
-                            <div style={{ background: 'var(--bg-main)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: '0.75rem', minHeight: '52px' }}>
-                              {app.cover_letter ? (app.cover_letter.length > 75 ? app.cover_letter.slice(0, 75) + '...' : app.cover_letter) : 'No cover letter attached.'}
+                            <div 
+                              style={{ background: 'rgba(14, 165, 233, 0.05)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.15)', fontSize: '0.775rem', color: 'var(--text-main)', lineHeight: '1.4', marginBottom: '0.75rem', minHeight: '52px', cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.currentTarget.style.maxHeight = e.currentTarget.style.maxHeight === 'none' ? '60px' : 'none';
+                                e.currentTarget.style.overflow = e.currentTarget.style.maxHeight === 'none' ? 'visible' : 'hidden';
+                              }}
+                              title="Click to expand/collapse"
+                            >
+                              <strong style={{ display: 'block', color: '#0ea5e9', marginBottom: '0.2rem' }}>Cover Letter:</strong>
+                              {app.cover_letter ? app.cover_letter : <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No cover letter attached.</span>}
                             </div>
 
                             {app.resume_url && (
@@ -11503,33 +11516,53 @@ const normalizeTabName = (rawTab) => {
                                 </a>
                               </div>
                             )}
+
+                            {/* Internal Comments Display */}
+                            {(app.hr_comments || app.super_admin_comments) && (
+                              <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', fontSize: '0.775rem', color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+                                <strong style={{ color: '#d97706', display: 'block', marginBottom: '0.2rem' }}>Internal Notes:</strong>
+                                {app.hr_comments && (
+                                  <div style={{ marginBottom: app.super_admin_comments ? '0.4rem' : '0' }}>
+                                    <span style={{ fontWeight: '700', color: '#10b981' }}>HR:</span> {app.hr_comments}
+                                  </div>
+                                )}
+                                {app.super_admin_comments && (
+                                  <div>
+                                    <span style={{ fontWeight: '700', color: '#8b5cf6' }}>Super Admin:</span> {app.super_admin_comments}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Action Controls */}
                           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             {/* Stage 1: HR Actions */}
-                            {(isHrManager || isSuperAdmin) && isHrPending && (
+                            {(isHrManager || isSuperAdmin) && (
                               <div style={{ display: 'flex', gap: '0.4rem' }}>
                                 <button
                                   onClick={() => handleHrApproveApp(app.id)}
                                   className="btn-primary"
-                                  style={{ flex: 1, background: '#10b981', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center' }}
+                                  disabled={!isHrPending}
+                                  style={{ flex: 1, background: !isHrPending ? 'var(--bg-main)' : '#10b981', color: !isHrPending ? 'var(--text-muted)' : '#fff', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isHrPending ? 0.6 : 1, cursor: !isHrPending ? 'not-allowed' : 'pointer' }}
                                 >
-                                  <CheckCircle size={13} /> HR Approve
+                                  {(!isHrPending && !isHrRejected) ? <CheckCircle2 size={13} /> : <CheckCircle size={13} />} 
+                                  {(!isHrPending && !isHrRejected) ? 'HR Approved' : 'HR Approve'}
                                 </button>
                                 <button
                                   onClick={() => handleHrRejectApp(app.id)}
                                   className="btn-secondary"
-                                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
+                                  disabled={!isHrPending}
+                                  style={{ flex: 1, color: isHrRejected ? '#ef4444' : (!isHrPending ? 'var(--text-muted)' : '#ef4444'), borderColor: !isHrPending ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isHrPending ? 0.6 : 1, cursor: !isHrPending ? 'not-allowed' : 'pointer', background: isHrRejected ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
                                 >
-                                  Reject
+                                  {isHrRejected ? 'HR Rejected' : 'Reject'}
                                 </button>
                               </div>
                             )}
 
                             {/* Stage 2: Super Admin Final Hiring & User Account Creation */}
-                            {isSuperAdmin && (isSuperAdminPending || (isHrPending && !isHired)) && (
-                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            {isSuperAdmin && (
+                              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem' }}>
                                 <button
                                   onClick={() => {
                                     setSelectedAppForHire(app);
@@ -11539,31 +11572,32 @@ const normalizeTabName = (rawTab) => {
                                       salary: 3500000,
                                       company: 'Nova Cloud Edges (U) Ltd',
                                       supervisor_id: 1,
-                                      supervisor_name: 'Systems Admin'
+                                      supervisor_name: 'Systems Admin',
+                                      comments: ''
                                     });
                                     setShowHireModal(true);
                                   }}
                                   className="btn-primary"
-                                  style={{ flex: 1, background: '#8b5cf6', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center' }}
+                                  disabled={!isSuperAdminPending}
+                                  style={{ flex: 1, background: isHired ? '#10b981' : (!isSuperAdminPending ? 'var(--bg-main)' : '#8b5cf6'), color: (!isSuperAdminPending && !isHired) ? 'var(--text-muted)' : '#fff', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center', opacity: (!isSuperAdminPending && !isHired) ? 0.6 : 1, cursor: !isSuperAdminPending ? 'not-allowed' : 'pointer' }}
                                 >
-                                  <UserPlus size={13} /> Approve & Hire
+                                  {isHired ? <CheckCircle2 size={13} /> : <UserPlus size={13} />} 
+                                  {isHired ? 'Hired' : 'Approve & Hire'}
                                 </button>
-                                {!isSuperAdminRejected && !isHired && (
-                                  <button
-                                    onClick={() => handleSuperAdminRejectApp(app.id)}
-                                    className="btn-secondary"
-                                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
-                                  >
-                                    Reject
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => handleSuperAdminRejectApp(app.id)}
+                                  className="btn-secondary"
+                                  disabled={!isSuperAdminPending}
+                                  style={{ flex: 1, color: isSuperAdminRejected ? '#ef4444' : (!isSuperAdminPending ? 'var(--text-muted)' : '#ef4444'), borderColor: !isSuperAdminPending ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isSuperAdminPending ? 0.6 : 1, cursor: !isSuperAdminPending ? 'not-allowed' : 'pointer', background: isSuperAdminRejected ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                >
+                                  {isSuperAdminRejected ? 'Rejected' : 'Reject'}
+                                </button>
                               </div>
                             )}
 
                             {isHired && (
-                              <div style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--accent-emerald)', fontWeight: '700', padding: '0.35rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px' }}>
-                                <CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                                Hired • Role: {app.assigned_role || 'Staff'}
+                              <div style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--accent-emerald)', fontWeight: '700', padding: '0.4rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                <CheckCircle2 size={14} /> Assigned Role: {app.assigned_role || 'Staff'}
                               </div>
                             )}
                           </div>
@@ -20844,6 +20878,62 @@ const normalizeTabName = (rawTab) => {
           </div>
         )}
 
+        {/* APPLICATION REVIEW MODAL */}
+        {reviewAppModal.show && (
+          <div className="modal-overlay">
+            <div className="modal-content glass-card" style={{ maxWidth: '500px', width: '90%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {reviewAppModal.action === 'hr_approve' ? <CheckCircle size={22} color="#10b981" /> : <XCircle size={22} color="#ef4444" />}
+                  {reviewAppModal.action === 'hr_approve' ? 'HR Approval' : reviewAppModal.action === 'hr_reject' ? 'HR Rejection' : 'Super Admin Rejection'}
+                </h3>
+                <button onClick={() => setReviewAppModal({ show: false, appId: null, action: null, comments: '', reason: '' })} style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                Please provide your internal comments and reasoning for this decision.
+              </div>
+              
+              {(reviewAppModal.action === 'hr_reject' || reviewAppModal.action === 'admin_reject') && (
+                <div className="form-group">
+                  <label style={{ fontWeight: '700' }}>Rejection Reason (Standardized) *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="E.g. Candidate qualifications do not match role requirements"
+                    value={reviewAppModal.reason}
+                    onChange={e => setReviewAppModal({ ...reviewAppModal, reason: e.target.value })}
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label style={{ fontWeight: '700' }}>Internal Comments (Not visible to applicant)</label>
+                <textarea
+                  className="form-input"
+                  style={{ minHeight: '100px', resize: 'vertical' }}
+                  placeholder="E.g. Candidate interviewed well but lacks cloud experience..."
+                  value={reviewAppModal.comments}
+                  onChange={e => setReviewAppModal({ ...reviewAppModal, comments: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button 
+                  onClick={submitAppReview}
+                  className="btn-primary" 
+                  style={{ flex: 1, justifyContent: 'center', background: reviewAppModal.action === 'hr_approve' ? '#10b981' : '#ef4444' }}
+                >
+                  Submit Decision
+                </button>
+                <button onClick={() => setReviewAppModal({ show: false, appId: null, action: null, comments: '', reason: '' })} className="btn-secondary">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* SUPER ADMIN HIRE & CREATE SYSTEM USER ACCOUNT MODAL */}
         {showHireModal && selectedAppForHire && (
           <div className="modal-overlay" onClick={() => setShowHireModal(false)}>
@@ -20939,6 +21029,17 @@ const normalizeTabName = (rawTab) => {
                     className="form-input"
                     value={hireForm.company}
                     onChange={e => setHireForm({ ...hireForm, company: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700' }}>Internal Comments (Not visible to applicant)</label>
+                  <textarea
+                    className="form-input"
+                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    placeholder="E.g. Approved with a starting salary of 3.5M..."
+                    value={hireForm.comments || ''}
+                    onChange={e => setHireForm({ ...hireForm, comments: e.target.value })}
                   />
                 </div>
 

@@ -176,6 +176,18 @@ export function AppProvider({ children }) {
     }, 4000);
   };
 
+  const isHostingItem = (prod) => {
+    if (!prod) return false;
+    const catStr = (prod.category || '').toLowerCase();
+    const nameStr = (prod.name || '').toLowerCase();
+    const badgeStr = (prod.badge || '').toLowerCase();
+    const isWifi = catStr.includes('voucher') || catStr.includes('wifi') || nameStr.includes('voucher');
+    if (isWifi) return false;
+    if (prod.checkout_type === 'hosting' || prod.checkout_flow === 'hosting') return true;
+    const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription'];
+    return keywords.some(kw => catStr.includes(kw) || nameStr.includes(kw) || badgeStr.includes(kw));
+  };
+
   const addToCart = (product, qty = 1) => {
     const addQuantity = Math.max(1, parseInt(qty) || 1);
     setCart(prev => {
@@ -185,7 +197,8 @@ export function AppProvider({ children }) {
           item.id === product.id ? { ...item, quantity: item.quantity + addQuantity } : item
         );
       }
-      return [...prev, { ...product, quantity: addQuantity }];
+      const isHosting = isHostingItem(product);
+      return [...prev, { ...product, quantity: addQuantity, subscriptionDuration: isHosting ? '1 Year' : null }];
     });
     showToast(`Added ${addQuantity}x "${product.name}" to cart!`, 'success');
   };
@@ -194,6 +207,12 @@ export function AppProvider({ children }) {
     const newQty = Math.max(1, parseInt(qty) || 1);
     setCart(prev => prev.map(item =>
       item.id === id ? { ...item, quantity: newQty } : item
+    ));
+  };
+
+  const updateCartItemDuration = (id, duration) => {
+    setCart(prev => prev.map(item =>
+      item.id === id ? { ...item, subscriptionDuration: duration } : item
     ));
   };
 
@@ -421,6 +440,7 @@ export function AppProvider({ children }) {
         cart,
         addToCart,
         updateCartQuantity,
+        updateCartItemDuration,
         removeFromCart,
         clearCart,
         isAuthOpen,

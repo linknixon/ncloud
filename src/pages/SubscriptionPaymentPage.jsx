@@ -17,7 +17,6 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
   const [useTestNumber, setUseTestNumber] = useState(false);
-  const [subscriptionDuration, setSubscriptionDuration] = useState('1 Year');
   const [includeVat, setIncludeVat] = useState(true);
   const [customerInfo, setCustomerInfo] = useState(() => {
     if (user) {
@@ -142,56 +141,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
 
   const totalPages = Math.ceil(products.length / packagesPerPage);
 
-  const selectedProducts = cart.filter(p => isHostingItem(p));
-
-  const isProductSelected = (prod) => {
-    if (!prod) return false;
-    return selectedProducts.some(p => 
-      String(p.id) === String(prod.id) || 
-      (p.slug && prod.slug && p.slug === prod.slug) ||
-      (p.name && prod.name && p.name.toLowerCase() === prod.name.toLowerCase())
-    );
-  };
-
-  const toggleProductSelection = (product) => {
-    if (!product) return;
-    const exists = cart.some(p => 
-      String(p.id) === String(product.id) || 
-      (p.slug && product.slug && p.slug === product.slug) ||
-      (p.name && product.name && p.name.toLowerCase() === product.name.toLowerCase())
-    );
-    if (exists) {
-      const existingProduct = cart.find(p => String(p.id) === String(product.id) || (p.slug && product.slug && p.slug === product.slug));
-      if (existingProduct) {
-        removeFromCart(existingProduct.id);
-      }
-    } else {
-      addToCart(product, product.quantity || 1);
-    }
-  };
-
-  const updatePackageQuantity = (productId, qty) => {
-    updateCartQuantity(productId, qty);
-  };
-
-  const filteredProducts = products.filter(p => {
-    const matchesCategory = selectedCategory === 'All' || (p.category || '').toLowerCase() === selectedCategory.toLowerCase();
-    const matchesSearch = !searchTerm ||
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.short_desc && p.short_desc.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
-
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * packagesPerPage,
-    currentPage * packagesPerPage
-  );
-
-  // CATEGORY RULE: Subscription Period / Duration multiplier applies ONLY to products under the "Hosting" category
-  const hostingItems = selectedProducts.filter(p => p.category && p.category.toLowerCase().includes('hosting'));
-  const nonHostingItems = selectedProducts.filter(p => !p.category || !p.category.toLowerCase().includes('hosting'));
-  const hasHostingProducts = hostingItems.length > 0;
+  const selectedProducts = cart;
 
   const getDurationMultiplier = (dur) => {
     if (!dur) return 1;
@@ -202,17 +152,24 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
     if (d.includes('1 year') || d.includes('12 month') || d.includes('annually') || d.includes('annual')) return 12;
     if (d.includes('2 year') || d.includes('24 month')) return 24;
     if (d.includes('3 year') || d.includes('36 month')) return 36;
-    return 12;
+    return 1;
   };
 
-  const durationMultiplier = getDurationMultiplier(subscriptionDuration);
+  const hostingSubtotal = selectedProducts.reduce((acc, p) => {
+    const isHosting = isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting'));
+    if (!isHosting) return acc;
+    const mult = getDurationMultiplier(p.subscriptionDuration || '1 Year');
+    return acc + (Number(p.price) * (p.quantity || 1) * mult);
+  }, 0);
 
-  const hostingMonthlyTotal = hostingItems.reduce((acc, p) => acc + (Number(p.price) * (p.quantity || 1)), 0);
-  const hostingSubtotal = hostingMonthlyTotal * (hasHostingProducts ? durationMultiplier : 1);
-
-  const nonHostingSubtotal = nonHostingItems.reduce((acc, p) => acc + (Number(p.price) * (p.quantity || 1)), 0);
+  const nonHostingSubtotal = selectedProducts.reduce((acc, p) => {
+    const isHosting = isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting'));
+    if (isHosting) return acc;
+    return acc + (Number(p.price) * (p.quantity || 1));
+  }, 0);
 
   const subtotalAmount = hostingSubtotal + nonHostingSubtotal;
+
   const vatAmount = includeVat ? subtotalAmount * 0.18 : 0;
   const grandTotal = subtotalAmount + vatAmount;
 
@@ -238,7 +195,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
         item.checkout_flow === 'hosting' || 
         keywords.some(kw => categoryStr.includes(kw) || nameStr.includes(kw) || badgeStr.includes(kw))
       );
-      const mult = isHosting ? durationMultiplier : 1;
+      const mult = isHosting ? getDurationMultiplier(item.subscriptionDuration || '1 Year') : 1;
       const finalQty = (Number(item.quantity) || 1) * mult;
       
       return {
@@ -266,7 +223,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
           customer_phone: customerInfo.phone,
           customer_address: customerInfo.address,
           company: customerInfo.company,
-          duration: subscriptionDuration,
+          duration: 'Mixed Durations',
           include_vat: includeVat,
           vat_amount: vatAmount,
           items: itemsPayload,
@@ -683,8 +640,8 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                   }}>
                     {selectedProducts.length > 0 ? (
                       selectedProducts.map((p, idx) => {
-                        const isHosting = (p.category || '').toLowerCase().includes('hosting');
-                        const mult = isHosting ? durationMultiplier : 1;
+                        const isHosting = (p.category || '').toLowerCase().includes('hosting') || isHostingItem(p);
+                        const mult = isHosting ? getDurationMultiplier(p.subscriptionDuration || '1 Year') : 1;
                         const unitPrice = Number(p.price) || 0;
                         const qty = p.quantity || 1;
                         const itemTotal = unitPrice * qty * mult;
@@ -696,9 +653,32 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px', flexWrap: 'wrap' }}>
                                 <span>Unit: UGX {unitPrice.toLocaleString()} {isHosting ? '/ mo' : ''}</span>
                                 {isHosting && (
-                                  <span style={{ color: '#10b981', fontWeight: '700' }}>
-                                    × {mult} Month{mult > 1 ? 's' : ''} ({subscriptionDuration})
-                                  </span>
+                                  <div style={{ marginTop: '0.4rem' }}>
+                                    <select
+                                      value={p.subscriptionDuration || '1 Year'}
+                                      onChange={(e) => {
+                                        if (updateCartItemDuration) {
+                                          updateCartItemDuration(p.id, e.target.value);
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '0.2rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '700',
+                                        borderRadius: '4px',
+                                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                                        color: '#10b981',
+                                        background: 'rgba(16, 185, 129, 0.05)'
+                                      }}
+                                    >
+                                      <option value="1 Month">1 Month (Monthly)</option>
+                                      <option value="3 Months">3 Months (Quarterly)</option>
+                                      <option value="6 Months">6 Months (Semi-Annually)</option>
+                                      <option value="1 Year">1 Year / 12 Months (Annually)</option>
+                                      <option value="2 Years">2 Years / 24 Months (Biennially)</option>
+                                      <option value="3 Years">3 Years / 36 Months (Triennially)</option>
+                                    </select>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -715,7 +695,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleProductSelection(p);
+                                  removeFromCart(p.id);
                                 }}
                                 title="Remove package"
                                 style={{
@@ -813,42 +793,18 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                   />
                 </div>
 
-                {/* Subscription Period / Duration * Field (Applied exclusively to Hosting category products) */}
-                {hasHostingProducts ? (
-                  <div className="form-group" style={{ background: 'rgba(16, 185, 129, 0.06)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.25)', marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      <label style={{ margin: 0, fontWeight: '700' }}>Subscription Period / Duration *</label>
-                      <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#16a34a', fontSize: '0.725rem', fontWeight: '800' }}>
-                        Applied to Hosting ({hostingItems.length} items)
-                      </span>
-                    </div>
-                    <select
-                      className="form-input"
-                      value={subscriptionDuration}
-                      onChange={e => setSubscriptionDuration(e.target.value)}
-                      style={{ fontWeight: '700' }}
-                    >
-                      <option value="1 Month">1 Month (Monthly)</option>
-                      <option value="3 Months">3 Months (Quarterly)</option>
-                      <option value="6 Months">6 Months (Semi-Annually)</option>
-                      <option value="1 Year">1 Year / 12 Months (Annually)</option>
-                      <option value="2 Years">2 Years / 24 Months (Biennially)</option>
-                      <option value="3 Years">3 Years / 36 Months (Triennially)</option>
-                    </select>
-                  </div>
-                ) : (
-                  <div style={{
-                    background: 'rgba(99, 102, 241, 0.08)',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(99, 102, 241, 0.2)',
-                    marginBottom: '1.25rem',
-                    fontSize: '0.825rem',
-                    color: 'var(--text-muted)'
-                  }}>
-                    <strong style={{ color: 'var(--primary)' }}>Standard Flat Rate:</strong> Subscription Period duration multipliers apply exclusively to <strong>Hosting</strong> category products. Selected products are billed at direct unit prices.
-                  </div>
-                )}
+                {/* Unified Cart Info */}
+                <div style={{
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  marginBottom: '1.25rem',
+                  fontSize: '0.825rem',
+                  color: 'var(--text-muted)'
+                }}>
+                  <strong style={{ color: 'var(--primary)' }}>Generalised Invoice:</strong> Subscription duration multipliers apply per-item to Hosting products. Other items are billed at direct unit prices.
+                </div>
 
                 {/* Tax & VAT Option Checkbox */}
                 <div style={{
@@ -877,7 +833,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                 }}>
                   {hasHostingProducts && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.875rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
-                      <span>Hosting Subtotal ({subscriptionDuration}):</span>
+                      <span>Hosting Subtotal:</span>
                       <span style={{ fontWeight: '700', color: '#16a34a' }}>UGX {hostingSubtotal.toLocaleString()}</span>
                     </div>
                   )}

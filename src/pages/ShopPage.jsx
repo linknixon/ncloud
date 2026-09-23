@@ -50,14 +50,8 @@ export default function ShopPage({ setActivePage }) {
   };
 
   const handleBuyNow = (prod, qty = 1) => {
-    const isHosting = isHostingCategoryItem(prod);
-    if (isHosting) {
-      const exists = cart.some(item => item.id === prod.id);
-      if (!exists) addToCart(prod, qty);
-      if (setActivePage) setActivePage('subscription');
-    } else {
-      if (openDirectCheckout) openDirectCheckout([{ ...prod, quantity: qty }]);
-    }
+    addToCart(prod, qty);
+    if (setActivePage) setActivePage('subscription');
   };
 
   const [dbCategories, setDbCategories] = useState([]);

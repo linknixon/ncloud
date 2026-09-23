@@ -1996,16 +1996,26 @@ app.get('/api/products', async (req, res) => {
 
   const durationGroups = {};
   availableVouchers.forEach(v => {
-    const key = String(v.duration_hours);
-    if (!durationGroups[key]) {
-      durationGroups[key] = { duration_hours: v.duration_hours, duration_label: v.duration_label, count: 0 };
+    const dh = Number(v.duration_hours);
+    const label = v.duration_label || 'Unknown';
+    // Use composite key for sub-hour vouchers to prevent collapse
+    const mapKey = dh > 0 && dh < 1 ? `min-${label}` : (dh > 0 ? String(dh) : `zero-${label}`);
+    
+    if (!durationGroups[mapKey]) {
+      // For price lookup, we still use the mapKey since the price map saves prices using this same mapKey from AdminDashboard
+      durationGroups[mapKey] = { 
+        duration_hours: dh > 0 ? dh : v.duration_hours, 
+        duration_label: label, 
+        mapKey: mapKey,
+        count: 0 
+      };
     }
-    durationGroups[key].count++;
+    durationGroups[mapKey].count++;
   });
 
   // Build auto-generated WiFi Voucher products from unique durations
   const autoWifiProducts = Object.values(durationGroups).map(group => {
-    const slug = `wifi-voucher-${group.duration_hours}h`;
+    const slug = `wifi-voucher-${group.mapKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
     const name = `WiFi Voucher – ${group.duration_label}`;
     // Check if admin already has a manual product for this duration
     const manualProduct = rawProducts.find(p => {
@@ -2016,7 +2026,7 @@ app.get('/api/products', async (req, res) => {
     });
     if (manualProduct) return null; // Will be handled by normalizedProducts loop below
 
-    const price = voucherPriceMap[String(group.duration_hours)] || 0;
+    const price = voucherPriceMap[group.mapKey] || voucherPriceMap[String(group.duration_hours)] || 0;
     return {
       id: slug,
       slug,
@@ -2570,12 +2580,13 @@ app.get('/api/admin/applications', (req, res) => {
 // Stage 1: HR Review (Approve & submit to Super Admin or Reject)
 app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
   const { id } = req.params;
-  const { hr_name } = req.body;
+  const { hr_name, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
     appItem.status = 'Pending Super Admin Approval';
     appItem.hr_reviewed_by = hr_name || 'Systems Admin';
     appItem.hr_reviewed_at = new Date().toISOString();
+    if (comments) appItem.hr_comments = comments;
     savePersistentStore();
 
     // Notify Applicant
@@ -2607,13 +2618,14 @@ app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
 
 app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
   const { id } = req.params;
-  const { reason, hr_name } = req.body;
+  const { reason, hr_name, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
     appItem.status = 'Rejected by HR';
     appItem.hr_rejection_reason = reason || 'Candidate screened out by HR';
     appItem.hr_reviewed_by = hr_name || 'Systems Admin';
     appItem.hr_reviewed_at = new Date().toISOString();
+    if (comments) appItem.hr_comments = comments;
     savePersistentStore();
 
     // Notify Applicant
@@ -2633,11 +2645,12 @@ app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
 // Stage 2: Super Admin Final Hiring & Automated User Account Creation
 app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
   const { id } = req.params;
-  const { role, position, salary, company, supervisor_id, supervisor_name } = req.body;
+  const { role, position, salary, company, supervisor_id, supervisor_name, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
     const assignedRole = role || 'staff';
     appItem.status = 'Hired & User Account Created';
+    if (comments) appItem.super_admin_comments = comments;
     appItem.super_admin_approved_at = new Date().toISOString();
     appItem.assigned_role = assignedRole;
 
@@ -2684,11 +2697,12 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
 
 app.put('/api/admin/applications/:id/super-admin-reject', (req, res) => {
   const { id } = req.params;
-  const { reason } = req.body;
+  const { reason, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
     appItem.status = 'Rejected by Super Admin';
     appItem.super_admin_rejection_reason = reason || 'Candidate rejected at executive review';
+    if (comments) appItem.super_admin_comments = comments;
     savePersistentStore();
 
     // Notify Applicant
@@ -5854,14 +5868,8 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
 
 // GET all vouchers (or filtered for customer)
 app.get('/api/admin/unifi/vouchers', (req, res) => {
-  let vouchers = memoryStore.unifi_vouchers || [];
-  if (req.userRole === 'customer') {
-    const cMail = (req.userEmail || '').toLowerCase();
-    vouchers = vouchers.filter(v => (v.customer_email || '').toLowerCase() === cMail);
-  }
-
-  // Healing pass: fix any voucher with missing or incorrect duration_label
-  vouchers = vouchers.map(v => {
+  let modified = false;
+  (memoryStore.unifi_vouchers || []).forEach((v, index) => {
     const dh = Number(v.duration_hours);
     const lbl = v.duration_label;
     if (!lbl || lbl === '0 Hours' || lbl === '0 Hour(s)') {
@@ -5872,10 +5880,21 @@ app.get('/api/admin/unifi/vouchers', (req, res) => {
       else if (dh >= 24) fixedLabel = `${Math.round(dh/24)} Day(s)`;
       else if (dh >= 1) fixedLabel = `${Math.round(dh)} Hour(s)`;
       else fixedLabel = `${Math.round(dh * 60)} Minute(s)`;
-      return { ...v, duration_label: fixedLabel };
+      
+      memoryStore.unifi_vouchers[index].duration_label = fixedLabel;
+      modified = true;
     }
-    return v;
   });
+
+  if (modified) {
+    savePersistentStore();
+  }
+
+  let vouchers = memoryStore.unifi_vouchers || [];
+  if (req.userRole === 'customer') {
+    const cMail = (req.userEmail || '').toLowerCase();
+    vouchers = vouchers.filter(v => (v.customer_email || '').toLowerCase() === cMail);
+  }
 
   res.json(vouchers);
 });

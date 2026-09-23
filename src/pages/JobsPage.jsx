@@ -362,14 +362,33 @@ export default function JobsPage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Upload Documents (CV, Cover Letter, Certificates, Testimonials) *</label>
+                  <label>Cover Letter (Optional)</label>
+                  <textarea
+                    className="form-input"
+                    rows="4"
+                    placeholder="Tell us why you are a great fit for this role..."
+                    value={applicantData.cover_letter}
+                    onChange={e => setApplicantData({ ...applicantData, cover_letter: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Upload Documents (CV, Certificates, Testimonials) *</label>
                   <input
                     type="file"
                     multiple
                     className="form-input"
                     onChange={e => {
                       const files = Array.from(e.target.files);
-                      setApplicantData({ ...applicantData, documents: files });
+                      if (files.length > 0) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setApplicantData({ ...applicantData, documents: files, resume_url: reader.result });
+                        };
+                        reader.readAsDataURL(files[0]);
+                      } else {
+                        setApplicantData({ ...applicantData, documents: [], resume_url: '' });
+                      }
                     }}
                     required
                   />
