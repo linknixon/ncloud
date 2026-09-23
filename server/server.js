@@ -10283,6 +10283,79 @@ const purgeOldAuditLogs = async () => {
 purgeOldAuditLogs();
 setInterval(purgeOldAuditLogs, 24 * 60 * 60 * 1000);
 
+// ============================================================================
+// AUTOMATED OVERDUE INVOICE DEMAND SYSTEM
+// ============================================================================
+const autoDemandOverdueInvoices = async () => {
+  try {
+    const now = new Date();
+    const invoices = [...(memoryStore.invoices || []), ...(memoryStore.staff_invoices || [])];
+    
+    for (const invoice of invoices) {
+      if (invoice.status === 'Paid' || invoice.status === '100% Paid' || invoice.status === 'Paid & Settled' || invoice.status === 'Void' || invoice.status === 'Cancelled') continue;
+      if (!invoice.due_date) continue;
+      
+      const dueDate = new Date(invoice.due_date);
+      // If overdue
+      if (now > dueDate && invoice.customer_email) {
+        // Only send once every 24 hours max
+        const lastRemind = invoice.last_reminded_at ? new Date(invoice.last_reminded_at) : null;
+        if (lastRemind && (now - lastRemind < 24 * 60 * 60 * 1000)) continue;
+        
+        const remainingDue = Number(invoice.amount || 0) - Number(invoice.paid_amount || 0);
+        if (remainingDue <= 0) continue;
+        
+        const emailHtml = generateCorporateEmailHtml({
+          title: `URGENT: Overdue Payment Demand - Tax Invoice #${invoice.invoice_number}`,
+          badgeText: 'OVERDUE PAYMENT DEMAND',
+          recipientName: invoice.customer_name,
+          attachmentName: `Tax_Invoice_${invoice.invoice_number}.pdf`,
+          introText: `This is an automated demand for payment. Tax Invoice <strong>#${invoice.invoice_number}</strong> is now overdue. A balance of UGX ${remainingDue.toLocaleString()} remains uncleared. Please find the official invoice attached. Failure to clear this balance may result in suspension of related services.`,
+          itemsRows: `
+            <tr>
+              <td>${invoice.item_name || 'Nova Cloud Service'}</td>
+              <td style="text-align: center;">${invoice.quantity || 1}</td>
+              <td style="text-align: right;">UGX ${remainingDue.toLocaleString()}</td>
+            </tr>
+          `,
+          subtotalText: `UGX ${Number(invoice.subtotal || invoice.amount).toLocaleString()}`,
+          vatText: invoice.vat_exempt ? 'EXEMPT (0%)' : `UGX ${Number(invoice.vat_amount || 0).toLocaleString()}`,
+          totalAmountText: `UGX ${remainingDue.toLocaleString()}`,
+          shareLink: invoice.shareable_url || `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoice.invoice_number)}`,
+          ctaText: 'View Invoice Online & Pay',
+          ctaLink: invoice.shareable_url || `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoice.invoice_number)}`
+        });
+
+        const pdfBuffer = await generateServerInvoicePDFBuffer(invoice);
+
+        await sendMail({
+          to: invoice.customer_email,
+          subject: `URGENT: Overdue Payment for Tax Invoice #${invoice.invoice_number}`,
+          html: emailHtml,
+          attachments: [
+            {
+              filename: `Tax_Invoice_${invoice.invoice_number}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            }
+          ]
+        });
+
+        invoice.reminder_count = (invoice.reminder_count || 0) + 1;
+        invoice.last_reminded_at = now.toISOString();
+        savePersistentStore();
+        console.log(`[Auto Demand] Sent overdue notice to ${invoice.customer_email} for Invoice ${invoice.invoice_number}`);
+      }
+    }
+  } catch (e) {
+    console.error('[Auto Demand Error]:', e.message);
+  }
+};
+
+// Run on startup and then every 24 hours
+setTimeout(autoDemandOverdueInvoices, 30000); // 30 seconds after startup to ensure boot
+setInterval(autoDemandOverdueInvoices, 24 * 60 * 60 * 1000);
+
 app.post('/api/admin/forensics/purge-old', requireSuperAdmin, async (req, res) => {
   const purgedCount = await purgeOldAuditLogs();
   res.json({

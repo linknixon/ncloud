@@ -1156,7 +1156,7 @@ const normalizeTabName = (rawTab) => {
     discount_amount: 0,
     excess_amount: 0,
     vat_exempt: false,
-    due_date: '2026-09-30',
+    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     is_recurring: false,
     recurring_frequency: 'Monthly',
     next_billing_date: '',
@@ -2946,7 +2946,7 @@ const normalizeTabName = (rawTab) => {
         discount_value: 0,
         discount_amount: 0,
         excess_amount: 0,
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         vat_exempt: false
       });
       fetchDashboardData();
