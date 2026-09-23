@@ -361,22 +361,14 @@ export default function JobsPage() {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Cover Letter (Optional)</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Tell us why you are a great fit for this role..."
-                    value={applicantData.cover_letter}
-                    onChange={e => setApplicantData({ ...applicantData, cover_letter: e.target.value })}
-                  />
-                </div>
+
 
                 <div className="form-group">
-                  <label>Upload Documents (CV, Certificates, Testimonials) *</label>
+                  <label>Upload Documents (Cover Letter, CV, Certificates, Testimonials) *</label>
                   <input
                     type="file"
                     multiple
+                    accept=".pdf"
                     className="form-input"
                     onChange={e => {
                       const files = Array.from(e.target.files);

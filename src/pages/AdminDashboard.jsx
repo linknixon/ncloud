@@ -1979,8 +1979,7 @@ const normalizeTabName = (rawTab) => {
     if (!window.confirm("Are you sure you want to permanently delete this application? This action cannot be undone.")) return;
     try {
       const res = await fetch(`/api/jobs/apply/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'DELETE'
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete application');
