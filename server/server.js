@@ -6889,7 +6889,19 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
   const baseDate = new Date(inv?.created_at || inv?.date || new Date());
   const invDate = formatNinjaDate(baseDate);
-  const dueDate = formatNinjaDate(inv?.due_date || new Date(baseDate.getTime() + 14 * 86400000));
+  
+  let finalDueDate;
+  if (!inv?.due_date) {
+    finalDueDate = new Date(baseDate.getTime() + 14 * 86400000);
+  } else {
+    const dDate = new Date(inv.due_date);
+    if (!isNaN(dDate) && dDate.toISOString().split('T')[0] === baseDate.toISOString().split('T')[0]) {
+      finalDueDate = new Date(baseDate.getTime() + 14 * 86400000);
+    } else {
+      finalDueDate = dDate;
+    }
+  }
+  const dueDate = formatNinjaDate(finalDueDate);
   const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
 
   const totalAmt = Number(inv?.amount || inv?.total || 0);
