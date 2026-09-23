@@ -13,7 +13,8 @@ import {
   generateSalesReportPDF,
   generateForensicsAuditPDF,
   generateWorkOrderPOSReceiptPDF,
-  generateWifiVoucherPrintoutPDF
+  generateWifiVoucherPrintoutPDF,
+  generateJobApplicationReceipt80mmPDF
 } from '../utils/pdfGenerator';
 import { 
   LayoutDashboard, 
@@ -1045,6 +1046,7 @@ const normalizeTabName = (rawTab) => {
   const [subscriptionSearch, setSubscriptionSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const [applicationSearch, setApplicationSearch] = useState('');
+  const [applicationDateFilter, setApplicationDateFilter] = useState('');
   const [teamSearch, setTeamSearch] = useState('');
   const [partnerSearch, setPartnerSearch] = useState('');
   const [newsSearch, setNewsSearch] = useState('');
@@ -1972,6 +1974,22 @@ const normalizeTabName = (rawTab) => {
   const handleHrApproveApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'hr_approve', comments: '', reason: '' });
   const handleHrRejectApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'hr_reject', comments: '', reason: '' });
   const handleSuperAdminRejectApp = (id) => setReviewAppModal({ show: true, appId: id, action: 'admin_reject', comments: '', reason: '' });
+
+  const handleDeleteApplication = async (id) => {
+    if (!window.confirm("Are you sure you want to permanently delete this application? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/jobs/apply/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete application');
+      showToast(data.message, 'success');
+      loadAllData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
 
   const submitAppReview = async () => {
     const { appId, action, reason, comments } = reviewAppModal;
@@ -11339,17 +11357,23 @@ const normalizeTabName = (rawTab) => {
             {/* APPLICATIONS MODULE — TWO-STAGE HR REVIEW & SUPER ADMIN HIRING PIPELINE */}
             {activeTab === 'applications' && (() => {
               const allApps = applicationsList.length > 0 ? applicationsList : (data?.applications || []);
-              const filteredApps = allApps.filter(app =>
-                !applicationSearch ||
-                (app.name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.applicant_name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.email || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.position || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.job_title || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.status || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
-                (app.cover_letter || '').toLowerCase().includes(applicationSearch.toLowerCase())
-              );
+              const filteredApps = [...allApps].reverse().filter(app => {
+                const searchMatch = !applicationSearch ||
+                  (app.name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.applicant_name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.email || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.position || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.job_title || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.status || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                  (app.cover_letter || '').toLowerCase().includes(applicationSearch.toLowerCase());
+                
+                const dateMatch = !applicationDateFilter || 
+                  (app.created_at && app.created_at.startsWith(applicationDateFilter));
+                
+                return searchMatch && dateMatch;
+              });
 
+              const APPLICATIONS_PER_PAGE = 6;
               const totalAppPages = Math.ceil(filteredApps.length / APPLICATIONS_PER_PAGE) || 1;
               const currentAppPage = Math.min(applicationPage, totalAppPages);
               const appStartIndex = (currentAppPage - 1) * APPLICATIONS_PER_PAGE;
@@ -11396,21 +11420,33 @@ const normalizeTabName = (rawTab) => {
                     </div>
                   </div>
 
-                  {/* Search Bar */}
+                  {/* Search Bar & Date Filter */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ position: 'relative', flex: 1, minWidth: '260px', maxWidth: '400px' }}>
-                      <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Search applications by candidate, email, position, or status..."
-                        value={applicationSearch}
-                        onChange={e => { setApplicationSearch(e.target.value); setApplicationPage(1); }}
-                        style={{ paddingLeft: '2.5rem', width: '100%' }}
-                      />
+                    <div style={{ display: 'flex', gap: '1rem', flex: 1, minWidth: '300px' }}>
+                      <div style={{ position: 'relative', flex: 2, minWidth: '220px' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Search applications..."
+                          value={applicationSearch}
+                          onChange={e => { setApplicationSearch(e.target.value); setApplicationPage(1); }}
+                          style={{ paddingLeft: '2.5rem', width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: '130px' }}>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={applicationDateFilter}
+                          onChange={e => { setApplicationDateFilter(e.target.value); setApplicationPage(1); }}
+                          style={{ width: '100%' }}
+                          title="Filter by Date Applied"
+                        />
+                      </div>
                     </div>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                      Showing {filteredApps.length > 0 ? appStartIndex + 1 : 0} - {Math.min(filteredApps.length, appStartIndex + APPLICATIONS_PER_PAGE)} of {filteredApps.length} Applications (4 per row • 8 per page)
+                      Showing {filteredApps.length > 0 ? appStartIndex + 1 : 0} - {Math.min(filteredApps.length, appStartIndex + 6)} of {filteredApps.length} Applications
                     </span>
                   </div>
 
@@ -11482,13 +11518,34 @@ const normalizeTabName = (rawTab) => {
                                   </div>
                                 </div>
                               </div>
+                              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                <button
+                                  className="btn-icon"
+                                  title="Print 80mm Receipt"
+                                  onClick={() => generateJobApplicationReceipt80mmPDF(app)}
+                                  style={{ padding: '0.35rem', background: 'rgba(14, 165, 233, 0.1)', color: '#0ea5e9' }}
+                                >
+                                  <Printer size={13} />
+                                </button>
+                                {(isSuperAdmin || isHrManager) && (
+                                  <button
+                                    className="btn-icon"
+                                    title="Delete Application"
+                                    onClick={() => handleDeleteApplication(app.id)}
+                                    style={{ padding: '0.35rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}
+                                  >
+                                    <Trash size={13} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Contact Details */}
+                            {/* Contact Details & Date */}
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.45', background: 'var(--bg-main)', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}><strong>Email:</strong> {app.email}</div>
                               {app.phone && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}><strong>Phone:</strong> {app.phone}</div>}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><strong>Experience:</strong> {app.experience_years || '1-3 Years'}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}><strong>Experience:</strong> {app.experience_years || '1-3 Years'}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><strong>Date Applied:</strong> {app.created_at ? new Date(app.created_at).toLocaleDateString() : 'N/A'}</div>
                             </div>
 
                             {/* Cover Letter Snippet */}

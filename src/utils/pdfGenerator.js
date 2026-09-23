@@ -2815,3 +2815,98 @@ export async function generateWifiVoucherPrintoutPDF(vouchers, durationLabel) {
   openPdfInBrowser(doc, `WiFi_Vouchers_${durationLabel.replace(/\s+/g, '_')}.pdf`);
   return doc;
 }
+
+export async function generateJobApplicationReceipt80mmPDF(app) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [80, 200]
+  });
+
+  registerTrebuchetFont(doc);
+  doc.setFont('Trebuchet MS', 'normal');
+
+  let y = 10;
+  const cx = 40; // Center X for 80mm
+
+  // Logo
+  if (NOVA_LOGO_BASE64) {
+    try {
+      doc.addImage(NOVA_LOGO_BASE64, 'PNG', cx - 12, y, 24, 24);
+      y += 28;
+    } catch (e) {
+      console.warn('Could not add logo', e);
+      y += 5;
+    }
+  } else {
+    y += 10;
+  }
+
+  // Header
+  doc.setFontSize(10);
+  doc.setFont('Trebuchet MS', 'bold');
+  doc.text(BRAND.companyName, cx, y, { align: 'center' });
+  y += 5;
+  
+  doc.setFontSize(7);
+  doc.setFont('Trebuchet MS', 'normal');
+  const contacts = BRAND.contact.split(' • ');
+  doc.text(contacts[0], cx, y, { align: 'center' });
+  y += 4;
+  doc.text(contacts[1], cx, y, { align: 'center' });
+  y += 6;
+
+  // Title
+  doc.setFontSize(11);
+  doc.setFont('Trebuchet MS', 'bold');
+  doc.text('JOB APPLICATION STATUS', cx, y, { align: 'center' });
+  y += 6;
+  doc.setLineWidth(0.3);
+  doc.line(5, y, 75, y);
+  y += 6;
+
+  // Applicant Info
+  doc.setFontSize(8);
+  doc.setFont('Trebuchet MS', 'normal');
+  
+  const addRow = (label, val) => {
+    doc.setFont('Trebuchet MS', 'bold');
+    doc.text(label, 5, y);
+    doc.setFont('Trebuchet MS', 'normal');
+    const splitVal = doc.splitTextToSize(String(val), 45);
+    doc.text(splitVal, 30, y);
+    y += splitVal.length * 4;
+  };
+
+  addRow('Applicant Name:', app.applicant_name || app.name || 'N/A');
+  addRow('Applied Role:', app.job_title || app.position || 'General Vacancy');
+  addRow('Experience:', app.experience_years || '1-3 Years');
+  addRow('Status:', app.status || 'Pending');
+  
+  const dateStr = app.created_at ? new Date(app.created_at).toLocaleString() : new Date().toLocaleString();
+  addRow('Date Applied:', dateStr);
+  y += 2;
+
+  doc.line(5, y, 75, y);
+  y += 6;
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setFont('Trebuchet MS', 'italic');
+  doc.text('Thank you for applying to Nova Cloud Edges.', cx, y, { align: 'center' });
+  y += 4;
+  doc.text('We wish you the best in your career journey!', cx, y, { align: 'center' });
+  y += 8;
+
+  // QR Code
+  try {
+    const qrData = `APP-ID: ${app.id}\nName: ${app.applicant_name || app.name}\nStatus: ${app.status}`;
+    const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 80 });
+    doc.addImage(qrDataUrl, 'PNG', cx - 15, y, 30, 30);
+  } catch (err) {
+    console.error('Failed to generate QR for receipt:', err);
+  }
+
+  openPdfInBrowser(doc, `Application_Receipt_${app.id}.pdf`);
+  return doc;
+}

@@ -2506,6 +2506,25 @@ app.delete('/api/jobs/:id', requireSuperAdmin, async (req, res) => {
   res.json({ message: 'Job opening removed successfully!' });
 });
 
+// DELETE /api/jobs/apply/:id - Delete an application permanently
+app.delete('/api/jobs/apply/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'superadmin' && req.user.role !== 'hrmanager') {
+    return res.status(403).json({ error: 'Permission denied. Only HR Managers and Super Admins can delete applications.' });
+  }
+  
+  const id = req.params.id;
+  const initialLength = memoryStore.applications.length;
+  memoryStore.applications = memoryStore.applications.filter(a => String(a.id) !== String(id));
+  
+  if (memoryStore.applications.length === initialLength) {
+    return res.status(404).json({ error: 'Application not found.' });
+  }
+  
+  await query('DELETE FROM job_applications WHERE id = ?', [id]);
+  savePersistentStore();
+  res.json({ message: 'Application deleted successfully.' });
+});
+
 app.post('/api/jobs/apply', async (req, res) => {
   const { job_id, applicant_name, email, phone, experience_years, resume_url, cover_letter } = req.body;
   if (!job_id || !applicant_name || !email || !phone) {
