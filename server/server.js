@@ -6887,8 +6887,9 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   registerTrebuchetFont(doc);
 
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
-  const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
-  const dueDate = formatNinjaDate(inv?.due_date || new Date(Date.now() + 14 * 86400000));
+  const baseDate = new Date(inv?.created_at || inv?.date || new Date());
+  const invDate = formatNinjaDate(baseDate);
+  const dueDate = formatNinjaDate(inv?.due_date || new Date(baseDate.getTime() + 14 * 86400000));
   const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
 
   const totalAmt = Number(inv?.amount || inv?.total || 0);
@@ -6896,7 +6897,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
   // VAT Breakdown — respect vat_exempt flag (e.g. WiFi voucher orders are VAT-exempt)
-  const isVatExempt = Boolean(inv?.vat_exempt);
+  const isVatExempt = inv?.vat_exempt === true || inv?.vat_exempt === 'true' || inv?.vat_exempt === 1 || inv?.vat_exempt === '1';
   const subtotalAmt = isVatExempt
     ? totalAmt  // no VAT reverse-engineering: subtotal = total
     : Math.round((totalAmt / 1.18) * 100) / 100;
@@ -7161,16 +7162,17 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     doc.text(inv.wifi_voucher_token, 14, wifiY + 6);
   }
 
-  // Totals — suppress/replace VAT row for VAT-exempt invoices (e.g. WiFi vouchers)
-  const vatRowLabel = isVatExempt ? 'Value Added Tax:' : 'Value Added Tax (18% Statutory):';
-  const vatRowVal   = isVatExempt ? 'EXEMPT (0%)' : formatNinjaUGX(vatAmt);
   const totalRows = [
-    { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) },
-    { label: vatRowLabel, val: vatRowVal, exempt: isVatExempt },
+    { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) }
+  ];
+  if (!isVatExempt) {
+    totalRows.push({ label: 'Value Added Tax (18% Statutory):', val: formatNinjaUGX(vatAmt) });
+  }
+  totalRows.push(
     { label: 'Total Invoiced:', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Amount Paid to Date:', val: formatNinjaUGX(paidAmt) },
     { label: 'Balance Outstanding:', val: formatNinjaUGX(balanceDue), bold: true, color: [30, 58, 138] }
-  ];
+  );
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
@@ -7220,12 +7222,14 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   registerTrebuchetFont(doc);
 
   const quoteNum = sanitizePdfText(quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`);
-  const qDate = formatNinjaDate(quote?.created_at || quote?.date || new Date());
-  const validUntil = formatNinjaDate(quote?.valid_until || new Date(Date.now() + 30 * 86400000));
+  const baseQDate = new Date(quote?.created_at || quote?.date || new Date());
+  const qDate = formatNinjaDate(baseQDate);
+  const validUntil = formatNinjaDate(quote?.valid_until || new Date(baseQDate.getTime() + 30 * 86400000));
   const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
 
-  const subtotalAmt = Math.round((totalAmt / 1.18) * 100) / 100;
-  const vatAmt = Math.round((totalAmt - subtotalAmt) * 100) / 100;
+  const isVatExempt = quote?.vat_exempt === true || quote?.vat_exempt === 'true' || quote?.vat_exempt === 1 || quote?.vat_exempt === '1';
+  const subtotalAmt = isVatExempt ? totalAmt : Math.round((totalAmt / 1.18) * 100) / 100;
+  const vatAmt = isVatExempt ? 0 : Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
   const cName = sanitizePdfText(quote?.customer_name || quote?.company || quote?.party_name || 'Valued Corporate Client');
   const cCode = sanitizePdfText(quote?.customer_code || quote?.client_id || (quote?.id ? String(quote.id) : ''));
@@ -7473,12 +7477,16 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   }
 
   const totalRows = [
-    { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) },
-    { label: 'Value Added Tax (18% Statutory):', val: formatNinjaUGX(vatAmt) },
+    { label: 'Net Subtotal:', val: formatNinjaUGX(subtotalAmt) }
+  ];
+  if (!isVatExempt) {
+    totalRows.push({ label: 'Value Added Tax (18% Statutory):', val: formatNinjaUGX(vatAmt) });
+  }
+  totalRows.push(
     { label: 'Estimated Total:', val: formatNinjaUGX(totalAmt), bold: true },
     { label: 'Payment Terms:', val: '75% Advance, 25% Completion' },
     { label: 'Amount Payable:', val: formatNinjaUGX(totalAmt), bold: true, color: [30, 58, 138] }
-  ];
+  );
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
