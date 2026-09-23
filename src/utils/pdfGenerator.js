@@ -2824,16 +2824,19 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
   });
 
   registerTrebuchetFont(doc);
-  doc.setFont('Trebuchet MS', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
 
   let y = 10;
   const cx = 40; // Center X for 80mm
 
   // Logo
-  if (NOVA_LOGO_BASE64) {
+  const siteLogo = typeof localStorage !== 'undefined' ? (localStorage.getItem('site_logo') || localStorage.getItem('nova_site_logo')) : '';
+  const activeLogo = (siteLogo && siteLogo.length > 100) ? siteLogo : NOVA_LOGO_BASE64;
+  
+  if (activeLogo) {
     try {
-      doc.addImage(NOVA_LOGO_BASE64, 'PNG', cx - 12, y, 24, 24);
-      y += 28;
+      doc.addImage(activeLogo, 'PNG', 24, y, 32, 10.67);
+      y += 15;
     } catch (e) {
       console.warn('Could not add logo', e);
       y += 5;
@@ -2844,12 +2847,12 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
 
   // Header
   doc.setFontSize(10);
-  doc.setFont('Trebuchet MS', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.text(BRAND.companyName, cx, y, { align: 'center' });
   y += 5;
   
   doc.setFontSize(7);
-  doc.setFont('Trebuchet MS', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   const contacts = BRAND.contact.split(' • ');
   doc.text(contacts[0], cx, y, { align: 'center' });
   y += 4;
@@ -2858,7 +2861,7 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
 
   // Title
   doc.setFontSize(11);
-  doc.setFont('Trebuchet MS', 'bold');
+  doc.setFont('TrebuchetMS', 'bold');
   doc.text('JOB APPLICATION STATUS', cx, y, { align: 'center' });
   y += 6;
   doc.setLineWidth(0.3);
@@ -2867,12 +2870,12 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
 
   // Applicant Info
   doc.setFontSize(8);
-  doc.setFont('Trebuchet MS', 'normal');
+  doc.setFont('TrebuchetMS', 'normal');
   
   const addRow = (label, val) => {
-    doc.setFont('Trebuchet MS', 'bold');
+    doc.setFont('TrebuchetMS', 'bold');
     doc.text(label, 5, y);
-    doc.setFont('Trebuchet MS', 'normal');
+    doc.setFont('TrebuchetMS', 'normal');
     const splitVal = doc.splitTextToSize(String(val), 45);
     doc.text(splitVal, 30, y);
     y += splitVal.length * 4;
@@ -2892,7 +2895,7 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
 
   // Footer
   doc.setFontSize(7);
-  doc.setFont('Trebuchet MS', 'italic');
+  doc.setFont('TrebuchetMS', 'italic');
   doc.text('Thank you for applying to Nova Cloud Edges.', cx, y, { align: 'center' });
   y += 4;
   doc.text('We wish you the best in your career journey!', cx, y, { align: 'center' });

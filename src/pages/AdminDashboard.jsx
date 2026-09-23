@@ -1405,7 +1405,7 @@ const normalizeTabName = (rawTab) => {
 
       fetch('/api/admin/applications')
         .then(res => res.json())
-        .then(app => { if (Array.isArray(app) && app.length > 0) setApplicationsList(app); })
+        .then(app => { if (Array.isArray(app)) setApplicationsList(app); })
         .catch(() => {});
 
       fetch('/api/admin/sliders')
@@ -1985,7 +1985,12 @@ const normalizeTabName = (rawTab) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete application');
       showToast(data.message, 'success');
-      loadAllData();
+      // Refresh applications list manually
+      fetch('/api/admin/applications')
+        .then(r => r.json())
+        .then(apps => {
+          if (Array.isArray(apps)) setApplicationsList(apps);
+        });
     } catch (err) {
       showToast(err.message, 'error');
     }
