@@ -2588,6 +2588,17 @@ app.post('/api/jobs/apply', async (req, res) => {
   });
   sendMail({ to: hrEmail, subject: `New Job Application: ${applicant_name}`, html: hrAlertHtml }).catch(e => console.error("Failed to send HR alert email:", e));
 
+  // Send alert email to Admins
+  const adminEmail = memoryStore.notification_emails?.billing || 'management@ncloud.co.ug';
+  const adminAlertHtml = generateCorporateEmailHtml({
+    title: `New Job Application Received`,
+    badgeText: 'Admin Alert',
+    recipientName: 'Super Admin',
+    introText: `A new job application has been submitted by <strong>${applicant_name}</strong> (${email}, ${phone}) for the position: <strong>${targetJob ? targetJob.title : 'General Position'}</strong> with ${experience_years} of experience.`,
+    hidePaymentMethods: true
+  });
+  sendMail({ to: adminEmail, subject: `New Job Application: ${applicant_name}`, html: adminAlertHtml }).catch(e => console.error("Failed to send Admin alert email:", e));
+
   res.json({
     message: 'Job application submitted successfully! Our HR team will contact you.',
     application: applicationRecord
