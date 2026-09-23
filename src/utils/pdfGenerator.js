@@ -331,7 +331,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
   // VAT Breakdown — respect vat_exempt flag (e.g. WiFi voucher orders are VAT-exempt)
-  const isVatExempt = Boolean(inv?.vat_exempt);
+  const isVatExempt = inv?.vat_exempt === true || inv?.vat_exempt === 'true' || inv?.vat_exempt === 1 || inv?.vat_exempt === '1';
   const subtotalAmt = isVatExempt
     ? totalAmt  // no VAT reverse-engineering: subtotal = total
     : Math.round((totalAmt / 1.18) * 100) / 100;
@@ -651,7 +651,7 @@ export async function generateQuotationPDF(quote, options = {}) {
   const qDate = formatNinjaDate(baseQDate);
   const validUntil = formatNinjaDate(quote?.valid_until || new Date(baseQDate.getTime() + 30 * 86400000));
   const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
-  const isVatExempt = Boolean(quote?.vat_exempt);
+  const isVatExempt = quote?.vat_exempt === true || quote?.vat_exempt === 'true' || quote?.vat_exempt === 1 || quote?.vat_exempt === '1';
   const subtotalAmt = isVatExempt ? totalAmt : Math.round((totalAmt / 1.18) * 100) / 100;
   const vatAmt = isVatExempt ? 0 : Math.round((totalAmt - subtotalAmt) * 100) / 100;
 
