@@ -2508,8 +2508,8 @@ app.delete('/api/jobs/:id', requireSuperAdmin, async (req, res) => {
 
 // DELETE /api/jobs/apply/:id - Delete an application permanently
 app.delete('/api/jobs/apply/:id', verifyToken, async (req, res) => {
-  if (req.user.role !== 'superadmin' && req.user.role !== 'hrmanager') {
-    return res.status(403).json({ error: 'Permission denied. Only HR Managers and Super Admins can delete applications.' });
+  if (req.userRole !== 'super_admin' && req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Permission denied. Only Admins and Super Admins can delete applications.' });
   }
   
   const id = req.params.id;
