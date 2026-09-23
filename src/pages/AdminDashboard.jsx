@@ -15686,12 +15686,14 @@ const normalizeTabName = (rawTab) => {
                   <label style={{ fontWeight: '700' }}>Tax Standard / Classification (Mandatory Compliance) *</label>
                   <select
                     className="form-input"
-                    value="standard"
-                    disabled={true}
-                    style={{ background: '#f8fafc', color: '#0f172a', fontWeight: '600', cursor: 'not-allowed', border: '1px solid #cbd5e1' }}
-                    title="Standard 18% Statutory VAT is mandatory for all official tax invoices and cannot be unselected."
+                    value={invoiceForm.vat_exempt ? "exempt" : "standard"}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, vat_exempt: e.target.value === "exempt" })}
+                    disabled={!isSuperAdmin}
+                    style={{ background: !isSuperAdmin ? '#f8fafc' : '#fff', color: '#0f172a', fontWeight: '600', cursor: !isSuperAdmin ? 'not-allowed' : 'pointer', border: '1px solid #cbd5e1' }}
+                    title={!isSuperAdmin ? "Standard 18% Statutory VAT is mandatory for all official tax invoices and cannot be unselected." : "Super Admins can toggle VAT Exemption"}
                   >
-                    <option value="standard">Standard 18% Statutory VAT (Mandatory Selected)</option>
+                    <option value="standard">Standard 18% Statutory VAT</option>
+                    <option value="exempt">VAT Exempt (0%)</option>
                   </select>
                 </div>
 
