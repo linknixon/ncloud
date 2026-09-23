@@ -268,15 +268,6 @@ export default function VerifyDocumentPage({ setActivePage }) {
           {verifyResult && (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
-                onClick={handlePrint}
-                className="btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 0.9rem' }}
-                title="Print official document"
-              >
-                <Printer size={15} /> Print Sheet
-              </button>
-
-              <button
                 onClick={handleCopyLink}
                 className="btn-secondary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 0.9rem' }}
@@ -288,20 +279,20 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
               <button
                 onClick={() => {
-                  if (isDeliveryNote) {
-                    window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
-                  } else if (isQuotation) {
-                    window.open(`/api/quotations/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
+                  if (isQuotation) {
+                    generateQuotationPDF(verifyResult);
                   } else if (isWorkOrder) {
                     window.open(`/api/admin/work-orders/${encodeURIComponent(verifyResult.document_number)}/pdf`, '_blank');
+                  } else if (isDeliveryNote) {
+                    window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
                   } else {
-                    window.open(`/api/invoices/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
+                    generateInvoicePDF(verifyResult);
                   }
                 }}
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
               >
-                <Download size={15} /> Download Official PDF
+                <Download size={15} /> Download / Print Official PDF
               </button>
 
               {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
