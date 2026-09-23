@@ -6541,7 +6541,7 @@ app.get(['/api/invoices/pdf/:invoiceNum', '/api/admin/invoices/:invoiceNum/pdf']
       item_name: 'Cloud Infrastructure & Managed Services',
       amount: 720000,
       status: 'Paid',
-      due_date: '2026-09-30',
+      due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
       created_at: new Date().toISOString()
     };
   }
@@ -9007,7 +9007,7 @@ app.post('/api/admin/invoices', async (req, res) => {
     vat_exempt: isExempt,
     excess_amount: Number(excess_amount || 0),
     status: initialStatus,
-    due_date: due_date || '2026-09-30',
+    due_date: due_date || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
     is_recurring: finalIsRecurring,
     recurring_frequency: finalIsRecurring ? (recurring_frequency || 'Monthly') : null,
     next_billing_date: finalIsRecurring ? (next_billing_date || calculateExpiryDate(due_date || new Date().toISOString().split('T')[0], recurring_frequency || 'Monthly')) : null,

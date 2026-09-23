@@ -9584,7 +9584,7 @@ const normalizeTabName = (rawTab) => {
                                       item_name: inv.item_name || inv.plan_name || 'Cloud Service Subscription',
                                       unit_price: loadedItems[0]?.unit_price || 0,
                                       quantity: loadedItems.reduce((acc, i) => acc + i.quantity, 0),
-                                      due_date: inv.due_date || '2026-09-30',
+                                      due_date: inv.due_date || new Date(new Date(inv.created_at || Date.now()).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                                       vat_exempt: Boolean(inv.vat_exempt),
                                       is_recurring: Boolean(inv.is_recurring),
                                       recurring_frequency: inv.recurring_frequency || 'Monthly',
