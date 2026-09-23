@@ -2910,7 +2910,6 @@ const normalizeTabName = (rawTab) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...invoiceForm,
-          vat_exempt: false,
           items: formattedItems,
           item_name: itemSummary || 'Edge Virtual Private Server Infrastructure',
           quantity: formattedItems.reduce((sum, it) => sum + it.qty, 0),
@@ -3501,7 +3500,7 @@ const normalizeTabName = (rawTab) => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...quotationForm, vat_exempt: false })
+        body: JSON.stringify(quotationForm)
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error);
