@@ -2572,7 +2572,8 @@ app.post('/api/jobs/apply', async (req, res) => {
     title: `Job Application Received: ${targetJob ? targetJob.title : 'General Position'}`,
     badgeText: 'Application Received',
     recipientName: applicant_name,
-    introText: `Thank you for your interest in joining Nova Cloud Edges. We have successfully received your job application and attached resume. Our HR department is currently reviewing your profile, and we will contact you once the initial screening is complete.`
+    introText: `Thank you for your interest in joining Nova Cloud Edges. We have successfully received your job application and attached resume. Our HR department is currently reviewing your profile, and we will contact you once the initial screening is complete.`,
+    hidePaymentMethods: true
   });
   sendMail({ to: email, subject: 'Job Application Received — Nova Cloud Edges', html: applicantEmailHtml }).catch(e => console.error("Failed to send applicant confirmation email:", e));
 
@@ -2582,7 +2583,8 @@ app.post('/api/jobs/apply', async (req, res) => {
     title: `New Job Application Received`,
     badgeText: 'HR Alert',
     recipientName: 'HR Department',
-    introText: `A new job application has been submitted by <strong>${applicant_name}</strong> (${email}, ${phone}) for the position: <strong>${targetJob ? targetJob.title : 'General Position'}</strong> with ${experience_years} of experience.`
+    introText: `A new job application has been submitted by <strong>${applicant_name}</strong> (${email}, ${phone}) for the position: <strong>${targetJob ? targetJob.title : 'General Position'}</strong> with ${experience_years} of experience.`,
+    hidePaymentMethods: true
   });
   sendMail({ to: hrEmail, subject: `New Job Application: ${applicant_name}`, html: hrAlertHtml }).catch(e => console.error("Failed to send HR alert email:", e));
 
@@ -2613,7 +2615,8 @@ app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
       title: 'Application Advanced',
       badgeText: 'Stage 1 Cleared',
       recipientName: appItem.applicant_name,
-      introText: `Congratulations! Your job application has successfully passed the initial HR screening. It has now been advanced to executive management for final review. We will reach out to you shortly with the final hiring decision.`
+      introText: `Congratulations! Your job application has successfully passed the initial HR screening. It has now been advanced to executive management for final review. We will reach out to you shortly with the final hiring decision.`,
+      hidePaymentMethods: true
     });
     sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
 
@@ -2623,7 +2626,8 @@ app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
       title: 'Final Hiring Approval Required',
       badgeText: 'Management Alert',
       recipientName: 'Super Admin',
-      introText: `Candidate <strong>${appItem.applicant_name}</strong> has passed HR screening. Their application is awaiting your final review and executive hiring approval on the dashboard.`
+      introText: `Candidate <strong>${appItem.applicant_name}</strong> has passed HR screening. Their application is awaiting your final review and executive hiring approval on the dashboard.`,
+      hidePaymentMethods: true
     });
     sendMail({ to: adminEmail, subject: 'Pending Hiring Decision', html: adminAlertHtml }).catch(e => console.error(e));
 
@@ -2652,7 +2656,8 @@ app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
       title: 'Update on Your Application',
       badgeText: 'Application Status',
       recipientName: appItem.applicant_name,
-      introText: `Thank you for your interest in joining our team. After careful review, our HR team has decided not to advance your application at this time. We will keep your resume on file for future opportunities.`
+      introText: `Thank you for your interest in joining our team. After careful review, our HR team has decided not to advance your application at this time. We will keep your resume on file for future opportunities.`,
+      hidePaymentMethods: true
     });
     sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
 
@@ -2701,7 +2706,8 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
       title: 'Welcome to the Team!',
       badgeText: 'You are Hired',
       recipientName: appItem.applicant_name,
-      introText: `Congratulations! Executive management has approved your job application for the role of <strong>${assignedRole}</strong>. We are thrilled to welcome you to the Nova Cloud Edges team! Your corporate system account is currently being provisioned.`
+      introText: `Congratulations! Executive management has approved your job application for the role of <strong>${assignedRole}</strong>. We are thrilled to welcome you to the Nova Cloud Edges team! Your corporate system account is currently being provisioned.`,
+      hidePaymentMethods: true
     });
     sendMail({ to: appItem.email, subject: 'Congratulations! You are Hired — Nova Cloud Edges', html: applicantEmailHtml }).catch(e => console.error(e));
 
@@ -2729,7 +2735,8 @@ app.put('/api/admin/applications/:id/super-admin-reject', (req, res) => {
       title: 'Update on Your Application',
       badgeText: 'Application Status',
       recipientName: appItem.applicant_name,
-      introText: `Thank you for your time and interest in joining our team. After final executive review, we have decided not to move forward with your application for this position. We appreciate your effort and wish you the best in your career journey.`
+      introText: `Thank you for your time and interest in joining our team. After final executive review, we have decided not to move forward with your application for this position. We appreciate your effort and wish you the best in your career journey.`,
+      hidePaymentMethods: true
     });
     sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
 
