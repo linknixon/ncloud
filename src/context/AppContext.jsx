@@ -189,7 +189,9 @@ export function AppProvider({ children }) {
   };
 
   const addToCart = (product, qty = 1) => {
-    const addQuantity = Math.max(1, parseInt(qty) || 1);
+    const isHosting = isHostingItem(product);
+    const addQuantity = isHosting ? 12 : Math.max(1, parseInt(qty) || 1);
+    
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -197,9 +199,9 @@ export function AppProvider({ children }) {
           item.id === product.id ? { ...item, quantity: item.quantity + addQuantity } : item
         );
       }
-      const isHosting = isHostingItem(product);
-      return [...prev, { ...product, quantity: addQuantity, subscriptionDuration: isHosting ? '1 Year' : null }];
+      return [...prev, { ...product, quantity: addQuantity, subscriptionDuration: isHosting ? '12 Months' : null }];
     });
+    
     showToast(`Added ${addQuantity}x "${product.name}" to cart!`, 'success');
   };
 
