@@ -321,8 +321,9 @@ export async function generateInvoicePDF(inv, options = {}) {
   registerTrebuchetFont(doc);
 
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
-  const invDate = formatNinjaDate(inv?.created_at || inv?.date || new Date());
-  const dueDate = formatNinjaDate(inv?.due_date || new Date(Date.now() + 14 * 86400000));
+  const baseDate = new Date(inv?.created_at || inv?.date || new Date());
+  const invDate = formatNinjaDate(baseDate);
+  const dueDate = formatNinjaDate(inv?.due_date || new Date(baseDate.getTime() + 14 * 86400000));
   const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
 
   const totalAmt = Number(inv?.amount || inv?.total || inv?.total_amount || 0);
@@ -646,8 +647,9 @@ export async function generateQuotationPDF(quote, options = {}) {
   registerTrebuchetFont(doc);
 
   const quoteNum = sanitizePdfText(quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`);
-  const qDate = formatNinjaDate(quote?.created_at || quote?.date || new Date());
-  const validUntil = formatNinjaDate(quote?.valid_until || new Date(Date.now() + 30 * 86400000));
+  const baseQDate = new Date(quote?.created_at || quote?.date || new Date());
+  const qDate = formatNinjaDate(baseQDate);
+  const validUntil = formatNinjaDate(quote?.valid_until || new Date(baseQDate.getTime() + 30 * 86400000));
   const totalAmt = Number(quote?.total_amount || quote?.amount || 0);
   const isVatExempt = Boolean(quote?.vat_exempt);
   const subtotalAmt = isVatExempt ? totalAmt : Math.round((totalAmt / 1.18) * 100) / 100;
