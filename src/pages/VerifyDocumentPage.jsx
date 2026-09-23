@@ -199,8 +199,8 @@ export default function VerifyDocumentPage({ setActivePage }) {
   // Derive financial figures
   const totalAmount = Number(verifyResult?.total_amount || 0);
   const isVatExempt = Boolean(verifyResult?.vat_exempt || verifyResult?.invoice?.vat_exempt);
-  const subtotal = verifyResult?.subtotal 
-    ? Number(verifyResult.subtotal) 
+  const subtotal = verifyResult?.subtotal || verifyResult?.invoice?.subtotal
+    ? Number(verifyResult.subtotal || verifyResult.invoice.subtotal) 
     : (isVatExempt ? totalAmount : Math.round(totalAmount / 1.18));
   const vatAmount = isVatExempt ? 0 : (verifyResult?.vat_amount !== undefined ? Number(verifyResult.vat_amount) : totalAmount - subtotal);
   const isPaid = (verifyResult?.status === 'Paid' || verifyResult?.status === '100% Paid' || verifyResult?.status === 'Paid & Settled');
@@ -279,14 +279,15 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
               <button
                 onClick={() => {
+                  const dataToGenerate = verifyResult.invoice || verifyResult.quotation || verifyResult;
                   if (isQuotation) {
-                    generateQuotationPDF(verifyResult);
+                    generateQuotationPDF(dataToGenerate);
                   } else if (isWorkOrder) {
                     window.open(`/api/admin/work-orders/${encodeURIComponent(verifyResult.document_number)}/pdf`, '_blank');
                   } else if (isDeliveryNote) {
                     window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
                   } else {
-                    generateInvoicePDF(verifyResult);
+                    generateInvoicePDF(dataToGenerate);
                   }
                 }}
                 className="btn-primary"

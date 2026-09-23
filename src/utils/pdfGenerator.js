@@ -325,7 +325,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   const dueDate = formatNinjaDate(inv?.due_date || new Date(Date.now() + 14 * 86400000));
   const isPaid = inv?.status === 'Paid' || inv?.status === '100% Paid' || inv?.status === 'Paid & Settled';
 
-  const totalAmt = Number(inv?.amount || inv?.total || 0);
+  const totalAmt = Number(inv?.amount || inv?.total || inv?.total_amount || 0);
   const paidAmt = isPaid ? totalAmt : Number(inv?.paid_amount || inv?.paid || 0);
   const balanceDue = Math.max(0, totalAmt - paidAmt);
 
