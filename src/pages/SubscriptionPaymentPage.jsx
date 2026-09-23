@@ -168,6 +168,9 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
     return acc + (Number(p.price) * (p.quantity || 1));
   }, 0);
 
+  const hasHostingProducts = selectedProducts.some(p => isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting')));
+  const nonHostingItems = selectedProducts.filter(p => !(isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting'))));
+
   const subtotalAmount = hostingSubtotal + nonHostingSubtotal;
 
   const vatAmount = includeVat ? subtotalAmount * 0.18 : 0;
