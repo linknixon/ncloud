@@ -152,6 +152,18 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
 
   const selectedProducts = cart;
 
+  const isProductSelected = (prod) => {
+    if (!prod) return false;
+    return selectedProducts.some(p => String(p.id) === String(prod.id) || (p.slug && p.slug === prod.slug));
+  };
+
+  const toggleProductSelection = (prod) => {
+    if (isProductSelected(prod)) {
+      removeFromCart(prod.id);
+    } else {
+      addToCart(prod, 1);
+    }
+  };
   const getDurationMultiplier = (dur) => {
     if (!dur) return 1;
     const d = String(dur).toLowerCase();
