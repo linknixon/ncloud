@@ -223,6 +223,22 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const isExpense = docTypeStr.includes('expense') || docTypeStr.includes('voucher') || docNumStr.startsWith('EXP');
   const isDeliveryNote = docTypeStr.includes('delivery') || docNumStr.startsWith('DN');
 
+  const issueDateStr = verifyResult.issued_date || Date.now();
+  const baseIssueDate = new Date(issueDateStr);
+  let finalDueDateStr = verifyResult.due_date || verifyResult.valid_until;
+
+  if (!finalDueDateStr) {
+    const defaultDays = isQuotation ? 30 : 14;
+    finalDueDateStr = new Date(baseIssueDate.getTime() + defaultDays * 86400000).toISOString().split('T')[0];
+  } else {
+    const dDate = new Date(finalDueDateStr);
+    if (!isNaN(dDate) && dDate.toISOString().split('T')[0] === baseIssueDate.toISOString().split('T')[0]) {
+      const defaultDays = isQuotation ? 30 : 14;
+      finalDueDateStr = new Date(baseIssueDate.getTime() + defaultDays * 86400000).toISOString().split('T')[0];
+    }
+  }
+  const displayDueDate = new Date(finalDueDateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   return (
     <div style={{ minHeight: '90vh', background: 'var(--bg-main)', padding: '2.5rem 1rem' }}>
       
@@ -484,7 +500,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       <>
                         <span style={{ fontWeight: '700', color: '#64748b' }}>{isQuotation ? 'Valid Until:' : 'Payment Due:'}</span>
                         <span style={{ fontWeight: '800', color: '#0f172a' }}>
-                          {verifyResult.due_date || verifyResult.valid_until || 'Payable Upon Receipt'}
+                          {displayDueDate}
                         </span>
                       </>
                     )}
