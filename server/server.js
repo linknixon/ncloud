@@ -8978,7 +8978,13 @@ app.post('/api/admin/invoices', async (req, res) => {
     : Math.min(grossSubtotal, dValue);
 
   const netSubtotal = Math.max(0, grossSubtotal - discountAmount);
-  const isExempt = Boolean(vat_exempt);
+  const isWifiVoucher = (item_name || '').toLowerCase().includes('wifi voucher') || 
+                        (item_name || '').toLowerCase().includes('wifi -') || 
+                        (item_name || '').toLowerCase().includes('nova wifi') || 
+                        (items || []).some(i => (i.name || '').toLowerCase().includes('wifi voucher')) ||
+                        Boolean(wifi_voucher_id);
+  
+  const isExempt = isWifiVoucher ? true : Boolean(vat_exempt);
   const vatAmount = isExempt ? 0 : Math.round(netSubtotal * 0.18);
   const totalAmount = netSubtotal + vatAmount;
 
@@ -9846,9 +9852,19 @@ app.put('/api/admin/invoices/:id', async (req, res) => {
                 dispatchWifiVoucherForInvoice(inv);
       }
     }
-    if (vat_exempt !== undefined) inv.vat_exempt = vat_exempt;
+    
+    const isWifiVoucher = (inv.item_name || '').toLowerCase().includes('wifi voucher') || 
+                          (inv.item_name || '').toLowerCase().includes('wifi -') || 
+                          (inv.item_name || '').toLowerCase().includes('nova wifi') || 
+                          (inv.items || []).some(i => (i.name || '').toLowerCase().includes('wifi voucher')) ||
+                          Boolean(inv.wifi_voucher_id) || Boolean(wifi_voucher_id);
+    
+    if (vat_exempt !== undefined) inv.vat_exempt = isWifiVoucher ? true : vat_exempt;
+    else if (isWifiVoucher) inv.vat_exempt = true;
+    
     if (amount) inv.amount = Number(amount);
-    if (vat_amount !== undefined) inv.vat_amount = Number(vat_amount);
+    if (vat_amount !== undefined) inv.vat_amount = inv.vat_exempt ? 0 : Number(vat_amount);
+    else if (isWifiVoucher) inv.vat_amount = 0;
     if (is_recurring !== undefined) inv.is_recurring = Boolean(is_recurring);
     if (recurring_frequency) inv.recurring_frequency = recurring_frequency;
     if (next_billing_date) inv.next_billing_date = next_billing_date;
