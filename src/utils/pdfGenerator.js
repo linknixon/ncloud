@@ -36,15 +36,11 @@ export const BRAND = {
 // Safe Cross-Platform PDF Download / Browser Viewer
 const openPdfInBrowser = (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf') => {
   try {
-    // Opens the PDF in a new browser tab using a Base64 Data URI (No Blob used)
-    pdfDoc.output('dataurlnewwindow', { filename: fileName });
-  } catch (e) {
-    try {
-      // Fallback to auto-download if the browser blocks the data URI pop-up
-      pdfDoc.save(fileName);
-    } catch (err) {
-      console.error('Failed to save or open PDF:', err);
-    }
+    // Always use .save() for reliable cross-platform downloading with the correct filename.
+    // dataurlnewwindow fails on iOS and strips the filename on many browsers.
+    pdfDoc.save(fileName);
+  } catch (err) {
+    console.error('Failed to save PDF:', err);
   }
 };
 
