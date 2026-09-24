@@ -68,7 +68,7 @@ export default function Navbar({ activePage, setActivePage }) {
     return !(dismissedUntil && Number(dismissedUntil) > Date.now());
   });
   const [announcement, setAnnouncement] = useState({
-    enabled: true,
+    enabled: false,
     badge: 'NEW NOTICE',
     text: 'Major Datacenter Expansion: 20 New 1U/2U High-Density Colocation Server Racks now live with 10Gbps Cross-Connects!',
     link_text: 'Explore Datacenter Services',

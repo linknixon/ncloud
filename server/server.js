@@ -8478,12 +8478,6 @@ function renderConfiguredBankAccountsHtml() {
         Approved Settlement & Remittance Details
       </div>
       ${banksHtml}
-      <div style="background: #27272a; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #a1a1aa; margin-top: 12px; line-height: 1.6; border-left: 3px solid #f59e0b;">
-        <strong style="color: #e4e4e7;">Mobile Money Merchant Remittance:</strong><br/>
-        MTN MoMo Pay Merchant Code: <strong style="color: #f59e0b; font-family: monospace;">628100</strong> | 
-        Airtel Money Merchant Pay: <strong style="color: #f59e0b; font-family: monospace;">430192</strong><br/>
-        <em style="color: #71717a; font-size: 11px; margin-top: 4px; display: block;">* Please quote your Document Number on your remittance transaction reference.</em>
-      </div>
     </div>
   `;
 }
@@ -8534,10 +8528,10 @@ function generateCorporateEmailHtml({
     .email-container { max-width: 640px; margin: 0 auto; background: #18181b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); border: 1px solid #27272a; }
     
     /* Header (Dark Premium) */
-    .email-header { background-color: #0f172a; padding: 40px 30px; text-align: center; border-bottom: 1px solid #27272a; }
+    .email-header { background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb; }
     .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
-    .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; margin: 0; }
-    .company-title span { color: #38bdf8; }
+    .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
+    .company-title span { color: #0ea5e9; }
     
     /* Body */
     .email-body { padding: 45px 40px; }
@@ -10607,7 +10601,7 @@ const processOverdueInvoiceDemandNotices = async () => {
             shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(inv.invoice_number)}`,
             ctaText: 'View Invoice & Remittance Details',
             ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(inv.invoice_number)}`,
-            footerNote: `Settlement Bank Wire & Electronic Remittance Details:<br/>Bank Name: Stanbic Bank Uganda / Centenary Bank<br/>Account Name: Nova Cloud Edges (U) Limited<br/>Account Number: 9030018274910<br/>Mobile Money Merchant: MTN MoMo Pay Code 628100 / Airtel Money 430192`
+            footerNote: `Please use the officially approved Bank Accounts listed in the document for your settlement. Always quote your Document Number.`
           });
 
           const demandPdfBuffer = await generateServerInvoicePDFBuffer(inv);
@@ -10706,7 +10700,7 @@ app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
         shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(inv.invoice_number)}`,
         ctaText: 'View Invoice & Remittance Details',
         ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(inv.invoice_number)}`,
-        footerNote: `Please remit full payment immediately to prevent automated service interruption, cloud resource freeze, or statutory legal recovery proceedings.<br/><br/>Settlement Bank Wire & Electronic Remittance Details:<br/>Bank Name: Stanbic Bank Uganda / Centenary Bank<br/>Account Name: Nova Cloud Edges (U) Limited<br/>Account Number: 9030018274910<br/>Mobile Money Merchant: MTN MoMo Pay Code 628100 / Airtel Money 430192`
+        footerNote: `Please remit full payment immediately to prevent automated service interruption, cloud resource freeze, or statutory legal recovery proceedings.<br/><br/>Please use the officially approved Bank Accounts listed in the document for your settlement.`
       });
 
       const pdfBuffer = await generateServerInvoicePDFBuffer(inv);
