@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
-import { registerJakartaFont } from './../src/utils/jakartaFont.js';
+import { registerTrebuchetFont } from '././trebuchetFont.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -6884,7 +6884,7 @@ function formatNinjaUGX(num) {
 
 export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
 
   const invoiceNum = sanitizePdfText(inv?.invoice_number || `INV-${inv?.id || '1602026682026'}`);
   const baseDate = new Date(inv?.created_at || inv?.date || new Date());
@@ -6957,7 +6957,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   try {
     doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 45, 15);
   } catch {
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(30, 58, 138);
     doc.text('NOVA CLOUD EDGES (U) LTD', 14, 18);
@@ -6967,7 +6967,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -6996,17 +6996,17 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -7018,7 +7018,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -7027,17 +7027,17 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('BILLED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Registered Client', 112, cardY + 15.5);
@@ -7048,7 +7048,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -7093,7 +7093,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -7103,12 +7103,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -7132,12 +7132,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   const totalsY = tableY + 6;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Invoice Terms:', 14, totalsY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = inv?.terms || 'This Invoice is valid for ONLY 2 weeks, and payment of at least 75% MUST be made before services are offered.';
@@ -7145,12 +7145,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text(termsText, 14, totalsY + 4.5);
 
   const verifyY = totalsY + 16;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -7164,11 +7164,11 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   // WiFi voucher token — show whenever present (paid or pending)
   if (inv?.wifi_voucher_token) {
     const wifiY = verifyY + 30;
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(2, 132, 199);
     doc.text('Your WiFi Access Token:', 14, wifiY);
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
     doc.text(inv.wifi_voucher_token, 14, wifiY + 6);
@@ -7188,7 +7188,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('PlusJakartaSans', r.bold ? 'bold' : 'normal');
+    doc.setFont('helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     if (r.exempt) {
       doc.setTextColor(2, 132, 199);
@@ -7213,12 +7213,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -7231,7 +7231,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
 export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
 
   const quoteNum = sanitizePdfText(quote?.quote_number || `QTN-${quote?.id || '1602026682026'}`);
   const baseQDate = new Date(quote?.created_at || quote?.date || new Date());
@@ -7266,7 +7266,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   try {
     doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 45, 15);
   } catch {
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(30, 58, 138);
     doc.text('NOVA CLOUD EDGES (U) LTD', 14, 18);
@@ -7275,7 +7275,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFillColor(30, 58, 138);
   doc.roundedRect(124, 8, 72, 30, 1.5, 1.5, 'F');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -7304,17 +7304,17 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('ISSUED BY (SERVICE PROVIDER)', 18, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -7326,7 +7326,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
   }
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(30, 58, 138);
   doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
@@ -7335,17 +7335,17 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('PROPOSED TO (CLIENT DETAILS)', 112, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Enterprise Prospect', 112, cardY + 15.5);
@@ -7356,7 +7356,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -7420,7 +7420,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -7430,12 +7430,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
     doc.text(p.nameLines, 25, tableY + 5.2);
 
     const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
     doc.text(p.descLines, 25, descY);
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(formatNinjaUGX(p.it.unit_price), 145, tableY + 5.2, { align: 'right' });
@@ -7459,12 +7459,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
   const totalsY = tableY + 6;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Commercial Terms & Scope:', 14, totalsY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const termsString = quote?.notes || 'Quotation valid for 30 days from date of issuance. Includes 24/7 priority support and enterprise SLA.';
@@ -7472,12 +7472,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.text(termsText, 14, totalsY + 4.5);
 
   const verifyY = totalsY + 16;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 14, verifyY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, verifyY + 4.5);
@@ -7502,7 +7502,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
 
   totalRows.forEach((r, idx) => {
     const rY = totalsY + idx * 5.2;
-    doc.setFont('PlusJakartaSans', r.bold ? 'bold' : 'normal');
+    doc.setFont('helvetica', r.bold ? 'bold' : 'normal');
     doc.setFontSize(8);
     doc.setTextColor(r.color ? r.color[0] : 15, r.color ? r.color[1] : 23, r.color ? r.color[2] : 42);
     doc.text(r.label, 150, rY, { align: 'right' });
@@ -7513,12 +7513,12 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
 
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text('We also Deal in: CCTV Cameras, Company Emails, Cloud Web Hosting & Dev, Mobile App Dev, Systems Admin, Backups & Restoration Services & Cyber Security', 105, 280, { align: 'center' });
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(30, 58, 138);
     doc.text(`Page ${p} of ${totalPages}`, 105, 288, { align: 'center' });
@@ -7547,18 +7547,18 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   } catch {}
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
-  registerJakartaFont(dummyDoc);
-  dummyDoc.setFont('PlusJakartaSans', 'bold');
+  registerTrebuchetFont(dummyDoc);
+  dummyDoc.setFont('helvetica', 'bold');
   dummyDoc.setFontSize(7.5);
   const taskLines = dummyDoc.splitTextToSize(taskTitle, 68);
-  dummyDoc.setFont('PlusJakartaSans', 'normal');
+  dummyDoc.setFont('helvetica', 'normal');
   dummyDoc.setFontSize(7);
   const descLines = desc ? dummyDoc.splitTextToSize(desc, 68) : [];
   const siteLines = dummyDoc.splitTextToSize(siteLocation, 68);
 
   const calculatedHeight = Math.max(160, 175 + (taskLines.length * 4.2) + (descLines.length * 3.8) + (siteLines.length * 3.8));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -7571,19 +7571,19 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('FIELD SERVICE WORK ORDER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -7604,7 +7604,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('WORK ORDER REF:', 8, y + 4.8);
@@ -7612,17 +7612,17 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${orderNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Scheduled Date:', 8, y + 9.5);
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(wo?.scheduled_date || 'Immediate', 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.text('Status:', 8, y + 13.5);
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   const isCompleted = wo?.status === 'Completed';
   doc.setTextColor(isCompleted ? 22 : 217, isCompleted ? 163 : 119, isCompleted ? 74 : 6);
   doc.text(`[ ${wo?.status || 'Active Dispatch'} ]`, 72, y + 13.5, { align: 'right' });
@@ -7630,27 +7630,27 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 18;
 
   // Deployment Site & Staff Details
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('DISPATCH & TARGET SITE DETAILS:', 5, y);
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Assigned Engineer:', 5, y);
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(staffName, 75, y, { align: 'right' });
   y += 4.2;
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Deployment Site / Client:', 5, y);
   y += 3.8;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   siteLines.forEach(line => {
     doc.text(line, 5, y);
@@ -7665,13 +7665,13 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 5;
 
   // Scope & Task Section
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('ASSIGNED TECHNICAL SCOPE OF WORK:', 5, y);
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   taskLines.forEach(line => {
@@ -7680,7 +7680,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   });
 
   if (descLines.length > 0 && descLines[0] !== '') {
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     descLines.forEach(line => {
@@ -7697,18 +7697,18 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 5;
 
   // Operations & Charging Schedule
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('OPERATIONS & BILLING SCHEDULE:', 5, y);
   y += 4.5;
 
   const printMetric = (label, val) => {
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(71, 85, 105);
     doc.text(label, 5, y);
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
     doc.text(String(val), 75, y, { align: 'right' });
     y += 4.2;
@@ -7726,12 +7726,12 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL APPROVED JOB VALUE:', 8, y + 4.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(totalCost), 72, y + 10, { align: 'right' });
@@ -7739,13 +7739,13 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   y += 18;
 
   // Verification Section
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -7759,7 +7759,7 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   }
 
   // Bottom text
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Official Field Operations Deployment Voucher', 40, y, { align: 'center' });
@@ -7786,18 +7786,18 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   } catch {}
 
   const dummyDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 500] });
-  registerJakartaFont(dummyDoc);
-  dummyDoc.setFont('PlusJakartaSans', 'normal');
+  registerTrebuchetFont(dummyDoc);
+  dummyDoc.setFont('helvetica', 'normal');
   dummyDoc.setFontSize(7.5);
   const descLines = dummyDoc.splitTextToSize(desc, 68);
-  dummyDoc.setFont('PlusJakartaSans', 'bold');
+  dummyDoc.setFont('helvetica', 'bold');
   dummyDoc.setFontSize(7.5);
   const catLines = dummyDoc.splitTextToSize(category, 68);
   const staffLines = dummyDoc.splitTextToSize(staffName, 68);
 
   const calculatedHeight = Math.max(160, 175 + (descLines.length * 3.8) + (catLines.length * 3.8) + (staffLines.length > 1 ? staffLines.length * 3.8 : 0));
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, calculatedHeight] });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
 
   let y = 6;
 
@@ -7810,19 +7810,19 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   }
 
   // Header Titles
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LIMITED', 40, y, { align: 'center' });
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text('OFFICIAL EXPENDITURE PAYMENT VOUCHER', 40, y, { align: 'center' });
   y += 4;
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 40, y, { align: 'center' });
@@ -7843,7 +7843,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(5, y, 70, 15, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('VOUCHER REF:', 8, y + 4.8);
@@ -7851,17 +7851,17 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setTextColor(30, 58, 138);
   doc.text(`#${voucherNum}`, 72, y + 4.8, { align: 'right' });
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('Disbursed Date:', 8, y + 9.5);
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text(dateVal, 72, y + 9.5, { align: 'right' });
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.text('Voucher Status:', 8, y + 13.5);
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   const isPaidOrApp = status === 'Paid' || status === 'Approved' || status === 'Approved by Supervisor';
   doc.setTextColor(isPaidOrApp ? 22 : 217, isPaidOrApp ? 163 : 119, isPaidOrApp ? 74 : 6);
   doc.text(`[ ${status} ]`, 72, y + 13.5, { align: 'right' });
@@ -7869,13 +7869,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 18;
 
   // Beneficiary Staff Details
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('STAFF BENEFICIARY & CLAIMANT:', 5, y);
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   staffLines.forEach(line => {
@@ -7884,7 +7884,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   });
 
   if (staffEmail) {
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(71, 85, 105);
     doc.text(staffEmail, 5, y);
@@ -7898,13 +7898,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 5;
 
   // Category & Purpose Details
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('EXPENSE CLASSIFICATION & PURPOSE:', 5, y);
   y += 4.5;
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 23, 42);
   catLines.forEach(line => {
@@ -7912,7 +7912,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
     y += 3.8;
   });
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   descLines.forEach(line => {
@@ -7932,12 +7932,12 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   doc.setDrawColor(203, 213, 225);
   doc.roundedRect(5, y, 70, 14, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text('TOTAL DISBURSED AMOUNT:', 8, y + 4.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(30, 58, 138); // Dark Blue
   doc.text(formatNinjaUGX(amount), 72, y + 10, { align: 'right' });
@@ -7945,13 +7945,13 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
   y += 18;
 
   // Verification Section
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify the Document here:', 40, y, { align: 'center' });
   y += 3.8;
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 40, y, { align: 'center' });
@@ -7964,7 +7964,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
     } catch {}
   }
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Authorized Corporate Expenditure Disbursement', 40, y, { align: 'center' });
@@ -7977,7 +7977,7 @@ export async function generateServerExpenseVoucherPDFBuffer(exp, options = {}) {
 export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   // Thermal Receipt Format: 80mm width. Height dynamically calculated or set to 200mm.
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
   const pmtRef = pmt.reference || `PAY-${pmt.id || '2026-0001'}`;
   const invNum = pmt.invoice_number || 'INV-2026-0001';
   const cName = pmt.party_name || options.customerName || 'Valued Corporate Customer';
@@ -8002,13 +8002,13 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   }
 
   // Header
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
   doc.text('NOVA CLOUD EDGES (U) LTD', centerX, y, { align: 'center' });
   y += 4;
   
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(71, 85, 105);
   doc.text(SERVER_BRAND.address, centerX, y, { align: 'center' });
@@ -8019,7 +8019,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   y += 6;
 
   // Title
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(15, 23, 42);
   doc.text('PAYMENT RECEIPT', centerX, y, { align: 'center' });
@@ -8033,11 +8033,11 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
 
   // Tx Details
   const printRow = (lbl, val) => {
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(100, 116, 139);
     doc.text(lbl, 6, y);
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
     // wrap text if too long
     const splitVal = doc.splitTextToSize(val, 40);
@@ -8059,7 +8059,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setLineDashPattern([], 0);
 
   // Amount
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(22, 163, 74);
   doc.text('AMOUNT RECEIVED', 6, y);
@@ -8081,14 +8081,14 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
     y += 10;
   }
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(71, 85, 105);
   doc.text('Thank you for your business.', centerX, y, { align: 'center' });
   y += 4;
   doc.text('Scan QR to verify authenticity online.', centerX, y, { align: 'center' });
   y += 4;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('ncloud.co.ug', centerX, y, { align: 'center' });
 
   return Buffer.from(doc.output('arraybuffer'));
@@ -8097,7 +8097,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
 // Delivery Note Certified PDF Generator
 export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  registerJakartaFont(doc);
+  registerTrebuchetFont(doc);
 
   const dnNum = sanitizePdfText(dn?.dn_number || `DN-${new Date().getFullYear()}-0001`);
   const invoiceNum = sanitizePdfText(dn?.invoice_number || 'INV-FULFILLED');
@@ -8142,7 +8142,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   try {
     doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 45, 15);
   } catch {
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(30, 58, 138);
     doc.text('NOVA CLOUD EDGES (U) LTD', 14, 18);
@@ -8155,7 +8155,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setFillColor(16, 185, 129);
   doc.roundedRect(124, 8, 72, 2.5, 1, 1, 'F');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
@@ -8169,7 +8169,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
   metaRows.forEach((r, idx) => {
     const rowY = 14 + idx * 5;
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text(r.label, 127, rowY);
@@ -8192,17 +8192,17 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(14, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('DISPATCHED FROM (LOGISTICS DIVISION)', 18, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
@@ -8214,17 +8214,17 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(108, cardY, cardW, cardH, 1.5, 1.5, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('DELIVERED TO (CLIENT / CONSIGNEE)', 112, cardY + 5.5);
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(cName.substring(0, 38), 112, cardY + 11);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   doc.text(`Destination: ${cAddr.substring(0, 42)}`, 112, cardY + 15.5);
@@ -8238,7 +8238,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(14, barY, 182, 7.5, 1, 1, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   doc.text('CARRIER / METHOD:', 18, barY + 5);
@@ -8258,7 +8258,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   function drawDnTableHeader(y) {
     doc.setFillColor(30, 58, 138);
     doc.roundedRect(14, y, 182, 8, 1, 1, 'F');
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
     doc.text('#', 17, y + 5.5);
@@ -8296,7 +8296,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
       doc.rect(14, tableY, 182, p.rowH, 'F');
     }
 
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(15, 23, 42);
     doc.text(p.numStr, 17, tableY + 5.2);
@@ -8307,32 +8307,32 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
     if (p.descLines.length > 0) {
       const descY = tableY + 5.2 + (p.nameLines.length * 3.8);
-      doc.setFont('PlusJakartaSans', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
       doc.text(p.descLines, 25, descY);
     }
 
     // Serial / Asset Tag
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(51, 65, 85);
     const serialLines = doc.splitTextToSize(p.it.serial, 32);
     doc.text(serialLines, 112, tableY + 5.2);
 
     // Qty Ordered
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
     doc.text(String(p.it.qtyOrdered), 148, tableY + 5.2, { align: 'center' });
 
     // Qty Dispatched
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
     doc.text(String(p.it.qtyDispatched), 164, tableY + 5.2, { align: 'center' });
 
     // Condition
-    doc.setFont('PlusJakartaSans', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.setTextColor(22, 163, 74);
     doc.text(p.it.condition, 193, tableY + 5.2, { align: 'right' });
@@ -8352,12 +8352,12 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
   // Delivery Acknowledgement & Verification Section
   const ackY = tableY + 6;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
   doc.text('Customer Delivery Acknowledgement & Receipt Terms:', 14, ackY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const terms = doc.splitTextToSize(
@@ -8368,12 +8368,12 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
   // QR Code on Left
   const qrY = ackY + 16;
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(30, 58, 138);
   doc.text('Verify Delivery Note Online:', 14, qrY);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(2, 132, 199);
   doc.text(verifyUrl, 14, qrY + 4.2);
@@ -8395,12 +8395,12 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setLineWidth(0.3);
   doc.roundedRect(74, signBlockY, signW, signH, 1, 1, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(30, 58, 138);
   doc.text('DISPATCHED BY (NOVA CLOUD):', 76, signBlockY + 4.5);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(15, 23, 42);
   doc.text(`Name: ${dispatchOfficer}`, 76, signBlockY + 9);
@@ -8415,12 +8415,12 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(136, signBlockY, signW, signH, 1, 1, 'FD');
 
-  doc.setFont('PlusJakartaSans', 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(22, 163, 74);
   doc.text('RECEIVED & ACCEPTED BY (CUSTOMER):', 138, signBlockY + 4.5);
 
-  doc.setFont('PlusJakartaSans', 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(15, 23, 42);
   doc.text(`Name: ${cName.substring(0, 24)}`, 138, signBlockY + 9);
@@ -8439,7 +8439,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
     doc.setLineWidth(0.4);
     doc.line(14, 282, 196, 282);
 
-    doc.setFont('PlusJakartaSans', 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(148, 163, 184);
     doc.text(`Official Delivery Note issued by Nova Cloud Edges (U) Limited  |  Lugga Zone, Ndejje, Wakiso, Uganda  |  TIN: 1014892019`, 105, 286, { align: 'center' });
