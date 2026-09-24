@@ -210,10 +210,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
   // Bank remittance accounts
   const bankAccounts = (verifyResult?.bank_remittance && verifyResult.bank_remittance.length > 0)
     ? verifyResult.bank_remittance
-    : [
-        { bank_name: 'Stanbic Bank Uganda', account_number: '9030024881920', currency: 'UGX', branch: 'Corporate Branch' },
-        { bank_name: 'Absa Bank Uganda', account_number: '6007291044', currency: 'UGX', branch: 'Kampala Main' }
-      ];
+    : [];
 
   const docTypeStr = (verifyResult?.document_type || '').toLowerCase();
   const docNumStr = (verifyResult?.document_number || '').toUpperCase();

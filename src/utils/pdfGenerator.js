@@ -436,7 +436,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
   // Bank Remittance
-  let bankStr = 'Remit To: Stanbic Bank Uganda A/C: 9030018829401 (UGX)';
+  let bankStr = 'Please contact billing for payment instructions.';
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const b = storedBanks[0];
     bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;

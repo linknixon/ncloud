@@ -8451,12 +8451,11 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
 // Helper to render dynamically configured bank accounts in email templates
 function renderConfiguredBankAccountsHtml() {
-  const banks = Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0
-    ? memoryStore.bank_accounts
-    : [
-        { bank_name: 'Stanbic Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '9030018829401', branch: 'Forest Mall Lugogo Branch, Kampala', swift_code: 'SBICUGKX', currency: 'UGX' },
-        { bank_name: 'Absa Bank Uganda Limited', account_name: SERVER_BRAND.name, account_number: '0341199482', branch: 'Hannington Road Branch, Kampala', swift_code: 'BARCUGKX', currency: 'USD' }
-      ];
+  const banks = Array.isArray(memoryStore.bank_accounts) ? memoryStore.bank_accounts : [];
+  
+  if (banks.length === 0) {
+    return `<div style="padding: 15px; color: #a1a1aa; font-style: italic;">Please contact our billing department for payment instructions.</div>`;
+  }
 
   const banksHtml = banks.map(b => `
     <div style="background: #27272a; border: 1px solid #3f3f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
