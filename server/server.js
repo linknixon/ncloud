@@ -1760,6 +1760,15 @@ const verifyToken = (req, res, next) => {
   });
 };
 
+app.get('/api/auth/jotform-hash', verifyToken, (req, res) => {
+  const secret = 'MDFhMGRjNWQ3NzIwNzAwMDgxMjFmN2Q0NGQ4Yzk4MmRlMmEx';
+  const userId = req.userId;
+  if (!userId) return res.status(400).json({ error: 'User ID missing' });
+  const userHash = crypto.createHmac('sha256', secret).update(String(userId)).digest('hex');
+  res.json({ userHash, userId });
+});
+
+
 const requireCRUDAS = (req, res, next) => {
   if (['super_admin', 'admin', 'web_admin'].includes(req.userRole)) return next();
 

@@ -83,8 +83,32 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch('/api/auth/jotform-hash', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.userHash) {
+               window._jfAgentIdentifiedUser = {
+                 metadata: {
+                   name: user.name,
+                   email: user.email,
+                   role: user.role
+                 },
+                 userID: String(user.id),
+                 userHash: data.userHash
+               };
+            }
+          })
+          .catch(err => console.error('Error fetching jotform hash:', err));
+      }
     } else {
       localStorage.removeItem('user');
+      if (window.AgentClientSDK && typeof window.AgentClientSDK.resetUser === 'function') {
+        window.AgentClientSDK.resetUser();
+      }
     }
   }, [user]);
 
