@@ -377,7 +377,17 @@ export async function generateInvoicePDF(inv, options = {}) {
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
   const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
-  const storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
+  let storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
+  if (storedBanks.length === 0) {
+    try {
+      const res = await fetch('/api/admin/bank-accounts');
+      if (res.ok) {
+        storedBanks = await res.json();
+      }
+    } catch (e) {
+      console.warn('Failed to fetch bank accounts:', e);
+    }
+  }
 
   // Page 1 Top 3-Tone Accent Bar
   drawInvoiceNinja3ToneBar(doc, 0, 4);
@@ -674,7 +684,17 @@ export async function generateQuotationPDF(quote, options = {}) {
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`;
   const qrDataUrl = await createQRCodeDataURL(verifyUrl, 200);
   const activeLogo = logoDataUrl || NOVA_LOGO_BASE64;
-  const storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
+  let storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
+  if (storedBanks.length === 0) {
+    try {
+      const res = await fetch('/api/admin/bank-accounts');
+      if (res.ok) {
+        storedBanks = await res.json();
+      }
+    } catch (e) {
+      console.warn('Failed to fetch bank accounts:', e);
+    }
+  }
 
   drawInvoiceNinja3ToneBar(doc, 0, 4);
   drawInvoiceNinjaBurgundyLogo(doc, 14, 10, activeLogo);
