@@ -3376,12 +3376,17 @@ const normalizeTabName = (rawTab) => {
       showToast('Please select at least one audit log to export.', 'warning');
       return;
     }
-    generateForensicsAuditPDF(selectedLogs, {
-      siteLogo,
-      userName: user?.name || 'Systems Admin',
-      userRole: getRoleBadgeStyle(currentRole).label
-    });
-    showToast(`Exported Official Security Audit Certificate for ${selectedLogs.length} records!`, 'success');
+    try {
+      generateForensicsAuditPDF(selectedLogs, {
+        siteLogo,
+        userName: user?.name || 'Systems Admin',
+        userRole: getRoleBadgeStyle(currentRole).label
+      });
+      showToast(`Exported Official Security Audit Certificate for ${selectedLogs.length} records!`, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast(`Export failed: ${err.message}`, 'error');
+    }
   };
 
   const handleUpdateSubscriptionStatus = async (subId, newStatus, duration = null, expiryDate = null) => {
@@ -7048,7 +7053,11 @@ const normalizeTabName = (rawTab) => {
                               <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
                                   <button
-                                    onClick={() => handleExportForensicsSelectedPDF([log])}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleExportForensicsSelectedPDF([log]);
+                                    }}
                                     title="Export Official PDF Audit Certificate for this event"
                                     className="btn-secondary"
                                     style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
@@ -7056,9 +7065,25 @@ const normalizeTabName = (rawTab) => {
                                     <Download size={12} /> PDF
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(`[${log.timestamp}] ${log.action} | User: ${log.user_name} (${log.user_email}) | IP: ${log.ip_address} | Ref: ${log.resource_id} | ${log.details}`);
-                                      showToast('Audit event copied to clipboard', 'info');
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const txt = `[${log.timestamp}] ${log.action} | User: ${log.user_name} (${log.user_email}) | IP: ${log.ip_address} | Ref: ${log.resource_id} | ${log.details}`;
+                                      try {
+                                        if (navigator.clipboard && window.isSecureContext) {
+                                          navigator.clipboard.writeText(txt);
+                                        } else {
+                                          const textArea = document.createElement("textarea");
+                                          textArea.value = txt;
+                                          document.body.appendChild(textArea);
+                                          textArea.select();
+                                          document.execCommand("copy");
+                                          textArea.remove();
+                                        }
+                                        showToast('Audit event copied to clipboard', 'info');
+                                      } catch(err) {
+                                        showToast('Copy failed: ' + err.message, 'error');
+                                      }
                                     }}
                                     title="Copy event record details to clipboard"
                                     className="btn-secondary"
