@@ -6101,6 +6101,7 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
 
 // PUT mark voucher as bought (manual override)
 app.put('/api/admin/wifi/vouchers/bulk-mark-bought', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Bulk marked Wi-Fi vouchers as BOUGHT'});
   const { ids, customer_name, customer_email, invoice_id } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
 
@@ -6179,6 +6180,7 @@ app.put('/api/admin/wifi/vouchers/bulk-mark-bought', async (req, res) => {
 
 // PUT mark voucher as bought (manual override)
 app.put('/api/admin/wifi/vouchers/:id/mark-bought', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Marked a specific Wi-Fi voucher as BOUGHT'});
   const { id } = req.params;
   const { customer_name, customer_email, invoice_id } = req.body;
   const v = (memoryStore.unifi_vouchers || []).find(item => item.id == id);
