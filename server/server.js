@@ -2774,6 +2774,7 @@ app.get('/api/admin/company-expenses', (req, res) => {
 });
 
 app.post('/api/admin/company-expenses', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Recorded a new Company Expenditure'});
   const { staff_name, staff_email, supervisor_name, category, description, amount, receipt_ref, status, date, created_by, attachment_url, attachment_name } = req.body;
   if (!category || !amount || !description) {
     return res.status(400).json({ error: 'Category, amount, and description are required.' });
@@ -4006,6 +4007,7 @@ app.put('/api/admin/hr/payroll/:id/status', (req, res) => {
 });
 
 app.post('/api/admin/hr/expenses', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Recorded a new Staff/HR Expenditure'});
   const { staff_name, staff_email, category, description, amount, receipt_ref } = req.body;
   if (!staff_name || !amount) {
     return res.status(400).json({ error: 'Staff name and expense amount are required.' });
@@ -4222,6 +4224,7 @@ app.get('/api/admin/payments', (req, res) => {
 });
 
 app.post('/api/admin/payments', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Recorded a new payment / checkout transaction'});
   const { payment_type, invoice_number, party_name, party_email, amount_due, amount_paid, payment_method, reference, updated_by } = req.body;
   if (!party_name || !amount_paid) {
     return res.status(400).json({ error: 'Party name and amount paid are required.' });
@@ -5095,6 +5098,7 @@ app.get('/api/admin/quotations', (req, res) => {
 });
 
 app.post('/api/admin/quotations', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Quotation'});
   const { customer_name, customer_email, customer_phone, company, valid_until, items, vat_exempt, notes } = req.body;
   if (!customer_name) return res.status(400).json({ error: 'Customer name is required for quotation' });
 
@@ -5402,6 +5406,7 @@ app.get('/api/admin/work-orders', (req, res) => {
 });
 
 app.post('/api/admin/work-orders', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created a new Work Order / Job Ticket'});
   const { task_title, client_site, assigned_staff_id, assigned_staff_name, assigned_staff_email, charging_mode, rate, quantity, scheduled_date, description } = req.body;
   if (!task_title) return res.status(400).json({ error: 'Task title is required' });
 
@@ -5851,6 +5856,7 @@ app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
 
 // Auto-generate vouchers directly via UniFi API
 app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Generated new Wi-Fi voucher tokens via UniFi'});
   try {
     const { quantity, duration_hours, data_quota_mb, device_limit, download_limit_kbps, upload_limit_kbps } = req.body;
     
@@ -8966,6 +8972,7 @@ function isHostingCategoryService(itemOrName, itemsList = []) {
 
 // Create Invoice with Discounts & Automated Customer + Sales Admin Email Dispatch
 app.post('/api/admin/invoices', async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Tax Invoice'});
   const { customer_name, customer_email, customer_phone, customer_address, item_name, unit_price, quantity, due_date, vat_exempt, is_recurring, recurring_frequency, next_billing_date, wifi_voucher_id, excess_amount, discount_type, discount_value, assigned_staff_id, assigned_staff_name, assigned_staff_email, items } = req.body;
   
   const qty = Math.max(1, parseInt(quantity) || 1);

@@ -2254,7 +2254,12 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
     y += 14;
   } else {
     logs.forEach((log, idx) => {
-      const rowH = 8.5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.8);
+      const actionText = String(log.action || log.event || 'Authorized State Mutation');
+      const splitAction = doc.splitTextToSize(actionText, 62);
+      const rowH = Math.max(8.5, splitAction.length * 3.5 + 2);
+
       if (y + rowH > 265) {
         doc.addPage();
         drawA4ContinuationHeader(doc, { title: 'FORENSICS AUDIT TRAIL', refNumber: refNum, accentColor: BRAND.colors.deepSapphire });
@@ -2282,7 +2287,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
       doc.text(String(log.ip || log.ip_address || '127.0.0.1'), 94, y + 5.2);
 
       doc.setFont('helvetica', 'normal');
-      doc.text(String(log.action || log.event || 'Authorized State Mutation').substring(0, 36), 130, y + 5.2);
+      doc.text(splitAction, 130, y + 5.2);
 
       y += rowH;
     });
