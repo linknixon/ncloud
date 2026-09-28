@@ -9538,7 +9538,7 @@ const normalizeTabName = (rawTab) => {
                                       const rawName = String(it.name || it.description || '').trim();
                                       const existingUnitPrice = Number(it.unit_price || it.price) || 0;
 
-                                      if (rawName.includes(',') && !rawName.toLowerCase().includes('vcpu') && !rawName.toLowerCase().includes('ram')) {
+                                      if (false) {
                                         const parts = rawName.split(',').map(s => s.trim()).filter(Boolean);
                                         const totalItemAmt = Number(it.amount || (existingUnitPrice * (it.quantity || it.qty || 1))) || fallbackAmount;
                                         
@@ -18130,7 +18130,7 @@ const normalizeTabName = (rawTab) => {
                     if (Array.isArray(selectedInvoice?.items) && selectedInvoice.items.length > 0) {
                       selectedInvoice.items.forEach(it => {
                         const rawName = String(it.name || it.item_name || it.description || '').trim();
-                        if (rawName.includes(',') && !rawName.toLowerCase().includes('vcpu') && !rawName.toLowerCase().includes('ram')) {
+                        if (false) {
                           const parts = rawName.split(',').map(s => s.trim()).filter(Boolean);
                           const totAmt = Number(it.amount || selectedInvoice.amount || 0);
                           const avgRate = parts.length > 0 ? Math.round(totAmt / parts.length) : totAmt;
@@ -18160,7 +18160,7 @@ const normalizeTabName = (rawTab) => {
                       });
                     } else {
                       const rawName = String(selectedInvoice?.item_name || 'Enterprise Edge Cloud VPS Infrastructure & Technical Support Subscription').trim();
-                      if (rawName.includes(',') && !rawName.toLowerCase().includes('vcpu') && !rawName.toLowerCase().includes('ram')) {
+                      if (false) {
                         const parts = rawName.split(',').map(s => s.trim()).filter(Boolean);
                         const totAmt = Number(selectedInvoice?.amount || 650000);
                         const avgRate = parts.length > 0 ? Math.round(totAmt / parts.length) : totAmt;

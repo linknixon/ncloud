@@ -8540,43 +8540,43 @@ function generateCorporateEmailHtml({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body, table, td, a { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
-    body { background-color: #09090b; color: #e4e4e7; margin: 0; padding: 40px 15px; }
-    .email-container { max-width: 640px; margin: 0 auto; background: #18181b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); border: 1px solid #27272a; }
+    body { background-color: #f1f5f9; color: #334155; margin: 0; padding: 40px 15px; }
+    .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
     
-    /* Header (Dark Premium) */
-    .email-header { background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 1px solid #e5e7eb; }
+    /* Header */
+    .email-header { background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 1px solid #e2e8f0; }
     .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
     .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
     .company-title span { color: #0ea5e9; }
     
     /* Body */
     .email-body { padding: 45px 40px; }
-    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; border: 1px solid rgba(56, 189, 248, 0.2); box-shadow: 0 0 10px rgba(56, 189, 248, 0.1); }
-    .doc-title { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 20px 0; line-height: 1.3; letter-spacing: -0.5px; }
-    .salutation { font-size: 16px; color: #e4e4e7; margin-bottom: 16px; font-weight: 500; }
-    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #a1a1aa; margin-bottom: 30px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; border: 1px solid #bae6fd; }
+    .doc-title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 20px 0; line-height: 1.3; letter-spacing: -0.5px; }
+    .salutation { font-size: 16px; color: #334155; margin-bottom: 16px; font-weight: 600; }
+    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #475569; margin-bottom: 30px; }
     
     /* Attachments */
-    .attachment-card { background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 18px 24px; margin: 24px 0; border-left: 4px solid #818cf8; position: relative; overflow: hidden; }
-    .attachment-title { font-weight: 700; font-size: 14px; color: #ffffff; margin-bottom: 6px; letter-spacing: 0.3px; }
-    .attachment-desc { font-size: 13px; color: #a1a1aa; line-height: 1.6; }
+    .attachment-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 24px; margin: 24px 0; border-left: 4px solid #6366f1; position: relative; overflow: hidden; }
+    .attachment-title { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 6px; letter-spacing: 0.3px; }
+    .attachment-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
     
     /* Tables */
-    .table-container { border-radius: 12px; border: 1px solid #27272a; overflow: hidden; margin-bottom: 30px; background: #09090b; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2); }
+    .table-container { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 30px; background: #ffffff; }
     .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .data-table th { background: #18181b; text-align: left; padding: 16px; border-bottom: 1px solid #27272a; color: #a1a1aa; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-    .data-table td { padding: 16px; border-bottom: 1px solid #18181b; color: #e4e4e7; }
-    .total-row { background: #18181b; }
-    .total-row td { font-size: 16px; font-weight: 800; color: #ffffff; border-top: 2px solid #3f3f46; }
-    .total-amount { color: #38bdf8 !important; font-size: 20px !important; letter-spacing: 0.5px; }
+    .data-table th { background: #f8fafc; text-align: left; padding: 16px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+    .data-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .total-row { background: #f8fafc; }
+    .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #e2e8f0; }
+    .total-amount { color: #0284c7 !important; font-size: 20px !important; letter-spacing: 0.5px; }
     
     /* Buttons */
     .btn-container { text-align: center; margin: 40px 0 30px 0; }
-    .primary-btn { display: inline-block; background-color: #0ea5e9; color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(2, 132, 199, 0.4); border: 1px solid rgba(255,255,255,0.1); }
+    .primary-btn { display: inline-block; background-color: #0ea5e9; color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(2, 132, 199, 0.2); border: 1px solid rgba(255,255,255,0.1); }
     
     /* Footer */
-    .email-footer { background: #09090b; padding: 35px 30px; text-align: center; font-size: 12px; color: #71717a; line-height: 1.8; border-top: 1px solid #27272a; }
-    .footer-highlight { color: #a1a1aa; font-weight: 600; }
+    .email-footer { background: #f8fafc; padding: 35px 30px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.8; border-top: 1px solid #e2e8f0; }
+    .footer-highlight { color: #475569; font-weight: 600; }
 
     @media screen and (max-width: 600px) {
       body { padding: 0 !important; }
@@ -8593,7 +8593,7 @@ function generateCorporateEmailHtml({
     }
   </style>
 </head>
-<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; margin: 0; padding: 40px 15px;">
+<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 15px;">
   <div class="email-container">
     <div class="email-header">
       ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span>CLOUD EDGES</span></div>'}

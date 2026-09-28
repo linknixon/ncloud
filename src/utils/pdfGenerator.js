@@ -446,10 +446,12 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
   // Bank Remittance
-  let bankStr = 'Please contact billing for payment instructions.';
+  let bankStr = inv.payment_method || 'Please contact billing for payment instructions.';
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
+    bankStr = `Payment Method: ${inv.payment_method || 'Direct Transfer'} | Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
+  } else if (inv.payment_method) {
+    bankStr = `Payment Method: ${inv.payment_method}`;
   }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
@@ -2258,7 +2260,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
       doc.setFontSize(6.8);
       const actionText = String(log.action || log.event || 'Authorized State Mutation');
       const splitAction = doc.splitTextToSize(actionText, 62);
-      const rowH = Math.max(8.5, splitAction.length * 3.5 + 2);
+      const rowH = Math.max(10, splitAction.length * 3.8 + 3);
 
       if (y + rowH > 265) {
         doc.addPage();
@@ -2287,7 +2289,7 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
       doc.text(String(log.ip || log.ip_address || '127.0.0.1'), 94, y + 5.2);
 
       doc.setFont('helvetica', 'normal');
-      doc.text(splitAction, 130, y + 5.2);
+      doc.text(splitAction, 130, y + 5.5);
 
       y += rowH;
     });
