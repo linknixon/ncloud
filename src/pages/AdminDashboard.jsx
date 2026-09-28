@@ -14460,7 +14460,7 @@ const normalizeTabName = (rawTab) => {
                                     </button>
                                   )}
                                   <button
-                                    onClick={() => generateInvoicePDF(inv, { paidStamp, siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label })}
+                                    onClick={() => generateInvoicePDF(inv, { paidStamp, siteLogo: logoInput || siteLogo, userName: user?.name, userRole: getRoleBadgeStyle(currentRole).label, bankAccounts: bankAccountsList })}
                                     className="btn-secondary"
                                     style={{ flex: 1, justifyContent: 'center', padding: '0.45rem 0.65rem', gap: '4px', fontSize: '0.775rem' }}
                                   >
@@ -18456,7 +18456,8 @@ const normalizeTabName = (rawTab) => {
                     paidStamp,
                     siteLogo: logoInput || siteLogo,
                     userName: user?.name || 'Systems Admin',
-                    userRole: getRoleBadgeStyle(currentRole).label
+                    userRole: getRoleBadgeStyle(currentRole).label,
+                    bankAccounts: bankAccountsList
                   })}
                   className="btn-primary"
                   style={{ padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
