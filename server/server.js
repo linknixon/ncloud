@@ -7030,15 +7030,21 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  let bankStr = 'Remit To: MTN MoMo Merchant Code: 674859 (UGX)';
+  let bankStr = inv.payment_method || 'Please contact billing for payment instructions.';
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
+    bankStr = `Pay: ${inv.payment_method || 'Direct Transfer'} | A/C: ${b.account_number} (${b.bank_name})`;
+  } else if (inv.payment_method) {
+    bankStr = `Payment Method: ${inv.payment_method}`;
   }
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(30, 58, 138);
-  doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
+  const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+  doc.text(splitBank[0] || '', 18, cardY + 29.5);
+  if (splitBank.length > 1) {
+    doc.text(splitBank[1], 18, cardY + 32.5);
+  }
 
   // CARD 2: BILLED TO
   doc.setFillColor(248, 250, 252);
