@@ -449,7 +449,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   let bankStr = inv.payment_method || 'Please contact billing for payment instructions.';
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const b = storedBanks[0];
-    bankStr = `Pay: ${inv.payment_method || 'Direct Transfer'} | A/C: ${b.account_number} (${b.bank_name})`;
+    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number}`;
   } else if (inv.payment_method) {
     bankStr = `Payment Method: ${inv.payment_method}`;
   }
