@@ -511,20 +511,23 @@ async function runMigration() {
   if (Array.isArray(store.unifi_vouchers)) {
     let count = 0;
     for (const uv of store.unifi_vouchers) {
+      const vid = String(uv.id || uv.token);
       await pool.query(
-        `INSERT INTO unifi_vouchers (id, token, package_name, duration_hours, duration_label, data_quota_mb, data_label, status, invoice_id, customer_name, customer_email, created_at, dispatched_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE status=VALUES(status)`,
+        `INSERT INTO unifi_vouchers (id, token, package_name, duration_hours, duration_label, data_quota_mb, data_label, data_limit, status, source, invoice_id, customer_name, customer_email, created_at, dispatched_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE status=VALUES(status), customer_name=VALUES(customer_name), customer_email=VALUES(customer_email)`,
         [
-          uv.id || null,
+          vid,
           uv.token,
           uv.package_name || 'Standard',
           uv.duration_hours || 24,
           uv.duration_label || null,
           uv.data_quota_mb || 0,
           uv.data_label || null,
+          uv.data_limit || null,
           uv.status || 'Active',
-          uv.invoice_id || null,
+          uv.source || 'manual',
+          uv.invoice_id ? String(uv.invoice_id) : null,
           uv.customer_name || null,
           uv.customer_email || null,
           parseDate(uv.created_at) || new Date(),

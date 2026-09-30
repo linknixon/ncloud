@@ -292,15 +292,17 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
 
 -- 16. UniFi Wi-Fi Vouchers Table
 CREATE TABLE IF NOT EXISTS unifi_vouchers (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id VARCHAR(100) NOT NULL PRIMARY KEY,
     token VARCHAR(100) NOT NULL UNIQUE,
-    package_name VARCHAR(100) NOT NULL,
+    package_name VARCHAR(100) NULL,
     duration_hours INT DEFAULT 24,
     duration_label VARCHAR(100) NULL,
     data_quota_mb INT DEFAULT 0,
     data_label VARCHAR(100) NULL,
+    data_limit VARCHAR(100) NULL,
     status VARCHAR(50) DEFAULT 'Active',
-    invoice_id BIGINT NULL,
+    source VARCHAR(50) DEFAULT 'manual',
+    invoice_id VARCHAR(100) NULL,
     customer_name VARCHAR(255) NULL,
     customer_email VARCHAR(255) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
