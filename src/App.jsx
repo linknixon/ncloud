@@ -26,111 +26,121 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import ShopCheckoutModal from './components/ShopCheckoutModal';
 import InstallPrompt from './components/InstallPrompt';
 
+const getAppBasePath = () => {
+  if (typeof window === 'undefined') return '';
+  const pathname = window.location.pathname;
+  if (pathname.startsWith('/ncloud')) return '/ncloud';
+  if (pathname.startsWith('/nova-website')) return '/nova-website';
+  return '';
+};
+
+const resolvePageFromLocation = () => {
+  if (typeof window === 'undefined') return 'home';
+  const params = new URLSearchParams(window.location.search);
+  const basePath = getAppBasePath();
+  let path = window.location.pathname;
+  if (basePath && path.startsWith(basePath)) {
+    path = path.slice(basePath.length);
+  }
+  if (!path || path === '') path = '/';
+
+  if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
+    return 'verify-email';
+  }
+  if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
+    return 'verify';
+  }
+  if (path === '/admin' || params.get('tab') || path === '/subscriptions') {
+    return 'admin';
+  }
+  if (path === '/subscription') {
+    return 'subscription';
+  }
+
+  const pageParam = params.get('page') || params.get('p');
+  if (pageParam) {
+    const cleanParam = pageParam.startsWith('/') ? pageParam : `/${pageParam}`;
+    const directMatch = {
+      '/': 'home', '/shop': 'shop', '/services': 'services', '/jobs': 'jobs', '/careers': 'careers',
+      '/events': 'events', '/contact': 'contact', '/about': 'about', '/news': 'news',
+      '/terms': 'terms', '/privacy': 'privacy', '/subscription': 'subscription',
+      '/admin': 'admin', '/verify': 'verify', '/verify-email': 'verify-email'
+    }[cleanParam];
+    if (directMatch) return directMatch;
+  }
+
+  const hash = window.location.hash.replace('#', '').replace('/', '');
+  if (hash) {
+    const hashMatch = {
+      'shop': 'shop', 'services': 'services', 'jobs': 'jobs', 'careers': 'careers',
+      'events': 'events', 'contact': 'contact', 'about': 'about', 'news': 'news',
+      'terms': 'terms', 'privacy': 'privacy', 'subscription': 'subscription',
+      'admin': 'admin', 'verify': 'verify', 'verify-email': 'verify-email'
+    }[hash];
+    if (hashMatch) return hashMatch;
+  }
+
+  const pageMap = {
+    '/': 'home',
+    '/shop': 'shop',
+    '/services': 'services',
+    '/jobs': 'jobs',
+    '/careers': 'careers',
+    '/events': 'events',
+    '/contact': 'contact',
+    '/about': 'about',
+    '/news': 'news',
+    '/terms': 'terms',
+    '/privacy': 'privacy',
+    '/subscription': 'subscription',
+    '/admin': 'admin',
+    '/verify': 'verify',
+    '/verify-email': 'verify-email',
+    '/signup': 'home',
+    '/register': 'home',
+    '/login': 'home'
+  };
+
+  return pageMap[path] || 'home';
+};
+
 export default function App() {
-  const [activePage, setActivePage] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const path = window.location.pathname;
-      if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
-        return 'verify-email';
-      }
-      if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
-        return 'verify';
-      }
-      if (path === '/admin' || params.get('tab') || path === '/subscriptions') {
-        return 'admin';
-      }
-      if (path === '/subscription') {
-        return 'subscription';
-      }
-      const pageMap = {
-        '/': 'home',
-        '/shop': 'shop',
-        '/services': 'services',
-        '/jobs': 'jobs',
-        '/careers': 'careers',
-        '/events': 'events',
-        '/contact': 'contact',
-        '/about': 'about',
-        '/news': 'news',
-        '/terms': 'terms',
-        '/privacy': 'privacy',
-        '/subscription': 'subscription',
-        '/admin': 'admin',
-        '/verify': 'verify',
-        '/verify-email': 'verify-email'
-      };
-      if (pageMap[path]) return pageMap[path];
-    }
-    return 'home';
-  });
+  const [activePage, setActivePage] = useState(() => resolvePageFromLocation());
 
   useEffect(() => {
     window.scrollTo(0, 0);
     if (typeof window !== 'undefined') {
+      const basePath = getAppBasePath();
       const currentPath = window.location.pathname;
-      let newPath = '/';
+      let newRoute = '/';
       if (activePage !== 'home' && activePage !== 'admin' && activePage !== 'verify' && activePage !== 'verify-email') {
-        newPath = `/${activePage}`;
+        newRoute = `/${activePage}`;
       } else if (activePage === 'admin') {
-        newPath = '/admin';
+        newRoute = '/admin';
       } else if (activePage === 'verify') {
-        newPath = '/verify';
+        newRoute = '/verify';
       } else if (activePage === 'verify-email') {
-        newPath = window.location.pathname.includes('verify-email') ? window.location.pathname + window.location.search : '/verify-email';
+        newRoute = window.location.pathname.includes('verify-email') ? window.location.pathname + window.location.search : '/verify-email';
       }
-      if (currentPath !== newPath && !currentPath.includes('verify-email')) {
-        window.history.pushState({}, '', newPath);
+
+      const targetPath = basePath ? (newRoute === '/' ? `${basePath}/` : `${basePath}${newRoute}`) : newRoute;
+      if (currentPath !== targetPath && !currentPath.includes('verify-email')) {
+        window.history.pushState({}, '', targetPath);
       }
     }
   }, [activePage]);
 
   useEffect(() => {
     const syncActivePageFromUrl = () => {
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        const path = window.location.pathname;
-        if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
-          setActivePage('verify-email');
-        } else if (params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote') || params.get('ref') || params.get('view') === 'invoice' || params.get('view') === 'payment' || params.get('view') === 'verify' || path === '/verify') {
-          setActivePage('verify');
-        } else if (path === '/admin' || params.get('tab') || path === '/subscriptions') {
-          setActivePage('admin');
-        } else if (path === '/subscription') {
-          setActivePage('subscription');
-        } else {
-          const pageMap = {
-            '/': 'home',
-            '/shop': 'shop',
-            '/services': 'services',
-            '/jobs': 'jobs',
-            '/careers': 'careers',
-            '/events': 'events',
-            '/contact': 'contact',
-            '/about': 'about',
-            '/news': 'news',
-            '/terms': 'terms',
-            '/privacy': 'privacy',
-            '/subscription': 'subscription',
-            '/admin': 'admin',
-            '/verify': 'verify',
-            '/verify-email': 'verify-email',
-            '/signup': 'home',
-            '/register': 'home',
-            '/login': 'home'
-          };
-          if (pageMap[path]) {
-            setActivePage(pageMap[path]);
-          } else {
-            setActivePage('home');
-          }
-        }
-      }
+      setActivePage(resolvePageFromLocation());
     };
 
-    syncActivePageFromUrl();
     window.addEventListener('popstate', syncActivePageFromUrl);
-    return () => window.removeEventListener('popstate', syncActivePageFromUrl);
+    window.addEventListener('hashchange', syncActivePageFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncActivePageFromUrl);
+      window.removeEventListener('hashchange', syncActivePageFromUrl);
+    };
   }, []);
 
   const renderPage = () => {

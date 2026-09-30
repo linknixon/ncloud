@@ -736,8 +736,8 @@ export default function ShopCheckoutModal() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
                       <div>
-                        <img src="/mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
-                        <img src="/airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                        <img src="./mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
+                        <img src="./airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                       </div>
                     </div>
                     Mobile Money
@@ -752,7 +752,7 @@ export default function ShopCheckoutModal() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                      <img src="/visa_mastercard.jpg" alt="Visa and Mastercard" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                      <img src="./visa_mastercard.jpg" alt="Visa and Mastercard" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                     </div>
                     Credit / Debit Card
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>
