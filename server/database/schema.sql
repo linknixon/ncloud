@@ -4,9 +4,6 @@
 -- Supports: Localhost MAMP & Remote Production Enterprise Datacenter
 -- ==============================================================================
 
-CREATE DATABASE IF NOT EXISTS nova_website CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE nova_website;
-
 -- 1. Roles & Permissions Table
 CREATE TABLE IF NOT EXISTS roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -1,10 +1,24 @@
+import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Explicitly search and load .env if available
+const possibleEnvPaths = [
+  path.join(__dirname, '../../.env'),
+  path.join(process.cwd(), '.env'),
+  path.join(__dirname, '../.env')
+];
+for (const p of possibleEnvPaths) {
+  if (fs.existsSync(p)) {
+    dotenv.config({ path: p });
+  }
+}
 
 // Helper for dates
 function parseDate(val) {
@@ -51,37 +65,58 @@ async function runMigration() {
   console.log(`[Source] Reading data from: ${sourcePath}`);
   const store = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
 
-  // Database Connection config
+  // Database Connection config from environment variables
   const isMac = process.platform === 'darwin';
   const isMamp = isMac && (fs.existsSync('/Applications/MAMP') || fs.existsSync('/Applications/MAMP/tmp/mysql'));
   
-  const host = process.env.DB_HOST || '127.0.0.1';
+  const host = process.env.DB_HOST || (isMamp ? '127.0.0.1' : 'localhost');
   const port = Number(process.env.DB_PORT) || (isMamp ? 8889 : 3306);
-  const user = process.env.DB_USER || 'root';
+  const user = process.env.DB_USER || (isMamp ? 'root' : 'root');
   const password = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : (isMamp ? 'root' : '');
-  const database = process.env.DB_NAME || 'nova_website';
+  const database = process.env.DB_NAME || (isMamp ? 'nova_website' : 'ncloudwebsite');
 
-  console.log(`[Connection] Connecting to MySQL at ${user}@${host}:${port}...`);
+  console.log(`[Connection] Connecting to database '${database}' on ${user}@${host}:${port}...`);
   
-  let rootConn;
+  let pool;
   try {
-    rootConn = await mysql.createConnection({ host, port, user, password });
-    await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await rootConn.end();
-  } catch (err) {
-    console.error(`❌ Could not initialize database '${database}':`, err.message);
-    process.exit(1);
+    // Attempt direct connection to the specified database first
+    pool = mysql.createPool({
+      host,
+      port,
+      user,
+      password,
+      database,
+      waitForConnections: true,
+      connectionLimit: 10
+    });
+    await pool.query('SELECT 1');
+    console.log(`[Connection] Successfully connected to database '${database}'.`);
+  } catch (connErr) {
+    if (connErr.code === 'ER_BAD_DB_ERROR') {
+      console.log(`[Database] Database '${database}' does not exist. Attempting creation...`);
+      try {
+        const rootConn = await mysql.createConnection({ host, port, user, password });
+        await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+        await rootConn.end();
+        console.log(`[Database] Created database '${database}'.`);
+        pool = mysql.createPool({
+          host,
+          port,
+          user,
+          password,
+          database,
+          waitForConnections: true,
+          connectionLimit: 10
+        });
+      } catch (createErr) {
+        console.error(`❌ Could not create database '${database}':`, createErr.message);
+        process.exit(1);
+      }
+    } else {
+      console.error(`❌ Connection failed to MySQL (${user}@${host}:${port}/${database}):`, connErr.message);
+      process.exit(1);
+    }
   }
-
-  const pool = mysql.createPool({
-    host,
-    port,
-    user,
-    password,
-    database,
-    waitForConnections: true,
-    connectionLimit: 10
-  });
 
   // Step 1: Execute schema.sql to ensure all tables exist
   console.log('[Schema] Executing schema.sql definitions...');
