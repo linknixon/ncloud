@@ -1,6 +1,8 @@
 -- MySQL Database Schema for Nova Cloud Edges (U) Limited
 -- Database name: nova_website
 
+CREATE DATABASE IF NOT EXISTS nova_website;
+USE nova_website;
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (

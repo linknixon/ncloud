@@ -1423,7 +1423,7 @@ const normalizeTabName = (rawTab) => {
         .then(srvs => { if (Array.isArray(srvs) && srvs.length > 0) setServicesList(srvs); })
         .catch(() => {});
 
-      fetch('/api/jobs')
+      fetch('/api/admin/jobs')
         .then(res => res.json())
         .then(jb => { if (Array.isArray(jb) && jb.length > 0) setJobsList(jb); })
         .catch(() => {});
@@ -1814,7 +1814,7 @@ const normalizeTabName = (rawTab) => {
         responsibilities: ''
       });
       fetchDashboardData();
-      fetch('/api/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
+      fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -1827,7 +1827,7 @@ const normalizeTabName = (rawTab) => {
       const resData = await res.json();
       showToast(resData.message || 'Job vacancy removed!', 'success');
       fetchDashboardData();
-      fetch('/api/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
+      fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -3431,6 +3431,175 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const [triggeringReminders, setTriggeringReminders] = useState(false);
+  const handleTriggerSubscriptionReminders = async () => {
+    setTriggeringReminders(true);
+    try {
+      const res = await fetch('/api/admin/subscriptions/trigger-reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to trigger reminders');
+      showToast(resData.message || `Evaluated subscriptions: ${resData.count || 0} reminders sent`, 'success');
+      fetchDashboardData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setTriggeringReminders(false);
+    }
+  };
+
+  const handleSendSingleSubscriptionReminder = async (subId, planName, customerEmail) => {
+    if (!customerEmail) {
+      showToast('This subscription has no valid customer email attached.', 'error');
+      return;
+    }
+    if (!window.confirm(`Send formal subscription expiry / renewal advisory email for "${planName}" to ${customerEmail}?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${subId}/send-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch email');
+      showToast(resData.message || 'Expiry reminder email sent successfully!', 'success');
+      fetchDashboardData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const renderSubscriptionProgressBar = (sub, isCompact = false) => {
+    const startDateStr = sub.start_date || (sub.created_at ? sub.created_at.split('T')[0] : '');
+    const expiryDateStr = sub.expiry_date;
+    if (!expiryDateStr) return null;
+
+    const parseDate = (dStr) => {
+      if (!dStr) return null;
+      const parts = dStr.split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return new Date(dStr);
+    };
+
+    const now = new Date();
+    const expiry = parseDate(expiryDateStr);
+    const start = startDateStr ? parseDate(startDateStr) : new Date(expiry.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+    const totalDuration = expiry.getTime() - start.getTime();
+    const elapsed = now.getTime() - start.getTime();
+    const remaining = expiry.getTime() - now.getTime();
+
+    const daysRemaining = Math.ceil(remaining / (1000 * 60 * 60 * 24));
+    const isExpired = daysRemaining <= 0 || sub.status === 'Expired';
+    let percentElapsed = totalDuration > 0 ? Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100))) : 100;
+    if (isExpired) percentElapsed = 100;
+
+    let barGradient = 'linear-gradient(90deg, #10b981 0%, #059669 100%)';
+    let statusColor = '#10b981';
+    let statusBg = 'rgba(16, 185, 129, 0.12)';
+    let urgencyLabel = `${daysRemaining} days left`;
+
+    if (isExpired) {
+      barGradient = 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)';
+      statusColor = '#ef4444';
+      statusBg = 'rgba(239, 68, 68, 0.15)';
+      urgencyLabel = 'Term Expired';
+    } else if (daysRemaining <= 1) {
+      barGradient = 'linear-gradient(90deg, #f43f5e 0%, #e11d48 100%)';
+      statusColor = '#f43f5e';
+      statusBg = 'rgba(244, 63, 94, 0.15)';
+      urgencyLabel = daysRemaining === 1 ? 'Expires Tomorrow!' : 'Expires Today!';
+    } else if (daysRemaining <= 3) {
+      barGradient = 'linear-gradient(90deg, #f43f5e 0%, #e11d48 100%)';
+      statusColor = '#f43f5e';
+      statusBg = 'rgba(244, 63, 94, 0.15)';
+      urgencyLabel = `Critical: ${daysRemaining} days left`;
+    } else if (daysRemaining <= 7) {
+      barGradient = 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)';
+      statusColor = '#f97316';
+      statusBg = 'rgba(249, 115, 22, 0.15)';
+      urgencyLabel = `Warning: ${daysRemaining} days left`;
+    } else if (daysRemaining <= 30) {
+      barGradient = 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)';
+      statusColor = '#f59e0b';
+      statusBg = 'rgba(245, 158, 11, 0.15)';
+      urgencyLabel = `${daysRemaining} days left`;
+    }
+
+    return (
+      <div style={{
+        marginTop: isCompact ? '0.45rem' : '0.65rem',
+        marginBottom: isCompact ? '0.55rem' : '0.75rem',
+        background: 'var(--bg-main)',
+        padding: isCompact ? '0.6rem 0.75rem' : '0.75rem 0.85rem',
+        borderRadius: '10px',
+        border: `1px solid ${daysRemaining <= 7 ? statusColor + '55' : 'var(--border-color)'}`
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem', fontSize: '0.75rem' }}>
+          <span style={{ fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Clock size={13} style={{ color: statusColor }} /> Subscription Validity
+          </span>
+          <span style={{
+            fontSize: '0.72rem',
+            fontWeight: '800',
+            color: statusColor,
+            background: statusBg,
+            padding: '2px 8px',
+            borderRadius: '999px',
+            border: `1px solid ${statusColor}44`,
+            letterSpacing: '0.2px'
+          }}>
+            {urgencyLabel}
+          </span>
+        </div>
+
+        {/* Dynamic Progress Bar */}
+        <div style={{
+          width: '100%',
+          height: '8px',
+          backgroundColor: 'rgba(148, 163, 184, 0.2)',
+          borderRadius: '999px',
+          overflow: 'hidden',
+          position: 'relative'
+        }}>
+          <div style={{
+            width: `${percentElapsed}%`,
+            height: '100%',
+            background: barGradient,
+            borderRadius: '999px',
+            transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: `0 0 10px ${statusColor}40`
+          }} />
+        </div>
+
+        {/* Start / Expiry Timestamps */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.45rem', fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+          <span>Start: <strong style={{ color: 'var(--text-main)' }}>{startDateStr || 'N/A'}</strong></span>
+          <span style={{ fontWeight: '600' }}>{percentElapsed}% elapsed</span>
+          <span>Expiry: <strong style={{ color: statusColor }}>{expiryDateStr}</strong></span>
+        </div>
+
+        {/* Reminder dispatch badges */}
+        {sub.reminders_sent && Object.keys(sub.reminders_sent).length > 0 && (
+          <div style={{ marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px dashed var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+            <Mail size={11} color="var(--primary)" />
+            <span>Reminders Sent:</span>
+            {Object.keys(sub.reminders_sent).map(k => (
+              <span key={k} style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
+                {k.replace('_', ' ')}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleCreatePayroll = async (e) => {
     e.preventDefault();
     try {
@@ -4492,7 +4661,7 @@ const normalizeTabName = (rawTab) => {
       icon: CreditCard,
       color: '#f43f5e',
       btnText: 'View Subscriptions',
-      show: canRead('subscriptions') || isSalesAdmin || isSuperAdmin
+      show: canRead('subscriptions') || isSalesAdmin || isSuperAdmin || (isCustomer && data?.subscriptions?.length > 0)
     },
     {
       id: 'careers',
@@ -4720,9 +4889,15 @@ const normalizeTabName = (rawTab) => {
               <span className="badge-tag" style={{ background: getRoleBadgeStyle(currentRole).bg, color: getRoleBadgeStyle(currentRole).color, fontSize: '0.85rem' }}>
                 Role: {getRoleBadgeStyle(currentRole).label}
               </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--accent-emerald)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Database size={14} /> Sync is Live
-              </span>
+              <a 
+                href="http://localhost:8888/phpMyAdmin/index.php?route=/database/structure&db=nova_website"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: '0.8rem', color: 'var(--accent-emerald)', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                title="Open Localhost MAMP phpMyAdmin Database Manager (http://localhost:8888/phpMyAdmin/)"
+              >
+                <Database size={14} /> MAMP Database <ExternalLink size={11} />
+              </a>
             </div>
             <h1 style={{ fontSize: '2.2rem' }}>Nova Management Portal</h1>
           </div>
@@ -4984,7 +5159,7 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isSalesAdmin || isSuperAdmin || canRead('subscriptions')) && (
+          {(isSalesAdmin || isSuperAdmin || canRead('subscriptions') || (isCustomer && data?.subscriptions?.length > 0)) && (
             <button
               onClick={() => updateActiveTab('subscriptions')}
               className="btn-secondary"
@@ -6782,7 +6957,7 @@ const normalizeTabName = (rawTab) => {
                       <button
                         onClick={fetchForensics}
                         className="btn-secondary"
-                        style={{ padding: '0.55rem 0.9rem', fontSize: '0.8rem', gap: '4px' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', gap: '4px' }}
                       >
                         <RefreshCw size={14} /> Refresh Logs
                       </button>
@@ -6806,7 +6981,7 @@ const normalizeTabName = (rawTab) => {
                               }
                             }}
                             className="btn-secondary"
-                            style={{ padding: '0.55rem 0.9rem', fontSize: '0.8rem', gap: '4px', borderColor: '#f59e0b', color: '#f59e0b' }}
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', gap: '4px', borderColor: '#f59e0b', color: '#f59e0b' }}
                             title="Purge all system audit logs older than 3 years automatically"
                           >
                             <Clock3 size={14} /> Purge &gt;3 Years Logs
@@ -6829,7 +7004,7 @@ const normalizeTabName = (rawTab) => {
                               }
                             }}
                             className="btn-secondary"
-                            style={{ padding: '0.55rem 0.9rem', fontSize: '0.8rem', color: '#ef4444', borderColor: '#ef4444' }}
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', borderColor: '#ef4444' }}
                           >
                             <Trash size={14} /> Clear All Logs
                           </button>
@@ -7892,7 +8067,16 @@ const normalizeTabName = (rawTab) => {
                                   <button
                                     onClick={() => handleRejectCompanyExpense(e.id)}
                                     className="btn-secondary"
-                                    style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)', gap: '3px' }}
+                                    disabled={isApproved}
+                                    style={{ 
+                                      padding: '0.3rem 0.6rem', 
+                                      fontSize: '0.75rem', 
+                                      color: isApproved ? 'var(--text-muted)' : '#ef4444', 
+                                      borderColor: isApproved ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.4)', 
+                                      opacity: isApproved ? 0.5 : 1,
+                                      cursor: isApproved ? 'not-allowed' : 'pointer',
+                                      gap: '3px' 
+                                    }}
                                   >
                                     <AlertCircle size={12} /> Reject
                                   </button>
@@ -8031,8 +8215,8 @@ const normalizeTabName = (rawTab) => {
                           <span className="badge-tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9' }}>
                             {j.department}
                           </span>
-                          <span className="badge-tag" style={{ background: j.status === 'open' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: j.status === 'open' ? 'var(--accent-emerald)' : '#ef4444' }}>
-                            {j.status === 'open' ? 'Active Recruitment' : 'Closed'}
+                          <span className="badge-tag" style={{ background: (j.status === 'open' && !j.isExpired) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: (j.status === 'open' && !j.isExpired) ? 'var(--accent-emerald)' : '#ef4444' }}>
+                            {j.isExpired ? 'Expired' : (j.status === 'open' ? 'Active Recruitment' : 'Closed')}
                           </span>
                         </div>
                         <h4 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '0.4rem' }}>{j.title}</h4>
@@ -10974,11 +11158,25 @@ const normalizeTabName = (rawTab) => {
                       <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Hosting</h3>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Monitor active licenses linked with active tax invoices, view calculated expiry dates, extend terms, or suspend/terminate subscriptions mid-term.</p>
                     </div>
-                    {canCreate('subscriptions') && (
-                      <button onClick={() => setShowSubscriptionModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
-                        <Plus size={16} /> Log New Subscription Renewal
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {currentRole !== 'customer' && (
+                        <button
+                          type="button"
+                          onClick={handleTriggerSubscriptionReminders}
+                          disabled={triggeringReminders}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          title="Trigger automated scan and dispatch email reminders for subscriptions nearing expiry"
+                        >
+                          <Mail size={15} /> {triggeringReminders ? 'Checking Expirations...' : 'Check & Trigger Expiry Emails'}
+                        </button>
+                      )}
+                      {canCreate('subscriptions') && (
+                        <button onClick={() => setShowSubscriptionModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
+                          <Plus size={16} /> Log New Subscription Renewal
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Search Bar */}
@@ -11110,22 +11308,37 @@ const normalizeTabName = (rawTab) => {
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}> / term</span>
                           </div>
 
-                          {/* Start & Expiry Dates */}
-                          <div style={{ fontSize: '0.775rem', padding: '0.6rem', background: 'rgba(99, 102, 241, 0.06)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.15)', marginBottom: '1rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>Start:</span>
-                              <strong>{s.start_date || '2026-08-01'}</strong>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: 'var(--text-muted)' }}>Calculated Expiry:</span>
-                              <strong style={{ color: statusColor }}>{s.expiry_date || '2026-09-01'}</strong>
-                            </div>
-                          </div>
+                          {/* Dynamic Subscription Expiry Progress Bar */}
+                          {renderSubscriptionProgressBar(s)}
                         </div>
+
+                        {/* Customer Direct Renewal Action */}
+                        {(currentRole === 'customer' || user?.role === 'customer') && (
+                          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', marginTop: '0.5rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => setActivePage('subscription')}
+                              className="btn-primary"
+                              style={{ width: '100%', justifyContent: 'center', padding: '0.55rem', fontSize: '0.825rem' }}
+                            >
+                              Renew Package Now
+                            </button>
+                          </div>
+                        )}
 
                         {/* Mid-Term Action Controls — Staff Access */}
                         {(currentRole !== 'customer' && user?.role !== 'customer') && (
                           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleSendSingleSubscriptionReminder(s.id, s.plan_name, s.customer_email)}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#0284c7', borderColor: '#0284c7', justifyContent: 'center' }}
+                              title="Send formal expiry / renewal advisory email to client immediately"
+                            >
+                              <Mail size={12} /> Send Notice
+                            </button>
+
                             {canUpdate('subscriptions') && (
                               <>
                                 {s.status === 'Active' ? (
@@ -11577,17 +11790,19 @@ const normalizeTabName = (rawTab) => {
                             </div>
 
                             {/* Cover Letter Snippet */}
-                            <div 
-                              style={{ background: 'rgba(14, 165, 233, 0.05)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.15)', fontSize: '0.775rem', color: 'var(--text-main)', lineHeight: '1.4', marginBottom: '0.75rem', minHeight: '52px', cursor: 'pointer' }}
-                              onClick={(e) => {
-                                e.currentTarget.style.maxHeight = e.currentTarget.style.maxHeight === 'none' ? '60px' : 'none';
-                                e.currentTarget.style.overflow = e.currentTarget.style.maxHeight === 'none' ? 'visible' : 'hidden';
-                              }}
-                              title="Click to expand/collapse"
-                            >
-                              <strong style={{ display: 'block', color: '#0ea5e9', marginBottom: '0.2rem' }}>Cover Letter:</strong>
-                              {app.cover_letter ? app.cover_letter : <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>No cover letter attached.</span>}
-                            </div>
+                            {app.cover_letter && (
+                              <div
+                                style={{ background: 'rgba(14, 165, 233, 0.05)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.15)', fontSize: '0.775rem', color: 'var(--text-main)', lineHeight: '1.4', marginBottom: '0.75rem', minHeight: '52px', cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.currentTarget.style.maxHeight = e.currentTarget.style.maxHeight === 'none' ? '60px' : 'none';
+                                  e.currentTarget.style.overflow = e.currentTarget.style.maxHeight === 'none' ? 'visible' : 'hidden';
+                                }}
+                                title="Click to expand/collapse"
+                              >
+                                <strong style={{ display: 'block', color: '#0ea5e9', marginBottom: '0.2rem' }}>Cover Letter:</strong>
+                                {app.cover_letter}
+                              </div>
+                            )}
 
                             {app.resume_url && (
                               <div style={{ marginBottom: '0.75rem' }}>
@@ -13597,7 +13812,7 @@ const normalizeTabName = (rawTab) => {
                         onClick={loadAnalyticsData}
                         disabled={analyticsLoading}
                         className="btn-secondary"
-                        style={{ padding: '0.55rem 0.9rem', fontSize: '0.8rem', gap: '0.4rem' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', gap: '0.4rem' }}
                       >
                         <RefreshCw size={14} className={analyticsLoading ? 'spin' : ''} /> {analyticsLoading ? 'Refreshing...' : 'Refresh Stats'}
                       </button>
@@ -13613,28 +13828,28 @@ const normalizeTabName = (rawTab) => {
                       <button
                         onClick={() => generateBalanceSheetPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                         className="btn-primary"
-                        style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', background: '#0284c7', justifyContent: 'center', gap: '6px' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#0284c7', justifyContent: 'center', gap: '6px' }}
                       >
                         <Download size={14} /> Balance Sheet (PDF)
                       </button>
                       <button
                         onClick={() => generateProfitLossPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                         className="btn-primary"
-                        style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', background: '#8b5cf6', justifyContent: 'center', gap: '6px' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#8b5cf6', justifyContent: 'center', gap: '6px' }}
                       >
                         <Download size={14} /> Profit & Loss Statement (PDF)
                       </button>
                       <button
                         onClick={() => generateExpenseReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                         className="btn-primary"
-                        style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', background: '#ef4444', justifyContent: 'center', gap: '6px' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#ef4444', justifyContent: 'center', gap: '6px' }}
                       >
                         <Download size={14} /> Expense Audit Report (PDF)
                       </button>
                       <button
                         onClick={() => generateSalesReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
                         className="btn-primary"
-                        style={{ padding: '0.6rem 0.85rem', fontSize: '0.8rem', background: '#10b981', justifyContent: 'center', gap: '6px' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#10b981', justifyContent: 'center', gap: '6px' }}
                       >
                         <Download size={14} /> Sales Velocity Report (PDF)
                       </button>
@@ -14364,7 +14579,7 @@ const normalizeTabName = (rawTab) => {
                                   {sub.status || 'Active'}
                                 </span>
                               </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Start: {sub.start_date || '2026-08-25'} | Expiry: {sub.expiry_date}</div>
+                              {renderSubscriptionProgressBar(sub, true)}
                               {sub.attachedInvoice && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(99, 102, 241, 0.08)', padding: '0.4rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem' }}>
                                   <span>100% Paid Invoice: <button onClick={() => setSelectedInvoice(sub.attachedInvoice)} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>#{sub.attachedInvoice.invoice_number}</button></span>
@@ -20401,6 +20616,17 @@ const normalizeTabName = (rawTab) => {
                       value={jobForm.deadline}
                       onChange={e => setJobForm({ ...jobForm, deadline: e.target.value })}
                     />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Status</label>
+                    <select
+                      className="form-input"
+                      value={jobForm.status || 'open'}
+                      onChange={e => setJobForm({ ...jobForm, status: e.target.value })}
+                    >
+                      <option value="open">Open (Active)</option>
+                      <option value="closed">Closed</option>
+                    </select>
                   </div>
                 </div>
 

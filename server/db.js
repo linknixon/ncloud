@@ -17,17 +17,29 @@ try {
   console.error("Failed to load seedData.json:", err.message);
 }
 
-// Create MySQL Connection Pool
+// Determine MAMP defaults if running locally on macOS
+const isMac = process.platform === 'darwin';
+const isMampEnvironment = isMac && (fs.existsSync('/Applications/MAMP') || fs.existsSync('/Applications/MAMP/tmp/mysql'));
+
+const dbHost = process.env.DB_HOST || '127.0.0.1';
+const dbPort = Number(process.env.DB_PORT) || (isMampEnvironment ? 8889 : 3306);
+const dbUser = process.env.DB_USER || 'root';
+const dbPassword = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : (isMampEnvironment ? 'root' : '');
+const dbName = process.env.DB_NAME || 'nova_website';
+
+// Create MySQL Connection Pool (supports MAMP localhost:8889 and standard MySQL)
 export const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'nova_website',
-  port: process.env.DB_PORT || 3306,
+  host: dbHost,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
+  port: dbPort,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
+
+console.log(`[Database Config] Configured MySQL connection for ${dbUser}@${dbHost}:${dbPort}/${dbName}`);
 
 let isMysqlOffline = false;
 

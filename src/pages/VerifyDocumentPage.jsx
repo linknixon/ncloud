@@ -318,6 +318,16 @@ export default function VerifyDocumentPage({ setActivePage }) {
                   💳 Pay Now
                 </button>
               )}
+
+              {balanceDue === 0 && !isWorkOrder && !isQuotation && !isExpense && !isDeliveryNote && (
+                <a
+                  href="/subscription"
+                  className="btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem', background: '#0ea5e9', textDecoration: 'none' }}
+                >
+                  <ShieldCheck size={15} /> Manage Subscription
+                </a>
+              )}
             </div>
           )}
         </div>

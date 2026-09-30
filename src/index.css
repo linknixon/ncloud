@@ -569,8 +569,8 @@ select option {
     width: 95vw !important;
   }
   .btn-primary, .btn-secondary {
-    padding: 0.65rem 1.1rem !important;
-    font-size: 0.85rem !important;
+    padding: 0.65rem 1.1rem;
+    font-size: 0.85rem;
   }
   .responsive-grid-shop {
     grid-template-columns: 1fr !important;

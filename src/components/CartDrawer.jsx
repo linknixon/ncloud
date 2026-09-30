@@ -20,7 +20,16 @@ export default function CartDrawer({ onCheckout }) {
 
   const handleCheckoutClick = () => {
     setIsCartOpen(false);
-    onCheckout();
+    const hasHostingItem = cart.some(item => isHostingCategoryItem(item));
+    if (hasHostingItem) {
+      onCheckout();
+    } else {
+      if (openDirectCheckout) {
+        openDirectCheckout(cart);
+      } else {
+        onCheckout();
+      }
+    }
   };
 
   return (

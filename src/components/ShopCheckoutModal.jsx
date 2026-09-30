@@ -222,7 +222,7 @@ export default function ShopCheckoutModal() {
       plan_name: mainProductName,
       amount: grandTotal,
       currency: selectedItems[0]?.currency || 'UGX',
-      payment_method: 'Direct Shop Order & Tax Invoice',
+      payment_method: 'Standard Checkout',
       user_email: user?.email || customerInfo.email,
       customer_name: customerInfo.name,
       customer_email: customerInfo.email,

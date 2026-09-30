@@ -6,7 +6,6 @@ import AuthModal from './components/AuthModal';
 import EditProfileModal from './components/EditProfileModal';
 import CartDrawer from './components/CartDrawer';
 import Toast from './components/Toast';
-import BackToTop from './components/BackToTop';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import HomePage from './pages/HomePage';
@@ -189,7 +188,6 @@ export default function App() {
           <CartDrawer onCheckout={() => setActivePage('subscription')} />
           <ShopCheckoutModal />
           <Toast />
-          <BackToTop />
           <InstallPrompt />
         </div>
       </ErrorBoundary>

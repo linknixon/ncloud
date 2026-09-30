@@ -39,7 +39,7 @@ export default function Navbar({ activePage, setActivePage }) {
   const handleProfileMouseLeave = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setShowProfileDropdown(false);
-    }, 250);
+    }, 450);
   };
 
   const getInitials = (name) => {
@@ -606,9 +606,11 @@ export default function Navbar({ activePage, setActivePage }) {
               {/* Hover Floating Dropdown Menu */}
               {showProfileDropdown && (
                 <div 
+                  onMouseEnter={handleProfileMouseEnter}
+                  onMouseLeave={handleProfileMouseLeave}
                   style={{
                     position: 'absolute',
-                    top: 'calc(100% + 8px)',
+                    top: '100%',
                     right: 0,
                     width: '290px',
                     background: 'var(--bg-card)',
@@ -617,7 +619,8 @@ export default function Navbar({ activePage, setActivePage }) {
                     boxShadow: '0 12px 32px rgba(0, 0, 0, 0.25)',
                     zIndex: 1100,
                     padding: '0.85rem',
-                    animation: 'fadeInSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    animation: 'fadeInSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    marginTop: '2px'
                   }}
                 >
                   {/* Header User Card */}

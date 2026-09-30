@@ -2428,11 +2428,40 @@ app.delete('/api/team/:id', requireSuperAdmin, async (req, res) => {
 // Job Openings & Application Endpoints
 // ----------------------------------------------------
 app.get('/api/jobs', async (req, res) => {
-  const dbRes = await query('SELECT * FROM jobs WHERE status = "open" ORDER BY id ASC');
-  if (dbRes.success && dbRes.data.length > 0) {
-    return res.json(dbRes.data);
-  }
-  res.json(memoryStore.jobs);
+  const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
+  let jobsList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : memoryStore.jobs;
+  
+  // Filter out closed and expired jobs for the public
+  const now = new Date();
+  jobsList = jobsList.filter(j => {
+    if (j.status !== 'open') return false;
+    if (j.deadline) {
+      const deadlineDate = new Date(j.deadline);
+      if (deadlineDate < now) return false;
+    }
+    return true;
+  });
+  
+  res.json(jobsList);
+});
+
+// Admin endpoint to get ALL jobs (including closed/expired)
+app.get('/api/admin/jobs', async (req, res) => {
+  const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
+  let jobsList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : memoryStore.jobs;
+  
+  // Tag jobs as expired if their deadline has passed (for Admin UI)
+  const now = new Date();
+  jobsList = jobsList.map(j => {
+    let isExpired = false;
+    if (j.deadline) {
+      const deadlineDate = new Date(j.deadline);
+      if (deadlineDate < now) isExpired = true;
+    }
+    return { ...j, isExpired };
+  });
+  
+  res.json(jobsList);
 });
 
 app.get('/api/jobs/:slug', async (req, res) => {
@@ -2659,19 +2688,12 @@ app.put('/api/admin/applications/:id/hr-approve', (req, res) => {
   res.status(404).json({ error: 'Application not found' });
 });
 
-app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
+app.put('/api/admin/applications/:id/hr-reject', async (req, res) => {
   const { id } = req.params;
   const { reason, hr_name, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
-    appItem.status = 'Rejected by HR';
-    appItem.hr_rejection_reason = reason || 'Candidate screened out by HR';
-    appItem.hr_reviewed_by = hr_name || 'Systems Admin';
-    appItem.hr_reviewed_at = new Date().toISOString();
-    if (comments) appItem.hr_comments = comments;
-    savePersistentStore();
-
-    // Notify Applicant
+    // Notify Applicant (no reasons/comments included)
     const applicantEmailHtml = generateCorporateEmailHtml({
       title: 'Update on Your Application',
       badgeText: 'Application Status',
@@ -2681,19 +2703,27 @@ app.put('/api/admin/applications/:id/hr-reject', (req, res) => {
     });
     sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
 
-    return res.json({ message: `Application for "${appItem.applicant_name}" marked as Disapproved / Rejected by HR.`, application: appItem });
+    // Mark as rejected but retain for 1 year compliance
+    appItem.status = 'Rejected by HR';
+    appItem.hr_rejected_at = new Date().toISOString();
+    savePersistentStore();
+    try {
+      await query('UPDATE job_applications SET status = ? WHERE id = ?', ['Rejected by HR', id]);
+    } catch(err) {}
+
+    return res.json({ message: `Application for "${appItem.applicant_name}" has been rejected. Kept for 1-year retention policy.`, application: appItem });
   }
   res.status(404).json({ error: 'Application not found' });
 });
 
 // Stage 2: Super Admin Final Hiring & Automated User Account Creation
-app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
+app.post('/api/admin/applications/:id/super-admin-approve', async (req, res) => {
   const { id } = req.params;
   const { role, position, salary, company, supervisor_id, supervisor_name, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
     const assignedRole = role || 'staff';
-    appItem.status = 'Hired & User Account Created';
+    appItem.status = 'Archived';
     if (comments) appItem.super_admin_comments = comments;
     appItem.super_admin_approved_at = new Date().toISOString();
     appItem.assigned_role = assignedRole;
@@ -2719,7 +2749,15 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
       userRecord.role = assignedRole;
       if (position) userRecord.position = position;
     }
+
+    // Archive application (Delete from job_applications after hire)
+    memoryStore.applications = memoryStore.applications.filter(a => String(a.id) !== String(id));
     savePersistentStore();
+    try {
+      await query('DELETE FROM job_applications WHERE id = ?', [id]);
+    } catch (err) {
+      console.warn("Could not archive/delete from MySQL table:", err.message);
+    }
 
     // Notify Applicant
     const applicantEmailHtml = generateCorporateEmailHtml({
@@ -2732,25 +2770,20 @@ app.post('/api/admin/applications/:id/super-admin-approve', (req, res) => {
     sendMail({ to: appItem.email, subject: 'Congratulations! You are Hired — Nova Cloud Edges', html: applicantEmailHtml }).catch(e => console.error(e));
 
     return res.json({
-      message: `Candidate "${appItem.applicant_name}" hired successfully! System user account created with role "${assignedRole}".`,
-      application: appItem,
+      message: `Candidate "${appItem.applicant_name}" hired successfully! System user account created and application archived.`,
+      application: { ...appItem, status: 'Archived' },
       user: userRecord
     });
   }
   res.status(404).json({ error: 'Application not found' });
 });
 
-app.put('/api/admin/applications/:id/super-admin-reject', (req, res) => {
+app.put('/api/admin/applications/:id/super-admin-reject', async (req, res) => {
   const { id } = req.params;
   const { reason, comments } = req.body;
   const appItem = memoryStore.applications.find(a => String(a.id) === String(id) || Number(a.id) === Number(id));
   if (appItem) {
-    appItem.status = 'Rejected by Super Admin';
-    appItem.super_admin_rejection_reason = reason || 'Candidate rejected at executive review';
-    if (comments) appItem.super_admin_comments = comments;
-    savePersistentStore();
-
-    // Notify Applicant
+    // Notify Applicant (no reasons/comments included)
     const applicantEmailHtml = generateCorporateEmailHtml({
       title: 'Update on Your Application',
       badgeText: 'Application Status',
@@ -2760,7 +2793,15 @@ app.put('/api/admin/applications/:id/super-admin-reject', (req, res) => {
     });
     sendMail({ to: appItem.email, subject: 'Update on your Nova Cloud Job Application', html: applicantEmailHtml }).catch(e => console.error(e));
 
-    return res.json({ message: `Application for "${appItem.applicant_name}" disapproved by Super Admin.`, application: appItem });
+    // Mark as rejected but retain for 1 year compliance
+    appItem.status = 'Rejected by HR';
+    appItem.hr_rejected_at = new Date().toISOString();
+    savePersistentStore();
+    try {
+      await query('UPDATE job_applications SET status = ? WHERE id = ?', ['Rejected by HR', id]);
+    } catch(err) {}
+
+    return res.json({ message: `Application for "${appItem.applicant_name}" has been rejected. Kept for 1-year retention policy.`, application: appItem });
   }
   res.status(404).json({ error: 'Application not found' });
 });
@@ -3251,15 +3292,16 @@ function createSubscriptionForInvoice(inv) {
 }
 
 // Automated Subscription Expiry Notification & Lifecycle Engine
-function processSubscriptionLifecycles() {
+async function processSubscriptionLifecycles() {
   if (!memoryStore.subscriptions) memoryStore.subscriptions = [];
   
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   let storeChanged = false;
+  const dispatchResults = [];
 
-  memoryStore.subscriptions.forEach(sub => {
-    if (!sub.expiry_date || sub.status === 'Cancelled') return;
+  for (const sub of memoryStore.subscriptions) {
+    if (!sub.expiry_date || sub.status === 'Cancelled') continue;
 
     // Track reminders sent on subscription record
     if (!sub.reminders_sent) sub.reminders_sent = {};
@@ -3269,118 +3311,340 @@ function processSubscriptionLifecycles() {
     const diffTime = expiryDateObj.getTime() - todayDateObj.getTime();
     const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    const recipientEmail = sub.customer_email || sub.user_email;
-    if (!recipientEmail) return;
+    const recipientEmail = (sub.customer_email || sub.user_email || '').trim();
+    if (!recipientEmail) continue;
+
+    let reminderSent = null;
 
     // 1. 30 Days Before Expiry Reminder
-    if (daysRemaining <= 30 && daysRemaining > 10 && !sub.reminders_sent['30_days'] && sub.status === 'Active') {
+    if (daysRemaining <= 30 && daysRemaining > 14 && !sub.reminders_sent['30_days'] && sub.status === 'Active') {
       sub.reminders_sent['30_days'] = new Date().toISOString();
       storeChanged = true;
-      console.log(`[Subscription Reminder 30D] Sent 30-day expiry reminder for ${sub.plan_name} to ${recipientEmail}`);
+      reminderSent = { type: '30_days', label: '30 Days Remaining Notice', daysRemaining };
 
-      const emailHtml = generateEmailTemplate({
-        title: `Subscription Expiry Notice: 30 Days Remaining`,
-        subtitle: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
-        bodyContent: `
-          <p style="margin-bottom: 12px;">Dear <strong>${sub.customer_name || 'Valued Customer'}</strong>,</p>
-          <p style="margin-bottom: 14px;">This is a courtesy reminder that your subscription for <strong>${sub.plan_name}</strong> will expire in <strong>30 days</strong> on <strong>${sub.expiry_date}</strong>.</p>
-          <p style="margin-bottom: 14px;">To ensure uninterrupted access to your enterprise cloud infrastructure and managed services, please log in to your account portal to process your renewal.</p>
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'Subscription Expiry Notice (30 Days Remaining)',
+        preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: '30-DAY RENEWAL ADVISORY',
+        introText: `This is a courtesy reminder that your subscription for <strong>${sub.plan_name}</strong> is scheduled to expire in <strong>30 days</strong> on <strong>${sub.expiry_date}</strong>.<br/><br/>To guarantee zero downtime and uninterrupted access to your enterprise cloud infrastructure and support services, please log in to your account portal to process your renewal.`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #0284c7;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Current Validity Term: ${sub.start_date || 'N/A'} &rarr; ${sub.expiry_date}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 700; color: #16a34a;">${daysRemaining} Days Left</td>
+          </tr>
         `,
         ctaText: 'Renew Subscription Now',
-        ctaLink: 'https://ncloud.co.ug/customer-portal'
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
       });
 
-      sendMail({
-        to: recipientEmail,
-        subject: `Reminder: Subscription ${sub.plan_name} Expires in 30 Days (${sub.expiry_date})`,
-        html: emailHtml
-      }).catch(err => console.error('[Reminder Email Error 30D]:', err.message));
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `Reminder: Subscription ${sub.plan_name} Expires in 30 Days (${sub.expiry_date})`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Reminder 30D] Sent 30-day reminder for ${sub.plan_name} to ${recipientEmail}`);
+      } catch (err) {
+        console.error('[Reminder Email Error 30D]:', err.message);
+      }
     }
 
-    // 2. 10 Days Before Expiry Reminder
-    if (daysRemaining <= 10 && daysRemaining > 1 && !sub.reminders_sent['10_days'] && sub.status === 'Active') {
-      sub.reminders_sent['10_days'] = new Date().toISOString();
+    // 2. 14 Days Before Expiry Reminder
+    if (daysRemaining <= 14 && daysRemaining > 7 && !sub.reminders_sent['14_days'] && sub.status === 'Active') {
+      sub.reminders_sent['14_days'] = new Date().toISOString();
       storeChanged = true;
-      console.log(`[Subscription Reminder 10D] Sent 10-day expiry reminder for ${sub.plan_name} to ${recipientEmail}`);
+      reminderSent = { type: '14_days', label: '14 Days Remaining Notice', daysRemaining };
 
-      const emailHtml = generateEmailTemplate({
-        title: `Reminder Notice: 10 Days Before Expiry`,
-        subtitle: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
-        bodyContent: `
-          <p style="margin-bottom: 12px;">Dear <strong>${sub.customer_name || 'Valued Customer'}</strong>,</p>
-          <p style="margin-bottom: 14px;">Your subscription for <strong>${sub.plan_name}</strong> is scheduled to expire in <strong>10 days</strong> on <strong>${sub.expiry_date}</strong>.</p>
-          <p style="margin-bottom: 14px; color: #b45309; font-weight: 700;">Important: Please renew your service package promptly to avoid service disruption.</p>
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'Upcoming Expiry Notice: 14 Days Remaining',
+        preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: '14-DAY ADVANCE NOTICE',
+        introText: `Your subscription for <strong>${sub.plan_name}</strong> will expire in <strong>14 days</strong> on <strong>${sub.expiry_date}</strong>.<br/><br/>Please review and initiate your renewal invoice settlement promptly to avoid any scheduled service interruption.`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #0284c7;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Expiry Term: ${sub.start_date || 'N/A'} &rarr; ${sub.expiry_date}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 700; color: #f59e0b;">${daysRemaining} Days Left</td>
+          </tr>
+        `,
+        ctaText: 'Process Renewal Settlement',
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
+      });
+
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `Notice: 14 Days Remaining for Subscription ${sub.plan_name}`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Reminder 14D] Sent 14-day reminder for ${sub.plan_name} to ${recipientEmail}`);
+      } catch (err) {
+        console.error('[Reminder Email Error 14D]:', err.message);
+      }
+    }
+
+    // 3. 7 Days Before Expiry Reminder
+    if (daysRemaining <= 7 && daysRemaining > 3 && !sub.reminders_sent['7_days'] && sub.status === 'Active') {
+      sub.reminders_sent['7_days'] = new Date().toISOString();
+      storeChanged = true;
+      reminderSent = { type: '7_days', label: '7 Days Remaining Notice', daysRemaining };
+
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'URGENT: Subscription Expires in 7 Days',
+        preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: '7-DAY URGENT NOTICE',
+        introText: `Your subscription for <strong>${sub.plan_name}</strong> will expire in <strong>7 days</strong> on <strong>${sub.expiry_date}</strong>.<br/><br/><strong style="color: #ea580c;">Urgent:</strong> To prevent service downtime, please settle your renewal package now.`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #ea580c;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Expiry Term: ${sub.start_date || 'N/A'} &rarr; ${sub.expiry_date}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 800; color: #ea580c;">${daysRemaining} Days Left</td>
+          </tr>
         `,
         ctaText: 'Renew Package Now',
-        ctaLink: 'https://ncloud.co.ug/customer-portal'
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
       });
 
-      sendMail({
-        to: recipientEmail,
-        subject: `Urgent: 10 Days Remaining for Subscription ${sub.plan_name}`,
-        html: emailHtml
-      }).catch(err => console.error('[Reminder Email Error 10D]:', err.message));
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `Urgent: Subscription ${sub.plan_name} Expires in 7 Days (${sub.expiry_date})`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Reminder 7D] Sent 7-day reminder for ${sub.plan_name} to ${recipientEmail}`);
+      } catch (err) {
+        console.error('[Reminder Email Error 7D]:', err.message);
+      }
     }
 
-    // 3. 1 Day Before Expiry Reminder
+    // 4. 3 Days Before Expiry Reminder
+    if (daysRemaining <= 3 && daysRemaining > 1 && !sub.reminders_sent['3_days'] && sub.status === 'Active') {
+      sub.reminders_sent['3_days'] = new Date().toISOString();
+      storeChanged = true;
+      reminderSent = { type: '3_days', label: '3 Days Critical Notice', daysRemaining };
+
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'CRITICAL ALERT: Subscription Expires in 3 Days',
+        preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'CRITICAL EXPIRY ALERT',
+        introText: `Your subscription for <strong>${sub.plan_name}</strong> will expire in <strong>3 days</strong> on <strong>${sub.expiry_date}</strong>.<br/><br/><strong style="color: #dc2626;">Immediate action required:</strong> To prevent service disruption, please submit your renewal remittance today.`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #dc2626;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
+        `,
+        ctaText: 'Complete Renewal Now',
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
+      });
+
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `CRITICAL: Subscription ${sub.plan_name} Expires in 3 Days (${sub.expiry_date})`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Reminder 3D] Sent 3-day reminder for ${sub.plan_name} to ${recipientEmail}`);
+      } catch (err) {
+        console.error('[Reminder Email Error 3D]:', err.message);
+      }
+    }
+
+    // 5. 1 Day / Tomorrow Expiry Reminder
     if (daysRemaining <= 1 && daysRemaining >= 0 && !sub.reminders_sent['1_day'] && sub.status === 'Active') {
       sub.reminders_sent['1_day'] = new Date().toISOString();
       storeChanged = true;
-      console.log(`[Subscription Reminder 1D] Sent 1-day expiry reminder for ${sub.plan_name} to ${recipientEmail}`);
+      reminderSent = { type: '1_day', label: '1 Day Final Notice', daysRemaining };
 
-      const emailHtml = generateEmailTemplate({
-        title: `FINAL REMINDER: Subscription Expires Tomorrow!`,
-        subtitle: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
-        bodyContent: `
-          <p style="margin-bottom: 12px;">Dear <strong>${sub.customer_name || 'Valued Customer'}</strong>,</p>
-          <p style="margin-bottom: 14px;">This is your final advance reminder: Your subscription for <strong>${sub.plan_name}</strong> will expire <strong>tomorrow, ${sub.expiry_date}</strong>.</p>
-          <p style="margin-bottom: 14px; color: #dc2626; font-weight: 800;">To prevent service deactivation, please complete your renewal payment today.</p>
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'FINAL REMINDER: Subscription Expires Tomorrow!',
+        preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'FINAL EXPIRY NOTICE',
+        introText: `This is your final advance reminder: Your enterprise subscription for <strong>${sub.plan_name}</strong> will expire <strong>tomorrow, ${sub.expiry_date}</strong>.<br/><br/><strong style="color: #dc2626; font-size: 16px;">To prevent immediate deactivation, please complete your renewal settlement today.</strong>`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 900; color: #dc2626;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
         `,
         ctaText: 'Process Immediate Renewal',
-        ctaLink: 'https://ncloud.co.ug/customer-portal'
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
       });
 
-      sendMail({
-        to: recipientEmail,
-        subject: `FINAL NOTICE: ${sub.plan_name} Expires Tomorrow (${sub.expiry_date})`,
-        html: emailHtml
-      }).catch(err => console.error('[Reminder Email Error 1D]:', err.message));
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `FINAL NOTICE: ${sub.plan_name} Expires Tomorrow (${sub.expiry_date})`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Reminder 1D] Sent 1-day reminder for ${sub.plan_name} to ${recipientEmail}`);
+      } catch (err) {
+        console.error('[Reminder Email Error 1D]:', err.message);
+      }
     }
 
-    // 4. On Expiry Date / Post-Expiry Notification (No auto-renewal invoice created!)
+    // 6. Post-Expiry Notification
     if (daysRemaining < 0 && sub.status !== 'Expired' && !sub.reminders_sent['expired']) {
       sub.status = 'Expired';
       sub.reminders_sent['expired'] = new Date().toISOString();
       storeChanged = true;
-      console.log(`[Subscription Expired] Subscription #${sub.id} (${sub.plan_name}) for ${recipientEmail} HAS EXPIRED on ${sub.expiry_date}. Status set to Expired.`);
+      reminderSent = { type: 'expired', label: 'Term Expired Notice', daysRemaining };
 
-      const emailHtml = generateEmailTemplate({
-        title: `NOTICE: Subscription Has Expired`,
-        subtitle: `Ref #${sub.reference || sub.id} • Expired On: ${sub.expiry_date}`,
-        bodyContent: `
-          <p style="margin-bottom: 12px;">Dear <strong>${sub.customer_name || 'Valued Customer'}</strong>,</p>
-          <p style="margin-bottom: 14px;">Your subscription for <strong>${sub.plan_name}</strong> has reached its term end and expired on <strong>${sub.expiry_date}</strong>.</p>
-          <p style="margin-bottom: 14px; color: #dc2626; font-weight: 700;">Please log in to your Nova Cloud Edges account portal to submit your renewal order and restore your active service status.</p>
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'NOTICE: Subscription Term Has Expired',
+        preheader: `Ref #${sub.reference || sub.id} • Expired On: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'SERVICE TERM EXPIRED',
+        introText: `Your subscription for <strong>${sub.plan_name}</strong> has reached its term end and expired on <strong>${sub.expiry_date}</strong>.<br/><br/><strong style="color: #dc2626;">Please log in to your Nova Cloud Edges account portal to submit your renewal payment and restore your active service status.</strong>`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #dc2626;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+          </tr>
         `,
         ctaText: 'Reactivate & Renew Package',
-        ctaLink: 'https://ncloud.co.ug/customer-portal'
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
       });
 
-      sendMail({
-        to: recipientEmail,
-        subject: `EXPIRY NOTICE: Subscription ${sub.plan_name} Expired (${sub.expiry_date})`,
-        html: emailHtml
-      }).catch(err => console.error('[Expiry Email Error]:', err.message));
+      try {
+        await sendMail({
+          to: recipientEmail,
+          subject: `EXPIRY NOTICE: Subscription ${sub.plan_name} Expired (${sub.expiry_date})`,
+          html: emailHtml
+        });
+        console.log(`[Subscription Expired] Subscription #${sub.id} (${sub.plan_name}) marked Expired on ${sub.expiry_date}`);
+      } catch (err) {
+        console.error('[Expiry Email Error]:', err.message);
+      }
     }
-  });
+
+    if (reminderSent) {
+      dispatchResults.push({
+        id: sub.id,
+        plan_name: sub.plan_name,
+        customer_email: recipientEmail,
+        customer_name: sub.customer_name,
+        days_remaining: daysRemaining,
+        reminder_type: reminderSent.type,
+        reminder_label: reminderSent.label
+      });
+
+      // Audit Log
+      if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+      memoryStore.audit_logs.unshift({
+        id: memoryStore.audit_logs.length + 1,
+        user_email: 'system.scheduler@ncloud.co.ug',
+        user_name: 'Automated Subscription Engine',
+        user_role: 'system',
+        action: 'SUBSCRIPTION_EXPIRY_REMINDER_SENT',
+        resource_type: 'Subscriptions',
+        resource_id: String(sub.id),
+        details: `Dispatched ${reminderSent.label} for subscription "${sub.plan_name}" (Ref: ${sub.reference || sub.id}) to ${recipientEmail}. Expiry Date: ${sub.expiry_date} (${daysRemaining} days left).`,
+        ip_address: '127.0.0.1',
+        device_type: 'System Cron',
+        status: 'SUCCESS',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
 
   if (storeChanged) {
     savePersistentStore();
   }
+
+  return dispatchResults;
 }
 
-// Run lifecycle check every 4 hours
-setInterval(processSubscriptionLifecycles, 4 * 60 * 60 * 1000);
+// Send manual reminder for a single subscription
+async function sendManualSubscriptionReminder(sub) {
+  if (!sub || !sub.expiry_date) return { success: false, error: 'Subscription missing or has no expiry date' };
+  const recipientEmail = (sub.customer_email || sub.user_email || '').trim();
+  if (!recipientEmail) return { success: false, error: 'No customer email attached' };
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const expiryDateObj = new Date(sub.expiry_date + 'T00:00:00Z');
+  const todayDateObj = new Date(todayStr + 'T00:00:00Z');
+  const diffTime = expiryDateObj.getTime() - todayDateObj.getTime();
+  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const isExpired = daysRemaining <= 0;
+  const title = isExpired 
+    ? `Subscription Expired Advisory: ${sub.plan_name}`
+    : `Subscription Expiry Notice (${daysRemaining > 0 ? daysRemaining + ' Days Left' : 'Due Today'})`;
+  const badgeText = isExpired ? 'EXPIRED SUBSCRIPTION' : (daysRemaining <= 3 ? 'URGENT RENEWAL' : 'RENEWAL ADVISORY');
+
+  const emailHtml = generateCorporateEmailHtml({
+    title,
+    preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
+    recipientName: sub.customer_name || 'Valued Customer',
+    badgeText,
+    introText: isExpired
+      ? `This is a formal advisory regarding your subscription for <strong>${sub.plan_name}</strong> which expired on <strong>${sub.expiry_date}</strong>.<br/><br/>Please process your renewal order to reactivate full enterprise service.`
+      : `This is an official advance reminder regarding your subscription for <strong>${sub.plan_name}</strong> which is scheduled to expire on <strong>${sub.expiry_date}</strong> (<strong>${daysRemaining} days remaining</strong>).<br/><br/>To ensure continuous, uninterrupted uptime, please review and settle your renewal package.`,
+    itemsRows: `
+      <tr>
+        <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+        <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+        <td style="text-align: right; font-weight: 800; color: #0284c7;">UGX ${Number(sub.amount || 0).toLocaleString()}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="font-size: 13px; color: #64748b;">Validity Term: ${sub.start_date || 'N/A'} &rarr; ${sub.expiry_date}</td>
+        <td style="text-align: right; font-size: 13px; font-weight: 700; color: ${isExpired ? '#ef4444' : '#16a34a'};">${isExpired ? 'Expired' : `${daysRemaining} Days Left`}</td>
+      </tr>
+    `,
+    ctaText: 'Renew Subscription Now',
+    ctaLink: 'https://ncloud.co.ug/customer-portal',
+    hidePaymentMethods: false
+  });
+
+  await sendMail({
+    to: recipientEmail,
+    subject: `${badgeText}: ${sub.plan_name} Expiry Notification (${sub.expiry_date})`,
+    html: emailHtml
+  });
+
+  if (!sub.reminders_sent) sub.reminders_sent = {};
+  sub.reminders_sent['manual_' + Date.now()] = new Date().toISOString();
+  savePersistentStore();
+
+  return { success: true, recipient: recipientEmail, daysRemaining };
+}
+
+// Run lifecycle check at boot (after 5 seconds) and every 2 hours
+setTimeout(() => {
+  processSubscriptionLifecycles().catch(e => console.error('[Subscription Engine Startup Error]:', e));
+}, 5000);
+setInterval(() => {
+  processSubscriptionLifecycles().catch(e => console.error('[Subscription Engine Interval Error]:', e));
+}, 2 * 60 * 60 * 1000);
 
 // ----------------------------------------------------
 // Subscriptions Payment Endpoints
@@ -3654,12 +3918,12 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
           introText: `Thank you for your order! Your subscription order for <strong>"${plan_name}"</strong> has been received. Your official verifiable Tax Invoice <strong>#${invNum}</strong> (Order Ref: <strong>#${reference}</strong>) details are provided below and the certified PDF is attached for your accounting records. Status is currently <strong>Pending Payment</strong>.`,
           itemsRows: inputItems.map(it => `
             <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #334155;">
-                <strong style="color: #ffffff;">${it.name || it.description}</strong><br/>
+              <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                <strong style="color: #0f172a;">${it.name || it.description}</strong><br/>
                 <span style="font-size: 11px; color: #94a3b8;">Order Ref: ${reference}</span>
               </td>
-              <td style="text-align: center; padding: 10px 0; border-bottom: 1px solid #334155;">${it.quantity || it.qty || 1}</td>
-              <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #334155; font-weight: 700; color: #ffffff;">UGX ${Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || it.qty || 1))).toLocaleString()}</td>
+              <td style="text-align: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">${it.quantity || it.qty || 1}</td>
+              <td style="text-align: right; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #0f172a;">UGX ${Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || it.qty || 1))).toLocaleString()}</td>
             </tr>
           `).join(''),
           subtotalText: `UGX ${Number(amount).toLocaleString()}`,
@@ -8544,42 +8808,42 @@ function generateCorporateEmailHtml({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body, table, td, a { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
-    body { background-color: #f1f5f9; color: #334155; margin: 0; padding: 40px 15px; }
-    .email-container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
+    body { background-color: #0f172a; color: #3c4043; margin: 0; padding: 40px 15px; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; }
     
     /* Header */
-    .email-header { background-color: #ffffff; padding: 40px 30px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+    .email-header { background-color: #0f172a; padding: 32px 40px 20px 40px; text-align: left; }
     .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
     .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
     .company-title span { color: #0ea5e9; }
     
     /* Body */
-    .email-body { padding: 45px 40px; }
+    .email-body { padding: 10px 40px 40px 40px; }
     .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; border: 1px solid #bae6fd; }
-    .doc-title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 20px 0; line-height: 1.3; letter-spacing: -0.5px; }
-    .salutation { font-size: 16px; color: #334155; margin-bottom: 16px; font-weight: 600; }
+    .doc-title { font-size: 22px; font-weight: 400; color: #202124; margin: 0 0 24px 0; line-height: 1.3; }
+    .salutation { font-size: 16px; color: #3c4043; margin-bottom: 16px; font-weight: 400; }
     .intro-paragraph { font-size: 15px; line-height: 1.7; color: #475569; margin-bottom: 30px; }
     
     /* Attachments */
-    .attachment-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 24px; margin: 24px 0; border-left: 4px solid #6366f1; position: relative; overflow: hidden; }
+    .attachment-card { background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; padding: 16px 20px; margin: 24px 0; display: flex; align-items: center; }
     .attachment-title { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 6px; letter-spacing: 0.3px; }
     .attachment-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
     
     /* Tables */
-    .table-container { border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 30px; background: #ffffff; }
+    .table-container { border-radius: 8px; border: 1px solid #dadce0; overflow: hidden; margin-bottom: 30px; background: #ffffff; }
     .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .data-table th { background: #f8fafc; text-align: left; padding: 16px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
     .data-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
     .total-row { background: #f8fafc; }
-    .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #e2e8f0; }
-    .total-amount { color: #0284c7 !important; font-size: 20px !important; letter-spacing: 0.5px; }
+    .total-row td { font-size: 16px; font-weight: 800; color: #202124; border-top: 1px solid #dadce0; }
+    .total-amount { color: #202124 !important; font-size: 20px !important; }
     
     /* Buttons */
     .btn-container { text-align: center; margin: 40px 0 30px 0; }
-    .primary-btn { display: inline-block; background-color: #0ea5e9; color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(2, 132, 199, 0.2); border: 1px solid rgba(255,255,255,0.1); }
+    .primary-btn { display: inline-block; background-color: #1a73e8; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-weight: 500; font-size: 14px; letter-spacing: 0.25px; }
     
     /* Footer */
-    .email-footer { background: #f8fafc; padding: 35px 30px; text-align: center; font-size: 12px; color: #64748b; line-height: 1.8; border-top: 1px solid #e2e8f0; }
+    .email-footer { background: #ffffff; padding: 30px 40px; text-align: center; font-size: 12px; color: #5f6368; line-height: 1.5; border-top: 1px solid #dadce0; }
     .footer-highlight { color: #475569; font-weight: 600; }
 
     @media screen and (max-width: 600px) {
@@ -8597,7 +8861,7 @@ function generateCorporateEmailHtml({
     }
   </style>
 </head>
-<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 15px;">
+<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; margin: 0; padding: 40px 15px; color: #3c4043;">
   <div class="email-container">
     <div class="email-header">
       ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span>CLOUD EDGES</span></div>'}
@@ -8607,7 +8871,7 @@ function generateCorporateEmailHtml({
     <div class="email-body">
       ${badgeText ? `<div class="badge">${badgeText}</div>` : ''}
       <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
-      <p class="salutation">Dear <strong style="color: #ffffff;">${finalRecipient}</strong>,</p>
+      <p class="salutation">Dear ${finalRecipient},</p>
       <div class="intro-paragraph">${finalIntro}</div>
 
       ${attachmentName ? `
@@ -8634,13 +8898,13 @@ function generateCorporateEmailHtml({
             ${itemsRows}
             ${isInvoice ? `
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #71717a; text-align: right; padding-top: 20px;">Subtotal:</td>
-              <td style="text-align: right; font-weight: 600; color: #e4e4e7; padding-top: 20px;">${subtotalText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #475569; text-align: right; padding-top: 20px;">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600; color: #334155; padding-top: 20px;">${subtotalText || ''}</td>
             </tr>
             ${discountRowHtml || ''}
             <tr>
-              <td colspan="2" style="font-weight: 600; color: #71717a; text-align: right;">VAT (18% Statutory):</td>
-              <td style="text-align: right; font-weight: 600; color: #e4e4e7;">${vatText || ''}</td>
+              <td colspan="2" style="font-weight: 600; color: #475569; text-align: right;">VAT (18% Statutory):</td>
+              <td style="text-align: right; font-weight: 600; color: #334155;">${vatText || ''}</td>
             </tr>
             <tr class="total-row">
               <td colspan="2" style="text-align: right;">Total Amount:</td>
@@ -10567,6 +10831,53 @@ app.delete('/api/admin/subscriptions/:id', (req, res) => {
   memoryStore.subscriptions = (memoryStore.subscriptions || []).filter(s => String(s.id) !== String(id) && s.reference !== id);
   savePersistentStore();
   return res.json({ message: 'Subscription record deleted permanently!' });
+});
+
+// Trigger all due advance expiry reminders
+app.post('/api/admin/subscriptions/trigger-reminders', async (req, res) => {
+  const userRole = req.headers['x-user-role'] || req.body.role;
+  if (userRole === 'customer') {
+    return res.status(403).json({ error: 'Customers are not permitted to trigger reminder broadcasts.' });
+  }
+  try {
+    const results = await processSubscriptionLifecycles();
+    res.json({
+      message: results.length > 0 
+        ? `Evaluated active subscriptions. Successfully dispatched ${results.length} advance expiry reminder email(s)!`
+        : 'All active subscriptions evaluated. No pending reminder thresholds (30d, 14d, 7d, 3d, 1d, expired) were crossed.',
+      count: results.length,
+      details: results
+    });
+  } catch (err) {
+    console.error('Trigger reminders API error:', err);
+    res.status(500).json({ error: 'Failed to process subscription lifecycles: ' + err.message });
+  }
+});
+
+// Send single subscription expiry / renewal advisory email
+app.post('/api/admin/subscriptions/:id/send-reminder', async (req, res) => {
+  const userRole = req.headers['x-user-role'] || req.body.role;
+  if (userRole === 'customer') {
+    return res.status(403).json({ error: 'Customers are not permitted to trigger reminder dispatches.' });
+  }
+  try {
+    const { id } = req.params;
+    const sub = (memoryStore.subscriptions || []).find(s => String(s.id) === String(id) || s.reference === id);
+    if (!sub) return res.status(404).json({ error: 'Subscription not found' });
+
+    const result = await sendManualSubscriptionReminder(sub);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({
+      message: `Expiry advisory email dispatched successfully to ${result.recipient} (${result.daysRemaining} days remaining)!`,
+      details: result
+    });
+  } catch (err) {
+    console.error('Single reminder API error:', err);
+    res.status(500).json({ error: 'Failed to dispatch reminder email: ' + err.message });
+  }
 });
 
 // ----------------------------------------------------

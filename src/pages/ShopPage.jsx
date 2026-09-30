@@ -50,8 +50,12 @@ export default function ShopPage({ setActivePage }) {
   };
 
   const handleBuyNow = (prod, qty = 1) => {
-    addToCart(prod, qty);
-    if (setActivePage) setActivePage('subscription');
+    if (isHostingCategoryItem(prod) || isWifiVoucherItem(prod)) {
+      addToCart(prod, qty);
+      if (setActivePage) setActivePage('subscription');
+    } else {
+      openDirectCheckout([{ ...prod, quantity: qty }]);
+    }
   };
 
   const [dbCategories, setDbCategories] = useState([]);
