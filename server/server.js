@@ -13,6 +13,7 @@ import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { registerTrebuchetFont } from '././trebuchetFont.js';
+import { loadFullStoreFromMysql, syncStoreToMysql } from './mysqlStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +62,12 @@ export function savePersistentStore(immediate = false) {
   const executeSave = () => {
     try {
       if (typeof memoryStore !== 'undefined' && memoryStore) {
+        // 1. Primary: Asynchronously commit and persist to MySQL database
+        syncStoreToMysql(memoryStore).catch(err => {
+          console.error('[MySQL Sync Error]:', err.message);
+        });
+
+        // 2. Secondary: Local disk snapshot for offline resilience
         const dir = path.dirname(persistentStorePath);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
@@ -68,7 +75,7 @@ export function savePersistentStore(immediate = false) {
         fs.writeFileSync(persistentStorePath, JSON.stringify(memoryStore, null, 2), 'utf8');
       }
     } catch (err) {
-      console.error('[Database Persistence] Warning writing persistentStore.json:', err.message);
+      console.error('[Database Persistence] Warning writing persistentStore:', err.message);
     }
   };
 
@@ -846,18 +853,37 @@ const memoryStore = {
 // ----------------------------------------------------
 // Restore Persistent Data Store on Server Startup
 // ----------------------------------------------------
-const loadedDiskStore = loadPersistentStore();
-if (loadedDiskStore) {
-  Object.keys(loadedDiskStore).forEach(key => {
-    if (Array.isArray(loadedDiskStore[key])) {
-      memoryStore[key] = loadedDiskStore[key];
-    } else if (typeof loadedDiskStore[key] === 'object' && loadedDiskStore[key] !== null) {
-      memoryStore[key] = { ...memoryStore[key], ...loadedDiskStore[key] };
-    } else {
-      memoryStore[key] = loadedDiskStore[key];
-    }
-  });
-  console.log(`[Database Persistence] Restored ${memoryStore.users?.length || 0} total system users from persistent disk store.`);
+try {
+  const mysqlStore = await loadFullStoreFromMysql();
+  if (mysqlStore && mysqlStore.users && mysqlStore.users.length > 0) {
+    Object.keys(mysqlStore).forEach(key => {
+      if (Array.isArray(mysqlStore[key])) {
+        memoryStore[key] = mysqlStore[key];
+      } else if (typeof mysqlStore[key] === 'object' && mysqlStore[key] !== null) {
+        memoryStore[key] = { ...memoryStore[key], ...mysqlStore[key] };
+      } else {
+        memoryStore[key] = mysqlStore[key];
+      }
+    });
+    console.log(`[Database Persistence] Successfully hydrated 100% live system state from MySQL (${memoryStore.users?.length || 0} users, ${memoryStore.invoices?.length || 0} invoices, ${memoryStore.payments?.length || 0} payments).`);
+  } else {
+    throw new Error('MySQL tables empty or returning 0 users');
+  }
+} catch (mysqlErr) {
+  console.warn(`[Database Persistence] MySQL hydration note (${mysqlErr.message}). Falling back to persistentStore.json snapshot.`);
+  const loadedDiskStore = loadPersistentStore();
+  if (loadedDiskStore) {
+    Object.keys(loadedDiskStore).forEach(key => {
+      if (Array.isArray(loadedDiskStore[key])) {
+        memoryStore[key] = loadedDiskStore[key];
+      } else if (typeof loadedDiskStore[key] === 'object' && loadedDiskStore[key] !== null) {
+        memoryStore[key] = { ...memoryStore[key], ...loadedDiskStore[key] };
+      } else {
+        memoryStore[key] = loadedDiskStore[key];
+      }
+    });
+    console.log(`[Database Persistence] Restored ${memoryStore.users?.length || 0} total system users from persistent disk store.`);
+  }
 }
 
 if (!memoryStore.site_logo) {

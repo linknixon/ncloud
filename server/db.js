@@ -53,10 +53,9 @@ export async function query(sql, params = []) {
     const [rows] = await pool.execute(sql, params);
     return { success: true, data: rows, isFallback: false };
   } catch (error) {
-    console.warn(`[MySQL Note] Local MySQL offline or query error (${error.code}). Serving structured memory provider.`);
+    console.warn(`[MySQL Note] Query error (${error.code}: ${error.message}) for: ${sql}`);
     if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
       isMysqlOffline = true;
-      // Optionally reset the flag after a minute to check if it comes back up
       setTimeout(() => { isMysqlOffline = false; }, 60000);
     }
     return { success: false, error: error.message, isFallback: true };
