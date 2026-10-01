@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
-import { CheckCircle2, Lock, Search, ChevronLeft, ChevronRight, Check, User } from 'lucide-react';
+import { CheckCircle2, Lock, Search, ChevronLeft, ChevronRight, Check, User, FileText, Download, Plus, Minus, Trash2 } from 'lucide-react';
+import { generateInvoicePDF, generateQuotationPDF } from '../utils/pdfGenerator';
 
 export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
-  const { user, setUser, clearCart, showToast, cart, addToCart, removeFromCart, updateCartQuantity } = useApp();
+  const { user, setUser, clearCart, showToast, cart, addToCart, removeFromCart, updateCartQuantity, updateCartItemDuration, siteLogo } = useApp();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [generatingQuote, setGeneratingQuote] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,8 +126,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          const hostingProducts = data.filter(p => !p.is_hidden && (isHostingItem(p) || (p.category || '').toLowerCase().includes('hosting')));
-          const allValidProducts = hostingProducts.length > 0 ? hostingProducts : data.filter(p => !p.is_hidden);
+          const allValidProducts = data.filter(p => !p.is_hidden);
           setProducts(allValidProducts);
         } else {
           setProducts([]);
@@ -133,7 +134,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error fetching hosting products for subscriptions:', err);
+        console.error('Error fetching products for checkout:', err);
         setProducts([]);
         setLoading(false);
       });
@@ -360,15 +361,90 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
     }, 4000);
   };
 
+  const handleGenerateQuotation = async (e) => {
+    if (e) e.preventDefault();
+    if (selectedProducts.length === 0) {
+      showToast('Please select at least one package or product to generate a quotation.', 'error');
+      return;
+    }
+    if (!customerInfo.name || !customerInfo.email) {
+      showToast('Please enter your Subscriber Name and Email Address in the form to generate an official quotation.', 'error');
+      return;
+    }
+
+    setGeneratingQuote(true);
+    try {
+      const quoteItems = selectedProducts.map(item => {
+        const isHosting = isHostingItem(item) || (item.category && item.category.toLowerCase().includes('hosting'));
+        const mult = isHosting ? getDurationMultiplier(item.subscriptionDuration || '1 Year') : 1;
+        const qty = Number(item.quantity) || 1;
+        const unitPrice = Number(item.price) || 0;
+        const total = unitPrice * qty * mult;
+        const durLabel = isHosting ? ` (${item.subscriptionDuration || '1 Year'})` : '';
+        return {
+          name: `${item.name}${durLabel}`,
+          description: item.short_desc || item.name,
+          quantity: qty,
+          qty: qty,
+          unit_price: unitPrice * mult,
+          price: unitPrice * mult,
+          total: total,
+          amount: total
+        };
+      });
+
+      const res = await fetch('/api/quotations/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: customerInfo.name,
+          customer_email: customerInfo.email,
+          customer_phone: customerInfo.phone || '',
+          company: customerInfo.company || customerInfo.name,
+          customer_address: customerInfo.address || 'Kampala, Uganda',
+          items: quoteItems,
+          vat_exempt: !includeVat,
+          notes: customerInfo.notes || 'Official Commercial Quotation generated from Nova Cloud Portal. Valid for 30 days.'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to generate quotation.');
+      }
+
+      const quotationData = data.quotation || {
+        quote_number: `QTN-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        customer_name: customerInfo.name,
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
+        customer_address: customerInfo.address,
+        company: customerInfo.company,
+        total_amount: grandTotal,
+        items: quoteItems,
+        vat_exempt: !includeVat,
+        created_at: new Date().toISOString()
+      };
+
+      await generateQuotationPDF(quotationData, { siteLogo });
+      showToast(`Official Quotation #${quotationData.quote_number} generated! A copy was also sent to ${customerInfo.email}.`, 'success');
+    } catch (err) {
+      console.error('Error generating quotation:', err);
+      showToast(err.message || 'Error generating quotation PDF', 'error');
+    } finally {
+      setGeneratingQuote(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <div className="container">
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Subscription & Service Payment</h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
-            Select your enterprise packages using checkboxes and complete your cloud subscription renewal.
+          <h1 style={{ fontSize: '2.0rem', marginTop: '0.5rem' }}>Unified Checkout & Quotation</h1>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
+            Combine hosting plans, domains, and IT equipment in one unified cart. Complete your purchase with mobile money/card, generate an invoice, or download an official quotation.
           </p>
         </div>
 
@@ -439,6 +515,48 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
+                type="button"
+                onClick={() => {
+                  const invData = successData.invoice || {
+                    invoice_number: successData.subscription?.reference || 'INV-2026-0041',
+                    customer_name: successData.subscription?.customer_name || customerInfo.name,
+                    customer_email: successData.subscription?.customer_email || customerInfo.email,
+                    customer_phone: successData.subscription?.customer_phone || customerInfo.phone,
+                    customer_address: successData.subscription?.customer_address || customerInfo.address,
+                    company: successData.subscription?.company || customerInfo.company,
+                    total_amount: successData.subscription?.amount || grandTotal,
+                    items: successData.items || [{ name: successData.subscription?.plan_name || 'Cloud Infrastructure', quantity: 1, unit_price: successData.subscription?.amount || grandTotal }]
+                  };
+                  generateInvoicePDF(invData, { siteLogo });
+                }}
+                className="btn-secondary"
+                style={{ padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1.5px solid var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}
+              >
+                <Download size={16} /> Download Tax Invoice (PDF)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const quoteData = {
+                    quote_number: `QTN-${successData.invoice?.invoice_number ? successData.invoice.invoice_number.replace('INV-', '') : '2026-0041'}`,
+                    customer_name: successData.subscription?.customer_name || customerInfo.name,
+                    customer_email: successData.subscription?.customer_email || customerInfo.email,
+                    customer_phone: successData.subscription?.customer_phone || customerInfo.phone,
+                    customer_address: successData.subscription?.customer_address || customerInfo.address,
+                    company: successData.subscription?.company || customerInfo.company,
+                    total_amount: successData.subscription?.amount || grandTotal,
+                    items: successData.items || [{ name: successData.subscription?.plan_name || 'Cloud Infrastructure', quantity: 1, unit_price: successData.subscription?.amount || grandTotal }]
+                  };
+                  generateQuotationPDF(quoteData, { siteLogo });
+                }}
+                className="btn-secondary"
+                style={{ padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer' }}
+              >
+                <FileText size={16} /> Download Quotation (PDF)
+              </button>
+
+              <button
                 onClick={() => {
                   setSuccessData(null);
                   if (setActivePage) {
@@ -479,7 +597,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                  Select Hosting Packages to Renew ({selectedProducts.length} Selected)
+                  Add / Select Products & Services ({selectedProducts.length} in Cart)
                 </h3>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages}</span>
               </div>
@@ -518,7 +636,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Search VPS, Colocation, Dedicated Servers, or Web Hosting..."
+                  placeholder="Search hosting plans, cloud servers, domains, hardware, or software..."
                   value={searchTerm}
                   onChange={e => {
                     setSearchTerm(e.target.value);
@@ -528,13 +646,13 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                 />
               </div>
 
-              {/* Hosting Badge Indicator */}
+              {/* Cart Indicator Banner */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1.25rem', padding: '0.65rem 0.85rem', background: selectedProducts.length === 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: selectedProducts.length === 0 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.25)' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: '800', color: selectedProducts.length === 0 ? '#d97706' : '#10b981' }}>
-                  {selectedProducts.length === 0 ? '⚠️ No Package Selected — Click Any Plan Below to Select' : `✓ ${selectedProducts.length} Hosting Package(s) Selected for Checkout`}
+                  {selectedProducts.length === 0 ? '⚠️ Cart is Empty — Click Any Product Below or in Shop to Add' : `✓ ${selectedProducts.length} Product(s) Selected — Ready for Payment or Instant Quote`}
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Browse our sovereign hosting catalog below. Click on your preferred cloud VPS, colocation, or web hosting plan to select it.
+                  Select from our full catalog below. You can combine hosting, domain registration, hardware, and vouchers into this single checkout.
                 </span>
               </div>
 
@@ -650,7 +768,18 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
 
               <form onSubmit={handlePayment}>
                 <div className="form-group">
-                  <label>Selected Package(s) ({selectedProducts.length})</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <label style={{ margin: 0, fontWeight: '700' }}>Cart Items ({selectedProducts.length})</label>
+                    {selectedProducts.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
                   <div style={{
                     background: 'var(--bg-main)',
                     border: '1px solid var(--border-color)',
@@ -659,7 +788,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                     fontSize: '0.9rem',
                     fontWeight: '600',
                     color: 'var(--primary)',
-                    maxHeight: '120px',
+                    maxHeight: '260px',
                     overflowY: 'auto'
                   }}>
                     {selectedProducts.length > 0 ? (
@@ -672,12 +801,12 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
 
                         return (
                           <div key={p.id || p.slug || idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: idx < selectedProducts.length - 1 ? '10px' : 0, gap: '0.5rem', flexWrap: 'wrap', borderBottom: idx < selectedProducts.length - 1 ? '1px dashed var(--border-color)' : 'none', paddingBottom: idx < selectedProducts.length - 1 ? '8px' : 0 }}>
-                            <div style={{ flex: 1, minWidth: '160px' }}>
+                            <div style={{ flex: 1, minWidth: '150px' }}>
                               <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '0.875rem' }}>• {p.name}</div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px', flexWrap: 'wrap' }}>
                                 <span>Unit: UGX {unitPrice.toLocaleString()} {isHosting ? '/ mo' : ''}</span>
                                 {isHosting && (
-                                  <div style={{ marginTop: '0.4rem' }}>
+                                  <div style={{ marginTop: '0.2rem' }}>
                                     <select
                                       value={p.subscriptionDuration || '1 Year'}
                                       onChange={(e) => {
@@ -686,8 +815,8 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                                         }
                                       }}
                                       style={{
-                                        padding: '0.2rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.15rem 0.45rem',
+                                        fontSize: '0.725rem',
                                         fontWeight: '700',
                                         borderRadius: '4px',
                                         border: '1px solid rgba(16, 185, 129, 0.4)',
@@ -711,8 +840,54 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                                 <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '0.875rem' }}>
                                   UGX {itemTotal.toLocaleString()}
                                 </div>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                  Qty: {qty}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', marginTop: '0.2rem' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartQuantity(p.id, Math.max(1, qty - 1))}
+                                    style={{
+                                      width: '20px',
+                                      height: '20px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--border-color)',
+                                      background: 'var(--bg-card)',
+                                      color: 'var(--text-main)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 'bold',
+                                      padding: 0
+                                    }}
+                                    title="Decrease quantity"
+                                  >
+                                    -
+                                  </button>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '700', minWidth: '16px', textAlign: 'center' }}>
+                                    {qty}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCartQuantity(p.id, qty + 1)}
+                                    style={{
+                                      width: '20px',
+                                      height: '20px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--border-color)',
+                                      background: 'var(--bg-card)',
+                                      color: 'var(--text-main)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 'bold',
+                                      padding: 0
+                                    }}
+                                    title="Increase quantity"
+                                  >
+                                    +
+                                  </button>
                                 </div>
                               </div>
                               <button
@@ -728,7 +903,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                                   borderRadius: '4px',
                                   color: '#ef4444',
                                   cursor: 'pointer',
-                                  padding: '0.25rem 0.5rem',
+                                  padding: '0.25rem 0.45rem',
                                   fontSize: '0.75rem',
                                   fontWeight: '800'
                                 }}
@@ -994,6 +1169,36 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                 >
                   {processing ? 'Processing Order...' : paymentMethod === 'invoice' ? `Complete Order (${selectedProducts.length} Items)` : `Pay UGX ${grandTotal.toLocaleString()} via ${paymentMethod === 'mobile_money' ? 'Mobile Money' : 'Card'} (${selectedProducts.length} Items)`} <Lock size={16} />
                 </button>
+
+                <div style={{ marginTop: '0.85rem', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleGenerateQuotation}
+                    disabled={generatingQuote || selectedProducts.length === 0}
+                    className="btn-secondary"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '0.85rem',
+                      fontSize: '0.925rem',
+                      fontWeight: '800',
+                      borderRadius: '10px',
+                      border: '1.5px solid var(--primary)',
+                      color: 'var(--primary)',
+                      background: 'rgba(30, 58, 138, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <FileText size={18} />
+                    {generatingQuote ? 'Generating Official Quote PDF...' : 'Download Official Quotation (PDF)'}
+                  </button>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem', marginBottom: 0 }}>
+                    Need a quote for procurement or internal approval? Download an official commercial quotation with 30-day validity.
+                  </p>
+                </div>
               </form>
 
             </div>

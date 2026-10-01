@@ -20,15 +20,11 @@ export default function CartDrawer({ onCheckout }) {
 
   const handleCheckoutClick = () => {
     setIsCartOpen(false);
-    const hasHostingItem = cart.some(item => isHostingCategoryItem(item));
-    if (hasHostingItem) {
+    if (onCheckout) {
       onCheckout();
-    } else {
-      if (openDirectCheckout) {
-        openDirectCheckout(cart);
-      } else {
-        onCheckout();
-      }
+    } else if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/subscription');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
 
@@ -204,7 +200,7 @@ export default function CartDrawer({ onCheckout }) {
                 boxShadow: '0 6px 20px rgba(30, 58, 138, 0.45)'
               }}
             >
-              Proceed to Checkout & Payment <ArrowRight size={18} />
+              Proceed to Checkout & Quotation <ArrowRight size={18} />
             </button>
 
             <button

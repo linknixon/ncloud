@@ -5680,9 +5680,9 @@ app.get('/api/admin/quotations', (req, res) => {
   res.json(memoryStore.quotations || []);
 });
 
-app.post('/api/admin/quotations', async (req, res) => {
-  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Quotation'});
-  const { customer_name, customer_email, customer_phone, company, valid_until, items, vat_exempt, notes } = req.body;
+app.post(['/api/admin/quotations', '/api/quotations/create'], async (req, res) => {
+  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || req.body.customer_email || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Quotation'});
+  const { customer_name, customer_email, customer_phone, company, customer_address, address, valid_until, items, vat_exempt, notes } = req.body;
   if (!customer_name) return res.status(400).json({ error: 'Customer name is required for quotation' });
 
   const quoteNumber = `QTN-${new Date().getFullYear()}-${String((memoryStore.quotations || []).length + 81).padStart(4, '0')}`;
@@ -5702,6 +5702,7 @@ app.post('/api/admin/quotations', async (req, res) => {
     customer_email: customer_email || 'client@company.co.ug',
     customer_phone: customer_phone || '',
     company: company || customer_name,
+    customer_address: customer_address || address || 'Kampala, Uganda',
     valid_until: valid_until || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
     status: 'Sent', // Draft, Sent, Accepted, Declined, Converted
     items: quoteItems,

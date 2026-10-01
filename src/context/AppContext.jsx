@@ -29,9 +29,15 @@ export function AppProvider({ children }) {
   const [notification, setNotification] = useState(null);
 
   const openDirectCheckout = (items = []) => {
-    const targetItems = (items && items.length > 0) ? items : cart;
-    setDirectCheckoutItems(targetItems);
-    setIsDirectCheckoutOpen(true);
+    if (items && items.length > 0) {
+      items.forEach(item => {
+        addToCart(item, item.quantity || 1);
+      });
+    }
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/subscription');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   };
 
   const closeDirectCheckout = () => {
@@ -40,7 +46,15 @@ export function AppProvider({ children }) {
   };
 
   const openSubscriptionCheckout = (items = []) => {
-    setSelectedSubscriptionItems(items && items.length > 0 ? items : null);
+    if (items && items.length > 0) {
+      items.forEach(item => {
+        addToCart(item, item.quantity || 1);
+      });
+    }
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/subscription');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   };
 
   useEffect(() => {
@@ -214,7 +228,7 @@ export function AppProvider({ children }) {
 
   const addToCart = (product, qty = 1) => {
     const isHosting = isHostingItem(product);
-    const addQuantity = isHosting ? 12 : Math.max(1, parseInt(qty) || 1);
+    const addQuantity = Math.max(1, parseInt(qty) || 1);
     
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -223,7 +237,11 @@ export function AppProvider({ children }) {
           item.id === product.id ? { ...item, quantity: item.quantity + addQuantity } : item
         );
       }
-      return [...prev, { ...product, quantity: addQuantity, subscriptionDuration: isHosting ? '12 Months' : null }];
+      return [...prev, {
+        ...product,
+        quantity: addQuantity,
+        subscriptionDuration: product.subscriptionDuration || (isHosting ? '1 Year' : null)
+      }];
     });
     
     showToast(`Added ${addQuantity}x "${product.name}" to cart!`, 'success');

@@ -65,11 +65,12 @@ export default function ShopPage({ setActivePage }) {
   };
 
   const handleBuyNow = (prod, qty = 1) => {
-    if (isHostingCategoryItem(prod) || isWifiVoucherItem(prod)) {
-      addToCart(prod, qty);
-      if (setActivePage) setActivePage('subscription');
-    } else {
-      openDirectCheckout([{ ...prod, quantity: qty }]);
+    addToCart(prod, qty);
+    if (setActivePage) {
+      setActivePage('subscription');
+    } else if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/subscription');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
 
