@@ -14,6 +14,7 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { registerTrebuchetFont } from '././trebuchetFont.js';
 import { loadFullStoreFromMysql, syncStoreToMysql } from './mysqlStore.js';
+import { generateTOTPSecret, verifyTOTPToken, generateTOTPSetupData } from './totp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1455,31 +1456,75 @@ app.post('/api/auth/register', verifyTurnstile, async (req, res) => {
   });
 });
 
+// Helper function to calculate password age and check 90-day corporate expiration
+function calculatePasswordAge(user) {
+  const passwordUpdatedAt = new Date(user?.password_updated_at || user?.created_at || Date.now());
+  const now = Date.now();
+  const timeDiff = Math.max(0, now - (isNaN(passwordUpdatedAt.getTime()) ? now : passwordUpdatedAt.getTime()));
+  const daysElapsed = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
+  const daysUntilExpiry = Math.max(0, 90 - daysElapsed);
+  const isPasswordExpired = daysElapsed >= 90;
+  const isExpiringSoon = daysUntilExpiry <= 14 && !isPasswordExpired;
+
+  return {
+    daysElapsed,
+    daysUntilExpiry,
+    isPasswordExpired,
+    isExpiringSoon
+  };
+}
+
 app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+    return res.status(400).json({ error: 'Username/Email and password are required.' });
   }
 
-  // Check MySQL
-  const dbRes = await query('SELECT * FROM users WHERE email = ?', [email.trim().toLowerCase()]);
-  let user = null;
+  const rawInput = String(email).trim();
+  let candidateEmails = [rawInput.toLowerCase()];
 
-  if (dbRes.success && dbRes.data.length > 0) {
-    user = dbRes.data[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
-  } else {
-    // Check Memory store
-    const memUser = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === email.trim().toLowerCase());
+  // Allow login by username (e.g. jniyonzima) ONLY for users with @ncloud.co.ug and @ncedges.com domains
+  if (!rawInput.includes('@')) {
+    candidateEmails = [
+      `${rawInput.toLowerCase()}@ncloud.co.ug`,
+      `${rawInput.toLowerCase()}@ncedges.com`
+    ];
+  }
+
+  // Check MySQL first
+  let user = null;
+  let isMySQL = false;
+
+  for (const cEmail of candidateEmails) {
+    const dbRes = await query('SELECT * FROM users WHERE LOWER(email) = ?', [cEmail]);
+    if (dbRes.success && dbRes.data.length > 0) {
+      const candidateUser = dbRes.data[0];
+      const match = await bcrypt.compare(password, candidateUser.password_hash);
+      if (match) {
+        user = candidateUser;
+        isMySQL = true;
+        break;
+      }
+    }
+  }
+
+  // If not matched in MySQL, check Memory Store
+  if (!user) {
+    const memUser = (memoryStore.users || []).find(u => {
+      if (!u || !u.email) return false;
+      return candidateEmails.includes(u.email.toLowerCase());
+    });
     if (memUser) {
       const storedHash = memUser.passwordHash || memUser.password_hash || '';
       const match = await bcrypt.compare(password, storedHash);
-      if (!match) return res.status(401).json({ error: 'Invalid email or password.' });
-      user = memUser;
-    } else {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      if (match) {
+        user = memUser;
+      }
     }
+  }
+
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid username, email, or password.' });
   }
 
   // Strict email confirmation check: Unverified users cannot log in
@@ -1488,6 +1533,49 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
       error: 'Please confirm your email address before logging in. We sent a verification link to your inbox.',
       needs_verification: true,
       email: user.email
+    });
+  }
+
+  // Calculate Password Age (90-Day Policy)
+  const pwdInfo = calculatePasswordAge(user);
+
+  // Multi-Factor Authentication (MFA) check
+  const isSuperAdminUser = user.role === 'super_admin' || user.email === 'superadmin@ncloud.co.ug';
+  const hasMfaActive = Boolean(user.mfa_enabled) && Boolean(user.mfa_secret);
+
+  // Case A: User already has MFA active -> Prompt for 6-digit TOTP code
+  if (hasMfaActive) {
+    const tempToken = jwt.sign(
+      { id: user.id, email: user.email, mfa_pending: true },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    return res.json({
+      mfa_required: true,
+      mfa_type: 'verify',
+      temp_token: tempToken,
+      email: user.email,
+      message: 'Two-Factor Authentication required. Enter the 6-digit code from your Authenticator app.'
+    });
+  }
+
+  // Case B: Super Admin has NOT setup MFA yet -> MFA is MANDATORY for Super Admin
+  if (isSuperAdminUser && !hasMfaActive) {
+    const newSecret = generateTOTPSecret();
+    const setupData = await generateTOTPSetupData(user.email, newSecret);
+    const tempToken = jwt.sign(
+      { id: user.id, email: user.email, mfa_setup: true, secret: newSecret },
+      JWT_SECRET,
+      { expiresIn: '10m' }
+    );
+    return res.json({
+      mfa_required: true,
+      mfa_type: 'setup',
+      temp_token: tempToken,
+      email: user.email,
+      qr_code: setupData.qr_code,
+      secret: setupData.secret,
+      message: 'MFA is mandatory for Super Administrator accounts. Scan the QR code with Google Authenticator or Microsoft Authenticator, then enter the 6-digit code to activate.'
     });
   }
 
@@ -1502,17 +1590,174 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
     user_role: user.role || 'customer',
     action: 'AUDIT_LOGIN',
     resource_type: 'Authentication',
-    resource_id: user.id,
-    details: 'User successfully authenticated and created a new session.',
+    resource_id: String(user.id),
+    details: `User ${user.email} authenticated. Password age: ${pwdInfo.daysElapsed} days.${pwdInfo.isPasswordExpired ? ' (PASSWORD EXPIRED - 90 DAYS)' : ''}`,
     ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+    device_type: req.headers['user-agent'] ? (req.headers['user-agent'].includes('Mobile') ? 'Mobile Device' : 'Desktop Browser') : 'Desktop Browser',
+    status: 'SUCCESS',
     timestamp: new Date().toISOString()
   });
   savePersistentStore();
 
   return res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role || 'customer' }
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role || 'customer',
+      mfa_enabled: false,
+      password_expired: pwdInfo.isPasswordExpired,
+      password_expiring_soon: pwdInfo.isExpiringSoon,
+      days_until_password_expiry: pwdInfo.daysUntilExpiry,
+      days_since_password_change: pwdInfo.daysElapsed
+    }
   });
+});
+
+// Verify 6-digit MFA code during login
+app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
+  const { temp_token, code } = req.body;
+  if (!temp_token || !code) {
+    return res.status(400).json({ error: 'Session token and 6-digit authentication code are required.' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(temp_token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'MFA session has expired. Please sign in again.' });
+  }
+
+  let user = null;
+  const dbRes = await query('SELECT * FROM users WHERE email = ?', [decoded.email]);
+  if (dbRes.success && dbRes.data.length > 0) {
+    user = dbRes.data[0];
+  } else {
+    user = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === decoded.email.toLowerCase());
+  }
+
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  const secretToVerify = decoded.secret || user.mfa_secret;
+  if (!secretToVerify) {
+    return res.status(400).json({ error: 'MFA configuration secret not found.' });
+  }
+
+  const isValidCode = verifyTOTPToken(secretToVerify, code);
+  if (!isValidCode) {
+    return res.status(401).json({ error: 'Invalid 6-digit code. Please verify against your Authenticator app (e.g. Google Authenticator).' });
+  }
+
+  // If this was initial setup (e.g. Super Admin mandatory activation)
+  if (decoded.mfa_setup) {
+    user.mfa_enabled = 1;
+    user.mfa_secret = secretToVerify;
+    await query('UPDATE users SET mfa_enabled = 1, mfa_secret = ? WHERE email = ?', [secretToVerify, user.email]).catch(() => {});
+    const memIdx = (memoryStore.users || []).findIndex(u => u && u.email && u.email.toLowerCase() === user.email.toLowerCase());
+    if (memIdx !== -1) {
+      memoryStore.users[memIdx].mfa_enabled = true;
+      memoryStore.users[memIdx].mfa_secret = secretToVerify;
+    }
+  }
+
+  const pwdInfo = calculatePasswordAge(user);
+  const token = jwt.sign(
+    { id: user.id, name: user.name, email: user.email, role: user.role || 'customer' },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  // Forensics Audit Trail
+  if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+  memoryStore.audit_logs.unshift({
+    id: Date.now(),
+    user_email: user.email,
+    user_name: user.name,
+    user_role: user.role || 'customer',
+    action: decoded.mfa_setup ? 'MFA_ACTIVATED_AND_LOGIN' : 'MFA_LOGIN_SUCCESS',
+    resource_type: 'Authentication',
+    resource_id: String(user.id),
+    details: `User completed 2-Factor Authentication (${decoded.mfa_setup ? 'Mandatory Setup' : 'TOTP Code Verified'}).`,
+    ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+    device_type: req.headers['user-agent'] ? (req.headers['user-agent'].includes('Mobile') ? 'Mobile Device' : 'Desktop Browser') : 'Desktop Browser',
+    status: 'SUCCESS',
+    timestamp: new Date().toISOString()
+  });
+  savePersistentStore();
+
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role || 'customer',
+      mfa_enabled: true,
+      password_expired: pwdInfo.isPasswordExpired,
+      password_expiring_soon: pwdInfo.isExpiringSoon,
+      days_until_password_expiry: pwdInfo.daysUntilExpiry,
+      days_since_password_change: pwdInfo.daysElapsed
+    }
+  });
+});
+
+// Self-Service MFA Setup Initialization for Logged-In Users
+app.post('/api/auth/mfa/setup-init', verifyToken, async (req, res) => {
+  const secret = generateTOTPSecret();
+  const setupData = await generateTOTPSetupData(req.userEmail, secret);
+  return res.json({
+    secret: setupData.secret,
+    otpauth_uri: setupData.otpauth_uri,
+    qr_code: setupData.qr_code
+  });
+});
+
+// Self-Service MFA Activation
+app.post('/api/auth/mfa/activate-user', verifyToken, async (req, res) => {
+  const { secret, code } = req.body;
+  if (!secret || !code) return res.status(400).json({ error: 'Secret and 6-digit code are required.' });
+
+  const isValid = verifyTOTPToken(secret, code);
+  if (!isValid) {
+    return res.status(400).json({ error: 'Invalid verification code. Please check your authenticator app.' });
+  }
+
+  await query('UPDATE users SET mfa_enabled = 1, mfa_secret = ? WHERE email = ?', [secret, req.userEmail]).catch(() => {});
+  const memUser = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === req.userEmail.toLowerCase());
+  if (memUser) {
+    memUser.mfa_enabled = true;
+    memUser.mfa_secret = secret;
+  }
+  savePersistentStore();
+
+  return res.json({ success: true, message: 'Two-Factor Authentication (MFA) successfully activated!' });
+});
+
+// Self-Service MFA Disable (Forbidden for Super Admin)
+app.post('/api/auth/mfa/disable-user', verifyToken, async (req, res) => {
+  const memUser = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === req.userEmail.toLowerCase());
+  if (memUser && (memUser.role === 'super_admin' || req.userRole === 'super_admin')) {
+    return res.status(403).json({ error: 'MFA is mandatory for Super Administrator accounts and cannot be disabled.' });
+  }
+
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Current password is required to disable MFA.' });
+
+  const storedHash = memUser?.passwordHash || memUser?.password_hash || '';
+  const match = await bcrypt.compare(password, storedHash);
+  if (!match) return res.status(401).json({ error: 'Incorrect password.' });
+
+  await query('UPDATE users SET mfa_enabled = 0, mfa_secret = NULL WHERE email = ?', [req.userEmail]).catch(() => {});
+  if (memUser) {
+    memUser.mfa_enabled = false;
+    memUser.mfa_secret = null;
+  }
+  savePersistentStore();
+
+  return res.json({ success: true, message: 'Two-Factor Authentication (MFA) has been disabled.' });
 });
 
 // Verify Email Confirmation Endpoint
@@ -1580,18 +1825,25 @@ app.post('/api/auth/resend-verification', async (req, res) => {
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) {
-    return res.status(400).json({ error: 'Email is required.' });
+    return res.status(400).json({ error: 'Email or username is required.' });
+  }
+
+  const rawInput = String(email || '').trim().toLowerCase();
+  let candidateEmails = [rawInput];
+  if (!rawInput.includes('@')) {
+    candidateEmails = [`${rawInput}@ncloud.co.ug`, `${rawInput}@ncedges.com`];
   }
 
   // Find user in MySQL or Memory
   let user = null;
   let isMySQL = false;
-  const dbRes = await query('SELECT * FROM users WHERE email = ?', [email]);
+  const placeholders = candidateEmails.map(() => '?').join(',');
+  const dbRes = await query(`SELECT * FROM users WHERE LOWER(email) IN (${placeholders})`, candidateEmails);
   if (dbRes.success && dbRes.data.length > 0) {
     user = dbRes.data[0];
     isMySQL = true;
   } else {
-    const memUser = memoryStore.users.find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
+    const memUser = memoryStore.users.find(u => u && u.email && candidateEmails.includes(u.email.toLowerCase()));
     if (memUser) {
       user = memUser;
     }
@@ -1816,8 +2068,12 @@ const requireCRUDAS = (req, res, next) => {
 
 app.put('/api/auth/change-password', verifyToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Missing required fields' });
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current password and new password are required.' });
   
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+  }
+
   const email = req.userEmail;
   let user = null;
   let isMySQL = false;
@@ -1827,27 +2083,84 @@ app.put('/api/auth/change-password', verifyToken, async (req, res) => {
     user = dbRes.data[0];
     isMySQL = true;
   } else {
-    user = memoryStore.users.find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
+    user = (memoryStore.users || []).find(u => u && u.email && u.email.toLowerCase() === email.toLowerCase());
   }
   
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(404).json({ error: 'User account not found.' });
   
   const storedHash = user.password_hash || user.passwordHash || '';
   const match = await bcrypt.compare(currentPassword, storedHash);
-  if (!match) return res.status(401).json({ error: 'Incorrect current password' });
+  if (!match) return res.status(401).json({ error: 'Incorrect current password.' });
   
   const newHash = await bcrypt.hash(newPassword, 10);
+  const nowIso = new Date().toISOString();
+
   if (isMySQL) {
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
-  } else {
-    const idx = memoryStore.users.findIndex(u => u.id === user.id);
-    if (idx !== -1) {
-      memoryStore.users[idx].passwordHash = newHash;
-      memoryStore.users[idx].password_hash = newHash;
-      savePersistentStore();
-    }
+    await query('UPDATE users SET password_hash = ?, password_updated_at = NOW() WHERE id = ?', [newHash, user.id]);
   }
-  return res.json({ message: 'Password updated successfully' });
+  const idx = (memoryStore.users || []).findIndex(u => u.id === user.id || (u.email && u.email.toLowerCase() === email.toLowerCase()));
+  if (idx !== -1) {
+    memoryStore.users[idx].passwordHash = newHash;
+    memoryStore.users[idx].password_hash = newHash;
+    memoryStore.users[idx].password_updated_at = nowIso;
+    savePersistentStore();
+  }
+
+  // Dispatch security notice email
+  try {
+    const transporter = nodemailer.createTransport({
+      host: memoryStore.smtp_settings?.host || process.env.SMTP_HOST || 'mail.ncloud.co.ug',
+      port: Number(memoryStore.smtp_settings?.port) || 465,
+      secure: true,
+      auth: {
+        user: memoryStore.smtp_settings?.user || process.env.SMTP_USER || 'support@ncloud.co.ug',
+        pass: memoryStore.smtp_settings?.pass || process.env.SMTP_PASS || ''
+      },
+      tls: { rejectUnauthorized: false }
+    });
+
+    const emailHtml = generateCorporateEmailHtml({
+      title: 'Security Alert: Password Changed Successfully',
+      recipientName: user.name || 'Nova Cloud User',
+      introText: `Your Nova Cloud portal password was updated on <b>${new Date().toLocaleString()}</b>. Your new password is valid for the next <b>90 days</b> in accordance with corporate security standards.`,
+      ctaText: 'Access Portal',
+      ctaLink: 'https://ncloud.co.ug/',
+      footerNote: 'If you did not perform this action, please immediately contact our cybersecurity operations team at support@ncloud.co.ug to freeze your account.'
+    });
+
+    await transporter.sendMail({
+      from: `"Nova Cloud Security" <${memoryStore.smtp_settings?.user || 'support@ncloud.co.ug'}>`,
+      to: user.email,
+      subject: 'Security Alert: Your Nova Cloud Password Was Changed',
+      html: emailHtml
+    });
+  } catch (emailErr) {
+    console.warn('[Password Change] Notification email notice failed:', emailErr.message);
+  }
+
+  // Forensics Audit Log
+  if (!memoryStore.audit_logs) memoryStore.audit_logs = [];
+  memoryStore.audit_logs.unshift({
+    id: Date.now(),
+    user_email: user.email,
+    user_name: user.name,
+    user_role: user.role || 'customer',
+    action: 'PASSWORD_CHANGED',
+    resource_type: 'Authentication',
+    resource_id: String(user.id),
+    details: 'User successfully updated their account password. Expiry reset for 90 days.',
+    ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
+    device_type: req.headers['user-agent'] ? (req.headers['user-agent'].includes('Mobile') ? 'Mobile Device' : 'Desktop Browser') : 'Desktop Browser',
+    status: 'SUCCESS',
+    timestamp: nowIso
+  });
+
+  return res.json({
+    success: true,
+    message: 'Password updated successfully! Your 90-day validity has been renewed.',
+    password_expired: false,
+    days_until_password_expiry: 90
+  });
 });
 
 // Protect admin endpoints, while allowing public read access to branding/identity settings
@@ -6884,7 +7197,19 @@ app.get(['/api/delivery-notes/pdf/:dnNum', '/api/admin/delivery-notes/:dnNum/pdf
 
 // Admin & Role Management API Endpoints
 app.get('/api/admin/users', (req, res) => {
-  res.json(memoryStore.users);
+  const sanitized = (memoryStore.users || []).map(u => {
+    const { password_hash, passwordHash, mfa_secret, ...rest } = u;
+    const pwdAge = calculatePasswordAge(u);
+    return {
+      ...rest,
+      password_expired: pwdAge.password_expired,
+      password_expiring_soon: pwdAge.password_expiring_soon,
+      days_until_expiry: pwdAge.days_until_expiry,
+      password_age_days: pwdAge.age_days,
+      mfa_enabled: !!u.mfa_enabled
+    };
+  });
+  res.json(sanitized);
 });
 
 app.put('/api/admin/users/:id/role', (req, res) => {
@@ -10688,9 +11013,109 @@ const autoDemandOverdueInvoices = async () => {
   }
 };
 
+// Automated 90-day Password Expiry Notification & Audit Job
+async function checkPasswordExpiryAlerts() {
+  try {
+    const users = memoryStore.users || [];
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    for (const u of users) {
+      if (!u || !u.email) continue;
+      const pwdAge = calculatePasswordAge(u);
+
+      // Warning when expiring soon (between 80 and 89 days)
+      if (pwdAge.password_expiring_soon) {
+        const lastWarn = u.last_expiry_warning_at ? new Date(u.last_expiry_warning_at).getTime() : 0;
+        if (now - lastWarn > sevenDaysMs) {
+          u.last_expiry_warning_at = new Date().toISOString();
+          savePersistentStore();
+
+          try {
+            const transporter = nodemailer.createTransport({
+              host: memoryStore.smtp_settings?.host || process.env.SMTP_HOST || 'mail.ncloud.co.ug',
+              port: Number(memoryStore.smtp_settings?.port) || 465,
+              secure: true,
+              auth: {
+                user: memoryStore.smtp_settings?.user || process.env.SMTP_USER || 'support@ncloud.co.ug',
+                pass: memoryStore.smtp_settings?.pass || process.env.SMTP_PASS || ''
+              },
+              tls: { rejectUnauthorized: false }
+            });
+
+            const emailHtml = generateCorporateEmailHtml({
+              title: `Security Notice: Password Expires in ${pwdAge.days_until_expiry} Days`,
+              badgeText: '90-DAY POLICY REMINDER',
+              recipientName: u.name || 'Nova Cloud User',
+              introText: `Under Nova Cloud's organizational cybersecurity policy, all account passwords expire every <b>90 days</b>. Your password is scheduled to expire in <b>${pwdAge.days_until_expiry} day(s)</b>. Please sign in and renew your password to prevent disruption to your administrative or client services.`,
+              ctaText: 'Sign In & Update Password',
+              ctaLink: 'https://ncloud.co.ug/',
+              footerNote: 'This is an automated system security notification dispatched from Nova Cloud Security Operations Center.'
+            });
+
+            await transporter.sendMail({
+              from: `"Nova Cloud Security" <${memoryStore.smtp_settings?.user || 'support@ncloud.co.ug'}>`,
+              to: u.email,
+              subject: `Security Notice: Your Nova Cloud Password Expires in ${pwdAge.days_until_expiry} Days`,
+              html: emailHtml
+            });
+            console.log(`[Password Expiry] Dispatched 10-day expiration warning email to ${u.email}`);
+          } catch (mailErr) {
+            console.warn(`[Password Expiry] Warning email failed for ${u.email}:`, mailErr.message);
+          }
+        }
+      } else if (pwdAge.password_expired) {
+        // Notice when already expired (90+ days)
+        const lastNotice = u.last_expired_notice_at ? new Date(u.last_expired_notice_at).getTime() : 0;
+        if (now - lastNotice > sevenDaysMs) {
+          u.last_expired_notice_at = new Date().toISOString();
+          savePersistentStore();
+
+          try {
+            const transporter = nodemailer.createTransport({
+              host: memoryStore.smtp_settings?.host || process.env.SMTP_HOST || 'mail.ncloud.co.ug',
+              port: Number(memoryStore.smtp_settings?.port) || 465,
+              secure: true,
+              auth: {
+                user: memoryStore.smtp_settings?.user || process.env.SMTP_USER || 'support@ncloud.co.ug',
+                pass: memoryStore.smtp_settings?.pass || process.env.SMTP_PASS || ''
+              },
+              tls: { rejectUnauthorized: false }
+            });
+
+            const emailHtml = generateCorporateEmailHtml({
+              title: 'Action Required: Your Password Has Expired',
+              badgeText: 'MANDATORY ACTION REQUIRED',
+              recipientName: u.name || 'Nova Cloud User',
+              introText: `Your Nova Cloud portal password has reached the mandatory <b>90-day validity limit</b> and has now expired. For your security, account access is restricted until you sign in and establish a new compliant password.`,
+              ctaText: 'Renew Expired Password',
+              ctaLink: 'https://ncloud.co.ug/',
+              footerNote: 'If you require technical assistance, contact the Nova Cloud cybersecurity team at support@ncloud.co.ug.'
+            });
+
+            await transporter.sendMail({
+              from: `"Nova Cloud Security" <${memoryStore.smtp_settings?.user || 'support@ncloud.co.ug'}>`,
+              to: u.email,
+              subject: 'Action Required: Your Nova Cloud Password Has Expired',
+              html: emailHtml
+            });
+            console.log(`[Password Expiry] Dispatched expired notice email to ${u.email}`);
+          } catch (mailErr) {
+            console.warn(`[Password Expiry] Expired email failed for ${u.email}:`, mailErr.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Password Expiry] Job error:', err);
+  }
+}
+
 // Run on startup and then every 24 hours
 setTimeout(autoDemandOverdueInvoices, 30000); // 30 seconds after startup to ensure boot
 setInterval(autoDemandOverdueInvoices, 24 * 60 * 60 * 1000);
+setTimeout(checkPasswordExpiryAlerts, 45000);
+setInterval(checkPasswordExpiryAlerts, 24 * 60 * 60 * 1000);
 
 app.post('/api/admin/forensics/purge-old', requireSuperAdmin, async (req, res) => {
   const purgedCount = await purgeOldAuditLogs();

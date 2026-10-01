@@ -6655,6 +6655,14 @@ const normalizeTabName = (rawTab) => {
                                       <Phone size={12} color="#10b981" />
                                       <span>{u.phone || '+256 700 000 000'}</span>
                                     </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '5px', paddingTop: '5px', borderTop: '1px dashed var(--border-color)', fontSize: '0.725rem' }}>
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', color: u.mfa_enabled ? '#10b981' : (u.role === 'super_admin' ? '#ef4444' : 'var(--text-muted)') }}>
+                                        <Key size={11} /> {u.mfa_enabled ? 'MFA Enabled' : (u.role === 'super_admin' ? 'MFA Required' : 'MFA Not Set')}
+                                      </span>
+                                      <span style={{ color: u.password_expired ? '#ef4444' : (u.password_expiring_soon ? '#f59e0b' : 'var(--text-muted)'), fontWeight: '600' }}>
+                                        {u.password_expired ? '● Expired' : `${u.days_until_expiry !== undefined ? u.days_until_expiry : 90}d left`}
+                                      </span>
+                                    </div>
                                     {u.supervisor_name && (
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed var(--border-color)' }}>
                                         <ShieldCheck size={12} color="#8b5cf6" />
@@ -6757,6 +6765,7 @@ const normalizeTabName = (rawTab) => {
                                 <th style={{ padding: '0.9rem 1.1rem' }}>Contact Details</th>
                                 <th style={{ padding: '0.9rem 1.1rem' }}>Organization & Dept</th>
                                 <th style={{ padding: '0.9rem 1.1rem' }}>System Role</th>
+                                <th style={{ padding: '0.9rem 1.1rem' }}>Security & MFA</th>
                                 <th style={{ padding: '0.9rem 1.1rem' }}>Status</th>
                                 <th style={{ padding: '0.9rem 1.1rem', textAlign: 'right' }}>Actions & Access</th>
                               </tr>
@@ -6820,6 +6829,23 @@ const normalizeTabName = (rawTab) => {
                                           </option>
                                         ))}
                                       </select>
+                                    </td>
+                                    <td style={{ padding: '0.9rem 1.1rem' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                          <ShieldCheck size={13} color={u.mfa_enabled ? '#10b981' : (u.role === 'super_admin' ? '#ef4444' : '#94a3b8')} />
+                                          <span style={{
+                                            fontSize: '0.725rem',
+                                            fontWeight: '700',
+                                            color: u.mfa_enabled ? '#10b981' : (u.role === 'super_admin' ? '#ef4444' : 'var(--text-muted)')
+                                          }}>
+                                            {u.mfa_enabled ? 'MFA: Enabled' : (u.role === 'super_admin' ? 'MFA: Required' : 'MFA: Off')}
+                                          </span>
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: u.password_expired ? '#ef4444' : (u.password_expiring_soon ? '#f59e0b' : 'var(--text-muted)'), fontWeight: '600' }}>
+                                          {u.password_expired ? '● Expired' : `${u.days_until_expiry !== undefined ? u.days_until_expiry : 90}d validity`}
+                                        </div>
+                                      </div>
                                     </td>
                                     <td style={{ padding: '0.9rem 1.1rem' }}>
                                       {u.role === 'super_admin' ? (
@@ -6948,15 +6974,24 @@ const normalizeTabName = (rawTab) => {
                 ? forensicsList
                 : (Array.isArray(data?.audit_logs) ? data.audit_logs : []);
 
+              const safeStr = (v) => {
+                if (v === null || v === undefined) return '';
+                if (typeof v === 'object') {
+                  try { return JSON.stringify(v); } catch (e) { return ''; }
+                }
+                return String(v);
+              };
+
               const filteredLogs = logs.filter(l => {
+                const searchLower = (forensicsSearch || '').toLowerCase();
                 const matchesSearch = !forensicsSearch ||
-                  (l.user_name || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.user_email || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.action || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.ip_address || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.device_type || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  String(l.resource_id || '').toLowerCase().includes(forensicsSearch.toLowerCase()) ||
-                  (l.details || '').toLowerCase().includes(forensicsSearch.toLowerCase());
+                  safeStr(l.user_name).toLowerCase().includes(searchLower) ||
+                  safeStr(l.user_email).toLowerCase().includes(searchLower) ||
+                  safeStr(l.action).toLowerCase().includes(searchLower) ||
+                  safeStr(l.ip_address).toLowerCase().includes(searchLower) ||
+                  safeStr(l.device_type).toLowerCase().includes(searchLower) ||
+                  safeStr(l.resource_id).toLowerCase().includes(searchLower) ||
+                  safeStr(l.details).toLowerCase().includes(searchLower);
 
                 const matchesAction = forensicsFilterAction === 'ALL' || l.action === forensicsFilterAction;
                 return matchesSearch && matchesAction;
@@ -7228,27 +7263,27 @@ const normalizeTabName = (rawTab) => {
                                 })()}
                               </td>
                               <td style={{ padding: '0.85rem 1.1rem' }}>
-                                <div style={{ fontWeight: '700', color: 'var(--text-main)' }}>{log.user_name}</div>
-                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{log.user_email}</div>
+                                <div style={{ fontWeight: '700', color: 'var(--text-main)' }}>{safeStr(log.user_name)}</div>
+                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{safeStr(log.user_email)}</div>
                               </td>
                               <td style={{ padding: '0.85rem 1.1rem' }}>
                                 <span className="badge-tag" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800' }}>
-                                  {log.action}
+                                  {safeStr(log.action)}
                                 </span>
                               </td>
                               <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem' }}>
-                                <code>{log.resource_id}</code>
+                                <code>{safeStr(log.resource_id)}</code>
                               </td>
                               <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', fontWeight: '700', color: 'var(--primary)' }}>
                                 <Fingerprint size={12} style={{ display: 'inline', marginRight: '4px' }} />
-                                {log.ip_address}
+                                {safeStr(log.ip_address)}
                               </td>
                               <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {(log.device_type || '').includes('Mobile') ? <Smartphone size={12} style={{ display: 'inline', marginRight: '3px' }} /> : <Laptop size={12} style={{ display: 'inline', marginRight: '3px' }} />}
-                                {log.device_type}
+                                {(safeStr(log.device_type) || '').includes('Mobile') ? <Smartphone size={12} style={{ display: 'inline', marginRight: '3px' }} /> : <Laptop size={12} style={{ display: 'inline', marginRight: '3px' }} />}
+                                {safeStr(log.device_type)}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', maxWidth: '280px' }}>
-                                {log.details}
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', maxWidth: '280px', wordBreak: 'break-word' }}>
+                                {safeStr(log.details)}
                               </td>
                               <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
@@ -7268,7 +7303,7 @@ const normalizeTabName = (rawTab) => {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      const txt = `[${log.timestamp}] ${log.action} | User: ${log.user_name} (${log.user_email}) | IP: ${log.ip_address} | Ref: ${log.resource_id} | ${log.details}`;
+                                      const txt = `[${log.timestamp}] ${safeStr(log.action)} | User: ${safeStr(log.user_name)} (${safeStr(log.user_email)}) | IP: ${safeStr(log.ip_address)} | Ref: ${safeStr(log.resource_id)} | ${safeStr(log.details)}`;
                                       try {
                                         if (navigator.clipboard && window.isSecureContext) {
                                           navigator.clipboard.writeText(txt);
@@ -13314,6 +13349,70 @@ const normalizeTabName = (rawTab) => {
                           <Check size={16} /> {savingSecurity ? 'Saving Configuration...' : 'Save Security Settings'}
                         </button>
                       </form>
+                    </div>
+                  </div>
+
+                  {/* Card: Authentication & Cybersecurity Standards */}
+                  <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <ShieldCheck size={20} /> Corporate Credentials & MFA Policy
+                        </h4>
+                        <span style={{ fontSize: '0.725rem', fontWeight: '800', padding: '0.2rem 0.55rem', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                          ACTIVE POLICY
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+                        Organizational cybersecurity controls enforce multi-factor authentication (MFA) via mobile authenticator apps (Google Authenticator, Microsoft Authenticator) and 90-day password expiration across all accounts.
+                      </p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                        <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                            <Key size={16} color="var(--primary)" />
+                            <strong style={{ fontSize: '0.875rem' }}>App Authenticator (TOTP MFA)</strong>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.45' }}>
+                            Mandatory for <strong>Super Administrator</strong> accounts. Protects against credential theft and unauthorized access attempts.
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="badge-tag" style={{ background: user?.mfa_enabled ? 'rgba(16, 185, 129, 0.15)' : (user?.role === 'super_admin' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(148, 163, 184, 0.15)'), color: user?.mfa_enabled ? '#10b981' : (user?.role === 'super_admin' ? '#ef4444' : 'var(--text-muted)'), fontWeight: '800', fontSize: '0.72rem' }}>
+                              Your Status: {user?.mfa_enabled ? 'MFA Configured & Active' : (user?.role === 'super_admin' ? 'Setup Required on Next Login' : 'Not Configured')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                            <Clock size={16} color="#f59e0b" />
+                            <strong style={{ fontSize: '0.875rem' }}>90-Day Password Expiry</strong>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: '1.45' }}>
+                            All accounts automatically expire every 90 days. Users receive automated email notices 10 days before expiry and are locked with a mandatory password update upon reaching 90 days.
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: user?.password_expired ? '#ef4444' : 'var(--text-main)' }}>
+                              {user?.password_expired ? '● Expired: Update Required' : `Valid for ${user?.days_until_expiry !== undefined ? user?.days_until_expiry : 90} more day(s)`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditProfileOpen(true)}
+                              className="btn-secondary"
+                              style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem' }}
+                            >
+                              Update Password
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(99, 102, 241, 0.08)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Sparkles size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
+                        <div>
+                          <strong>Corporate SSO Domain Shortcuts Active:</strong> Users with <code>@ncloud.co.ug</code> and <code>@ncedges.com</code> emails can sign in using their username prefix (e.g. <code>jniyonzima</code>) directly across all authentication portals.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

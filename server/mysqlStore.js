@@ -88,12 +88,26 @@ export async function loadFullStoreFromMysql() {
     const [roles] = await pool.query('SELECT * FROM roles ORDER BY id ASC');
     store.roles = roles.map(r => ({ ...r, permissions: parseJsonSafe(r.permissions, {}) }));
 
+    // Ensure security columns exist in users table
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN mfa_enabled TINYINT(1) DEFAULT 0');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(255) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN password_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    } catch {}
+
     // 2. Users
     const [users] = await pool.query('SELECT * FROM users ORDER BY id ASC');
     store.users = users.map(u => ({
       ...u,
       passwordHash: u.password_hash,
-      is_verified: Boolean(u.is_verified)
+      is_verified: Boolean(u.is_verified),
+      mfa_enabled: Boolean(u.mfa_enabled),
+      mfa_secret: u.mfa_secret || null,
+      password_updated_at: u.password_updated_at ? new Date(u.password_updated_at).toISOString() : (u.created_at ? new Date(u.created_at).toISOString() : new Date().toISOString())
     }));
 
     // 3. Services
@@ -183,7 +197,7 @@ export async function loadFullStoreFromMysql() {
     const [logs] = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC, id DESC LIMIT 500');
     store.audit_logs = logs.map(l => ({
       ...l,
-      details: parseJsonSafe(l.details, {})
+      details: typeof l.details === 'string' ? l.details : (l.details ? JSON.stringify(l.details) : '')
     }));
 
     // 18. Jobs
@@ -359,12 +373,13 @@ export async function syncStoreToMysql(store) {
       for (const u of store.users) {
         const pass = u.password_hash || u.passwordHash || '';
         await pool.query(
-          `INSERT INTO users (id, name, email, password_hash, role, position, title, phone, company, status, is_verified, verification_token, verification_expires, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role=VALUES(role), phone=VALUES(phone), company=VALUES(company), status=VALUES(status), is_verified=VALUES(is_verified)`,
+          `INSERT INTO users (id, name, email, password_hash, role, position, title, phone, company, status, is_verified, verification_token, verification_expires, mfa_enabled, mfa_secret, password_updated_at, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role=VALUES(role), phone=VALUES(phone), company=VALUES(company), status=VALUES(status), is_verified=VALUES(is_verified), mfa_enabled=VALUES(mfa_enabled), mfa_secret=VALUES(mfa_secret), password_updated_at=VALUES(password_updated_at)`,
           [
             u.id || null, u.name, u.email, pass, u.role || 'customer', u.position || null, u.title || null, u.phone || null, u.company || null,
-            u.status || 'active', u.is_verified ? 1 : 0, u.verification_token || null, parseDate(u.verification_expires), parseDate(u.created_at) || new Date()
+            u.status || 'active', u.is_verified ? 1 : 0, u.verification_token || null, parseDate(u.verification_expires),
+            u.mfa_enabled ? 1 : 0, u.mfa_secret || null, parseDate(u.password_updated_at) || new Date(), parseDate(u.created_at) || new Date()
           ]
         );
       }

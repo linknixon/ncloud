@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import EditProfileModal from './components/EditProfileModal';
+import PasswordExpiryModal from './components/PasswordExpiryModal';
 import CartDrawer from './components/CartDrawer';
 import Toast from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -199,6 +200,7 @@ export default function App() {
           {/* Floating Components */}
           <AuthModal setActivePage={setActivePage} />
           <EditProfileModal />
+          <PasswordExpiryModal />
           <CartDrawer onCheckout={() => setActivePage('subscription')} />
           <ShopCheckoutModal />
           <Toast />

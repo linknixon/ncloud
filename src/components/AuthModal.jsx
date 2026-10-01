@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { X, Lock, Mail, User, Building, Phone, Eye, EyeOff, ShieldCheck, CheckCircle2, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { X, Lock, Mail, User, Building, Phone, Eye, EyeOff, ShieldCheck, CheckCircle2, Sparkles, AlertCircle, ArrowRight, Key, Copy, Check } from 'lucide-react';
 import { validatePasswordStrength } from '../utils/securityValidators';
 
 export default function AuthModal({ setActivePage }) {
@@ -12,11 +12,19 @@ export default function AuthModal({ setActivePage }) {
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [resendingVerification, setResendingVerification] = useState(false);
 
+  // MFA states
+  const [mfaData, setMfaData] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaCopied, setMfaCopied] = useState(false);
+
   useEffect(() => {
     setIsRegister(authMode === 'register');
     setIsForgotPassword(false);
     setRegistrationSuccess(null);
     setUnverifiedEmail('');
+    setMfaData(null);
+    setMfaCode('');
     if (!isAuthOpen) {
       setFormData({
         name: '',
@@ -232,6 +240,14 @@ export default function AuthModal({ setActivePage }) {
         return;
       }
 
+      // If MFA verification or setup is required
+      if (data.mfa_required) {
+        setMfaData(data);
+        setMfaCode('');
+        setError('');
+        return;
+      }
+
       if (!data.user || !data.token) {
         throw new Error('Invalid authentication data received.');
       }
@@ -254,6 +270,52 @@ export default function AuthModal({ setActivePage }) {
       setError(err.message || 'Authentication error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMfaSubmit = async (e) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.trim().length !== 6) {
+      setError('Please enter the 6-digit authentication code.');
+      return;
+    }
+    setMfaLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/mfa/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          temp_token: mfaData?.temp_token,
+          totp_code: mfaCode.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Authentication code verification failed.');
+
+      if (!data.user || !data.token) {
+        throw new Error('Invalid authentication data received.');
+      }
+
+      localStorage.setItem('token', data.token);
+      setUser(data.user);
+
+      const role = data.user.role;
+      if (role && role !== 'customer') {
+        setActivePage('admin');
+      } else {
+        if (window.location.pathname === '/admin' || window.location.pathname === '/') {
+          setActivePage('shop');
+        }
+      }
+
+      showToast(`Welcome back, ${data.user.name}!`, 'success');
+      setIsAuthOpen(false);
+      setMfaData(null);
+    } catch (err) {
+      setError(err.message || 'MFA Verification failed');
+    } finally {
+      setMfaLoading(false);
     }
   };
 
@@ -365,16 +427,26 @@ export default function AuthModal({ setActivePage }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.4rem 0.9rem', borderRadius: '100px', border: '1px solid rgba(99, 102, 241, 0.25)', marginBottom: '0.75rem' }}>
             <ShieldCheck size={16} color="var(--primary)" />
             <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Secure SSO Cloud Portal
+              {mfaData ? 'Multi-Factor Authentication' : 'Secure SSO Cloud Portal'}
             </span>
           </div>
 
           <h2 style={{ fontSize: '1.65rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.35rem', letterSpacing: '-0.02em' }}>
-            {isForgotPassword ? 'Reset Your Password' : isRegister ? 'Create Your Account' : 'Sign In to Portal'}
+            {mfaData
+              ? (mfaData.setup_required ? 'Setup Authenticator App' : 'Two-Factor Challenge')
+              : isForgotPassword
+              ? 'Reset Your Password'
+              : isRegister
+              ? 'Create Your Account'
+              : 'Sign In to Portal'}
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '360px', margin: '0 auto', lineHeight: '1.45' }}>
-            {isForgotPassword
-              ? 'Enter your registered email address and we will send you a secure link to reset your password.'
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0 auto', lineHeight: '1.45' }}>
+            {mfaData
+              ? (mfaData.setup_required
+                  ? (mfaData.is_mandatory ? 'MFA is mandatory for Super Administrator accounts. Scan the QR code below using Google Authenticator, Microsoft Authenticator, or Authy.' : 'Enhance your account security. Scan the QR code with your authenticator app.')
+                  : `Please enter the 6-digit TOTP security code from your mobile authenticator app.`)
+              : isForgotPassword
+              ? 'Enter your registered email address or username and we will send you a secure link to reset your password.'
               : isRegister
               ? 'Join Nova Cloud Edges to deploy virtual servers, manage mailboxes, and track billing.'
               : 'Enter your verified credentials to access administrative systems and client services.'}
@@ -437,6 +509,130 @@ export default function AuthModal({ setActivePage }) {
                 {resendingVerification ? 'Resending verification...' : "Didn't receive the email? Resend link"}
               </button>
             </div>
+          </div>
+        ) : mfaData ? (
+          /* MFA Challenge / Setup Screen */
+          <div style={{ padding: '0.5rem 0.25rem' }}>
+            {error && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#ef4444',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                marginBottom: '1rem',
+                fontWeight: '600'
+              }}>
+                {error}
+              </div>
+            )}
+
+            {mfaData.setup_required && mfaData.qr_code && (
+              <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                <div style={{
+                  background: '#ffffff',
+                  padding: '10px',
+                  borderRadius: '12px',
+                  display: 'inline-block',
+                  border: '1px solid var(--border-color)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+                }}>
+                  <img
+                    src={mfaData.qr_code}
+                    alt="Authenticator QR Code"
+                    style={{ width: '160px', height: '160px', display: 'block' }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                  Scan with <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, or <strong>Authy</strong>
+                </div>
+              </div>
+            )}
+
+            {mfaData.setup_required && mfaData.secret && (
+              <div style={{
+                background: 'var(--bg-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.75rem'
+              }}>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Manual Setup Key</div>
+                  <code style={{ fontSize: '0.85rem', fontWeight: '800', letterSpacing: '0.08em', color: 'var(--primary)', wordBreak: 'break-all' }}>{mfaData.secret}</code>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(mfaData.secret);
+                    setMfaCopied(true);
+                    setTimeout(() => setMfaCopied(false), 2000);
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', flexShrink: 0, gap: '4px' }}
+                >
+                  {mfaCopied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                  {mfaCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleMfaSubmit}>
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                  <Key size={14} color="var(--primary)" /> 6-Digit Authenticator Code
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="000000"
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  maxLength={6}
+                  autoFocus
+                  required
+                  style={{
+                    fontSize: '1.75rem',
+                    fontWeight: '800',
+                    letterSpacing: '0.35em',
+                    textAlign: 'center',
+                    padding: '0.65rem 1rem',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '0.85rem',
+                  fontSize: '0.95rem',
+                  fontWeight: '800',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                }}
+                disabled={mfaLoading || mfaCode.length !== 6}
+              >
+                {mfaLoading ? 'Verifying...' : (mfaData.setup_required ? 'Verify & Complete Setup' : 'Verify & Continue')}
+              </button>
+
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => { setMfaData(null); setMfaCode(''); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.825rem', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  ← Return to Sign In
+                </button>
+              </div>
+            </form>
           </div>
         ) : (
           <>
@@ -524,15 +720,16 @@ export default function AuthModal({ setActivePage }) {
           <form onSubmit={handleForgotPasswordSubmit}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Mail size={14} color="var(--primary)" /> Registered Email Address
+                <Mail size={14} color="var(--primary)" /> Registered Email or Username
               </label>
               <input
-                type="email"
+                type="text"
                 className="form-input"
-                placeholder="e.g. samuel@company.co.ug"
+                placeholder="e.g. samuel@company.co.ug or jniyonzima"
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                 required
+                autoCapitalize="none"
               />
             </div>
             
@@ -581,16 +778,24 @@ export default function AuthModal({ setActivePage }) {
 
           <div className="form-group" style={{ marginBottom: '1rem' }}>
             <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Mail size={14} color="var(--primary)" /> Work / Personal Email Address *
+              <Mail size={14} color="var(--primary)" /> {isRegister ? 'Work / Personal Email Address *' : 'Email Address or Corporate Username *'}
             </label>
             <input
-              type="email"
+              type={isRegister ? "email" : "text"}
               className="form-input"
-              placeholder="e.g. samuel@company.co.ug"
+              placeholder={isRegister ? "e.g. samuel@company.co.ug" : "e.g. jniyonzima or user@ncloud.co.ug"}
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
               required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
             />
+            {!isRegister && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                @ncloud.co.ug & @ncedges.com users can sign in using their username prefix only.
+              </span>
+            )}
           </div>
 
           <div className="form-group" style={{ marginBottom: '1rem' }}>
