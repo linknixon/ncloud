@@ -17,8 +17,16 @@ export default function InstallPrompt() {
     const isRunningStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     setIsStandalone(isRunningStandalone);
 
-    // Check localStorage to see if user dismissed the prompt before
-    const hasDismissed = localStorage.getItem('pwa_prompt_dismissed') === 'true';
+    // Check localStorage to see if user dismissed the prompt in the last 24 hours
+    const dismissedTime = localStorage.getItem('pwa_prompt_dismissed_time');
+    const hasDismissed = dismissedTime && (Date.now() - Number(dismissedTime) < 24 * 60 * 60 * 1000);
+
+    const handleAppInstalled = () => {
+      setShowPrompt(false);
+      setIsStandalone(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     if (!isRunningStandalone && !hasDismissed) {
       if (isIosDevice) {
@@ -36,9 +44,14 @@ export default function InstallPrompt() {
         
         return () => {
           window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.removeEventListener('appinstalled', handleAppInstalled);
         };
       }
     }
+
+    return () => {
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = async () => {
@@ -54,7 +67,7 @@ export default function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa_prompt_dismissed', 'true');
+    localStorage.setItem('pwa_prompt_dismissed_time', String(Date.now()));
   };
 
   if (!showPrompt) return null;

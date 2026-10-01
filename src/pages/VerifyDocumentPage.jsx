@@ -309,7 +309,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
               >
-                <Download size={15} /> Download / Print Official PDF
+                <Download size={15} /> Download
               </button>
 
               {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
