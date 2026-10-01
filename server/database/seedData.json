@@ -241,56 +241,342 @@
   ],
   "products": [
     {
-      "id": 1,
-      "name": "Intuit QuickBooks Enterprise Solutions v24.0",
-      "slug": "intuit-quickbooks-enterprise-solutions-v24-0",
-      "category": "Digital Products",
-      "price": 3500000,
+      "id": 4,
+      "name": "Nova Cloud Edge VPS Server (Standard)",
+      "slug": "cloud-vps-standard",
+      "category": "Hosting Services",
+      "price": 250000,
       "currency": "UGX",
-      "badge": "Best Seller",
-      "short_desc": "Industry-leading ERP accounting software designed for growing businesses requiring up to 40 concurrent users.",
-      "description": "Intuit QuickBooks Enterprise Solutions v24.0 gives you powerful control over financial management, inventory tracking, payroll processing, and custom reporting.",
-      "image_url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
-      "stock": 50
-    },
-    {
-      "id": 2,
-      "name": "Zimbra Enterprise Email Package (10 Users)",
-      "slug": "zimbra-email-package",
-      "category": "Digital Products",
-      "price": 450000,
-      "currency": "UGX",
-      "badge": "Popular",
-      "short_desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user, shared calendar and webmail.",
-      "description": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, spam protection, and 99.9% uptime guarantee.",
-      "image_url": "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80",
-      "stock": 100
+      "badge": "Featured",
+      "short_desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
+      "description": "High-performance Sovereign Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access, and low latency direct peering in Kampala.",
+      "specs": {
+        "vcpu": "4 vCPU Cores",
+        "ram": "8GB DDR4 RAM",
+        "storage": "100GB NVMe SSD",
+        "bandwidth": "Unmetered 1Gbps Uplink",
+        "ip": "1 Dedicated IPv4"
+      },
+      "details": {
+        "os": "Ubuntu, Debian, AlmaLinux, Windows Server",
+        "backup": "Automated Daily Snapshots",
+        "support": "24/7 NOC Monitoring"
+      },
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 30,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
     },
     {
       "id": 3,
       "name": "Data Center Colocation Management & Rack Hosting (1U Rack Unit)",
       "slug": "colocation-management-1u",
-      "category": "Cloud Services",
+      "category": "Hosting Services",
       "price": 650000,
       "currency": "UGX",
       "badge": "Infrastructure",
       "short_desc": "Secure 1U server colocation hosting in high-security Tier III Data Center with dual A+B power feeds and gigabit bandwidth.",
-      "description": "Nova Colocation Management provides rack space, redundant diesel generator backup, precision cooling, biometric access control, and 1Gbps unmetered RENU/Liquid fiber cross-connects.",
+      "description": "Enterprise rack space in Tier III datacenter facility with 99.99% uptime guarantee, biometric access control, fire suppression, precision cooling, and direct BGP IP transit.",
+      "specs": {
+        "space": "1U Rack Unit Space",
+        "power": "Dual A+B Redundant Power Feeds",
+        "cooling": "N+1 Precision Climate Control",
+        "network": "100Mbps Dedicated Bandwidth"
+      },
+      "details": {
+        "remote_hands": "Basic Remote Hands Included",
+        "security": "24/7 CCTV & Biometric Access",
+        "sla": "99.99% Guaranteed SLA"
+      },
       "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
-      "stock": 25
+      "stock": 20,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
     },
     {
-      "id": 4,
-      "name": "Nova Cloud Edge VPS Server (Standard)",
-      "slug": "cloud-vps-standard",
-      "category": "Cloud Services",
-      "price": 280000,
+      "id": 21,
+      "name": "Cloud Web Hosting - Starter Plan",
+      "slug": "cloud-web-hosting-starter",
+      "category": "Hosting Services",
+      "price": 45000,
       "currency": "UGX",
-      "badge": "Featured",
-      "short_desc": "4 vCPU, 8GB RAM, 100GB NVMe SSD Cloud Virtual Private Server hosted in Kampala Edge Datacenter.",
-      "description": "High-performance Cloud VPS featuring ultra-fast NVMe storage, dedicated IPv4 address, automated daily snapshots, full root access.",
-      "image_url": "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=800&q=80",
-      "stock": 30
+      "badge": "Starter",
+      "short_desc": "10GB NVMe SSD, cPanel, 5 Corporate Emails, Free SSL Certificate",
+      "description": "Reliable cloud-hosted shared web hosting with cPanel control panel, 10GB high-speed NVMe storage, 5 business email mailboxes, automated weekly backups, and 99.9% uptime SLA.",
+      "specs": {
+        "storage": "10GB NVMe SSD",
+        "bandwidth": "Unmetered",
+        "cpanel": "cPanel Control Panel",
+        "emails": "5 Business Email Accounts",
+        "ssl": "Free AutoSSL Certificate"
+      },
+      "details": {
+        "php": "PHP 7.4 - 8.3 Multi-Version",
+        "database": "Unlimited MySQL Databases",
+        "backup": "Weekly Automated Backups"
+      },
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 22,
+      "name": "Cloud Web Hosting - Professional Plan",
+      "slug": "cloud-web-hosting-professional",
+      "category": "Hosting Services",
+      "price": 95000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "30GB NVMe SSD, cPanel, 25 Corporate Emails, Free SSL, Daily Backups",
+      "description": "Designed for growing commercial websites and SMEs. Includes 30GB NVMe SSD storage, cPanel administration, 25 corporate email mailboxes, daily automated backups, and 24/7 technical monitoring.",
+      "specs": {
+        "storage": "30GB NVMe SSD",
+        "bandwidth": "Unmetered",
+        "cpanel": "cPanel Control Panel",
+        "emails": "25 Business Email Accounts",
+        "ssl": "Free Wildcard SSL"
+      },
+      "details": {
+        "php": "PHP 7.4 - 8.3 Multi-Version",
+        "database": "Unlimited MySQL Databases",
+        "backup": "Daily Automated Backups"
+      },
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 23,
+      "name": "Cloud Web Hosting - Enterprise Plan",
+      "slug": "cloud-web-hosting-enterprise",
+      "category": "Hosting Services",
+      "price": 180000,
+      "currency": "UGX",
+      "badge": "Enterprise",
+      "short_desc": "100GB NVMe SSD, cPanel, Unlimited Emails, Dedicated IP, Priority Support",
+      "description": "High-capacity web hosting for high-traffic enterprise portals. Includes 100GB NVMe SSD, dedicated IPv4 address, unlimited business email accounts, Redis caching, and priority 24/7 NOC support.",
+      "specs": {
+        "storage": "100GB NVMe SSD",
+        "bandwidth": "Unmetered",
+        "cpanel": "cPanel Control Panel",
+        "emails": "Unlimited Accounts",
+        "ip": "1 Dedicated IPv4"
+      },
+      "details": {
+        "caching": "Redis & Memcached Support",
+        "security": "WAF & DDoS Mitigation",
+        "support": "Priority 24/7 Phone & Ticket NOC"
+      },
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 12,
+      "name": "Unifi Controller Cloud Hosting",
+      "slug": "unifi-controller-managed",
+      "category": "Hosting Services",
+      "price": 20000,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Cloud-based UniFi controller hosting for campus networks and hotspots.",
+      "description": "Cloud-based Unifi controller hosting with mobile app access, multi-site management, automated backup snapshots, hotspot captive portal engine, and token usage analytics.",
+      "specs": {
+        "sites": "Unlimited UniFi Access Points",
+        "captive_portal": "Custom Voucher & Radius Engine",
+        "uptime": "99.99% Hosted SLA"
+      },
+      "details": {
+        "app_access": "iOS & Android UniFi App Compatible",
+        "alerts": "Instant Device Disconnect Notifications"
+      },
+      "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpcyYqeV5xn8MVR0ALss9D2SLQDX3vY0XS7iCwpfNm9gJRdGYuIdzRFpGp&s=10",
+      "stock": 62,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 2,
+      "name": "Zimbra Enterprise Email Package (10 Users)",
+      "slug": "zimbra-email-package",
+      "category": "Hosting Services",
+      "price": 6500,
+      "currency": "UGX",
+      "badge": "Popular",
+      "short_desc": "Annual subscription for 10 corporate Zimbra mailboxes with 25GB storage per user.",
+      "description": "Zimbra Enterprise Email Package includes 10 custom domain email accounts with 25GB quota each, Zimbra webmail suite, Microsoft Outlook & mobile sync, and anti-spam filtering.",
+      "specs": {
+        "accounts": "10 Corporate Mailboxes",
+        "quota": "25GB per Mailbox",
+        "protocol": "IMAP / POP3 / ActiveSync"
+      },
+      "details": {
+        "webmail": "Modern Zimbra Web Client",
+        "antispam": "Built-in SpamAssassin & ClamAV Engine"
+      },
+      "image_url": "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": 0,
+      "checkout_type": "hosting",
+      "checkout_flow": "hosting"
+    },
+    {
+      "id": 17,
+      "name": "Domain Name Registration",
+      "slug": "domain-name-registration",
+      "category": "Domain Names",
+      "price": 95000,
+      "currency": "UGX",
+      "badge": "Top Level",
+      "short_desc": "Official .ug / .co.ug / .com / .org domain name registration and DNS hosting.",
+      "description": "Secure your corporate digital identity. Includes full DNS zone management, WHOIS privacy protection where eligible, automated renewal reminders, and fast activation.",
+      "specs": {
+        "tlds": ".ug, .co.ug, .org.ug, .com, .org, .net",
+        "dns": "Managed Anycast DNS Included"
+      },
+      "details": {
+        "nameservers": "ns1.ncloud.co.ug, ns2.ncloud.co.ug",
+        "renewal": "Annual Renewal Notice"
+      },
+      "image_url": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80",
+      "stock": 100,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 101,
+      "name": "WiFi Voucher - 12 Hours",
+      "slug": "wifi-voucher-12-hours",
+      "category": "WiFi Vouchers",
+      "price": 800,
+      "currency": "UGX",
+      "badge": "12h Pass",
+      "short_desc": "12 hours of high-speed guest WiFi access.",
+      "description": "Instant 12-hour high-speed guest WiFi token. Single-device access, low latency, unlimited data quota on Nova Hotspot Network.",
+      "specs": {
+        "duration": "12 Hours Uninterrupted",
+        "devices": "1 Device per Token",
+        "speed": "Up to 20Mbps High Speed"
+      },
+      "details": {
+        "delivery": "Instant SMS & Email Token Delivery",
+        "support": "24/7 Hotspot Support"
+      },
+      "image_url": "https://png.pngtree.com/recommend-works/png-clipart/20241002/ourmid/pngtree-free-wifi-zone-png-image_13999170.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 102,
+      "name": "WiFi Voucher - 24 Hours",
+      "slug": "wifi-voucher-24-hours",
+      "category": "WiFi Vouchers",
+      "price": 1400,
+      "currency": "UGX",
+      "badge": "Daily Pass",
+      "short_desc": "24 hours of high-speed guest WiFi access.",
+      "description": "Instant 24-hour high-speed guest WiFi token. Stay connected all day with zero data caps and rapid captive portal login.",
+      "specs": {
+        "duration": "24 Hours Uninterrupted",
+        "devices": "1 Device per Token",
+        "speed": "Up to 25Mbps High Speed"
+      },
+      "details": {
+        "delivery": "Instant SMS & Email Token Delivery",
+        "support": "24/7 Hotspot Support"
+      },
+      "image_url": "https://png.pngtree.com/recommend-works/png-clipart/20241002/ourmid/pngtree-free-wifi-zone-png-image_13999170.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 103,
+      "name": "WiFi Voucher - 48 Hours",
+      "slug": "wifi-voucher-48-hours",
+      "category": "WiFi Vouchers",
+      "price": 2500,
+      "currency": "UGX",
+      "badge": "Weekend Pass",
+      "short_desc": "48 hours of high-speed guest WiFi access.",
+      "description": "Best value for 2 full days of uninterrupted high-speed internet access on our campus network.",
+      "specs": {
+        "duration": "48 Hours Uninterrupted",
+        "devices": "1 Device per Token",
+        "speed": "Up to 30Mbps High Speed"
+      },
+      "details": {
+        "delivery": "Instant SMS & Email Token Delivery",
+        "support": "24/7 Hotspot Support"
+      },
+      "image_url": "https://png.pngtree.com/recommend-works/png-clipart/20241002/ourmid/pngtree-free-wifi-zone-png-image_13999170.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 104,
+      "name": "WiFi Voucher - 7 Days",
+      "slug": "wifi-voucher-7-days",
+      "category": "WiFi Vouchers",
+      "price": 6000,
+      "currency": "UGX",
+      "badge": "Weekly Pass",
+      "short_desc": "7 days of high-speed guest WiFi access.",
+      "description": "Perfect for weekly stays or extended visitors. Enjoy 7 days of unlimited high-speed guest WiFi access.",
+      "specs": {
+        "duration": "7 Days Uninterrupted",
+        "devices": "1 Device per Token",
+        "speed": "Up to 30Mbps High Speed"
+      },
+      "details": {
+        "delivery": "Instant SMS & Email Token Delivery",
+        "support": "24/7 Hotspot Support"
+      },
+      "image_url": "https://png.pngtree.com/recommend-works/png-clipart/20241002/ourmid/pngtree-free-wifi-zone-png-image_13999170.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
+    },
+    {
+      "id": 105,
+      "name": "WiFi Voucher - 30 Days",
+      "slug": "wifi-voucher-30-days",
+      "category": "WiFi Vouchers",
+      "price": 25000,
+      "currency": "UGX",
+      "badge": "Monthly Pass",
+      "short_desc": "30 days of high-speed guest WiFi access.",
+      "description": "Enjoy a full month of uninterrupted high-speed internet access on our corporate guest network.",
+      "specs": {
+        "duration": "30 Days Uninterrupted",
+        "devices": "1 Device per Token",
+        "speed": "Up to 35Mbps High Speed"
+      },
+      "details": {
+        "delivery": "Instant SMS & Email Token Delivery",
+        "support": "24/7 Hotspot Support"
+      },
+      "image_url": "https://png.pngtree.com/recommend-works/png-clipart/20241002/ourmid/pngtree-free-wifi-zone-png-image_13999170.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     },
     {
       "id": 5,
@@ -301,74 +587,119 @@
       "currency": "UGX",
       "badge": "Enterprise",
       "short_desc": "Hardware firewall appliance with Xstream Architecture, deep packet inspection, and web filtering.",
-      "description": "Robust cybersecurity hardware for medium and large offices. Provides AI-powered threat detection, SSL/TLS inspection, SD-WAN site-to-site connectivity.",
+      "description": "Robust cybersecurity hardware for medium and large offices. Provides AI-powered threat detection, SSL/TLS inspection, SD-WAN site-to-site connectivity, and zero-day protection.",
+      "specs": {
+        "throughput": "10Gbps Firewall Throughput",
+        "ports": "8x GbE Copper + 2x SFP Fiber",
+        "form_factor": "1U Rackmount"
+      },
+      "details": {
+        "warranty": "1 Year Manufacturer Warranty Included",
+        "support": "Onsite Installation & Config by Nova Engineers"
+      },
       "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
-      "stock": 12
+      "stock": 12,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     },
     {
-      "id": 101,
-      "name": "WiFi Voucher - 12 Hours",
-      "slug": "wifi-voucher-12-hours",
-      "category": "Digital Products",
-      "price": 800,
+      "id": 6,
+      "name": "Ubiquiti Unifi Mesh Access Point Pole-mountable wireless access point",
+      "slug": "unifi-mesh-access-points",
+      "category": "Hardware & Security",
+      "price": 580000,
       "currency": "UGX",
-      "badge": "Quick",
-      "short_desc": "12 hours of high-speed guest WiFi access.",
-      "description": "Get instant access to our high-speed guest WiFi network for 12 hours.",
-      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
-      "stock": 0
+      "badge": "Popular",
+      "short_desc": "High-performance outdoor/indoor UniFi Mesh Wi-Fi access point with 802.11ac dual-band technology.",
+      "description": "Ubiquiti UniFi AC Mesh AP (UAP-AC-M) provides high-performance, outdoor/indoor dual-band 802.11AC Wi-Fi with adjustable dual-band omni-directional antennas and 2x2 MIMO technology.",
+      "specs": {
+        "standard": "802.11 a/b/g/n/ac Dual Band",
+        "coverage": "Up to 183m Range",
+        "power": "24V Passive PoE or 802.3af"
+      },
+      "details": {
+        "mounting": "Wall, Pole, and Fast-Mount Included",
+        "environment": "Indoor / Outdoor Weatherproof"
+      },
+      "image_url": "https://m.media-amazon.com/images/I/41KxZk3K8OL._AC_UF894,1000_QL80_.jpg",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     },
     {
-      "id": 102,
-      "name": "WiFi Voucher - 24 Hours",
-      "slug": "wifi-voucher-24-hours",
-      "category": "Digital Products",
-      "price": 1400,
+      "id": 13,
+      "name": "Network Cable Cat 6E",
+      "slug": "network-cable-cat-6e",
+      "category": "Hardware & Security",
+      "price": 995000,
       "currency": "UGX",
-      "badge": "Daily",
-      "short_desc": "24 hours of high-speed guest WiFi access.",
-      "description": "Stay connected all day with our 24-hour high-speed guest WiFi network.",
-      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
-      "stock": 0
+      "badge": "Popular",
+      "short_desc": "Giganet Cable Category 6A Solid U/UTP LDPE 305m Drum for outdoor/indoor installations.",
+      "description": "The Giganet Cable Category 6A Solid U/UTP LDPE is a premium networking solution built for both speed and reliability. Complies with Cat6A standards, supports data speeds of up to 10Gbps and bandwidth of 500MHz with LDPE jacket.",
+      "specs": {
+        "length": "305 Meters (1,000 ft)",
+        "gauge": "23 AWG Solid Bare Copper",
+        "frequency": "500MHz Bandwidth"
+      },
+      "details": {
+        "jacket": "Weatherproof LDPE Outdoor/Indoor Jacket",
+        "compliance": "ANSI/TIA-568-C.2 Cat6A Certified"
+      },
+      "image_url": "https://starmount.co.ke/wp-content/uploads/2026/04/gn-coa-u-utp-ldde.webp",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     },
     {
-      "id": 103,
-      "name": "WiFi Voucher - 48 Hours",
-      "slug": "wifi-voucher-48-hours",
-      "category": "Digital Products",
-      "price": 2500,
+      "id": 1,
+      "name": "Intuit QuickBooks Enterprise Solutions v24.0",
+      "slug": "intuit-quickbooks-enterprise-solutions-v24-0",
+      "category": "Software & Licenses",
+      "price": 70000,
       "currency": "UGX",
-      "badge": "Best Value",
-      "short_desc": "48 hours of high-speed guest WiFi access.",
-      "description": "Best value for 2 days of uninterrupted high-speed internet access.",
-      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
-      "stock": 0
+      "badge": "Best Seller",
+      "short_desc": "Industry-leading ERP accounting software designed for growing businesses requiring multi-user access.",
+      "description": "Intuit QuickBooks Enterprise Solutions v24.0 gives you powerful control over financial management, inventory tracking, payroll processing, and custom reporting with local multi-user support.",
+      "specs": {
+        "edition": "QuickBooks Enterprise v24.0",
+        "deployment": "On-Premise or Hosted Cloud Edge Server"
+      },
+      "details": {
+        "training": "Free 2-Hour Administrator Onboarding",
+        "updates": "1-Year Product Updates Included"
+      },
+      "image_url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     },
     {
-      "id": 104,
-      "name": "WiFi Voucher - 7 Days",
-      "slug": "wifi-voucher-7-days",
-      "category": "Digital Products",
-      "price": 6000,
+      "id": 16,
+      "name": "Capacity Building and Trainings",
+      "slug": "capacity-building-and-trainings",
+      "category": "Software & Licenses",
+      "price": 1800000,
       "currency": "UGX",
-      "badge": "Weekly",
-      "short_desc": "7 days of high-speed guest WiFi access.",
-      "description": "Perfect for a week-long stay. Get 7 days of unlimited high-speed guest WiFi access.",
-      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
-      "stock": 0
-    },
-    {
-      "id": 105,
-      "name": "WiFi Voucher - 30 Days",
-      "slug": "wifi-voucher-30-days",
-      "category": "Digital Products",
-      "price": 25000,
-      "currency": "UGX",
-      "badge": "Monthly",
-      "short_desc": "30 days of high-speed guest WiFi access.",
-      "description": "Enjoy a full month of uninterrupted high-speed internet access on our guest network.",
-      "image_url": "https://images.unsplash.com/photo-1563207153-f4081c74238e?auto=format&fit=crop&w=800&q=80",
-      "stock": 0
+      "badge": "Enterprise Training",
+      "short_desc": "Corporate training modules on cloud systems administration, cybersecurity awareness, and ERP tools.",
+      "description": "Tailored on-site and virtual training programs conducted by senior Nova Cloud Edges engineers for institutional IT staff and end-users.",
+      "specs": {
+        "format": "Onsite / Virtual Interactive Workshops",
+        "duration": "Full Day Intensive (8 Hours)"
+      },
+      "details": {
+        "certification": "Certificate of Completion Issued",
+        "materials": "Full Course Handouts & Lab Access Provided"
+      },
+      "image_url": "https://clue4evidence.com/wp-content/uploads/2024/05/Daco_6119690-1200x1200.png",
+      "stock": 50,
+      "is_hidden": 0,
+      "checkout_type": "shop",
+      "checkout_flow": "shop"
     }
   ],
   "jobs": [
@@ -420,6 +751,38 @@
         "Implement CI/CD pipelines and automated backup strategies",
         "Monitor server performance and resolve escalation alerts 24/7"
       ]
+    }
+  ],
+  "product_categories": [
+    {
+      "id": 1,
+      "name": "Hosting Services",
+      "slug": "hosting-services",
+      "description": "Cloud VPS, Dedicated Edge Servers, Web & Email Hosting"
+    },
+    {
+      "id": 2,
+      "name": "Domain Names",
+      "slug": "domain-names",
+      "description": "Top-Level Domain Registrations (.ug, .co.ug, .com)"
+    },
+    {
+      "id": 3,
+      "name": "WiFi Vouchers",
+      "slug": "wifi-vouchers",
+      "description": "High-speed guest WiFi passes and hotspot access tokens"
+    },
+    {
+      "id": 4,
+      "name": "Hardware & Security",
+      "slug": "hardware-security",
+      "description": "UniFi Access Points, Firewalls, Cables, CCTV"
+    },
+    {
+      "id": 5,
+      "name": "Software & Licenses",
+      "slug": "software-licenses",
+      "description": "Enterprise ERP, QuickBooks, Moodle, Trainings"
     }
   ]
 }
