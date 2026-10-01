@@ -40,6 +40,17 @@ function parseDate(val) {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
+function safeIsoDate(val, fallback = null) {
+  if (!val) return fallback || new Date().toISOString();
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return fallback || new Date().toISOString();
+    return d.toISOString();
+  } catch {
+    return fallback || new Date().toISOString();
+  }
+}
+
 /**
  * Loads ALL 27 tables and system settings directly from MySQL.
  * Returns a consolidated store object matching memoryStore structure.
@@ -85,8 +96,12 @@ export async function loadFullStoreFromMysql() {
     };
 
     // 1. Roles
-    const [roles] = await pool.query('SELECT * FROM roles ORDER BY id ASC');
-    store.roles = roles.map(r => ({ ...r, permissions: parseJsonSafe(r.permissions, {}) }));
+    try {
+      const [roles] = await pool.query('SELECT * FROM roles ORDER BY id ASC');
+      store.roles = roles.map(r => ({ ...r, permissions: parseJsonSafe(r.permissions, {}) }));
+    } catch (e) {
+      console.warn('[MySQL Store] Roles query note:', e.message);
+    }
 
     // Ensure security columns exist in users table
     try {
@@ -100,159 +115,263 @@ export async function loadFullStoreFromMysql() {
     } catch {}
 
     // 2. Users
-    const [users] = await pool.query('SELECT * FROM users ORDER BY id ASC');
-    store.users = users.map(u => ({
-      ...u,
-      passwordHash: u.password_hash,
-      is_verified: Boolean(u.is_verified),
-      mfa_enabled: Boolean(u.mfa_enabled),
-      mfa_secret: u.mfa_secret || null,
-      password_updated_at: u.password_updated_at ? new Date(u.password_updated_at).toISOString() : (u.created_at ? new Date(u.created_at).toISOString() : new Date().toISOString())
-    }));
-
-    // 3. Services
-    const [services] = await pool.query('SELECT * FROM services ORDER BY id ASC');
-    store.services = services.map(s => ({
-      ...s,
-      features: parseJsonSafe(s.features, []),
-      is_active: Boolean(s.is_active)
-    }));
-
-    // 4. Product Categories
-    const [cats] = await pool.query('SELECT * FROM product_categories ORDER BY id ASC');
-    store.product_categories = cats;
-
-    // 5. Products
-    const [products] = await pool.query('SELECT * FROM products ORDER BY id ASC');
-    store.products = products.map(p => ({
-      ...p,
-      specs: parseJsonSafe(p.specs, {}),
-      details: parseJsonSafe(p.details, {}),
-      is_hidden: Boolean(p.is_hidden)
-    }));
-
-    // 6. Invoices
-    const [invoices] = await pool.query('SELECT * FROM invoices ORDER BY id DESC');
-    store.invoices = invoices.map(i => ({
-      ...i,
-      items: parseJsonSafe(i.items, []),
-      include_vat: Boolean(i.include_vat),
-      vat_exempt: Boolean(i.vat_exempt)
-    }));
-
-    // 7. Payments
-    const [payments] = await pool.query('SELECT * FROM payments ORDER BY id DESC');
-    store.payments = payments;
-
-    // 8. Subscriptions
-    const [subs] = await pool.query('SELECT * FROM subscriptions ORDER BY id DESC');
-    store.subscriptions = subs.map(s => ({
-      ...s,
-      reminders_sent: parseJsonSafe(s.reminders_sent, [])
-    }));
-
-    // 9. Quotations
-    const [quotes] = await pool.query('SELECT * FROM quotations ORDER BY id DESC');
-    store.quotations = quotes.map(q => ({
-      ...q,
-      items: parseJsonSafe(q.items, []),
-      vat_exempt: Boolean(q.vat_exempt)
-    }));
-
-    // 10. Work Orders
-    const [wo] = await pool.query('SELECT * FROM work_orders ORDER BY id DESC');
-    store.work_orders = wo;
-
-    // 11. Delivery Notes
-    const [dn] = await pool.query('SELECT * FROM delivery_notes ORDER BY id DESC');
-    store.delivery_notes = dn.map(d => ({
-      ...d,
-      items: parseJsonSafe(d.items, [])
-    }));
-
-    // 12. Staff Expenses
-    const [exp] = await pool.query('SELECT * FROM staff_expenses ORDER BY id DESC');
-    store.staff_expenses = exp;
-
-    // 13. Expense Categories
-    const [ec] = await pool.query('SELECT * FROM expense_categories ORDER BY id ASC');
-    store.expense_categories = ec;
-
-    // 14. Customer Credits
-    const [credits] = await pool.query('SELECT * FROM customer_credits ORDER BY id ASC');
-    store.customer_credits = credits.map(c => ({
-      ...c,
-      history: parseJsonSafe(c.history, [])
-    }));
-
-    // 15. Bank Accounts
-    let [ba] = await pool.query('SELECT * FROM bank_accounts ORDER BY id ASC');
-    store.bank_accounts = (ba || []).map(b => ({ ...b, is_primary: Boolean(b.is_primary) }));
-
-    // 16. UniFi Vouchers
-    const [vouchers] = await pool.query('SELECT * FROM unifi_vouchers ORDER BY id DESC');
-    store.unifi_vouchers = vouchers;
-
-    // 17. Audit Logs
-    const [logs] = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC, id DESC LIMIT 500');
-    store.audit_logs = logs.map(l => ({
-      ...l,
-      details: typeof l.details === 'string' ? l.details : (l.details ? JSON.stringify(l.details) : '')
-    }));
-
-    // 18. Jobs
-    const [jobs] = await pool.query('SELECT * FROM jobs ORDER BY id ASC');
-    store.jobs = jobs.map(j => ({
-      ...j,
-      requirements: parseJsonSafe(j.requirements, []),
-      responsibilities: parseJsonSafe(j.responsibilities, [])
-    }));
-
-    // 19. Job Applications
-    const [apps] = await pool.query('SELECT * FROM job_applications ORDER BY id DESC');
-    store.job_applications = apps;
-
-    // 20. Email Dispatches
-    const [ed] = await pool.query('SELECT * FROM email_dispatches ORDER BY id DESC');
-    store.email_dispatches = ed;
-
-    // 21. Schedules
-    const [schedules] = await pool.query('SELECT * FROM schedules ORDER BY id ASC');
-    store.schedules = schedules.map(s => ({ ...s, enabled: Boolean(s.enabled) }));
-
-    // 22. Partners
-    const [partners] = await pool.query('SELECT * FROM partners ORDER BY id ASC');
-    store.partners = partners.map(p => ({ ...p, logo: p.logo_url, logoText: p.logo_text }));
-
-    // 23. Team
-    const [team] = await pool.query('SELECT * FROM team ORDER BY id ASC');
-    store.team = team;
-
-    // 24. Sliders
-    const [sliders] = await pool.query('SELECT * FROM sliders ORDER BY id ASC');
-    store.sliders = sliders.map(s => ({ ...s, active: Boolean(s.active) }));
-
-    // 25. News
-    const [news] = await pool.query('SELECT * FROM news ORDER BY id DESC');
-    store.news = news;
-
-    // 26. Contacts
-    const [contacts] = await pool.query('SELECT * FROM contacts ORDER BY id DESC');
-    store.contacts = contacts;
-
-    // 27. Universal System Settings
-    const [settings] = await pool.query('SELECT * FROM system_settings');
-    for (const row of settings) {
-      const key = row.setting_key;
-      let val = row.setting_value;
-      if (['smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails', 'paid_stamp', 'announcement', 'banner_settings'].includes(key)) {
-        store[key] = parseJsonSafe(val, {});
-      } else {
-        store[key] = val;
-      }
+    try {
+      const [users] = await pool.query('SELECT * FROM users ORDER BY id ASC');
+      store.users = users.map(u => ({
+        ...u,
+        passwordHash: u.password_hash,
+        is_verified: Boolean(u.is_verified),
+        mfa_enabled: Boolean(u.mfa_enabled),
+        mfa_secret: u.mfa_secret || null,
+        password_updated_at: safeIsoDate(u.password_updated_at, safeIsoDate(u.created_at, new Date().toISOString()))
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Users query note:', e.message);
     }
 
-    console.log(`[MySQL Store] Successfully hydrated complete system state from MySQL (${invoices.length} invoices, ${payments.length} payments, ${users.length} users, ${products.length} products).`);
+    // 3. Services
+    try {
+      const [services] = await pool.query('SELECT * FROM services ORDER BY id ASC');
+      store.services = services.map(s => ({
+        ...s,
+        features: parseJsonSafe(s.features, []),
+        is_active: Boolean(s.is_active)
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Services query note:', e.message);
+    }
+
+    // 4. Product Categories
+    try {
+      const [cats] = await pool.query('SELECT * FROM product_categories ORDER BY id ASC');
+      store.product_categories = cats;
+    } catch (e) {
+      console.warn('[MySQL Store] Product categories query note:', e.message);
+    }
+
+    // 5. Products
+    try {
+      const [products] = await pool.query('SELECT * FROM products ORDER BY id ASC');
+      store.products = products.map(p => ({
+        ...p,
+        specs: parseJsonSafe(p.specs, {}),
+        details: parseJsonSafe(p.details, {}),
+        is_hidden: Boolean(p.is_hidden)
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Products query note:', e.message);
+    }
+
+    // 6. Invoices
+    try {
+      const [invoices] = await pool.query('SELECT * FROM invoices ORDER BY id DESC');
+      store.invoices = invoices.map(i => ({
+        ...i,
+        items: parseJsonSafe(i.items, []),
+        include_vat: Boolean(i.include_vat),
+        vat_exempt: Boolean(i.vat_exempt)
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Invoices query note:', e.message);
+    }
+
+    // 7. Payments
+    try {
+      const [payments] = await pool.query('SELECT * FROM payments ORDER BY id DESC');
+      store.payments = payments;
+    } catch (e) {
+      console.warn('[MySQL Store] Payments query note:', e.message);
+    }
+
+    // 8. Subscriptions
+    try {
+      const [subs] = await pool.query('SELECT * FROM subscriptions ORDER BY id DESC');
+      store.subscriptions = subs.map(s => ({
+        ...s,
+        reminders_sent: parseJsonSafe(s.reminders_sent, [])
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Subscriptions query note:', e.message);
+    }
+
+    // 9. Quotations
+    try {
+      const [quotes] = await pool.query('SELECT * FROM quotations ORDER BY id DESC');
+      store.quotations = quotes.map(q => ({
+        ...q,
+        items: parseJsonSafe(q.items, []),
+        vat_exempt: Boolean(q.vat_exempt)
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Quotations query note:', e.message);
+    }
+
+    // 10. Work Orders
+    try {
+      const [wo] = await pool.query('SELECT * FROM work_orders ORDER BY id DESC');
+      store.work_orders = wo;
+    } catch (e) {
+      console.warn('[MySQL Store] Work orders query note:', e.message);
+    }
+
+    // 11. Delivery Notes
+    try {
+      const [dn] = await pool.query('SELECT * FROM delivery_notes ORDER BY id DESC');
+      store.delivery_notes = dn.map(d => ({
+        ...d,
+        items: parseJsonSafe(d.items, [])
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Delivery notes query note:', e.message);
+    }
+
+    // 12. Staff Expenses
+    try {
+      const [exp] = await pool.query('SELECT * FROM staff_expenses ORDER BY id DESC');
+      store.staff_expenses = exp;
+    } catch (e) {
+      console.warn('[MySQL Store] Staff expenses query note:', e.message);
+    }
+
+    // 13. Expense Categories
+    try {
+      const [ec] = await pool.query('SELECT * FROM expense_categories ORDER BY id ASC');
+      store.expense_categories = ec;
+    } catch (e) {
+      console.warn('[MySQL Store] Expense categories query note:', e.message);
+    }
+
+    // 14. Customer Credits
+    try {
+      const [credits] = await pool.query('SELECT * FROM customer_credits ORDER BY id ASC');
+      store.customer_credits = credits.map(c => ({
+        ...c,
+        history: parseJsonSafe(c.history, [])
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Customer credits query note:', e.message);
+    }
+
+    // 15. Bank Accounts
+    try {
+      let [ba] = await pool.query('SELECT * FROM bank_accounts ORDER BY id ASC');
+      store.bank_accounts = (ba || []).map(b => ({ ...b, is_primary: Boolean(b.is_primary) }));
+    } catch (e) {
+      console.warn('[MySQL Store] Bank accounts query note:', e.message);
+    }
+
+    // 16. UniFi Vouchers
+    try {
+      const [vouchers] = await pool.query('SELECT * FROM unifi_vouchers ORDER BY id DESC');
+      store.unifi_vouchers = vouchers;
+    } catch (e) {
+      console.warn('[MySQL Store] UniFi vouchers query note:', e.message);
+    }
+
+    // 17. Audit Logs
+    try {
+      const [logs] = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC, id DESC LIMIT 500');
+      store.audit_logs = logs.map(l => ({
+        ...l,
+        details: typeof l.details === 'string' ? l.details : (l.details ? JSON.stringify(l.details) : '')
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Audit logs query note:', e.message);
+    }
+
+    // 18. Jobs
+    try {
+      const [jobs] = await pool.query('SELECT * FROM jobs ORDER BY id ASC');
+      store.jobs = jobs.map(j => ({
+        ...j,
+        requirements: parseJsonSafe(j.requirements, []),
+        responsibilities: parseJsonSafe(j.responsibilities, [])
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Jobs query note:', e.message);
+    }
+
+    // 19. Job Applications
+    try {
+      const [apps] = await pool.query('SELECT * FROM job_applications ORDER BY id DESC');
+      store.job_applications = apps;
+    } catch (e) {
+      console.warn('[MySQL Store] Job applications query note:', e.message);
+    }
+
+    // 20. Email Dispatches
+    try {
+      const [ed] = await pool.query('SELECT * FROM email_dispatches ORDER BY id DESC');
+      store.email_dispatches = ed;
+    } catch (e) {
+      console.warn('[MySQL Store] Email dispatches query note:', e.message);
+    }
+
+    // 21. Schedules
+    try {
+      const [schedules] = await pool.query('SELECT * FROM schedules ORDER BY id ASC');
+      store.schedules = schedules.map(s => ({ ...s, enabled: Boolean(s.enabled) }));
+    } catch (e) {
+      console.warn('[MySQL Store] Schedules query note:', e.message);
+    }
+
+    // 22. Partners
+    try {
+      const [partners] = await pool.query('SELECT * FROM partners ORDER BY id ASC');
+      store.partners = partners.map(p => ({ ...p, logo: p.logo_url, logoText: p.logo_text }));
+    } catch (e) {
+      console.warn('[MySQL Store] Partners query note:', e.message);
+    }
+
+    // 23. Team
+    try {
+      const [team] = await pool.query('SELECT * FROM team ORDER BY id ASC');
+      store.team = team;
+    } catch (e) {
+      console.warn('[MySQL Store] Team query note:', e.message);
+    }
+
+    // 24. Sliders
+    try {
+      const [sliders] = await pool.query('SELECT * FROM sliders ORDER BY id ASC');
+      store.sliders = sliders.map(s => ({ ...s, active: Boolean(s.active) }));
+    } catch (e) {
+      console.warn('[MySQL Store] Sliders query note:', e.message);
+    }
+
+    // 25. News
+    try {
+      const [news] = await pool.query('SELECT * FROM news ORDER BY id DESC');
+      store.news = news;
+    } catch (e) {
+      console.warn('[MySQL Store] News query note:', e.message);
+    }
+
+    // 26. Contacts
+    try {
+      const [contacts] = await pool.query('SELECT * FROM contacts ORDER BY id DESC');
+      store.contacts = contacts;
+    } catch (e) {
+      console.warn('[MySQL Store] Contacts query note:', e.message);
+    }
+
+    // 27. Universal System Settings
+    try {
+      const [settings] = await pool.query('SELECT * FROM system_settings');
+      for (const row of settings) {
+        const key = row.setting_key;
+        let val = row.setting_value;
+        if (['smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails', 'paid_stamp', 'announcement', 'banner_settings'].includes(key)) {
+          store[key] = parseJsonSafe(val, {});
+        } else {
+          store[key] = val;
+        }
+      }
+    } catch (e) {
+      console.warn('[MySQL Store] System settings query note:', e.message);
+    }
+
+    console.log(`[MySQL Store] Successfully hydrated complete system state from MySQL (${store.invoices.length} invoices, ${store.payments.length} payments, ${store.users.length} users, ${store.products.length} products).`);
     return store;
   } catch (err) {
     console.error('[MySQL Store] Warning reading from MySQL:', err.message);
