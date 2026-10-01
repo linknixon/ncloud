@@ -22,7 +22,7 @@ export default function ShopCheckoutModal() {
   const [processing, setProcessing] = useState(false);
   const [successData, setSuccessData] = useState(null);
   
-  const [paymentMethod, setPaymentMethod] = useState('invoice'); // 'invoice', 'mobile_money', 'card'
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money'); // 'invoice', 'mobile_money', 'card'
   const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(''); // 'pending', 'success', 'failed'

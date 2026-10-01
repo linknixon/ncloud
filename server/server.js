@@ -13,7 +13,7 @@ import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { registerTrebuchetFont } from '././trebuchetFont.js';
-import { loadFullStoreFromMysql, syncStoreToMysql } from './mysqlStore.js';
+import { loadFullStoreFromMysql, syncStoreToMysql, DEFAULT_CORP_BANK_ACCOUNTS } from './mysqlStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -841,10 +841,10 @@ const memoryStore = {
     host: 'mail.ncloud.co.ug',
     port: 587,
     security_type: 'TLS', // 'SSL/TLS' (Port 465) or 'STARTTLS' (Port 587)
-    username: 'billing@ncloud.co.ug',
+    username: 'support@ncloud.co.ug',
     password: 'NovaSmtpAuthSecret2026!',
     sender_name: 'Nova Cloud Edges Official Notifications',
-    sender_email: 'billing@ncloud.co.ug',
+    sender_email: 'support@ncloud.co.ug',
     is_active: true,
     last_tested: new Date().toISOString()
   }
@@ -3880,7 +3880,7 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
     (async () => {
       try {
         const defaultSales = 'sales@ncloud.co.ug';
-        const defaultBilling = 'billing@ncloud.co.ug';
+        const defaultBilling = 'support@ncloud.co.ug';
         const salesEmail = memoryStore.notification_emails?.sales || defaultSales;
         const billingEmail = memoryStore.notification_emails?.billing || defaultBilling;
         const targets = [...new Set([salesEmail, billingEmail])];
@@ -4052,7 +4052,7 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
     ctaLink: 'https://ncloud.co.ug/admin'
   });
 
-  const billingEmail = memoryStore.notification_emails?.billing || 'billing@ncloud.co.ug';
+  const billingEmail = memoryStore.notification_emails?.billing || 'support@ncloud.co.ug';
   const salesEmail = memoryStore.notification_emails?.sales || 'sales@ncloud.co.ug';
   const supportEmail = 'support@ncloud.co.ug';
   const adminEmails = [billingEmail, salesEmail, supportEmail].filter((v, i, a) => a.indexOf(v) === i).join(', ');
@@ -5324,8 +5324,11 @@ app.get('/api/admin/reports/analytics', (req, res) => {
 // ----------------------------------------------------
 // Bank Accounts Management Endpoints
 // ----------------------------------------------------
-app.get('/api/admin/bank-accounts', (req, res) => {
-  res.json(memoryStore.bank_accounts || []);
+app.get(['/api/admin/bank-accounts', '/api/bank-accounts'], (req, res) => {
+  const accounts = (Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0)
+    ? memoryStore.bank_accounts
+    : DEFAULT_CORP_BANK_ACCOUNTS;
+  res.json(accounts);
 });
 
 app.post('/api/admin/bank-accounts', (req, res) => {
@@ -7139,7 +7142,7 @@ const SERVER_BRAND = {
   tagline: '',
   address: 'Lugga Zone, Ndejje, Wakiso, Republic of Uganda',
   tin: '1014892019',
-  contact: 'billing@ncloud.co.ug | Hotline: +256 790 001 631 | https://ncloud.co.ug',
+  contact: 'support@ncloud.co.ug | Hotline: +256 790 001 631 | https://ncloud.co.ug',
   signatory: 'Authorized Signatory',
   signatoryTitle: 'Director of Finance & Operations'
 };
@@ -7255,9 +7258,12 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
 
   let storedBanks = [];
   try {
-    const rawBanks = memoryStore.bank_accounts || [];
-    storedBanks = Array.isArray(rawBanks) ? rawBanks : [];
-  } catch {}
+    const passedBanks = options?.bankAccounts || (Array.isArray(options) ? options : []);
+    const rawBanks = (passedBanks.length > 0 ? passedBanks : null) || memoryStore.bank_accounts || [];
+    storedBanks = Array.isArray(rawBanks) && rawBanks.length > 0 ? rawBanks : DEFAULT_CORP_BANK_ACCOUNTS;
+  } catch {
+    storedBanks = DEFAULT_CORP_BANK_ACCOUNTS;
+  }
 
   drawInvoiceNinja3ToneBar(doc, 0, 4);
 
@@ -7320,10 +7326,14 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  let bankStr = 'Please contact billing for payment instructions.';
-  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
-    const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number}`;
+  const primaryBank = (Array.isArray(storedBanks) && storedBanks.length > 0)
+    ? (storedBanks.find(b => b.is_primary) || storedBanks[0])
+    : DEFAULT_CORP_BANK_ACCOUNTS[0];
+  const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
+
+  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
+  if (secBank) {
+    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
   }
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.5);
@@ -7354,7 +7364,7 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Registered Client', 112, cardY + 15.5);
   doc.text(cAddr.substring(0, 48), 112, cardY + 20);
   doc.text(cPhone ? `Tel: ${cPhone}` : 'Contact Telephone on File', 112, cardY + 24.5);
-  doc.text(cEmail ? `Email: ${cEmail}` : 'Email: billing@ncloud.co.ug', 112, cardY + 29);
+  doc.text(cEmail ? `Email: ${cEmail}` : 'Email: support@ncloud.co.ug', 112, cardY + 29);
 
   function drawTableHeader(y) {
     doc.setFillColor(30, 58, 138);
@@ -8762,11 +8772,9 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 
 // Helper to render dynamically configured bank accounts in email templates
 function renderConfiguredBankAccountsHtml() {
-  const banks = Array.isArray(memoryStore.bank_accounts) ? memoryStore.bank_accounts : [];
-  
-  if (banks.length === 0) {
-    return `<div style="padding: 15px; color: #a1a1aa; font-style: italic;">Please contact our billing department for payment instructions.</div>`;
-  }
+  const banks = (Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0)
+    ? memoryStore.bank_accounts
+    : DEFAULT_CORP_BANK_ACCOUNTS;
 
   const banksHtml = banks.map(b => `
     <div style="background: #27272a; border: 1px solid #3f3f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
@@ -8834,11 +8842,11 @@ function generateCorporateEmailHtml({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body, table, td, a { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
-    body { background-color: #0f172a; color: #3c4043; margin: 0; padding: 40px 15px; }
+    body { background-color: #f1f5f9; color: #3c4043; margin: 0; padding: 40px 15px; }
     .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; }
     
     /* Header */
-    .email-header { background-color: #0f172a; padding: 32px 40px 20px 40px; text-align: left; }
+    .email-header { background-color: #ffffff; padding: 32px 40px 20px 40px; text-align: left; border-bottom: 1px solid #dadce0; }
     .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
     .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
     .company-title span { color: #0ea5e9; }
@@ -8887,7 +8895,7 @@ function generateCorporateEmailHtml({
     }
   </style>
 </head>
-<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; margin: 0; padding: 40px 15px; color: #3c4043;">
+<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 15px; color: #3c4043;">
   <div class="email-container">
     <div class="email-header">
       ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span>CLOUD EDGES</span></div>'}
@@ -8989,7 +8997,7 @@ function generateEmailTemplate({ title, subtitle, bodyContent, ctaText, ctaLink 
 // System Notification Emails Endpoints
 app.get('/api/admin/notification-emails', (req, res) => {
   res.json(memoryStore.notification_emails || {
-    billing: 'billing@ncloud.co.ug',
+    billing: 'support@ncloud.co.ug',
     sales: 'sales@ncloud.co.ug'
   });
 });
@@ -9086,9 +9094,9 @@ app.get('/api/admin/smtp-settings', (req, res) => {
     host: 'smtp.ncloud.co.ug',
     port: 587,
     security_type: 'TLS',
-    username: 'billing@ncloud.co.ug',
+    username: 'support@ncloud.co.ug',
     sender_name: 'Nova Cloud Edges Official Notifications',
-    sender_email: 'billing@ncloud.co.ug',
+    sender_email: 'support@ncloud.co.ug',
     is_active: true
   });
 });
@@ -9125,7 +9133,7 @@ app.post('/api/admin/smtp-test', async (req, res) => {
   const userAcc = (username && username.trim()) || memoryStore.smtp_settings?.username;
   const userPass = password || memoryStore.smtp_settings?.password;
   const fromName = sender_name || memoryStore.smtp_settings?.sender_name || 'Nova Cloud Edges Official';
-  const fromEmail = sender_email || memoryStore.smtp_settings?.sender_email || userAcc || 'billing@ncloud.co.ug';
+  const fromEmail = sender_email || memoryStore.smtp_settings?.sender_email || userAcc || 'support@ncloud.co.ug';
 
   if (!targetHost) {
     return res.status(400).json({ error: 'SMTP Host address is required to test server connection.' });
@@ -11158,12 +11166,16 @@ app.get('/api/admin/sliders', (req, res) => {
 });
 
 app.post('/api/admin/sliders', (req, res) => {
-  const { title, subtitle, image, active } = req.body;
+  const { title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active } = req.body;
   const newSlider = {
     id: Date.now(),
     title: title || 'New Hero Banner',
     subtitle: subtitle || 'Empowering Technology Solutions across Uganda',
     image: image || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80',
+    btn1_text: btn1_text || 'Explore Services',
+    btn1_link: btn1_link || 'services',
+    btn2_text: btn2_text || 'Colocation & Software',
+    btn2_link: btn2_link || 'shop',
     active: active !== undefined ? Boolean(active) : true
   };
   memoryStore.sliders.unshift(newSlider);
@@ -11173,12 +11185,16 @@ app.post('/api/admin/sliders', (req, res) => {
 
 app.put('/api/admin/sliders/:id', (req, res) => {
   const { id } = req.params;
-  const { title, subtitle, image, active } = req.body;
+  const { title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active } = req.body;
   const slider = memoryStore.sliders.find(s => s.id == id);
   if (slider) {
-    if (title) slider.title = title;
-    if (subtitle) slider.subtitle = subtitle;
-    if (image) slider.image = image;
+    if (title !== undefined) slider.title = title;
+    if (subtitle !== undefined) slider.subtitle = subtitle;
+    if (image !== undefined) slider.image = image;
+    if (btn1_text !== undefined) slider.btn1_text = btn1_text;
+    if (btn1_link !== undefined) slider.btn1_link = btn1_link;
+    if (btn2_text !== undefined) slider.btn2_text = btn2_text;
+    if (btn2_link !== undefined) slider.btn2_link = btn2_link;
     if (active !== undefined) slider.active = Boolean(active);
     savePersistentStore();
     return res.json({ message: 'Graphic banner updated successfully', slider });
@@ -11693,4 +11709,19 @@ app.get(/(.*)/, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Nova Cloud Edges API Server running on port ${PORT}`);
+});
+
+app.get('/api/settings/slider', (req, res) => {
+  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
+});
+
+app.get('/api/admin/settings/slider', (req, res) => {
+  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
+});
+
+app.post('/api/admin/settings/slider', (req, res) => {
+  const { speed, showArrows } = req.body;
+  memoryStore.slider_settings = { speed: Number(speed) || 3800, showArrows: showArrows !== false };
+  savePersistentStore();
+  res.json({ success: true, settings: memoryStore.slider_settings });
 });

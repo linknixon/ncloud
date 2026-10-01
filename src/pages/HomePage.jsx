@@ -46,15 +46,16 @@ export default function HomePage({ setActivePage }) {
 
   const [sliderImages, setSliderImages] = useState(defaultSliders);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [sliderConfig, setSliderConfig] = useState({ speed: 3800, showArrows: true });
 
   // Automatic slide rotation every 3.8 seconds
   useEffect(() => {
     if (sliderImages.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide(prev => (prev + 1) % sliderImages.length);
-    }, 3800);
+    }, sliderConfig.speed);
     return () => clearInterval(timer);
-  }, [sliderImages.length]);
+  }, [sliderImages.length, sliderConfig.speed]);
 
   const nextSlide = () => setCurrentSlide(prev => (prev + 1) % Math.max(1, sliderImages.length));
   const prevSlide = () => setCurrentSlide(prev => (prev - 1 + sliderImages.length) % Math.max(1, sliderImages.length));
@@ -80,6 +81,12 @@ export default function HomePage({ setActivePage }) {
             setSliderImages(activeOnes);
           }
         }
+      })
+      .catch(() => {});
+    fetch('/api/settings/slider')
+      .then(res => res.json())
+      .then(data => {
+        if (data) setSliderConfig({ speed: Number(data.speed) || 3800, showArrows: data.showArrows !== false });
       })
       .catch(() => {});
     fetch('/api/partners').then(res => res.json()).then(data => setPartners(data)).catch(() => {});
@@ -126,7 +133,14 @@ export default function HomePage({ setActivePage }) {
               <img
                 src={slide.url}
                 alt={slide.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.82) contrast(1.05)' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  filter: 'brightness(0.82) contrast(1.05)',
+                  transform: currentSlide === idx ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'transform 8s ease-in-out',
+                }}
               />
               <div className="hero-slide-overlay" style={{
                 position: 'absolute',
@@ -149,11 +163,11 @@ export default function HomePage({ setActivePage }) {
                   </p>
                   
                   <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={() => setActivePage('services')} className="btn-primary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem' }}>
-                      Explore Services <ArrowRight size={20} />
+                    <button onClick={() => setActivePage(slide.btn1_link || 'services')} className="btn-primary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem' }}>
+                      {slide.btn1_text || 'Explore Services'} <ArrowRight size={20} />
                     </button>
-                    <button onClick={() => setActivePage('shop')} className="btn-secondary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}>
-                      <ShoppingBag size={20} /> Colocation & Software
+                    <button onClick={() => setActivePage(slide.btn2_link || 'shop')} className="btn-secondary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}>
+                      <ShoppingBag size={20} /> {slide.btn2_text || 'Colocation & Software'}
                     </button>
                   </div>
 
@@ -163,7 +177,9 @@ export default function HomePage({ setActivePage }) {
           ))}
 
           {/* Slider Arrows */}
-          <button
+          {sliderConfig.showArrows && (
+            <>
+              <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -221,6 +237,8 @@ export default function HomePage({ setActivePage }) {
           >
             <ChevronRight size={30} />
           </button>
+            </>
+          )}
 
           {/* Slider Indicators */}
           <div style={{ position: 'absolute', bottom: '1.75rem', left: '50%', transform: 'translateX(-50%)', zIndex: 25, display: 'flex', gap: '0.6rem' }}>

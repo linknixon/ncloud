@@ -57,6 +57,10 @@ const resolvePageFromLocation = () => {
     return 'subscription';
   }
 
+  if (params.get('product') || params.get('item')) {
+    return 'shop';
+  }
+
   const pageParam = params.get('page') || params.get('p');
   if (pageParam) {
     const cleanParam = pageParam.startsWith('/') ? pageParam : `/${pageParam}`;

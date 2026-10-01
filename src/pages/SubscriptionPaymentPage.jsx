@@ -12,7 +12,7 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
   const [currentPage, setCurrentPage] = useState(1);
   const hasInitializedRef = useRef(false);
 
-  const [paymentMethod, setPaymentMethod] = useState('invoice');
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');

@@ -607,6 +607,7 @@ const normalizeTabName = (rawTab) => {
   const [showSliderModal, setShowSliderModal] = useState(false);
   const [editingSlider, setEditingSlider] = useState(null);
   const [slidersList, setSlidersList] = useState([]);
+  const [sliderConfig, setSliderConfig] = useState({ speed: 3800, showArrows: true });
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [usersViewMode, setUsersViewMode] = useState('grid');
@@ -781,7 +782,7 @@ const normalizeTabName = (rawTab) => {
 
   // System Notification Emails State
   const [notificationEmails, setNotificationEmails] = useState({
-    billing: 'billing@ncloud.co.ug',
+    billing: 'support@ncloud.co.ug',
     sales: 'sales@ncloud.co.ug'
   });
 
@@ -1171,6 +1172,10 @@ const normalizeTabName = (rawTab) => {
     title: '',
     subtitle: '',
     image: '',
+    btn1_text: 'Explore Services',
+    btn1_link: 'services',
+    btn2_text: 'Colocation & Software',
+    btn2_link: 'shop',
     active: true
   });
 
@@ -1411,6 +1416,11 @@ const normalizeTabName = (rawTab) => {
       fetch('/api/admin/sliders')
         .then(res => res.json())
         .then(sl => { if (Array.isArray(sl) && sl.length > 0) setSlidersList(sl); })
+        .catch(() => {});
+
+      fetch('/api/admin/settings/slider')
+        .then(res => res.json())
+        .then(data => { if (data) setSliderConfig({ speed: Number(data.speed) || 3800, showArrows: data.showArrows !== false }); })
         .catch(() => {});
 
       fetch('/api/products')
@@ -4327,9 +4337,24 @@ const normalizeTabName = (rawTab) => {
       showToast(resData.message || (editingSlider ? 'Graphic banner updated!' : 'Graphic banner added!'), 'success');
       setShowSliderModal(false);
       setEditingSlider(null);
-      setSliderForm({ title: '', subtitle: '', image: '', active: true });
+      setSliderForm({ title: '', subtitle: '', image: '', btn1_text: 'Explore Services', btn1_link: 'services', btn2_text: 'Colocation & Software', btn2_link: 'shop', active: true });
       fetchDashboardData();
       fetch('/api/admin/sliders').then(r => r.json()).then(s => Array.isArray(s) && setSlidersList(s));
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleSaveSliderConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/slider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sliderConfig)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('Slider Configuration Saved Successfully!', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -7326,6 +7351,33 @@ const normalizeTabName = (rawTab) => {
                   </button>
                 </div>
 
+                <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>Auto-Rotate Speed (ms):</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        style={{ width: '100px', padding: '0.4rem', fontSize: '0.85rem' }} 
+                        value={sliderConfig.speed} 
+                        onChange={e => setSliderConfig({ ...sliderConfig, speed: parseInt(e.target.value) || 3800 })}
+                        min="1000"
+                        step="100"
+                      />
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '700' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={sliderConfig.showArrows} 
+                        onChange={e => setSliderConfig({ ...sliderConfig, showArrows: e.target.checked })}
+                      /> Show Navigation Arrows
+                    </label>
+                  </div>
+                  <button onClick={handleSaveSliderConfig} className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
+                    Save Configuration
+                  </button>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
                   {(slidersList.length > 0 ? slidersList : (data?.sliders || [])).map(slide => (
                     <div key={slide.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px', opacity: slide.active !== false ? 1 : 0.75 }}>
@@ -7358,7 +7410,11 @@ const normalizeTabName = (rawTab) => {
                               setSliderForm({
                                 title: slide.title || '',
                                 subtitle: slide.subtitle || '',
-                                image: slide.image || '',
+                                image: slide.image || slide.url || '',
+                                btn1_text: slide.btn1_text || 'Explore Services',
+                                btn1_link: slide.btn1_link || 'services',
+                                btn2_text: slide.btn2_text || 'Colocation & Software',
+                                btn2_link: slide.btn2_link || 'shop',
                                 active: slide.active !== false
                               });
                               setShowSliderModal(true);
@@ -12618,7 +12674,6 @@ const normalizeTabName = (rawTab) => {
                                 {topbarForm.email || 'support@ncloud.co.ug'}
                               </span>
                               <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                {topbarForm.whatsapp && <i className="fa-brands fa-whatsapp" style={{ color: '#25d366' }}></i>}
                                 {topbarForm.linkedin && <i className="fa-brands fa-linkedin-in" style={{ color: '#38bdf8' }}></i>}
                                 {topbarForm.twitter && <i className="fa-brands fa-x-twitter" style={{ color: '#ffffff' }}></i>}
                                 {topbarForm.facebook && <i className="fa-brands fa-facebook-f" style={{ color: '#60a5fa' }}></i>}
@@ -12794,20 +12849,9 @@ const normalizeTabName = (rawTab) => {
                         {/* Social Media Channels */}
                         <div style={{ padding: '0.65rem 0.75rem', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '0.85rem' }}>
                           <label style={{ fontWeight: '800', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>
-                            Social Media & WhatsApp Channels
+                            Social Media Channels
                           </label>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>WhatsApp Link</label>
-                              <input
-                                type="text"
-                                className="form-input"
-                                style={{ fontSize: '0.75rem' }}
-                                value={topbarForm.whatsapp || ''}
-                                onChange={e => setTopbarForm({ ...topbarForm, whatsapp: e.target.value })}
-                                placeholder="https://wa.me/256790001631"
-                              />
-                            </div>
                             <div className="form-group" style={{ margin: 0 }}>
                               <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>LinkedIn URL</label>
                               <input
@@ -12872,7 +12916,7 @@ const normalizeTabName = (rawTab) => {
                           <input
                             type="email"
                             className="form-input"
-                            placeholder="billing@ncloud.co.ug"
+                            placeholder="support@ncloud.co.ug"
                             value={notificationEmails?.billing || ''}
                             onChange={e => setNotificationEmails({ ...(notificationEmails || {}), billing: e.target.value })}
                             required
@@ -12953,7 +12997,7 @@ const normalizeTabName = (rawTab) => {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setSmtpSettings({ ...smtpSettings, host: 'smtp.ncloud.co.ug', port: 587, security_type: 'TLS', username: 'billing@ncloud.co.ug', sender_email: 'billing@ncloud.co.ug' })}
+                          onClick={() => setSmtpSettings({ ...smtpSettings, host: 'smtp.ncloud.co.ug', port: 587, security_type: 'TLS', username: 'support@ncloud.co.ug', sender_email: 'support@ncloud.co.ug' })}
                           style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.725rem', fontWeight: '700', background: 'rgba(99, 102, 241, 0.12)', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.3)', cursor: 'pointer' }}
                         >
                           Nova Cloud Relay
@@ -13033,7 +13077,7 @@ const normalizeTabName = (rawTab) => {
                             <input
                               type="email"
                               className="form-input"
-                              placeholder="billing@ncloud.co.ug"
+                              placeholder="support@ncloud.co.ug"
                               value={smtpSettings.sender_email || ''}
                               onChange={e => setSmtpSettings({ ...smtpSettings, sender_email: e.target.value })}
                               required
@@ -13059,7 +13103,7 @@ const normalizeTabName = (rawTab) => {
                             <input
                               type="text"
                               className="form-input"
-                              placeholder="billing@ncloud.co.ug"
+                              placeholder="support@ncloud.co.ug"
                               value={smtpSettings.username || ''}
                               onChange={e => setSmtpSettings({ ...smtpSettings, username: e.target.value })}
                             />
@@ -17820,6 +17864,49 @@ const normalizeTabName = (rawTab) => {
                   />
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Button 1 Text</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Explore Services"
+                      value={sliderForm.btn1_text}
+                      onChange={e => setSliderForm({ ...sliderForm, btn1_text: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Button 1 Link / Page</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. services"
+                      value={sliderForm.btn1_link}
+                      onChange={e => setSliderForm({ ...sliderForm, btn1_link: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Button 2 Text</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Colocation & Software"
+                      value={sliderForm.btn2_text}
+                      onChange={e => setSliderForm({ ...sliderForm, btn2_text: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700' }}>Button 2 Link / Page</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. shop"
+                      value={sliderForm.btn2_link}
+                      onChange={e => setSliderForm({ ...sliderForm, btn2_link: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 {/* Local Banner Image File Upload Helper */}
                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                   <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>
@@ -18234,7 +18321,7 @@ const normalizeTabName = (rawTab) => {
                       Lugga Zone, Ndejje, Wakiso, Republic of Uganda
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', marginTop: '2px' }}>
-                      TIN: 1014892019 • Email: billing@ncloud.co.ug • Tel: +256 790 001 631
+                      TIN: 1014892019 • Email: support@ncloud.co.ug • Tel: +256 790 001 631
                     </div>
                   </div>
 
@@ -18502,7 +18589,10 @@ const normalizeTabName = (rawTab) => {
                   <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     OFFICIAL BANK REMITTANCE ACCOUNTS:
                   </div>
-                  {(bankAccountsList || []).map((b, idx) => (
+                  {((Array.isArray(bankAccountsList) && bankAccountsList.length > 0) ? bankAccountsList : [
+                    { id: 1, bank_name: 'Stanbic Bank Uganda Limited', account_number: '9030018829401', currency: 'UGX', swift_code: 'SBICUGKX' },
+                    { id: 2, bank_name: 'MTN MoMo Merchant Code', account_number: '674859', currency: 'UGX' }
+                  ]).map((b, idx) => (
                     <div key={b.id || idx} style={{ marginBottom: '0.35rem', lineHeight: '1.4', color: '#334155' }}>
                       <strong style={{ color: '#0f172a' }}>{b.bank_name}:</strong> A/C: <strong>{b.account_number}</strong> ({b.currency || 'UGX'}){b.swift_code ? ` • Swift: ${b.swift_code}` : ''}
                     </div>

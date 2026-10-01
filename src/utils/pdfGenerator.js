@@ -311,6 +311,25 @@ function formatNinjaUGX(num) {
   return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' UGX';
 }
 
+export const DEFAULT_PDF_BANKS = [
+  {
+    id: 1,
+    bank_name: 'Stanbic Bank Uganda Limited',
+    account_name: 'Nova Cloud Edges (U) Limited',
+    account_number: '9030018829401',
+    currency: 'UGX',
+    is_primary: true
+  },
+  {
+    id: 2,
+    bank_name: 'MTN MoMo Merchant Code',
+    account_name: 'Nova Cloud Edges (U) Limited',
+    account_number: '674859',
+    currency: 'UGX',
+    is_primary: false
+  }
+];
+
 export async function generateInvoicePDF(inv, options = {}) {
   const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -381,9 +400,10 @@ export async function generateInvoicePDF(inv, options = {}) {
   let storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
   if (storedBanks.length === 0) {
     try {
-      const res = await fetch('/api/admin/bank-accounts');
+      const res = await fetch('/api/bank-accounts');
       if (res.ok) {
-        storedBanks = await res.json();
+        const fetched = await res.json();
+        if (Array.isArray(fetched) && fetched.length > 0) storedBanks = fetched;
       }
     } catch (e) {
       console.warn('Failed to fetch bank accounts:', e);
@@ -447,10 +467,13 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
   // Bank Remittance
-  let bankStr = 'Please contact billing for payment instructions.';
-  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
-    const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number}`;
+  const activeBanks = (Array.isArray(storedBanks) && storedBanks.length > 0) ? storedBanks : DEFAULT_PDF_BANKS;
+  const primaryBank = activeBanks.find(b => b.is_primary) || activeBanks[0];
+  const secBank = activeBanks.length > 1 ? (activeBanks.find(b => !b.is_primary) || activeBanks[1]) : null;
+
+  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
+  if (secBank) {
+    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
   }
   doc.setFont('TrebuchetMS', 'bold');
   doc.setFontSize(6.5);
@@ -482,7 +505,7 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text(cCode ? `Client ID / Ref: #${cCode}` : 'Registered Client', 112, cardY + 15.5);
   doc.text(cAddr.substring(0, 48), 112, cardY + 20);
   doc.text(cPhone ? `Tel: ${cPhone}` : 'Contact Telephone on File', 112, cardY + 24.5);
-  doc.text(cEmail ? `Email: ${cEmail}` : 'Email: billing@ncloud.co.ug', 112, cardY + 29);
+  doc.text(cEmail ? `Email: ${cEmail}` : 'Email: support@ncloud.co.ug', 112, cardY + 29);
 
   // Table Setup
   function drawTableHeader(y) {
@@ -694,9 +717,10 @@ export async function generateQuotationPDF(quote, options = {}) {
   let storedBanks = Array.isArray(opts?.bankAccounts) ? opts.bankAccounts : [];
   if (storedBanks.length === 0) {
     try {
-      const res = await fetch('/api/admin/bank-accounts');
+      const res = await fetch('/api/bank-accounts');
       if (res.ok) {
-        storedBanks = await res.json();
+        const fetched = await res.json();
+        if (Array.isArray(fetched) && fetched.length > 0) storedBanks = fetched;
       }
     } catch (e) {
       console.warn('Failed to fetch bank accounts:', e);
@@ -756,15 +780,22 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  let bankStr = 'Remit To: MTN MoMo Merchant Code: 674859 (UGX)';
-  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
-    const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
+  const activeBanks = (Array.isArray(storedBanks) && storedBanks.length > 0) ? storedBanks : DEFAULT_PDF_BANKS;
+  const primaryBank = activeBanks.find(b => b.is_primary) || activeBanks[0];
+  const secBank = activeBanks.length > 1 ? (activeBanks.find(b => !b.is_primary) || activeBanks[1]) : null;
+
+  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
+  if (secBank) {
+    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
   }
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(30, 58, 138);
-  doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
+  const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+  doc.text(splitBank[0] || '', 18, cardY + 29.5);
+  if (splitBank.length > 1) {
+    doc.text(splitBank[1], 18, cardY + 32.5);
+  }
 
   // CARD 2: BILLED TO
   doc.setFillColor(248, 250, 252);

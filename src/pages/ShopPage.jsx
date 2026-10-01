@@ -13,6 +13,21 @@ export default function ShopPage({ setActivePage }) {
   const [quantities, setQuantities] = useState({});
   const [selectedProductModal, setSelectedProductModal] = useState(null);
 
+  const openProductModal = (prod) => {
+    setSelectedProductModal(prod);
+    if (typeof window !== 'undefined') {
+      const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      window.history.pushState({}, '', '?item=' + slug);
+    }
+  };
+
+  const closeProductModal = () => {
+    setSelectedProductModal(null);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '?page=shop');
+    }
+  };
+
   const itemsPerPage = 9;
 
   const isWifiVoucherItem = (prod) => {
@@ -73,7 +88,7 @@ export default function ShopPage({ setActivePage }) {
             if (itemSlug) {
               setSearchTerm(itemSlug.replace(/-/g, ' '));
               const matchingProd = loadedProducts.find(p => (p.slug || '').includes(itemSlug) || (p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') === itemSlug);
-              if (matchingProd) setSelectedProductModal(matchingProd);
+              if (matchingProd) openProductModal(matchingProd);
             }
           }
         } else {
@@ -263,7 +278,7 @@ export default function ShopPage({ setActivePage }) {
                 return (
                   <div key={prod.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: isOutOfStock ? 0.85 : 1 }}>
                     
-                    <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setSelectedProductModal(prod)}>
+                    <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => openProductModal(prod)}>
                       <img
                         src={prod.image_url}
                         alt={prod.name}
@@ -294,7 +309,7 @@ export default function ShopPage({ setActivePage }) {
                       </div>
 
                       <h3
-                        onClick={() => setSelectedProductModal(prod)}
+                        onClick={() => openProductModal(prod)}
                         style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: '1.3', fontWeight: '800', cursor: 'pointer' }}
                       >
                         {prod.name}
@@ -341,7 +356,7 @@ export default function ShopPage({ setActivePage }) {
 
                       {/* View Full Product Specifications Modal Trigger */}
                       <button
-                        onClick={() => setSelectedProductModal(prod)}
+                        onClick={() => openProductModal(prod)}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -490,7 +505,7 @@ export default function ShopPage({ setActivePage }) {
 
         {/* FULL PRODUCT SPECIFICATIONS & DETAILS MODAL */}
         {selectedProductModal && (
-          <div className="modal-overlay" onClick={() => setSelectedProductModal(null)}>
+          <div className="modal-overlay" onClick={closeProductModal}>
             <div
               className="modal-content animate-scale-in"
               onClick={e => e.stopPropagation()}
@@ -513,7 +528,7 @@ export default function ShopPage({ setActivePage }) {
                   </h2>
                 </div>
                 <button
-                  onClick={() => setSelectedProductModal(null)}
+                  onClick={closeProductModal}
                   style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '50%', padding: '0.4rem', cursor: 'pointer', color: 'var(--text-main)' }}
                 >
                   <X size={20} />
@@ -577,7 +592,7 @@ export default function ShopPage({ setActivePage }) {
                       <button
                         onClick={() => {
                           addToCart(selectedProductModal, quantities[selectedProductModal.id] || 1);
-                          setSelectedProductModal(null);
+                          closeProductModal();
                         }}
                         className="btn-secondary"
                         style={{ padding: '0.75rem 1.1rem', fontSize: '0.9rem' }}
@@ -588,13 +603,26 @@ export default function ShopPage({ setActivePage }) {
                         onClick={() => {
                           const prod = selectedProductModal;
                           const qty = quantities[selectedProductModal.id] || 1;
-                          setSelectedProductModal(null);
+                          closeProductModal();
                           handleBuyNow(prod, qty);
                         }}
                         className="btn-primary"
                         style={{ padding: '0.75rem 1.35rem', fontSize: '0.95rem', fontWeight: '800' }}
                       >
                         Buy Now & Checkout
+                      </button>
+                      <button
+                        onClick={() => {
+                          const slug = selectedProductModal.slug || selectedProductModal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                          const permalink = `${window.location.origin}/shop?item=${slug}`;
+                          navigator.clipboard.writeText(permalink).then(() => {
+                            if (showToast) showToast('Product link copied to clipboard!', 'success');
+                          });
+                        }}
+                        className="btn-secondary"
+                        style={{ padding: '0.75rem', title: 'Share Product' }}
+                      >
+                        <Share2 size={18} />
                       </button>
                     </div>
                   )}

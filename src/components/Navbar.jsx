@@ -218,18 +218,6 @@ export default function Navbar({ activePage, setActivePage }) {
 
               {/* Social Media Links with Font Awesome Brands */}
               <div className="top-bar-socials">
-                {topbarSettings?.whatsapp && (
-                  <a 
-                    href={topbarSettings.whatsapp} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="top-bar-social-btn wa"
-                    title={`Direct WhatsApp Support: ${topbarSettings.phone || '0790001631'}`}
-                    aria-label="WhatsApp"
-                  >
-                    <i className="fa-brands fa-whatsapp"></i>
-                  </a>
-                )}
                 {topbarSettings?.linkedin && (
                   <a 
                     href={topbarSettings.linkedin} 

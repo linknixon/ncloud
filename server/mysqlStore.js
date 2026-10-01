@@ -1,5 +1,38 @@
 import { pool } from './db.js';
 
+export const DEFAULT_CORP_BANK_ACCOUNTS = [
+  {
+    id: 1,
+    bank_name: 'Stanbic Bank Uganda Limited',
+    account_name: 'Nova Cloud Edges (U) Limited',
+    account_number: '9030018829401',
+    branch: 'Forest Mall Lugogo Branch, Kampala',
+    swift_code: 'SBICUGKX',
+    currency: 'UGX',
+    is_primary: true
+  },
+  {
+    id: 2,
+    bank_name: 'MTN Uganda MoMo Merchant Code',
+    account_name: 'Nova Cloud Edges (U) Limited',
+    account_number: '674859',
+    branch: 'MTN MoMo Merchant Channel',
+    swift_code: 'MTNUGX',
+    currency: 'UGX',
+    is_primary: false
+  },
+  {
+    id: 3,
+    bank_name: 'Absa Bank Uganda Limited',
+    account_name: 'Nova Cloud Edges (U) Limited',
+    account_number: '0341199482',
+    branch: 'Hannington Road Branch, Kampala',
+    swift_code: 'BARCUGKX',
+    currency: 'USD',
+    is_primary: false
+  }
+];
+
 // Safe JSON parser for columns that store JSON in MySQL
 function parseJsonSafe(val, fallback = null) {
   if (val === null || val === undefined) return fallback;
@@ -170,7 +203,18 @@ export async function loadFullStoreFromMysql() {
     }));
 
     // 15. Bank Accounts
-    const [ba] = await pool.query('SELECT * FROM bank_accounts ORDER BY id ASC');
+    let [ba] = await pool.query('SELECT * FROM bank_accounts ORDER BY id ASC');
+    if (!ba || ba.length === 0) {
+      for (const defBank of DEFAULT_CORP_BANK_ACCOUNTS) {
+        await pool.query(
+          `INSERT INTO bank_accounts (id, bank_name, account_name, account_number, branch, swift_code, currency, is_primary)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE bank_name=VALUES(bank_name)`,
+          [defBank.id, defBank.bank_name, defBank.account_name, defBank.account_number, defBank.branch, defBank.swift_code, defBank.currency, defBank.is_primary ? 1 : 0]
+        );
+      }
+      ba = DEFAULT_CORP_BANK_ACCOUNTS;
+    }
     store.bank_accounts = ba.map(b => ({ ...b, is_primary: Boolean(b.is_primary) }));
 
     // 16. UniFi Vouchers

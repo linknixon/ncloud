@@ -210,7 +210,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
   // Bank remittance accounts
   const bankAccounts = (verifyResult?.bank_remittance && verifyResult.bank_remittance.length > 0)
     ? verifyResult.bank_remittance
-    : [];
+    : [
+        { id: 1, bank_name: 'Stanbic Bank Uganda Limited', account_number: '9030018829401', currency: 'UGX', swift_code: 'SBICUGKX', branch: 'Forest Mall Lugogo Branch, Kampala' },
+        { id: 2, bank_name: 'MTN MoMo Merchant Code', account_number: '674859', currency: 'UGX', branch: 'MTN Merchant Channel' }
+      ];
 
   const docTypeStr = (verifyResult?.document_type || '').toLowerCase();
   const docNumStr = (verifyResult?.document_number || '').toUpperCase();
@@ -294,13 +297,13 @@ export default function VerifyDocumentPage({ setActivePage }) {
                 onClick={() => {
                   const dataToGenerate = verifyResult.invoice || verifyResult.quotation || verifyResult;
                   if (isQuotation) {
-                    generateQuotationPDF(dataToGenerate);
+                    generateQuotationPDF(dataToGenerate, { bankAccounts });
                   } else if (isWorkOrder) {
                     window.open(`/api/admin/work-orders/${encodeURIComponent(verifyResult.document_number)}/pdf`, '_blank');
                   } else if (isDeliveryNote) {
                     window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
                   } else {
-                    generateInvoicePDF(dataToGenerate);
+                    generateInvoicePDF(dataToGenerate, { bankAccounts });
                   }
                 }}
                 className="btn-primary"
@@ -401,7 +404,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     Lugga Zone, Ndejje, Wakiso, Republic of Uganda
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', lineHeight: '1.4' }}>
-                    TIN: 1014892019 • Email: billing@ncloud.co.ug • Tel: +256 790 001 631
+                    TIN: 1014892019 • Email: support@ncloud.co.ug • Tel: +256 790 001 631
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: '700', marginTop: '2px' }}>
                     Official Web Clearance: https://ncloud.co.ug
@@ -786,7 +789,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
             {/* Bottom Footer Bar */}
             <div style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '0.75rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b' }}>
               <div>
-                Lugga Zone, Ndejje, Wakiso, Kampala • TIN: 1014892019 • billing@ncloud.co.ug
+                Lugga Zone, Ndejje, Wakiso, Kampala • TIN: 1014892019 • support@ncloud.co.ug
               </div>
               <div style={{ fontWeight: '700', color: '#0f172a' }}>
                 Page 1 of 1 • Official Legal Instrument
@@ -806,7 +809,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
               Document Verification Unsuccessful
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 1.25rem' }}>
-              {error} Please check the reference number on your document and try again, or contact our finance department at <strong>billing@ncloud.co.ug</strong>.
+              {error} Please check the reference number on your document and try again, or contact our finance department at <strong>support@ncloud.co.ug</strong>.
             </p>
           </div>
         )}

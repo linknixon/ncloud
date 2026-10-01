@@ -417,6 +417,10 @@ CREATE TABLE IF NOT EXISTS sliders (
     title VARCHAR(255) NOT NULL,
     subtitle TEXT NULL,
     image LONGTEXT NULL,
+    btn1_text VARCHAR(100) DEFAULT 'Explore Services',
+    btn1_link VARCHAR(255) DEFAULT 'services',
+    btn2_text VARCHAR(100) DEFAULT 'Colocation & Software',
+    btn2_link VARCHAR(255) DEFAULT 'shop',
     active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
