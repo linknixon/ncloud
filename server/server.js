@@ -13,7 +13,7 @@ import { query, getSeedData } from './db.js';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { registerTrebuchetFont } from '././trebuchetFont.js';
-import { loadFullStoreFromMysql, syncStoreToMysql, DEFAULT_CORP_BANK_ACCOUNTS } from './mysqlStore.js';
+import { loadFullStoreFromMysql, syncStoreToMysql } from './mysqlStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -487,28 +487,7 @@ const memoryStore = {
     bg_gradient: 'linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%)'
   },
   customer_credits: [],
-  bank_accounts: [
-    {
-      id: 1,
-      bank_name: 'Stanbic Bank Uganda Limited',
-      account_name: 'Nova Cloud Edges (U) Limited',
-      account_number: '9030018829401',
-      branch: 'Forest Mall Lugogo Branch, Kampala',
-      swift_code: 'SBICUGKX',
-      currency: 'UGX',
-      is_primary: true
-    },
-    {
-      id: 2,
-      bank_name: 'Absa Bank Uganda Limited',
-      account_name: 'Nova Cloud Edges (U) Limited',
-      account_number: '0341199482',
-      branch: 'Hannington Road Branch, Kampala',
-      swift_code: 'BARCUGKX',
-      currency: 'USD',
-      is_primary: false
-    }
-  ],
+  bank_accounts: [],
   quotations: [],
   work_orders: [],
   unifi_vouchers: [],
@@ -5325,9 +5304,7 @@ app.get('/api/admin/reports/analytics', (req, res) => {
 // Bank Accounts Management Endpoints
 // ----------------------------------------------------
 app.get(['/api/admin/bank-accounts', '/api/bank-accounts'], (req, res) => {
-  const accounts = (Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0)
-    ? memoryStore.bank_accounts
-    : DEFAULT_CORP_BANK_ACCOUNTS;
+  const accounts = Array.isArray(memoryStore.bank_accounts) ? memoryStore.bank_accounts : [];
   res.json(accounts);
 });
 
@@ -7260,9 +7237,9 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   try {
     const passedBanks = options?.bankAccounts || (Array.isArray(options) ? options : []);
     const rawBanks = (passedBanks.length > 0 ? passedBanks : null) || memoryStore.bank_accounts || [];
-    storedBanks = Array.isArray(rawBanks) && rawBanks.length > 0 ? rawBanks : DEFAULT_CORP_BANK_ACCOUNTS;
+    storedBanks = Array.isArray(rawBanks) ? rawBanks : [];
   } catch {
-    storedBanks = DEFAULT_CORP_BANK_ACCOUNTS;
+    storedBanks = [];
   }
 
   drawInvoiceNinja3ToneBar(doc, 0, 4);
@@ -7326,22 +7303,22 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  const primaryBank = (Array.isArray(storedBanks) && storedBanks.length > 0)
-    ? (storedBanks.find(b => b.is_primary) || storedBanks[0])
-    : DEFAULT_CORP_BANK_ACCOUNTS[0];
-  const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
+  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
+    const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
+    const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
 
-  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
-  if (secBank) {
-    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
-  }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(30, 58, 138);
-  const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
-  doc.text(splitBank[0] || '', 18, cardY + 29.5);
-  if (splitBank.length > 1) {
-    doc.text(splitBank[1], 18, cardY + 32.5);
+    let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number}${primaryBank.currency ? ` (${primaryBank.currency})` : ''}`;
+    if (secBank) {
+      bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 58, 138);
+    const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+    doc.text(splitBank[0] || '', 18, cardY + 29.5);
+    if (splitBank.length > 1) {
+      doc.text(splitBank[1], 18, cardY + 32.5);
+    }
   }
 
   // CARD 2: BILLED TO
@@ -7642,15 +7619,23 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  let bankStr = 'Remit To: MTN MoMo Merchant Code: 674859 (UGX)';
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
-    const b = storedBanks[0];
-    bankStr = `Remit To: ${b.bank_name} A/C: ${b.account_number} (${b.currency || 'UGX'})`;
+    const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
+    const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
+
+    let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number}${primaryBank.currency ? ` (${primaryBank.currency})` : ''}`;
+    if (secBank) {
+      bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 58, 138);
+    const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+    doc.text(splitBank[0] || '', 18, cardY + 29.5);
+    if (splitBank.length > 1) {
+      doc.text(splitBank[1], 18, cardY + 32.5);
+    }
   }
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(30, 58, 138);
-  doc.text(bankStr.substring(0, 62), 18, cardY + 29.5);
 
   // CARD 2: BILLED TO
   doc.setFillColor(248, 250, 252);
@@ -8774,25 +8759,27 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
 function renderConfiguredBankAccountsHtml() {
   const banks = (Array.isArray(memoryStore.bank_accounts) && memoryStore.bank_accounts.length > 0)
     ? memoryStore.bank_accounts
-    : DEFAULT_CORP_BANK_ACCOUNTS;
+    : [];
+
+  if (banks.length === 0) return '';
 
   const banksHtml = banks.map(b => `
-    <div style="background: #27272a; border: 1px solid #3f3f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;">
       <div style="margin-bottom: 6px;">
-        <strong style="color: #f4f4f5; font-size: 14px; letter-spacing: 0.3px;">${b.bank_name}</strong>
-        <span style="display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(56, 189, 248, 0.3);">${b.currency || 'UGX'}</span>
+        <strong style="color: #0f172a; font-size: 14px; letter-spacing: 0.3px;">${b.bank_name}</strong>
+        <span style="display: inline-block; background: #e0f2fe; color: #0284c7; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 12px; margin-left: 8px; border: 1px solid #bae6fd;">${b.currency || 'UGX'}</span>
       </div>
-      <div style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">
-        <div>Account Name: <strong style="color: #e4e4e7;">${b.account_name || SERVER_BRAND.name}</strong></div>
-        <div>Account Number: <strong style="color: #f4f4f5; font-family: monospace; font-size: 14px; letter-spacing: 0.5px;">${b.account_number}</strong></div>
-        <div style="color: #71717a; font-size: 11px; margin-top: 4px;">Branch: ${b.branch || 'Main Branch'} ${b.swift_code ? ` | SWIFT: ${b.swift_code}` : ''}</div>
+      <div style="font-size: 13px; color: #334155; line-height: 1.6;">
+        <div>Account Name: <strong style="color: #0f172a;">${b.account_name || SERVER_BRAND.name}</strong></div>
+        <div>Account Number: <strong style="color: #0f172a; font-family: monospace; font-size: 14px; letter-spacing: 0.5px;">${b.account_number}</strong></div>
+        <div style="color: #64748b; font-size: 11px; margin-top: 4px;">Branch: ${b.branch || 'Main Branch'} ${b.swift_code ? ` | SWIFT: ${b.swift_code}` : ''}</div>
       </div>
     </div>
   `).join('');
 
   return `
-    <div style="background: #18181b; border: 1px solid #3f3f46; border-radius: 12px; padding: 20px; margin: 24px 0; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);">
-      <div style="font-size: 11px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; margin: 24px 0;">
+      <div style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
         Approved Settlement & Remittance Details
       </div>
       ${banksHtml}

@@ -17253,7 +17253,7 @@ const normalizeTabName = (rawTab) => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Stanbic Bank Uganda Limited"
+                    placeholder="e.g. Bank Name / Merchant Provider"
                     value={bankForm.bank_name}
                     onChange={e => setBankForm({ ...bankForm, bank_name: e.target.value })}
                     required
@@ -17276,7 +17276,7 @@ const normalizeTabName = (rawTab) => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. 9030018829401"
+                    placeholder="e.g. 1029384756"
                     value={bankForm.account_number}
                     onChange={e => setBankForm({ ...bankForm, account_number: e.target.value })}
                     required
@@ -18584,23 +18584,22 @@ const normalizeTabName = (rawTab) => {
               </div>
 
               {/* Bank Accounts & Visual 2D QR Code Image Box */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.25rem', marginBottom: '1.75rem', alignItems: 'stretch' }}>
-                <div style={{ background: '#f8fafc', padding: '1rem 1.15rem', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '0.825rem' }}>
-                  <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    OFFICIAL BANK REMITTANCE ACCOUNTS:
-                  </div>
-                  {((Array.isArray(bankAccountsList) && bankAccountsList.length > 0) ? bankAccountsList : [
-                    { id: 1, bank_name: 'Stanbic Bank Uganda Limited', account_number: '9030018829401', currency: 'UGX', swift_code: 'SBICUGKX' },
-                    { id: 2, bank_name: 'MTN MoMo Merchant Code', account_number: '674859', currency: 'UGX' }
-                  ]).map((b, idx) => (
-                    <div key={b.id || idx} style={{ marginBottom: '0.35rem', lineHeight: '1.4', color: '#334155' }}>
-                      <strong style={{ color: '#0f172a' }}>{b.bank_name}:</strong> A/C: <strong>{b.account_number}</strong> ({b.currency || 'UGX'}){b.swift_code ? ` • Swift: ${b.swift_code}` : ''}
+              <div style={{ display: 'grid', gridTemplateColumns: (Array.isArray(bankAccountsList) && bankAccountsList.length > 0) ? '1.4fr 1fr' : '1fr', gap: '1.25rem', marginBottom: '1.75rem', alignItems: 'stretch' }}>
+                {Array.isArray(bankAccountsList) && bankAccountsList.length > 0 && (
+                  <div style={{ background: '#f8fafc', padding: '1rem 1.15rem', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '0.825rem' }}>
+                    <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      OFFICIAL BANK REMITTANCE ACCOUNTS:
                     </div>
-                  ))}
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.4rem' }}>
-                    Account Name: <strong>Nova Cloud Edges (U) Limited</strong>
+                    {bankAccountsList.map((b, idx) => (
+                      <div key={b.id || idx} style={{ marginBottom: '0.35rem', lineHeight: '1.4', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>{b.bank_name}:</strong> A/C: <strong>{b.account_number}</strong> ({b.currency || 'UGX'}){b.swift_code ? ` • Swift: ${b.swift_code}` : ''}
+                      </div>
+                    ))}
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.4rem' }}>
+                      Account Name: <strong>Nova Cloud Edges (U) Limited</strong>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div style={{ background: '#ffffff', padding: '0.85rem 1rem', borderRadius: '12px', border: '1.5px solid #cbd5e1', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   {modalQrImg && (

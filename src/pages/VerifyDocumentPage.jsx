@@ -207,13 +207,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const paidAmount = isPaid ? totalAmount : Number(verifyResult?.paid_amount || verifyResult?.invoice?.paid_amount || 0);
   const balanceDue = Math.max(0, totalAmount - paidAmount);
 
-  // Bank remittance accounts
-  const bankAccounts = (verifyResult?.bank_remittance && verifyResult.bank_remittance.length > 0)
+  // Bank remittance accounts - strictly what is in database
+  const bankAccounts = (Array.isArray(verifyResult?.bank_remittance) && verifyResult.bank_remittance.length > 0)
     ? verifyResult.bank_remittance
-    : [
-        { id: 1, bank_name: 'Stanbic Bank Uganda Limited', account_number: '9030018829401', currency: 'UGX', swift_code: 'SBICUGKX', branch: 'Forest Mall Lugogo Branch, Kampala' },
-        { id: 2, bank_name: 'MTN MoMo Merchant Code', account_number: '674859', currency: 'UGX', branch: 'MTN Merchant Channel' }
-      ];
+    : [];
 
   const docTypeStr = (verifyResult?.document_type || '').toLowerCase();
   const docNumStr = (verifyResult?.document_number || '').toUpperCase();
@@ -718,24 +715,26 @@ export default function VerifyDocumentPage({ setActivePage }) {
               </div>
 
               {/* Remittance & 2D Verification QR Footprint */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem', alignItems: 'stretch' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: bankAccounts.length > 0 ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr', gap: '1.25rem', marginBottom: '1.75rem', alignItems: 'stretch' }}>
                 
                 {/* Official Bank Remittance Box */}
-                <div style={{ background: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '0.825rem' }}>
-                  <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    OFFICIAL BANK REMITTANCE ACCOUNTS:
-                  </div>
-                  {bankAccounts.map((b, idx) => (
-                    <div key={b.id || idx} style={{ marginBottom: '0.35rem', lineHeight: '1.4', color: '#334155' }}>
-                      <strong style={{ color: '#0f172a' }}>{b.bank_name}:</strong> A/C: <strong style={{ fontFamily: 'monospace' }}>{b.account_number}</strong> ({b.currency || 'UGX'})
-                      {b.branch ? ` • ${b.branch}` : ''}
-                      {b.swift_code ? ` • Swift: ${b.swift_code}` : ''}
+                {bankAccounts.length > 0 && (
+                  <div style={{ background: '#f8fafc', padding: '1.15rem', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '0.825rem' }}>
+                    <div style={{ fontWeight: '900', color: '#0284c7', fontSize: '0.8rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      OFFICIAL BANK REMITTANCE ACCOUNTS:
                     </div>
-                  ))}
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.45rem', paddingTop: '0.45rem', borderTop: '1px solid #e2e8f0' }}>
-                    Account Name: <strong style={{ color: '#0f172a' }}>Nova Cloud Edges (U) Limited</strong>
+                    {bankAccounts.map((b, idx) => (
+                      <div key={b.id || idx} style={{ marginBottom: '0.35rem', lineHeight: '1.4', color: '#334155' }}>
+                        <strong style={{ color: '#0f172a' }}>{b.bank_name}:</strong> A/C: <strong style={{ fontFamily: 'monospace' }}>{b.account_number}</strong> ({b.currency || 'UGX'})
+                        {b.branch ? ` • ${b.branch}` : ''}
+                        {b.swift_code ? ` • Swift: ${b.swift_code}` : ''}
+                      </div>
+                    ))}
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.45rem', paddingTop: '0.45rem', borderTop: '1px solid #e2e8f0' }}>
+                      Account Name: <strong style={{ color: '#0f172a' }}>Nova Cloud Edges (U) Limited</strong>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 2D QR Code Authenticity Card */}
                 <div style={{ background: '#ffffff', padding: '1rem 1.25rem', borderRadius: '12px', border: '1.5px solid #0284c7', display: 'flex', alignItems: 'center', gap: '1rem' }}>

@@ -311,24 +311,7 @@ function formatNinjaUGX(num) {
   return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' UGX';
 }
 
-export const DEFAULT_PDF_BANKS = [
-  {
-    id: 1,
-    bank_name: 'Stanbic Bank Uganda Limited',
-    account_name: 'Nova Cloud Edges (U) Limited',
-    account_number: '9030018829401',
-    currency: 'UGX',
-    is_primary: true
-  },
-  {
-    id: 2,
-    bank_name: 'MTN MoMo Merchant Code',
-    account_name: 'Nova Cloud Edges (U) Limited',
-    account_number: '674859',
-    currency: 'UGX',
-    is_primary: false
-  }
-];
+export const DEFAULT_PDF_BANKS = [];
 
 export async function generateInvoicePDF(inv, options = {}) {
   const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
@@ -466,23 +449,24 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  // Bank Remittance
-  const activeBanks = (Array.isArray(storedBanks) && storedBanks.length > 0) ? storedBanks : DEFAULT_PDF_BANKS;
-  const primaryBank = activeBanks.find(b => b.is_primary) || activeBanks[0];
-  const secBank = activeBanks.length > 1 ? (activeBanks.find(b => !b.is_primary) || activeBanks[1]) : null;
+  // Bank Remittance (strictly what is configured in database)
+  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
+    const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
+    const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
 
-  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
-  if (secBank) {
-    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
-  }
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(30, 58, 138);
-  
-  const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
-  doc.text(splitBank[0] || '', 18, cardY + 29.5);
-  if (splitBank.length > 1) {
-    doc.text(splitBank[1], 18, cardY + 32.5);
+    let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number}${primaryBank.currency ? ` (${primaryBank.currency})` : ''}`;
+    if (secBank) {
+      bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
+    }
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 58, 138);
+    
+    const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+    doc.text(splitBank[0] || '', 18, cardY + 29.5);
+    if (splitBank.length > 1) {
+      doc.text(splitBank[1], 18, cardY + 32.5);
+    }
   }
 
   // CARD 2: BILLED TO
@@ -780,21 +764,23 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
   doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
 
-  const activeBanks = (Array.isArray(storedBanks) && storedBanks.length > 0) ? storedBanks : DEFAULT_PDF_BANKS;
-  const primaryBank = activeBanks.find(b => b.is_primary) || activeBanks[0];
-  const secBank = activeBanks.length > 1 ? (activeBanks.find(b => !b.is_primary) || activeBanks[1]) : null;
+  // Bank Remittance (strictly what is configured in database)
+  if (Array.isArray(storedBanks) && storedBanks.length > 0) {
+    const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
+    const secBank = storedBanks.length > 1 ? (storedBanks.find(b => !b.is_primary) || storedBanks[1]) : null;
 
-  let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number} (${primaryBank.currency || 'UGX'})`;
-  if (secBank) {
-    bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
-  }
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.setFontSize(6.5);
-  doc.setTextColor(30, 58, 138);
-  const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
-  doc.text(splitBank[0] || '', 18, cardY + 29.5);
-  if (splitBank.length > 1) {
-    doc.text(splitBank[1], 18, cardY + 32.5);
+    let bankStr = `Remit To: ${primaryBank.bank_name} A/C: ${primaryBank.account_number}${primaryBank.currency ? ` (${primaryBank.currency})` : ''}`;
+    if (secBank) {
+      bankStr += `  |  ${secBank.bank_name}: ${secBank.account_number}`;
+    }
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 58, 138);
+    const splitBank = doc.splitTextToSize(bankStr, cardW - 8);
+    doc.text(splitBank[0] || '', 18, cardY + 29.5);
+    if (splitBank.length > 1) {
+      doc.text(splitBank[1], 18, cardY + 32.5);
+    }
   }
 
   // CARD 2: BILLED TO
