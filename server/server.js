@@ -2003,7 +2003,7 @@ app.delete('/api/services/:id', requireSuperAdmin, async (req, res) => {
 // ----------------------------------------------------
 // Security & Authentication Middlewares
 // ----------------------------------------------------
-const verifyToken = (req, res, next) => {
+function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(403).json({ error: 'No token provided' });
   const token = authHeader.split(' ')[1];
@@ -2015,7 +2015,7 @@ const verifyToken = (req, res, next) => {
     req.userEmail = decoded.email;
     next();
   });
-};
+}
 
 app.get('/api/auth/jotform-hash', verifyToken, (req, res) => {
   const secret = 'MDFhMGRjNWQ3NzIwNzAwMDgxMjFmN2Q0NGQ4Yzk4MmRlMmEx';
@@ -2026,7 +2026,7 @@ app.get('/api/auth/jotform-hash', verifyToken, (req, res) => {
 });
 
 
-const requireCRUDAS = (req, res, next) => {
+function requireCRUDAS(req, res, next) {
   if (['super_admin', 'admin', 'web_admin'].includes(req.userRole)) return next();
 
   // Allow all authenticated users to fetch roles and users for frontend permission matrix & profile sync
