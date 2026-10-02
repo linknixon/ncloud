@@ -18,7 +18,13 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
 
   const turnstileRef = React.useRef(null);
-  const [siteKey, setSiteKey] = useState('');
+  const [siteKey, setSiteKey] = useState(() => {
+    try {
+      return sessionStorage.getItem('nova_turnstile_site_key') || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileError, setTurnstileError] = useState('');
 
@@ -36,6 +42,10 @@ export default function ContactPage() {
       .then(data => {
         if (data.is_active && data.site_key) {
           setSiteKey(data.site_key);
+          try {
+            sessionStorage.setItem('nova_turnstile_site_key', data.site_key);
+          } catch (e) {}
+
           if (!document.getElementById('turnstile-script')) {
             const script = document.createElement('script');
             script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -46,6 +56,9 @@ export default function ContactPage() {
           }
         } else {
           setSiteKey('');
+          try {
+            sessionStorage.removeItem('nova_turnstile_site_key');
+          } catch (e) {}
           if (data.bypass_allowed || isLocalhost) {
             setTurnstileToken('bypass-localhost');
           }
@@ -75,6 +88,8 @@ export default function ContactPage() {
           widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
             sitekey: siteKey,
             theme: 'light',
+            execution: 'render',
+            'refresh-expired': 'auto',
             callback: (token) => {
               setTurnstileToken(token);
               setTurnstileError('');
@@ -86,12 +101,12 @@ export default function ContactPage() {
         } catch (e) {
           console.error('Turnstile render exception:', e);
         }
-      } else if (attempts < 100) {
-        timer = setTimeout(tryRender, 120);
+      } else if (attempts < 60) {
+        timer = setTimeout(tryRender, 60);
       }
     };
 
-    timer = setTimeout(tryRender, 100);
+    tryRender();
 
     return () => {
       if (timer) clearTimeout(timer);
@@ -257,7 +272,7 @@ export default function ContactPage() {
           <div className="glass-card">
             <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Send Us a Message</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              Fill out the form below. Messages are logged into our MySQL support queue.
+              Fill out the form below. Messages are logged directly into our secure support queue.
             </p>
 
             {submitted ? (

@@ -67,7 +67,13 @@ export default function AuthModal({ setActivePage }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [siteKey, setSiteKey] = useState('');
+  const [siteKey, setSiteKey] = useState(() => {
+    try {
+      return sessionStorage.getItem('nova_turnstile_site_key') || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [turnstileToken, setTurnstileToken] = useState('');
   const turnstileRef = React.useRef(null);
   const widgetIdRef = React.useRef(null);
@@ -89,6 +95,9 @@ export default function AuthModal({ setActivePage }) {
       .then(data => {
         if (data.is_active && data.site_key) {
           setSiteKey(data.site_key);
+          try {
+            sessionStorage.setItem('nova_turnstile_site_key', data.site_key);
+          } catch (e) {}
 
           if (!document.getElementById('turnstile-script')) {
             const script = document.createElement('script');
@@ -100,6 +109,9 @@ export default function AuthModal({ setActivePage }) {
           }
         } else {
           setSiteKey('');
+          try {
+            sessionStorage.removeItem('nova_turnstile_site_key');
+          } catch (e) {}
           if (data.bypass_allowed || isLocalhost) {
             setTurnstileToken('bypass-localhost');
           }
@@ -131,6 +143,8 @@ export default function AuthModal({ setActivePage }) {
           widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
             sitekey: siteKey,
             theme: 'light',
+            execution: 'render',
+            'refresh-expired': 'auto',
             callback: (token) => {
               setTurnstileToken(token);
               setError('');
@@ -145,12 +159,12 @@ export default function AuthModal({ setActivePage }) {
         } catch (e) {
           console.error('Turnstile render exception:', e);
         }
-      } else if (attempts < 100) {
-        timer = setTimeout(tryRender, 120);
+      } else if (attempts < 60) {
+        timer = setTimeout(tryRender, 60);
       }
     };
 
-    timer = setTimeout(tryRender, 80);
+    tryRender();
 
     return () => {
       if (timer) clearTimeout(timer);

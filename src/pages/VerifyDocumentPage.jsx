@@ -11,7 +11,13 @@ import { useApp } from '../context/AppContext';
 export default function VerifyDocumentPage({ setActivePage }) {
   const { siteLogo, showToast } = useApp();
   const [docQuery, setDocQuery] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return Boolean(params.get('ref') || params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote'));
+    }
+    return false;
+  });
   const [verifyResult, setVerifyResult] = useState(null);
   const [error, setError] = useState(null);
   const [docQrImg, setDocQrImg] = useState('');
@@ -362,6 +368,19 @@ export default function VerifyDocumentPage({ setActivePage }) {
           </form>
         </div>
 
+        {/* Instant Loading Feedback Skeleton */}
+        {loading && !verifyResult && (
+          <div className="glass-card animate-fade-in no-print" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', marginBottom: '2.5rem', border: '1px solid var(--border-color)' }}>
+            <div className="spinner" style={{ width: '38px', height: '38px', margin: '0 auto 1.25rem auto' }} />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+              Verifying Official Document...
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+              Connecting to Nova Cloud Edges Central Fiscal Authority and retrieving authentic certificate records.
+            </p>
+          </div>
+        )}
+
         {/* AUTHENTIC EXECUTIVE CORPORATE PAPER SHEET */}
         {verifyResult && (
           <div 
@@ -380,6 +399,37 @@ export default function VerifyDocumentPage({ setActivePage }) {
             {/* Top Full-Bleed Dual Corporate Stripe */}
             <div style={{ height: '8px', background: '#0f172a', width: '100%' }} />
             <div style={{ height: '4px', background: '#0284c7', width: '100%' }} />
+
+            {/* Instant Pay Notice Banner if balance due */}
+            {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
+              <div className="no-print" style={{
+                background: '#fffbeb',
+                borderBottom: '1px solid #fde68a',
+                padding: '0.85rem 1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{ color: '#b45309', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={16} /> Outstanding Balance: <strong style={{ color: '#92400e', fontSize: '1rem' }}>UGX {balanceDue.toLocaleString()}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(true)}
+                  className="btn-primary"
+                  style={{
+                    padding: '0.45rem 1.15rem',
+                    fontSize: '0.825rem',
+                    background: '#d97706',
+                    fontWeight: '800'
+                  }}
+                >
+                  💳 Pay Now
+                </button>
+              </div>
+            )}
 
             <div style={{ padding: '2.5rem' }}>
               
@@ -710,6 +760,29 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     </div>
                   </div>
 
+                  {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentModal(true)}
+                      className="btn-primary no-print"
+                      style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        padding: '0.75rem',
+                        fontSize: '0.9rem',
+                        fontWeight: '800',
+                        background: '#d97706',
+                        marginTop: '0.75rem',
+                        boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      💳 Pay UGX {balanceDue.toLocaleString()} Now
+                    </button>
+                  )}
+
                 </div>
 
               </div>
@@ -853,8 +926,8 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     >
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
                       <div>
-                        <img src="./mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
-                        <img src="./airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                        <img src="/mtn_logo.jpg" alt="MTN Mobile Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain', marginRight: '6px' }} />
+                        <img src="/airtel_logo.jpg" alt="Airtel Money" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                       </div>
                       </div>
                       Mobile Money
@@ -870,7 +943,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                        <img src="./visa_mastercard.jpg" alt="Visa and Mastercard" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
+                        <img src="/visa_mastercard.jpg" alt="Visa and Mastercard" style={{ height: '24px', borderRadius: '4px', objectFit: 'contain' }} />
                       </div>
                       Credit / Debit Card
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', marginTop: '0.2rem' }}>Visa / Mastercard</div>

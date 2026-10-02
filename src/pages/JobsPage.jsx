@@ -306,7 +306,7 @@ export default function JobsPage() {
                 Job Application: {applyModalJob.title}
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-                Submit your details directly to Nova Cloud Edges HR department. Data is securely saved to MySQL.
+                Submit your details directly to Nova Cloud Edges HR department. Applications are processed securely.
               </p>
 
               <form onSubmit={handleApplySubmit}>

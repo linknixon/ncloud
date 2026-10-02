@@ -17,7 +17,13 @@ export default function EventsPage() {
   // Turnstile State
   const turnstileRef = React.useRef(null);
   const widgetIdRef = React.useRef(null);
-  const [siteKey, setSiteKey] = useState('');
+  const [siteKey, setSiteKey] = useState(() => {
+    try {
+      return sessionStorage.getItem('nova_turnstile_site_key') || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileError, setTurnstileError] = useState('');
 
@@ -41,6 +47,10 @@ export default function EventsPage() {
       .then(data => {
         if (data.is_active && data.site_key) {
           setSiteKey(data.site_key);
+          try {
+            sessionStorage.setItem('nova_turnstile_site_key', data.site_key);
+          } catch (e) {}
+
           if (!document.getElementById('turnstile-script')) {
             const script = document.createElement('script');
             script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -51,6 +61,9 @@ export default function EventsPage() {
           }
         } else {
           setSiteKey('');
+          try {
+            sessionStorage.removeItem('nova_turnstile_site_key');
+          } catch (e) {}
           if (data.bypass_allowed || isLocalhost) {
             setTurnstileToken('bypass-localhost');
           }
@@ -80,6 +93,8 @@ export default function EventsPage() {
           widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
             sitekey: siteKey,
             theme: 'light',
+            execution: 'render',
+            'refresh-expired': 'auto',
             callback: (token) => {
               setTurnstileToken(token);
               setTurnstileError('');
@@ -91,12 +106,12 @@ export default function EventsPage() {
         } catch (e) {
           console.error('Turnstile render exception:', e);
         }
-      } else if (attempts < 100) {
-        timer = setTimeout(tryRender, 120);
+      } else if (attempts < 60) {
+        timer = setTimeout(tryRender, 60);
       }
     };
 
-    timer = setTimeout(tryRender, 100);
+    tryRender();
 
     return () => {
       if (timer) clearTimeout(timer);

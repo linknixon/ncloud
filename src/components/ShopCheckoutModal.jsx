@@ -431,22 +431,51 @@ export default function ShopCheckoutModal() {
               <div><strong>Grand Total Paid / Due:</strong> <span style={{ fontWeight: '800', color: 'var(--primary)' }}>UGX {grandTotal.toLocaleString()}</span></div>
             </div>
 
-            {successData.invoice?.wifi_voucher_token && (
-              <div style={{
-                background: '#f0f9ff',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: '2px solid #38bdf8',
-                textAlign: 'center',
-                marginBottom: '1.5rem'
-              }}>
-                <div style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Your WiFi Access Token</div>
-                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0c4a6e', letterSpacing: '0.1em', fontFamily: 'monospace' }}>
-                  {successData.invoice.wifi_voucher_token}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#0ea5e9', marginTop: '8px' }}>Connect to the Nova WiFi network and enter this code to browse.</div>
-              </div>
-            )}
+            {(() => {
+              const isOrderPaid = successData.isPaid || 
+                successData.invoice?.status === 'Paid' || 
+                successData.invoice?.status === '100% Paid' || 
+                successData.invoice?.status === 'Paid & Settled';
+              const hasWifiVoucher = Boolean(successData.invoice?.wifi_voucher_token || selectedItems.some(i => (i.name || '').toLowerCase().includes('wifi')));
+
+              if (hasWifiVoucher && isOrderPaid && successData.invoice?.wifi_voucher_token) {
+                return (
+                  <div style={{
+                    background: '#f0f9ff',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: '2px solid #38bdf8',
+                    textAlign: 'center',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <div style={{ fontSize: '0.9rem', color: '#0369a1', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Your WiFi Access Token</div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0c4a6e', letterSpacing: '0.1em', fontFamily: 'monospace' }}>
+                      {successData.invoice.wifi_voucher_token}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#0ea5e9', marginTop: '8px' }}>Connect to the Nova WiFi network and enter this code to browse.</div>
+                  </div>
+                );
+              }
+
+              if (hasWifiVoucher && !isOrderPaid) {
+                return (
+                  <div style={{
+                    background: '#fffbeb',
+                    padding: '1.15rem 1.25rem',
+                    borderRadius: '12px',
+                    border: '1.5px solid #fde68a',
+                    textAlign: 'center',
+                    marginBottom: '1.5rem',
+                    color: '#92400e'
+                  }}>
+                    <div style={{ fontSize: '0.825rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>WiFi Voucher Pending 100% Payment</div>
+                    <div style={{ fontSize: '0.825rem', lineHeight: '1.4' }}>Your high-speed WiFi access code will be emailed and activated automatically as soon as your payment is 100% received and confirmed.</div>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button

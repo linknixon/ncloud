@@ -5,10 +5,29 @@ import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide
 
 export default function ShopPage({ setActivePage }) {
   const { cart, addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('nova_shop_products_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [category, setCategory] = useState('Hosting Services');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('nova_shop_products_cache');
+        if (cached && JSON.parse(cached).length > 0) return false;
+      } catch {}
+    }
+    return true;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [quantities, setQuantities] = useState({});
   const [selectedProductModal, setSelectedProductModal] = useState(null);
@@ -40,13 +59,13 @@ export default function ShopPage({ setActivePage }) {
   const isHostingCategoryItem = (prod) => {
     if (!prod) return false;
     if (isWifiVoucherItem(prod)) return false;
+    if (prod.category === 'Hosting Services' || prod.category === 'Hosting') return true;
     if (prod.checkout_type === 'hosting' || prod.checkout_flow === 'hosting') return true;
-    if (prod.checkout_type === 'shop' || prod.checkout_flow === 'shop') return false;
 
     const categoryStr = (prod.category || '').toLowerCase();
     const nameStr = (prod.name || '').toLowerCase();
     const badgeStr = (prod.badge || '').toLowerCase();
-    const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription'];
+    const keywords = ['hosting', 'cloud', 'vps', 'virtual server', 'cpanel', 'dedicated server', 'unifi controller', 'cloud storage', 'subscription', 'colocation', 'server rack'];
     return keywords.some(kw => categoryStr.includes(kw) || nameStr.includes(kw) || badgeStr.includes(kw));
   };
 
@@ -83,6 +102,9 @@ export default function ShopPage({ setActivePage }) {
         if (Array.isArray(data) && data.length > 0) {
           const loadedProducts = data.filter(p => !p.is_hidden);
           setProducts(loadedProducts);
+          try {
+            localStorage.setItem('nova_shop_products_cache', JSON.stringify(loadedProducts));
+          } catch {}
           if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             const itemSlug = params.get('item');
@@ -92,13 +114,10 @@ export default function ShopPage({ setActivePage }) {
               if (matchingProd) openProductModal(matchingProd);
             }
           }
-        } else {
-          setProducts([]);
         }
         setLoading(false);
       })
       .catch(() => {
-        setProducts([]);
         setLoading(false);
       });
 
@@ -125,7 +144,8 @@ export default function ShopPage({ setActivePage }) {
 
   const priorityTabs = ['Hosting Services', 'WiFi Vouchers', 'Hardware & Security', 'Software & Licenses', 'Domain Names'];
   const categories = [
-    ...priorityTabs.filter(cat => rawCategories.includes(cat)),
+    'Hosting Services',
+    ...priorityTabs.filter(cat => cat !== 'Hosting Services' && (rawCategories.length === 0 || rawCategories.includes(cat))),
     'All',
     ...rawCategories.filter(cat => !priorityTabs.includes(cat) && cat !== 'Hosting Services' && cat !== 'Hosting').sort()
   ];
@@ -139,7 +159,7 @@ export default function ShopPage({ setActivePage }) {
       : isHostingSelected
         ? (prod.category === 'Hosting Services' || prod.category === 'Hosting' || isHostingCategoryItem(prod))
         : prod.category === category;
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = (searchTerm || '').toLowerCase();
     const matchesSearch = (prod.name || '').toLowerCase().includes(searchLower) ||
                           (prod.short_desc || prod.desc || '').toLowerCase().includes(searchLower) ||
                           (prod.description || prod.specs || prod.details || '').toLowerCase().includes(searchLower);

@@ -611,8 +611,8 @@ export async function generateInvoicePDF(inv, options = {}) {
     } catch {}
   }
 
-  // WiFi voucher token — show whenever a token is present (paid or pending)
-  if (inv?.wifi_voucher_token) {
+  // WiFi voucher token — show ONLY when 100% paid
+  if (inv?.wifi_voucher_token && isPaid) {
     const wifiY = verifyY + 30;
     doc.setFont('TrebuchetMS', 'bold');
     doc.setFontSize(9);
@@ -2336,135 +2336,168 @@ export function generateForensicsAuditPDF(logs = [], options = {}) {
 // ============================================================================
 
 export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
-  // 1. Initialize an 80mm thermal receipt
-  // 80mm is approx 226 points (1mm = 2.83465 pt). Let's use pt for precise thermal positioning.
+  // 1. Initialize an 80mm thermal receipt (226 pt width)
   const receiptWidth = 226; 
+  const margin = 14;
+  const center = receiptWidth / 2;
+  const contentWidth = receiptWidth - (margin * 2);
+
+  // Look up items bought by customer if not directly provided
+  let items = Array.isArray(paymentData?.items) && paymentData.items.length > 0 ? paymentData.items : null;
+  if (!items && (paymentData?.invoice_number || paymentData?.reference)) {
+    const ref = String(paymentData.invoice_number || paymentData.reference).trim();
+    let cachedInvs = [];
+    try {
+      cachedInvs = JSON.parse(localStorage.getItem('nova_cached_invoices') || '[]');
+    } catch {}
+    const allInvs = [...(options.invoices || []), ...cachedInvs];
+    const match = allInvs.find(i => (i.invoice_number && i.invoice_number.trim() === ref) || String(i.id) === ref);
+    if (match && Array.isArray(match.items) && match.items.length > 0) {
+      items = match.items;
+    }
+  }
+
+  if (!items || items.length === 0) {
+    items = [{
+      name: paymentData?.item || paymentData?.item_name || paymentData?.description || 'Cloud Service Subscription',
+      quantity: paymentData?.quantity || 1,
+      unit_price: Number(paymentData?.amount_paid || paymentData?.amount || paymentData?.amountPaid || paymentData?.totalPaid || 0),
+      amount: Number(paymentData?.amount_paid || paymentData?.amount || paymentData?.amountPaid || paymentData?.totalPaid || 0)
+    }];
+  }
   
-  // Dynamically calculate height based on items
-  const items = paymentData?.items || paymentData?.lines || [{
-    name: paymentData?.item || 'Payment / Installment',
-    description: `Payment Ref: ${paymentData?.reference || paymentData?.receipt_ref || 'Direct E-Payment'}`,
-    quantity: 1,
-    unit_price: Number(paymentData?.amount_paid || paymentData?.amount || paymentData?.amountPaid || paymentData?.totalPaid || 0)
-  }];
+  const estimatedHeight = Math.max(480, 360 + (items.length * 36));
   
-  const estimatedHeight = 350 + (items.length * 40);
-  
-  // We use standard jsPDF
-  // Note: we assume jsPDF is available in scope just like in generateInvoicePDF
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
     format: [receiptWidth, estimatedHeight]
   });
+  registerTrebuchetFont(doc);
 
-  let cursorY = 20;
-  const margin = 15;
-  const center = receiptWidth / 2;
+  let cursorY = 18;
 
   // 2. Company Logo or Title
-  const siteLogo = localStorage.getItem('nova_site_logo') || NOVA_LOGO_BASE64;
+  const siteLogo = options.siteLogo || localStorage.getItem('nova_site_logo') || NOVA_LOGO_BASE64;
   if (siteLogo && siteLogo.startsWith('data:image')) {
     try {
       const imgProps = doc.getImageProperties(siteLogo);
-      const imgWidth = 100;
+      const imgWidth = 84;
       const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
       doc.addImage(siteLogo, imgProps.fileType, center - (imgWidth / 2), cursorY, imgWidth, imgHeight);
-      cursorY += imgHeight + 15;
+      cursorY += imgHeight + 12;
     } catch (e) {
-      // Fallback to text if image fails
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setFont('TrebuchetMS', 'bold');
-      doc.setTextColor(30, 58, 138); // Deep Blue
+      doc.setTextColor(30, 58, 138);
       doc.text("NOVA CLOUD EDGES", center, cursorY, { align: 'center' });
-      cursorY += 20;
+      cursorY += 16;
     }
   } else {
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont('TrebuchetMS', 'bold');
-    doc.setTextColor(30, 58, 138); // Deep Blue
+    doc.setTextColor(30, 58, 138);
     doc.text("NOVA CLOUD EDGES", center, cursorY, { align: 'center' });
-    cursorY += 20;
+    cursorY += 16;
   }
 
-  // 3. Receipt Header (Blue colors)
+  // 3. Receipt Header
   doc.setFontSize(10);
   doc.setFont('TrebuchetMS', 'bold');
-  doc.setTextColor(2, 132, 199); // Accent Blue
+  doc.setTextColor(2, 132, 199);
   doc.text("OFFICIAL PAYMENT RECEIPT", center, cursorY, { align: 'center' });
-  cursorY += 15;
+  cursorY += 13;
   
-  // Standard text color
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.setFontSize(7.5);
   doc.setFont('TrebuchetMS', 'normal');
-  doc.text("Lugga Zone, Ndejje, Wakiso", center, cursorY, { align: 'center' });
+  doc.text("Lugga Zone, Ndejje, Wakiso, Uganda", center, cursorY, { align: 'center' });
   cursorY += 10;
-  doc.text("support@ncloud.co.ug | +256 790 001 631", center, cursorY, { align: 'center' });
-  cursorY += 20;
+  doc.text("TIN: 1014892019 • support@ncloud.co.ug", center, cursorY, { align: 'center' });
+  cursorY += 14;
 
-  // Draw separator line
-  doc.setDrawColor(200, 200, 200);
+  // Separator
+  doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.5);
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
-  cursorY += 15;
+  cursorY += 12;
 
-  // 4. Receipt Details
-  const receiptNum = sanitizePdfText(paymentData?.invoice_number || paymentData?.receipt_ref || `REC-${Date.now()}`);
+  // 4. Receipt Metadata
+  const receiptNum = sanitizePdfText(paymentData?.reference || paymentData?.receipt_ref || paymentData?.invoice_number || `REC-${Date.now()}`);
+  const invNum = sanitizePdfText(paymentData?.invoice_number || 'N/A');
   const dateStr = paymentData?.payment_date || paymentData?.created_at ? new Date(paymentData?.payment_date || paymentData?.created_at).toLocaleDateString() : new Date().toLocaleDateString();
-  const customerName = sanitizePdfText(paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Customer');
+  const customerName = sanitizePdfText(paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Valued Customer');
+  const methodStr = sanitizePdfText(paymentData?.payment_method || 'Electronic Transfer');
+  const isPaid = paymentData?.status === '100% Paid' || paymentData?.status === 'Paid & Settled' || paymentData?.status === 'Paid' || paymentData?.status === 'PAID';
 
-  doc.setFontSize(8);
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.text(`Receipt No:`, margin, cursorY);
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.text(receiptNum, margin + 50, cursorY);
-  cursorY += 12;
+  const printMeta = (label, val) => {
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(label, margin, cursorY);
+    
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const splitVal = doc.splitTextToSize(String(val || ''), 120);
+    doc.text(splitVal, receiptWidth - margin, cursorY, { align: 'right' });
+    cursorY += (splitVal.length * 9.5) + 2;
+  };
 
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.text(`Date:`, margin, cursorY);
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.text(dateStr, margin + 50, cursorY);
-  cursorY += 12;
+  printMeta("Receipt No:", receiptNum);
+  if (invNum && invNum !== 'N/A' && invNum !== receiptNum) {
+    printMeta("Invoice No:", invNum);
+  }
+  printMeta("Date:", dateStr);
+  printMeta("Customer:", customerName);
+  printMeta("Payment Method:", methodStr);
+  printMeta("Status:", isPaid ? "100% Fully Cleared" : (paymentData?.status || "Partial"));
 
-  doc.setFont('TrebuchetMS', 'bold');
-  doc.text(`Customer:`, margin, cursorY);
-  doc.setFont('TrebuchetMS', 'normal');
-  doc.text(customerName, margin + 50, cursorY);
-  cursorY += 15;
-
-  // Draw separator line
+  cursorY += 4;
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
-  cursorY += 15;
+  cursorY += 12;
 
-  // 5. Items
+  // 5. Items Purchased Table
   doc.setFont('TrebuchetMS', 'bold');
-  doc.text("ITEM", margin, cursorY);
-  doc.text("AMOUNT", receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 15;
-  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text("ITEM PURCHASED", margin, cursorY);
+  doc.text("AMOUNT (UGX)", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 10;
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 10;
 
   items.forEach(item => {
-    const itemName = sanitizePdfText(item.name || item.description || 'Service/Product');
-    const price = Number(item.unit_price || item.price || item.amount || 0);
+    const itemName = sanitizePdfText(item.name || item.item_name || item.description || 'Service/Product');
+    const qty = Number(item.quantity || item.qty || 1);
+    const unitPrice = Number(item.unit_price || item.price || 0);
+    const lineAmt = Number(item.amount || (unitPrice * qty) || unitPrice || 0);
     
-    // Auto-wrap item name
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(15, 23, 42);
     const splitName = doc.splitTextToSize(itemName, 120);
     doc.text(splitName, margin, cursorY);
     
-    doc.text(price.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
-    cursorY += (splitName.length * 10) + 5;
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.text(lineAmt.toLocaleString(), receiptWidth - margin, cursorY, { align: 'right' });
+    cursorY += (splitName.length * 9.5);
+
+    if (qty > 1 || (unitPrice > 0 && unitPrice !== lineAmt)) {
+      doc.setFontSize(6.8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${qty} x UGX ${unitPrice.toLocaleString()}`, margin, cursorY);
+      cursorY += 8.5;
+    }
+    cursorY += 3;
   });
 
-  cursorY += 5;
+  cursorY += 3;
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
-  cursorY += 15;
+  cursorY += 12;
 
   // 6. Totals
   const totalAmount = Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || paymentData?.amountPaid || paymentData?.totalPaid || 0);
-  
-  // FIX: Extremely robust parsing for amount received
   const amountReceived = Number(
     paymentData?.amount_paid || 
     paymentData?.amountPaid || 
@@ -2475,75 +2508,75 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
     0
   );
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('TrebuchetMS', 'bold');
-  doc.text("Total Due:", margin, cursorY);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Total Document Amount:", margin, cursorY);
   doc.text(totalAmount.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 15;
+  cursorY += 13;
 
-  // Deep Blue for Amount Received
-  doc.setTextColor(30, 58, 138); 
-  doc.setFontSize(10);
+  doc.setTextColor(22, 163, 74); 
+  doc.setFontSize(9.5);
+  doc.setFont('TrebuchetMS', 'bold');
   doc.text("Amount Received:", margin, cursorY);
   doc.text(amountReceived.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 20;
-
-  // Standard color for status
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(9);
-  doc.text("Status:", margin, cursorY);
-  
-  doc.setTextColor(2, 132, 199); // Accent Blue for PAID
-  doc.text("100% PAID", receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 25;
-
-  doc.setTextColor(0, 0, 0);
-  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
   cursorY += 15;
 
-  // 7. Verification & Footer
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(8);
+  doc.text("Settlement Status:", margin, cursorY);
+  doc.setTextColor(isPaid ? 22 : 217, isPaid ? 163 : 119, isPaid ? 74 : 6);
+  doc.text(isPaid ? "✓ 100% PAID" : "PARTIAL PAYMENT", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 16;
+
+  doc.line(margin, cursorY, receiptWidth - margin, cursorY);
+  cursorY += 14;
+
+  // WiFi voucher token — show ONLY if 100% paid
+  if (paymentData?.wifi_voucher_token && isPaid) {
+    doc.setFillColor(240, 249, 255);
+    doc.setDrawColor(56, 189, 248);
+    doc.roundedRect(margin, cursorY, contentWidth, 34, 4, 4, 'FD');
+    
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(2, 132, 199);
+    doc.text("YOUR WIFI ACCESS TOKEN", center, cursorY + 11, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(12, 74, 110);
+    doc.text(paymentData.wifi_voucher_token, center, cursorY + 25, { align: 'center' });
+    cursorY += 44;
+  }
+
+  // 7. 2D Verification QR Code & Official Seal
   const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(receiptNum)}`;
   
   try {
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 });
-    const qrWidth = 80;
+    const qrWidth = 64;
     doc.addImage(qrDataUrl, 'PNG', center - (qrWidth / 2), cursorY, qrWidth, qrWidth);
-    cursorY += qrWidth + 10;
-  } catch(e) {}
-  
-  if (paymentData?.wifi_voucher_token) {
-    doc.setFont('TrebuchetMS', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(2, 132, 199);
-    doc.text("Your WiFi Access Token:", center, cursorY, { align: 'center' });
-    cursorY += 15;
-    
-    doc.setFontSize(16);
-    doc.setTextColor(15, 23, 42);
-    doc.text(paymentData.wifi_voucher_token, center, cursorY, { align: 'center' });
-    cursorY += 20;
+    cursorY += qrWidth + 8;
+  } catch(e) {
+    cursorY += 8;
   }
 
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   doc.setFont('TrebuchetMS', 'italic');
-  doc.setTextColor(0, 0, 0);
-  doc.text("Verify authenticity online:", center, cursorY, { align: 'center' });
-  cursorY += 10;
+  doc.setTextColor(100, 116, 139);
+  doc.text("Official electronic clearance receipt.", center, cursorY, { align: 'center' });
+  cursorY += 9;
   
   doc.setTextColor(2, 132, 199);
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text("https://ncloud.co.ug/verify", center, cursorY, { align: 'center' });
+  cursorY += 12;
+
+  doc.setTextColor(15, 23, 42);
   doc.setFont('TrebuchetMS', 'normal');
-  doc.text(verifyUrl, center, cursorY, { align: 'center' });
-  cursorY += 20;
+  doc.text("Thank you for choosing Nova Cloud Edges!", center, cursorY, { align: 'center' });
 
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('TrebuchetMS', 'italic');
-  doc.text("Thank you for your business!", center, cursorY, { align: 'center' });
-  cursorY += 10;
-  doc.text("This is an electronically generated receipt.", center, cursorY, { align: 'center' });
-
-  // 8. Output Base64
-  const pdfBase64 = doc.output('datauristring');
-  
+  // 8. Output
   if (options.download !== false) {
     openPdfInBrowser(doc, `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`);
   }
@@ -2896,6 +2929,7 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
     unit: 'mm',
     format: [80, 200]
   });
+  registerTrebuchetFont(doc);
 
   
   doc.setFont('TrebuchetMS', 'normal');
