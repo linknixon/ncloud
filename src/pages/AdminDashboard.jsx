@@ -7435,8 +7435,18 @@ const normalizeTabName = (rawTab) => {
                       </div>
                       <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                         <h4 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '0.4rem' }}>{slide.title}</h4>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '1.25rem', flex: 1 }}>{slide.subtitle}</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '0.75rem', flex: 1 }}>{slide.subtitle}</p>
                         
+                        {/* Slide Buttons Preview */}
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
+                          <span className="badge-tag" style={{ background: 'rgba(37, 99, 235, 0.12)', color: 'var(--primary)', border: '1px solid rgba(37, 99, 235, 0.25)', fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
+                            Btn 1: <strong>{slide.btn1_text || 'Explore Services'}</strong> ({slide.btn1_link || 'services'})
+                          </span>
+                          <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-emerald)', border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
+                            Btn 2: <strong>{slide.btn2_text || 'Colocation & Software'}</strong> ({slide.btn2_link || 'shop'})
+                          </span>
+                        </div>
+
                         {/* Slide Action Controls */}
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', flexWrap: 'wrap' }}>
                           <button
@@ -17978,8 +17988,9 @@ const normalizeTabName = (rawTab) => {
                     <label style={{ fontWeight: '700' }}>Button 1 Link / Page</label>
                     <input
                       type="text"
+                      list="slider-page-links"
                       className="form-input"
-                      placeholder="e.g. services"
+                      placeholder="e.g. services or https://..."
                       value={sliderForm.btn1_link}
                       onChange={e => setSliderForm({ ...sliderForm, btn1_link: e.target.value })}
                     />
@@ -17998,13 +18009,23 @@ const normalizeTabName = (rawTab) => {
                     <label style={{ fontWeight: '700' }}>Button 2 Link / Page</label>
                     <input
                       type="text"
+                      list="slider-page-links"
                       className="form-input"
-                      placeholder="e.g. shop"
+                      placeholder="e.g. shop or https://..."
                       value={sliderForm.btn2_link}
                       onChange={e => setSliderForm({ ...sliderForm, btn2_link: e.target.value })}
                     />
                   </div>
                 </div>
+
+                <datalist id="slider-page-links">
+                  <option value="services">Services Page</option>
+                  <option value="shop">Digital Shop Page</option>
+                  <option value="about">About Us Page</option>
+                  <option value="contact">Contact & Support</option>
+                  <option value="jobs">Careers & Jobs</option>
+                  <option value="client-portal">Client Portal</option>
+                </datalist>
 
                 {/* Local Banner Image File Upload Helper */}
                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>

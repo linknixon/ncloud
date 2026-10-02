@@ -25,22 +25,38 @@ export default function HomePage({ setActivePage }) {
     {
       url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1400&q=80',
       title: 'Tier III Sovereign Cloud Edge Datacenter',
-      subtitle: 'Redundant power, precision cooling, and direct fiber interconnects in Kampala'
+      subtitle: 'Redundant power, precision cooling, and direct fiber interconnects in Kampala',
+      btn1_text: 'Explore Services',
+      btn1_link: 'services',
+      btn2_text: 'Colocation & Cloud',
+      btn2_link: 'shop'
     },
     {
       url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=1400&q=80',
       title: 'High-Density Server Rack Colocation',
-      subtitle: 'Dual A+B power feeds, 1Gbps unmetered bandwidth, and 99.99% uptime SLA'
+      subtitle: 'Dual A+B power feeds, 1Gbps unmetered bandwidth, and 99.99% uptime SLA',
+      btn1_text: 'View Server Racks',
+      btn1_link: 'services',
+      btn2_text: 'Colocation Pricing',
+      btn2_link: 'shop'
     },
     {
       url: 'https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=1400&q=80',
       title: 'Zimbra & QuickBooks Cloud Cluster Nodes',
-      subtitle: 'Instant NVMe storage access with zero data sovereignty compliance risk'
+      subtitle: 'Instant NVMe storage access with zero data sovereignty compliance risk',
+      btn1_text: 'Cloud VPS & ERP',
+      btn1_link: 'shop',
+      btn2_text: 'Contact Sales',
+      btn2_link: 'contact'
     },
     {
       url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1400&q=80',
       title: '24/7 Threat Intelligence Operations Center',
-      subtitle: 'Expert Cyber Security Team monitoring enterprise defense round the clock'
+      subtitle: 'Expert Cyber Security Team monitoring enterprise defense round the clock',
+      btn1_text: 'Cyber Security',
+      btn1_link: 'services',
+      btn2_text: 'Security Audit',
+      btn2_link: 'contact'
     }
   ];
 
@@ -48,17 +64,26 @@ export default function HomePage({ setActivePage }) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [sliderConfig, setSliderConfig] = useState({ speed: 3800, showArrows: true });
 
-  // Automatic slide rotation every 3.8 seconds
+  // Automatic slide rotation
   useEffect(() => {
-    if (sliderImages.length === 0) return;
+    if (sliderImages.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide(prev => (prev + 1) % sliderImages.length);
-    }, sliderConfig.speed);
+    }, sliderConfig.speed || 3800);
     return () => clearInterval(timer);
   }, [sliderImages.length, sliderConfig.speed]);
 
   const nextSlide = () => setCurrentSlide(prev => (prev + 1) % Math.max(1, sliderImages.length));
   const prevSlide = () => setCurrentSlide(prev => (prev - 1 + sliderImages.length) % Math.max(1, sliderImages.length));
+
+  const handleSlideNav = (link) => {
+    if (!link) return;
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+      window.open(link, '_blank');
+    } else {
+      setActivePage(link.replace(/^\//, ''));
+    }
+  };
 
   // Dynamic API Data
   const [partners, setPartners] = useState([]);
@@ -73,9 +98,14 @@ export default function HomePage({ setActivePage }) {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const activeOnes = data.filter(s => s.active !== false).map(s => ({
+            id: s.id,
             url: s.image || s.url,
             title: s.title,
-            subtitle: s.subtitle
+            subtitle: s.subtitle,
+            btn1_text: s.btn1_text || 'Explore Services',
+            btn1_link: s.btn1_link || 'services',
+            btn2_text: s.btn2_text || 'Colocation & Software',
+            btn2_link: s.btn2_link || 'shop'
           }));
           if (activeOnes.length > 0) {
             setSliderImages(activeOnes);
@@ -163,10 +193,10 @@ export default function HomePage({ setActivePage }) {
                   </p>
                   
                   <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={() => setActivePage(slide.btn1_link || 'services')} className="btn-primary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem' }}>
+                    <button onClick={() => handleSlideNav(slide.btn1_link || 'services')} className="btn-primary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem' }}>
                       {slide.btn1_text || 'Explore Services'} <ArrowRight size={20} />
                     </button>
-                    <button onClick={() => setActivePage(slide.btn2_link || 'shop')} className="btn-secondary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}>
+                    <button onClick={() => handleSlideNav(slide.btn2_link || 'shop')} className="btn-secondary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}>
                       <ShoppingBag size={20} /> {slide.btn2_text || 'Colocation & Software'}
                     </button>
                   </div>

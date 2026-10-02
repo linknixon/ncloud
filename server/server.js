@@ -6943,7 +6943,92 @@ app.put('/api/admin/schedules/:id/toggle', (req, res) => {
 });
 
 // ----------------------------------------------------
-// Public Document Verification (QR Code Scan Target)
+// DOCUMENT PRIVACY & SECURITY LAYER
+// ----------------------------------------------------
+
+/**
+ * Deterministic, cryptographically secure 16-character HMAC token
+ * for document verification and access control.
+ */
+export function generateDocSecurityKey(docNum) {
+  if (!docNum) return '';
+  const clean = String(docNum).trim().toUpperCase();
+  const secret = process.env.DOC_SECURITY_SECRET || process.env.JWT_SECRET || 'nova_cloud_doc_verify_signature_key_2026';
+  return crypto.createHmac('sha256', secret).update(`doc_sec:${clean}`).digest('hex').substring(0, 16);
+}
+
+export function maskCustomerName(name) {
+  if (!name) return 'Valued Client';
+  const parts = String(name).trim().split(/\s+/);
+  return parts.map(p => {
+    if (p.length <= 1) return p;
+    if (p.length === 2) return p[0] + '*';
+    return p[0] + '*'.repeat(Math.min(p.length - 1, 4));
+  }).join(' ');
+}
+
+export function maskCustomerEmail(email) {
+  if (!email || !email.includes('@')) return 'c*****@ncloud.co.ug';
+  const [local, domain] = email.split('@');
+  const maskedLocal = local.length <= 2 ? local[0] + '***' : local[0] + '***' + local[local.length - 1];
+  const domParts = domain.split('.');
+  const maskedDom = domParts[0].length <= 2 ? domParts[0][0] + '***' : domParts[0][0] + '***' + domParts[0][domParts[0].length - 1];
+  return `${maskedLocal}@${maskedDom}.${domParts.slice(1).join('.')}`;
+}
+
+export function maskCustomerPhone(phone) {
+  if (!phone) return '•••• ••• •••';
+  const clean = String(phone).trim();
+  if (clean.length < 7) return '•••••••';
+  const prefix = clean.substring(0, Math.min(4, clean.length - 3));
+  const suffix = clean.substring(clean.length - 2);
+  return `${prefix} ••• •${suffix}`;
+}
+
+export function maskCustomerAddress(addr) {
+  return 'Protected Client Information • Kampala, Uganda';
+}
+
+/**
+ * Check if request has authorization to view full, unmasked document details.
+ * Authorized if:
+ * 1. Request query or header contains valid HMAC security key
+ * 2. Request user is authenticated Admin / Staff / Finance
+ * 3. Request user is the authenticated owner (matching email or phone)
+ */
+export function checkDocAuthorization(req, docRecord, docNumber) {
+  const reqKey = String(req.query?.key || req.headers['x-doc-key'] || '').trim().toLowerCase();
+  const expectedKey = generateDocSecurityKey(docNumber).toLowerCase();
+
+  // 1. Direct valid security key (from QR code, email link, or dashboard button)
+  if (reqKey && reqKey === expectedKey) {
+    return { authorized: true, reason: 'key', key: expectedKey };
+  }
+
+  // 2. Check authenticated session
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : (req.cookies?.nova_session || '');
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (['admin', 'superadmin', 'finance', 'staff', 'billing', 'manager', 'lead_dev'].includes(decoded.role)) {
+        return { authorized: true, reason: 'admin', key: expectedKey };
+      }
+      if (docRecord) {
+        const docEmail = String(docRecord.customer_email || docRecord.party_email || docRecord.email || docRecord.assigned_staff_email || '').toLowerCase().trim();
+        const docPhone = String(docRecord.customer_phone || docRecord.phone || '').replace(/\D/g, '');
+        const userEmail = String(decoded.email || '').toLowerCase().trim();
+        const userPhone = String(decoded.phone || '').replace(/\D/g, '');
+        if ((docEmail && userEmail && docEmail === userEmail) || (docPhone && userPhone && docPhone === userPhone)) {
+          return { authorized: true, reason: 'owner', key: expectedKey };
+        }
+      }
+    }
+  } catch (e) {}
+
+  return { authorized: false, reason: 'unauthorized', key: expectedKey };
+}
+
 // ----------------------------------------------------
 // Public Unified Document Verification Endpoint
 // Supports Invoices, Work Orders, Quotations, and Expense Vouchers
@@ -6979,15 +7064,24 @@ app.get([
     (i.reference || '').trim().toLowerCase() === searchRef
   );
   if (inv) {
+    const authStatus = checkDocAuthorization(req, inv, inv.invoice_number || inv.id);
+    const secKey = generateDocSecurityKey(inv.invoice_number || inv.id);
+    const isAuth = authStatus.authorized;
+
     return res.json({
       verified: true,
       document_type: 'Official Tax Invoice',
       document_number: inv.invoice_number,
-      customer_name: inv.customer_name,
-      customer_email: inv.customer_email,
-      customer_phone: inv.customer_phone || '',
-      customer_address: inv.customer_address || '',
-      company: inv.company || '',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      pdf_url: `/api/invoices/pdf/${encodeURIComponent(inv.invoice_number)}${isAuth ? `?key=${secKey}` : ''}`,
+      customer_name: isAuth ? inv.customer_name : maskCustomerName(inv.customer_name),
+      customer_email: isAuth ? inv.customer_email : maskCustomerEmail(inv.customer_email),
+      customer_phone: isAuth ? (inv.customer_phone || '') : maskCustomerPhone(inv.customer_phone),
+      customer_address: isAuth ? (inv.customer_address || '') : maskCustomerAddress(inv.customer_address),
+      company: isAuth ? (inv.company || '') : (inv.company ? maskCustomerName(inv.company) : ''),
       item_name: inv.item_name || inv.plan_name || (inv.items && inv.items[0] && inv.items[0].name) || 'Cloud Service Subscription',
       items: inv.items || [],
       include_vat: inv.include_vat,
@@ -6999,7 +7093,14 @@ app.get([
       due_date: inv.due_date,
       issued_date: inv.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      invoice: inv,
+      invoice: isAuth ? { ...inv, security_key: secKey } : {
+        ...inv,
+        customer_name: maskCustomerName(inv.customer_name),
+        customer_email: maskCustomerEmail(inv.customer_email),
+        customer_phone: maskCustomerPhone(inv.customer_phone),
+        customer_address: maskCustomerAddress(inv.customer_address),
+        company: inv.company ? maskCustomerName(inv.company) : ''
+      },
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7010,6 +7111,10 @@ app.get([
     (w.order_number || '').trim().toLowerCase() === searchRef
   );
   if (wo) {
+    const authStatus = checkDocAuthorization(req, wo, wo.order_number || wo.id);
+    const secKey = generateDocSecurityKey(wo.order_number || wo.id);
+    const isAuth = authStatus.authorized;
+
     const rateVal = Number(wo.rate || 0);
     const qtyVal = Number(wo.quantity || 1);
     const totalCost = Number(wo.total_cost || (rateVal * qtyVal));
@@ -7017,10 +7122,15 @@ app.get([
       verified: true,
       document_type: 'Official Field Service Work Order',
       document_number: wo.order_number,
-      customer_name: wo.assigned_staff_name || 'Field Support Specialist',
-      customer_email: wo.assigned_staff_email || '',
-      customer_phone: wo.customer_phone || '',
-      client_site: wo.client_site || 'Nova Primary Datacenter',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      pdf_url: `/api/admin/work-orders/${encodeURIComponent(wo.order_number)}/pdf${isAuth ? `?key=${secKey}` : ''}`,
+      customer_name: isAuth ? (wo.assigned_staff_name || 'Field Support Specialist') : maskCustomerName(wo.assigned_staff_name || 'Field Support Specialist'),
+      customer_email: isAuth ? (wo.assigned_staff_email || '') : maskCustomerEmail(wo.assigned_staff_email),
+      customer_phone: isAuth ? (wo.customer_phone || '') : maskCustomerPhone(wo.customer_phone),
+      client_site: isAuth ? (wo.client_site || 'Nova Primary Datacenter') : 'Nova Protected Client Site',
       task_title: wo.task_title || 'Field Operations Technical Deployment',
       description: wo.service_description || wo.description || '',
       scheduled_date: wo.scheduled_date || 'Immediate',
@@ -7033,7 +7143,12 @@ app.get([
       status: wo.status || 'Completed',
       issued_date: wo.created_at || wo.scheduled_date,
       issuer: 'Nova Cloud Edges (U) Limited',
-      work_order: wo,
+      work_order: isAuth ? { ...wo, security_key: secKey } : {
+        ...wo,
+        assigned_staff_name: maskCustomerName(wo.assigned_staff_name),
+        assigned_staff_email: maskCustomerEmail(wo.assigned_staff_email),
+        customer_phone: maskCustomerPhone(wo.customer_phone)
+      },
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7044,14 +7159,23 @@ app.get([
     (item.quote_number || '').trim().toLowerCase() === searchRef
   );
   if (q) {
+    const authStatus = checkDocAuthorization(req, q, q.quote_number || q.id);
+    const secKey = generateDocSecurityKey(q.quote_number || q.id);
+    const isAuth = authStatus.authorized;
+
     return res.json({
       verified: true,
       document_type: 'Official Commercial Quotation',
       document_number: q.quote_number,
-      customer_name: q.customer_name,
-      customer_email: q.customer_email || '',
-      customer_phone: q.customer_phone || '',
-      company: q.company || '',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      pdf_url: `/api/quotations/pdf/${encodeURIComponent(q.quote_number)}${isAuth ? `?key=${secKey}` : ''}`,
+      customer_name: isAuth ? q.customer_name : maskCustomerName(q.customer_name),
+      customer_email: isAuth ? (q.customer_email || '') : maskCustomerEmail(q.customer_email),
+      customer_phone: isAuth ? (q.customer_phone || '') : maskCustomerPhone(q.customer_phone),
+      company: isAuth ? (q.company || '') : (q.company ? maskCustomerName(q.company) : ''),
       items: q.items || [],
       total_amount: Number(q.total_amount),
       currency: 'UGX',
@@ -7059,7 +7183,13 @@ app.get([
       valid_until: q.valid_until,
       issued_date: q.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      quotation: q,
+      quotation: isAuth ? { ...q, security_key: secKey } : {
+        ...q,
+        customer_name: maskCustomerName(q.customer_name),
+        customer_email: maskCustomerEmail(q.customer_email),
+        customer_phone: maskCustomerPhone(q.customer_phone),
+        company: q.company ? maskCustomerName(q.company) : ''
+      },
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7071,12 +7201,20 @@ app.get([
     (item.voucher_number || '').trim().toLowerCase() === searchRef
   );
   if (exp) {
+    const authStatus = checkDocAuthorization(req, exp, exp.receipt_ref || exp.voucher_number || exp.id);
+    const secKey = generateDocSecurityKey(exp.receipt_ref || exp.voucher_number || exp.id);
+    const isAuth = authStatus.authorized;
+
     return res.json({
       verified: true,
       document_type: 'Official Expenditure Payment Voucher',
       document_number: exp.receipt_ref || `EXP-${exp.id}`,
-      customer_name: exp.staff_name || 'Staff Member',
-      customer_email: exp.staff_email || '',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      customer_name: isAuth ? (exp.staff_name || 'Staff Member') : maskCustomerName(exp.staff_name || 'Staff Member'),
+      customer_email: isAuth ? (exp.staff_email || '') : maskCustomerEmail(exp.staff_email),
       category: exp.category || 'Company Expense',
       description: exp.description || exp.purpose || '',
       total_amount: Number(exp.amount),
@@ -7084,7 +7222,7 @@ app.get([
       status: exp.status || 'Approved',
       issued_date: exp.date || exp.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      expense: exp,
+      expense: isAuth ? { ...exp, security_key: secKey } : exp,
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7096,15 +7234,24 @@ app.get([
     (d.invoice_number || '').trim().toLowerCase() === searchRef
   );
   if (dn) {
+    const authStatus = checkDocAuthorization(req, dn, dn.dn_number || dn.id);
+    const secKey = generateDocSecurityKey(dn.dn_number || dn.id);
+    const isAuth = authStatus.authorized;
+
     return res.json({
       verified: true,
       document_type: 'Official Goods Delivery Note',
       document_number: dn.dn_number,
-      customer_name: dn.customer_name,
-      customer_email: dn.customer_email || '',
-      customer_phone: dn.customer_phone || '',
-      delivery_address: dn.delivery_address || 'Customer Premises, Uganda',
-      company: dn.company || '',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      pdf_url: `/api/delivery-notes/pdf/${encodeURIComponent(dn.dn_number)}${isAuth ? `?key=${secKey}` : ''}`,
+      customer_name: isAuth ? dn.customer_name : maskCustomerName(dn.customer_name),
+      customer_email: isAuth ? (dn.customer_email || '') : maskCustomerEmail(dn.customer_email),
+      customer_phone: isAuth ? (dn.customer_phone || '') : maskCustomerPhone(dn.customer_phone),
+      delivery_address: isAuth ? (dn.delivery_address || 'Customer Premises, Uganda') : maskCustomerAddress(dn.delivery_address),
+      company: isAuth ? (dn.company || '') : (dn.company ? maskCustomerName(dn.company) : ''),
       items: dn.items || [],
       carrier: dn.carrier || 'Direct Handover',
       tracking_code: dn.tracking_code || 'N/A',
@@ -7114,7 +7261,12 @@ app.get([
       status: dn.status || 'Fulfilled & Released',
       issued_date: dn.delivery_date || dn.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      delivery_note: dn,
+      delivery_note: isAuth ? { ...dn, security_key: secKey } : {
+        ...dn,
+        customer_name: maskCustomerName(dn.customer_name),
+        customer_email: maskCustomerEmail(dn.customer_email),
+        customer_phone: maskCustomerPhone(dn.customer_phone)
+      },
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7124,6 +7276,88 @@ app.get([
     error: 'Please check the reference number on your document and try again, or contact our operations & finance department for assistance.'
   });
 });
+
+// ----------------------------------------------------
+// Public Document Unlock Endpoint (Identity Confirmation)
+// ----------------------------------------------------
+app.post('/api/public/verify/unlock', (req, res) => {
+  const { doc, contact } = req.body || {};
+  const searchRef = String(doc || '').trim().replace(/^#+/, '').toLowerCase();
+  const inputContact = String(contact || '').trim().toLowerCase();
+
+  if (!searchRef || !inputContact) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide both the document reference and your registered contact email or phone number.'
+    });
+  }
+
+  // Find document across all collections
+  const allInvoices = [...(memoryStore.invoices || []), ...(memoryStore.staff_invoices || [])];
+  let foundDoc = allInvoices.find(i => 
+    String(i.id).toLowerCase() === searchRef ||
+    (i.invoice_number || '').trim().toLowerCase() === searchRef ||
+    (i.reference || '').trim().toLowerCase() === searchRef
+  );
+  let docNumber = foundDoc?.invoice_number;
+
+  if (!foundDoc) {
+    foundDoc = (memoryStore.quotations || []).find(q =>
+      String(q.id).toLowerCase() === searchRef || (q.quote_number || '').trim().toLowerCase() === searchRef
+    );
+    docNumber = foundDoc?.quote_number;
+  }
+  if (!foundDoc) {
+    foundDoc = (memoryStore.work_orders || []).find(w =>
+      String(w.id).toLowerCase() === searchRef || (w.order_number || '').trim().toLowerCase() === searchRef
+    );
+    docNumber = foundDoc?.order_number;
+  }
+  if (!foundDoc) {
+    foundDoc = (memoryStore.delivery_notes || []).find(d =>
+      String(d.id).toLowerCase() === searchRef || (d.dn_number || '').trim().toLowerCase() === searchRef
+    );
+    docNumber = foundDoc?.dn_number;
+  }
+
+  if (!foundDoc) {
+    return res.status(404).json({
+      success: false,
+      error: 'Document record not found in system.'
+    });
+  }
+
+  const docEmail = String(foundDoc.customer_email || foundDoc.email || foundDoc.party_email || foundDoc.assigned_staff_email || '').trim().toLowerCase();
+  const docPhone = String(foundDoc.customer_phone || foundDoc.phone || '').replace(/\D/g, '');
+  const cleanInputPhone = inputContact.replace(/\D/g, '');
+
+  let matched = false;
+  if (inputContact.includes('@') && docEmail) {
+    matched = (docEmail === inputContact);
+  } else if (cleanInputPhone && docPhone) {
+    const subInput = cleanInputPhone.slice(-8);
+    const subDoc = docPhone.slice(-8);
+    matched = (subInput && subDoc && subInput === subDoc);
+  }
+
+  if (!matched) {
+    return res.status(403).json({
+      success: false,
+      error: 'The email address or phone number entered does not match the records on file for this document.'
+    });
+  }
+
+  const secKey = generateDocSecurityKey(docNumber || searchRef);
+  return res.json({
+    success: true,
+    key: secKey,
+    message: 'Identity confirmed. Document unlocked successfully.'
+  });
+});
+
+// ----------------------------------------------------
+// HTTP Routes to serve clean inline PDF streams (No Blob, Native Browser Tab)
+// ----------------------------------------------------
 
 // HTTP Route to serve clean PDF document for Invoices (public and admin)
 app.get(['/api/invoices/pdf/:invoiceNum', '/api/admin/invoices/:invoiceNum/pdf'], async (req, res) => {
@@ -7135,21 +7369,24 @@ app.get(['/api/invoices/pdf/:invoiceNum', '/api/admin/invoices/:invoiceNum/pdf']
   }
 
   if (!inv) {
-    inv = {
-      invoice_number: invoiceNum,
-      customer_name: 'Valued Customer',
-      customer_email: 'billing@client.com',
-      customer_address: 'Kampala, Uganda',
-      item_name: 'Cloud Infrastructure & Managed Services',
-      amount: 720000,
-      status: 'Paid',
-      due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-      created_at: new Date().toISOString()
+    return res.status(404).json({ error: 'Invoice document not found' });
+  }
+
+  const authStatus = checkDocAuthorization(req, inv, inv.invoice_number || invoiceNum);
+  let invToRender = inv;
+  if (!authStatus.authorized) {
+    invToRender = {
+      ...inv,
+      customer_name: maskCustomerName(inv.customer_name),
+      customer_email: maskCustomerEmail(inv.customer_email),
+      customer_phone: maskCustomerPhone(inv.customer_phone),
+      customer_address: maskCustomerAddress(inv.customer_address),
+      company: inv.company ? maskCustomerName(inv.company) : ''
     };
   }
 
   try {
-    const pdfBuffer = await generateServerInvoicePDFBuffer(inv, memoryStore.bank_accounts);
+    const pdfBuffer = await generateServerInvoicePDFBuffer(invToRender, memoryStore.bank_accounts);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Tax_Invoice_${inv.invoice_number || invoiceNum}.pdf"`);
     res.send(pdfBuffer);
@@ -7167,8 +7404,21 @@ app.get(['/api/quotations/pdf/:quoteNum', '/api/admin/quotations/:quoteNum/pdf']
     return res.status(404).json({ error: 'Quotation document not found' });
   }
 
+  const authStatus = checkDocAuthorization(req, quote, quote.quote_number || quoteNum);
+  let quoteToRender = quote;
+  if (!authStatus.authorized) {
+    quoteToRender = {
+      ...quote,
+      customer_name: maskCustomerName(quote.customer_name),
+      customer_email: maskCustomerEmail(quote.customer_email),
+      customer_phone: maskCustomerPhone(quote.customer_phone),
+      customer_address: maskCustomerAddress(quote.customer_address),
+      company: quote.company ? maskCustomerName(quote.company) : ''
+    };
+  }
+
   try {
-    const pdfBuffer = await generateServerQuotationPDFBuffer(quote);
+    const pdfBuffer = await generateServerQuotationPDFBuffer(quoteToRender);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Commercial_Quotation_${quote.quote_number}.pdf"`);
     res.send(pdfBuffer);
@@ -7186,14 +7436,42 @@ app.get(['/api/delivery-notes/pdf/:dnNum', '/api/admin/delivery-notes/:dnNum/pdf
     return res.status(404).json({ error: 'Delivery note record not found' });
   }
 
+  const authStatus = checkDocAuthorization(req, dn, dn.dn_number || dnNum);
+  let dnToRender = dn;
+  if (!authStatus.authorized) {
+    dnToRender = {
+      ...dn,
+      customer_name: maskCustomerName(dn.customer_name),
+      customer_email: maskCustomerEmail(dn.customer_email),
+      customer_phone: maskCustomerPhone(dn.customer_phone),
+      delivery_address: maskCustomerAddress(dn.delivery_address)
+    };
+  }
+
   try {
-    const pdfBuffer = await generateServerDeliveryNotePDFBuffer(dn);
+    const pdfBuffer = await generateServerDeliveryNotePDFBuffer(dnToRender);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Delivery_Note_${dn.dn_number}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     console.error('Error generating Delivery Note PDF stream:', err);
     res.status(500).json({ error: 'Failed to generate Delivery Note PDF document' });
+  }
+});
+
+// Unified Document PDF router for any reference (INV, QTN, WO, DN)
+app.get('/api/documents/pdf/:docNum', async (req, res) => {
+  const { docNum } = req.params;
+  const upper = String(docNum || '').trim().toUpperCase();
+
+  if (upper.startsWith('QTN') || upper.startsWith('QUO')) {
+    return res.redirect(`/api/quotations/pdf/${encodeURIComponent(docNum)}${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
+  } else if (upper.startsWith('DN') || upper.startsWith('DEL')) {
+    return res.redirect(`/api/delivery-notes/pdf/${encodeURIComponent(docNum)}${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
+  } else if (upper.startsWith('WO') || upper.startsWith('WORK')) {
+    return res.redirect(`/api/admin/work-orders/${encodeURIComponent(docNum)}/pdf${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
+  } else {
+    return res.redirect(`/api/invoices/pdf/${encodeURIComponent(docNum)}${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
   }
 });
 
@@ -7554,7 +7832,8 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
     }];
   }
 
-  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}`;
+  const secKey = generateDocSecurityKey(invoiceNum);
+  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNum)}${secKey ? `&key=${secKey}` : ''}`;
   let qrDataUrl = '';
   try {
     qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 200 });
@@ -7874,7 +8153,8 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   const cPhone = sanitizePdfText(quote?.customer_phone || quote?.phone || '');
   const cEmail = sanitizePdfText(quote?.customer_email || quote?.party_email || quote?.email || '');
 
-  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}`;
+  const secKey = generateDocSecurityKey(quoteNum);
+  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(quoteNum)}${secKey ? `&key=${secKey}` : ''}`;
   let qrDataUrl = '';
   try {
     qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 200 });
@@ -8173,7 +8453,8 @@ export async function generateServerWorkOrderPDFBuffer(wo, options = {}) {
   const qtyVal = Number(wo?.quantity || 1);
   const totalCost = Number(wo?.total_cost || (rateVal * qtyVal));
 
-  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(orderNum)}`;
+  const secKey = generateDocSecurityKey(orderNum);
+  const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(orderNum)}${secKey ? `&key=${secKey}` : ''}`;
   let qrDataUrl = '';
   try {
     qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 200 });
@@ -11579,7 +11860,7 @@ app.get('/api/admin/sliders', (req, res) => {
   res.json(memoryStore.sliders || []);
 });
 
-app.post('/api/admin/sliders', (req, res) => {
+app.post('/api/admin/sliders', async (req, res) => {
   const { title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active } = req.body;
   const newSlider = {
     id: Date.now(),
@@ -11592,15 +11873,24 @@ app.post('/api/admin/sliders', (req, res) => {
     btn2_link: btn2_link || 'shop',
     active: active !== undefined ? Boolean(active) : true
   };
+  try {
+    await query(
+      `INSERT INTO sliders (id, title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newSlider.id, newSlider.title, newSlider.subtitle, newSlider.image, newSlider.btn1_text, newSlider.btn1_link, newSlider.btn2_text, newSlider.btn2_link, newSlider.active ? 1 : 0]
+    );
+  } catch (err) {
+    console.error('[MySQL Error] Inserting slider:', err.message);
+  }
   memoryStore.sliders.unshift(newSlider);
   savePersistentStore();
   res.json({ message: 'Graphic Slider added successfully', slider: newSlider });
 });
 
-app.put('/api/admin/sliders/:id', (req, res) => {
+app.put('/api/admin/sliders/:id', async (req, res) => {
   const { id } = req.params;
   const { title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active } = req.body;
-  const slider = memoryStore.sliders.find(s => s.id == id);
+  const slider = memoryStore.sliders.find(s => String(s.id) === String(id) || Number(s.id) === Number(id));
   if (slider) {
     if (title !== undefined) slider.title = title;
     if (subtitle !== undefined) slider.subtitle = subtitle;
@@ -11610,17 +11900,32 @@ app.put('/api/admin/sliders/:id', (req, res) => {
     if (btn2_text !== undefined) slider.btn2_text = btn2_text;
     if (btn2_link !== undefined) slider.btn2_link = btn2_link;
     if (active !== undefined) slider.active = Boolean(active);
+
+    try {
+      await query(
+        `UPDATE sliders SET title=?, subtitle=?, image=?, btn1_text=?, btn1_link=?, btn2_text=?, btn2_link=?, active=? WHERE id=?`,
+        [slider.title, slider.subtitle, slider.image, slider.btn1_text, slider.btn1_link, slider.btn2_text, slider.btn2_link, slider.active ? 1 : 0, id]
+      );
+    } catch (err) {
+      console.error('[MySQL Error] Updating slider:', err.message);
+    }
+
     savePersistentStore();
     return res.json({ message: 'Graphic banner updated successfully', slider });
   }
   res.status(404).json({ error: 'Slider banner not found' });
 });
 
-app.put('/api/admin/sliders/:id/toggle', (req, res) => {
+app.put('/api/admin/sliders/:id/toggle', async (req, res) => {
   const { id } = req.params;
-  const slider = memoryStore.sliders.find(s => s.id == id);
+  const slider = memoryStore.sliders.find(s => String(s.id) === String(id) || Number(s.id) === Number(id));
   if (slider) {
     slider.active = !slider.active;
+    try {
+      await query(`UPDATE sliders SET active=? WHERE id=?`, [slider.active ? 1 : 0, id]);
+    } catch (err) {
+      console.error('[MySQL Error] Toggling slider active:', err.message);
+    }
     savePersistentStore();
     return res.json({ message: `Banner is now ${slider.active ? 'Visible on Homepage' : 'Hidden from Homepage'}`, slider });
   }
@@ -11633,6 +11938,21 @@ app.delete('/api/admin/sliders/:id', requireSuperAdmin, async (req, res) => {
   memoryStore.sliders = (memoryStore.sliders || []).filter(s => String(s.id) !== String(id) && Number(s.id) !== Number(id));
   savePersistentStore();
   return res.json({ message: 'Slider banner deleted successfully!' });
+});
+
+app.get('/api/settings/slider', (req, res) => {
+  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
+});
+
+app.get('/api/admin/settings/slider', (req, res) => {
+  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
+});
+
+app.post('/api/admin/settings/slider', (req, res) => {
+  const { speed, showArrows } = req.body;
+  memoryStore.slider_settings = { speed: Number(speed) || 3800, showArrows: showArrows !== false };
+  savePersistentStore();
+  res.json({ success: true, settings: memoryStore.slider_settings });
 });
 
 // ----------------------------------------------------
@@ -12123,19 +12443,4 @@ app.get(/(.*)/, (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Nova Cloud Edges API Server running on port ${PORT}`);
-});
-
-app.get('/api/settings/slider', (req, res) => {
-  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
-});
-
-app.get('/api/admin/settings/slider', (req, res) => {
-  res.json(memoryStore.slider_settings || { speed: 3800, showArrows: true });
-});
-
-app.post('/api/admin/settings/slider', (req, res) => {
-  const { speed, showArrows } = req.body;
-  memoryStore.slider_settings = { speed: Number(speed) || 3800, showArrows: showArrows !== false };
-  savePersistentStore();
-  res.json({ success: true, settings: memoryStore.slider_settings });
 });

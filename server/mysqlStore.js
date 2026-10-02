@@ -550,7 +550,7 @@ export async function syncStoreToMysql(store) {
     // 11. System Settings
     const settingKeys = [
       'smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails',
-      'paid_stamp', 'site_logo', 'site_favicon', 'announcement', 'banner_settings'
+      'paid_stamp', 'site_logo', 'site_favicon', 'announcement', 'banner_settings', 'slider_settings'
     ];
     for (const sk of settingKeys) {
       if (store[sk] !== undefined && store[sk] !== null) {
@@ -560,6 +560,26 @@ export async function syncStoreToMysql(store) {
            VALUES (?, ?)
            ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)`,
           [sk, valStr]
+        );
+      }
+    }
+
+    // 12. Sliders
+    if (Array.isArray(store.sliders)) {
+      for (const sl of store.sliders) {
+        await pool.query(
+          `INSERT INTO sliders (id, title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             title=VALUES(title), subtitle=VALUES(subtitle), image=VALUES(image), 
+             btn1_text=VALUES(btn1_text), btn1_link=VALUES(btn1_link), 
+             btn2_text=VALUES(btn2_text), btn2_link=VALUES(btn2_link), active=VALUES(active)`,
+          [
+            sl.id || null, sl.title || '', sl.subtitle || '', sl.image || '',
+            sl.btn1_text || 'Explore Services', sl.btn1_link || 'services',
+            sl.btn2_text || 'Colocation & Software', sl.btn2_link || 'shop',
+            sl.active !== false ? 1 : 0
+          ]
         );
       }
     }

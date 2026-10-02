@@ -6,7 +6,7 @@ import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide
 export default function ShopPage({ setActivePage }) {
   const { cart, addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
   const [products, setProducts] = useState([]);
-  const [category, setCategory] = useState('All');
+  const [category, setCategory] = useState('Hosting Services');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,17 +123,22 @@ export default function ShopPage({ setActivePage }) {
     ...products.map(p => p.category)
   ].filter(Boolean)));
 
-  const priorityTabs = ['WiFi Vouchers', 'Hosting Services', 'Hardware & Security'];
+  const priorityTabs = ['Hosting Services', 'WiFi Vouchers', 'Hardware & Security', 'Software & Licenses', 'Domain Names'];
   const categories = [
-    'All',
     ...priorityTabs.filter(cat => rawCategories.includes(cat)),
-    ...rawCategories.filter(cat => !priorityTabs.includes(cat)).sort()
+    'All',
+    ...rawCategories.filter(cat => !priorityTabs.includes(cat) && cat !== 'Hosting Services' && cat !== 'Hosting').sort()
   ];
 
   const filteredProducts = products.filter(prod => {
     if (prod.is_hidden || prod.hidden) return false;
 
-    const matchesCategory = category === 'All' || prod.category === category;
+    const isHostingSelected = category === 'Hosting Services' || category === 'Hosting';
+    const matchesCategory = category === 'All'
+      ? true
+      : isHostingSelected
+        ? (prod.category === 'Hosting Services' || prod.category === 'Hosting' || isHostingCategoryItem(prod))
+        : prod.category === category;
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = (prod.name || '').toLowerCase().includes(searchLower) ||
                           (prod.short_desc || prod.desc || '').toLowerCase().includes(searchLower) ||
