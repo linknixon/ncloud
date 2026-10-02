@@ -331,10 +331,85 @@ export async function loadFullStoreFromMysql() {
       console.warn('[MySQL Store] Team query note:', e.message);
     }
 
-    // 24. Sliders
+    // 24. Sliders (Self-healing migration for columns and default slides)
+    try {
+      await pool.query('ALTER TABLE sliders ADD COLUMN btn1_text VARCHAR(100) DEFAULT "Explore Services"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE sliders ADD COLUMN btn1_link VARCHAR(255) DEFAULT "services"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE sliders ADD COLUMN btn2_text VARCHAR(100) DEFAULT "Colocation & Software"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE sliders ADD COLUMN btn2_link VARCHAR(255) DEFAULT "shop"');
+    } catch {}
+
     try {
       const [sliders] = await pool.query('SELECT * FROM sliders ORDER BY id ASC');
-      store.sliders = sliders.map(s => ({ ...s, active: Boolean(s.active) }));
+      if (sliders && sliders.length > 1) {
+        store.sliders = sliders.map(s => ({ ...s, active: Boolean(s.active) }));
+      } else {
+        const defaultSlides = [
+          {
+            id: 1,
+            title: "Tier III Sovereign Cloud Edge Datacenter",
+            subtitle: "Redundant power, precision cooling, and direct fiber interconnects in Kampala",
+            image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1400&q=80",
+            btn1_text: "Explore Services",
+            btn1_link: "services",
+            btn2_text: "Colocation & Cloud",
+            btn2_link: "shop",
+            active: 1
+          },
+          {
+            id: 2,
+            title: "High-Density Server Rack Colocation",
+            subtitle: "Dual A+B power feeds, 1Gbps unmetered bandwidth, and 99.99% uptime SLA",
+            image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=1400&q=80",
+            btn1_text: "View Server Racks",
+            btn1_link: "services",
+            btn2_text: "Colocation Pricing",
+            btn2_link: "shop",
+            active: 1
+          },
+          {
+            id: 3,
+            title: "Zimbra & QuickBooks Cloud Cluster Nodes",
+            subtitle: "Instant NVMe storage access with zero data sovereignty compliance risk",
+            image: "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?auto=format&fit=crop&w=1400&q=80",
+            btn1_text: "Cloud VPS & ERP",
+            btn1_link: "shop",
+            btn2_text: "Contact Sales",
+            btn2_link: "contact",
+            active: 1
+          },
+          {
+            id: 4,
+            title: "24/7 Threat Intelligence Operations Center",
+            subtitle: "Expert Cyber Security Team monitoring enterprise defense round the clock",
+            image: "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1400&q=80",
+            btn1_text: "Cyber Security",
+            btn1_link: "services",
+            btn2_text: "Security Audit",
+            btn2_link: "contact",
+            active: 1
+          }
+        ];
+        for (const s of defaultSlides) {
+          await pool.query(
+            `INSERT INTO sliders (id, title, subtitle, image, btn1_text, btn1_link, btn2_text, btn2_link, active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+               title=VALUES(title), subtitle=VALUES(subtitle), image=VALUES(image), 
+               btn1_text=VALUES(btn1_text), btn1_link=VALUES(btn1_link), 
+               btn2_text=VALUES(btn2_text), btn2_link=VALUES(btn2_link), active=VALUES(active)`,
+            [s.id, s.title, s.subtitle, s.image, s.btn1_text, s.btn1_link, s.btn2_text, s.btn2_link, s.active]
+          );
+        }
+        const [reloadedSliders] = await pool.query('SELECT * FROM sliders ORDER BY id ASC');
+        store.sliders = reloadedSliders.map(s => ({ ...s, active: Boolean(s.active) }));
+      }
     } catch (e) {
       console.warn('[MySQL Store] Sliders query note:', e.message);
     }
