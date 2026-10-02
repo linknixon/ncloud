@@ -1540,42 +1540,47 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
   const pwdInfo = calculatePasswordAge(user);
 
   // Multi-Factor Authentication (MFA) check
-  const isSuperAdminUser = user.role === 'super_admin' || user.email === 'superadmin@ncloud.co.ug';
-  const hasMfaActive = Boolean(user.mfa_enabled) && Boolean(user.mfa_secret);
+  const isSuperAdminUser = user.role === 'super_admin' || user.email === 'superadmin@ncloud.co.ug' || user.email === 'systems@ncloud.co.ug';
+  const hasMfaActive = Boolean(user.mfa_enabled) && Boolean(user.mfa_secret) && String(user.mfa_secret).trim().length > 0;
 
   // Case A: User already has MFA active -> Prompt for 6-digit TOTP code
   if (hasMfaActive) {
     const tempToken = jwt.sign(
       { id: user.id, email: user.email, mfa_pending: true },
       JWT_SECRET,
-      { expiresIn: '5m' }
+      { expiresIn: '10m' }
     );
     return res.json({
       mfa_required: true,
       mfa_type: 'verify',
+      setup_required: false,
       temp_token: tempToken,
       email: user.email,
       message: 'Two-Factor Authentication required. Enter the 6-digit code from your Authenticator app.'
     });
   }
 
-  // Case B: Super Admin has NOT setup MFA yet -> MFA is MANDATORY for Super Admin
-  if (isSuperAdminUser && !hasMfaActive) {
+  // Case B: Super Admin OR user with MFA enabled on account but NOT configured on auth app -> Setup flow with QR code
+  if (isSuperAdminUser || (user.mfa_enabled && !hasMfaActive)) {
     const newSecret = generateTOTPSecret();
     const setupData = await generateTOTPSetupData(user.email, newSecret);
     const tempToken = jwt.sign(
       { id: user.id, email: user.email, mfa_setup: true, secret: newSecret },
       JWT_SECRET,
-      { expiresIn: '10m' }
+      { expiresIn: '15m' }
     );
     return res.json({
       mfa_required: true,
       mfa_type: 'setup',
+      setup_required: true,
+      is_mandatory: isSuperAdminUser,
       temp_token: tempToken,
       email: user.email,
       qr_code: setupData.qr_code,
       secret: setupData.secret,
-      message: 'MFA is mandatory for Super Administrator accounts. Scan the QR code with Google Authenticator or Microsoft Authenticator, then enter the 6-digit code to activate.'
+      message: isSuperAdminUser
+        ? 'MFA is mandatory for Super Administrator accounts. Scan the QR code with Google Authenticator or Microsoft Authenticator, then enter the 6-digit code to activate.'
+        : 'Two-Factor Authentication is enabled on your account. Scan the QR code to set up your Authenticator app, then enter the 6-digit code to log in.'
     });
   }
 
@@ -1617,7 +1622,8 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
 
 // Verify 6-digit MFA code during login
 app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
-  const { temp_token, code } = req.body;
+  const temp_token = req.body.temp_token;
+  const code = req.body.code || req.body.totp_code;
   if (!temp_token || !code) {
     return res.status(400).json({ error: 'Session token and 6-digit authentication code are required.' });
   }
@@ -1643,7 +1649,7 @@ app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
 
   const secretToVerify = decoded.secret || user.mfa_secret;
   if (!secretToVerify) {
-    return res.status(400).json({ error: 'MFA configuration secret not found.' });
+    return res.status(400).json({ error: 'MFA configuration secret not found. Please click Set Up Authenticator.' });
   }
 
   const isValidCode = verifyTOTPToken(secretToVerify, code);
@@ -1651,7 +1657,7 @@ app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
     return res.status(401).json({ error: 'Invalid 6-digit code. Please verify against your Authenticator app (e.g. Google Authenticator).' });
   }
 
-  // If this was initial setup (e.g. Super Admin mandatory activation)
+  // If this was initial setup (e.g. Super Admin mandatory activation or user setup)
   if (decoded.mfa_setup) {
     user.mfa_enabled = 1;
     user.mfa_secret = secretToVerify;
@@ -1680,7 +1686,7 @@ app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
     action: decoded.mfa_setup ? 'MFA_ACTIVATED_AND_LOGIN' : 'MFA_LOGIN_SUCCESS',
     resource_type: 'Authentication',
     resource_id: String(user.id),
-    details: `User completed 2-Factor Authentication (${decoded.mfa_setup ? 'Mandatory Setup' : 'TOTP Code Verified'}).`,
+    details: `User completed 2-Factor Authentication (${decoded.mfa_setup ? 'Setup / Reconfiguration' : 'TOTP Code Verified'}).`,
     ip_address: req.ip || req.connection?.remoteAddress || '127.0.0.1',
     device_type: req.headers['user-agent'] ? (req.headers['user-agent'].includes('Mobile') ? 'Mobile Device' : 'Desktop Browser') : 'Desktop Browser',
     status: 'SUCCESS',
@@ -1689,6 +1695,7 @@ app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
   savePersistentStore();
 
   return res.json({
+    message: decoded.mfa_setup ? 'Authenticator configured and verified successfully!' : 'Two-Factor Authentication verified successfully!',
     token,
     user: {
       id: user.id,
@@ -1701,6 +1708,43 @@ app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
       days_until_password_expiry: pwdInfo.daysUntilExpiry,
       days_since_password_change: pwdInfo.daysElapsed
     }
+  });
+});
+
+// Request or reconfigure MFA setup from the login modal
+app.post('/api/auth/mfa/request-setup', async (req, res) => {
+  const { temp_token } = req.body;
+  if (!temp_token) {
+    return res.status(401).json({ error: 'Valid login session required.' });
+  }
+  let decoded;
+  try {
+    decoded = jwt.verify(temp_token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'MFA session has expired. Please sign in again.' });
+  }
+
+  const user = (memoryStore.users || []).find(u => u && (u.id === decoded.id || u.email === decoded.email));
+  const userEmail = decoded.email || (user ? user.email : 'user@ncloud.co.ug');
+
+  const newSecret = generateTOTPSecret();
+  const setupData = await generateTOTPSetupData(userEmail, newSecret);
+  const newTempToken = jwt.sign(
+    { id: decoded.id, email: userEmail, mfa_setup: true, secret: newSecret },
+    JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  return res.json({
+    success: true,
+    mfa_required: true,
+    mfa_type: 'setup',
+    setup_required: true,
+    temp_token: newTempToken,
+    email: userEmail,
+    qr_code: setupData.qr_code,
+    secret: setupData.secret,
+    message: 'Scan the QR code with Google Authenticator or Microsoft Authenticator, then enter the 6-digit code to verify and activate.'
   });
 });
 
@@ -1851,49 +1895,117 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
   if (!user) {
     // For security, don't reveal if email exists or not
-    return res.json({ message: 'If the email exists, a reset link has been dispatched.' });
+    return res.json({ message: 'If the account exists, a secure password reset link has been dispatched to the email on file.' });
   }
 
-  // Generate temporary password
-  const tempPassword = Math.random().toString(36).slice(-8) + 'X!';
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+  // Generate secure reset token with 1 hour expiration
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   if (isMySQL) {
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user.id]);
-  } else {
-    const idx = memoryStore.users.findIndex(u => u.id === user.id);
-    if (idx !== -1) {
-      memoryStore.users[idx].passwordHash = hashedPassword;
-      memoryStore.users[idx].password_hash = hashedPassword;
-      savePersistentStore();
-    }
+    await query('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?', [resetToken, resetExpires, user.id]);
+  }
+  const idx = memoryStore.users.findIndex(u => u.id === user.id);
+  if (idx !== -1) {
+    memoryStore.users[idx].reset_token = resetToken;
+    memoryStore.users[idx].reset_expires = resetExpires.toISOString();
+    savePersistentStore();
   }
 
-  // Send Email
+  // Determine site domain
+  const origin = req.headers.origin || req.headers.referer;
+  let siteUrl = 'https://ncloud.co.ug';
+  if (origin && !origin.includes('localhost')) {
+    try {
+      const parsed = new URL(origin);
+      siteUrl = `${parsed.protocol}//${parsed.host}`;
+    } catch {}
+  }
+  const resetLink = `${siteUrl}/?reset_token=${resetToken}`;
+
+  // Send Email with password reset link
   const resetHtml = generateCorporateEmailHtml({
-    title: 'Password Reset Request',
+    title: 'Reset Your Account Password',
+    recipientName: user.name,
     greeting: `Hello ${user.name},`,
+    hidePaymentMethods: true,
     message: `
-      <p style="margin-bottom: 12px; color: #475569;">A request has been made to reset your password for your Nova Cloud Edges portal account.</p>
-      <p style="margin-bottom: 12px; color: #475569;">Your new temporary password is:</p>
-      <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 18px; font-weight: bold; color: #0f172a; text-align: center; margin-bottom: 20px;">
-        ${tempPassword}
-      </div>
-      <p style="margin-bottom: 12px; color: #475569;">Please log in using this temporary password. We highly recommend updating your password immediately after logging in from your Profile Settings.</p>
+      <p style="margin-bottom: 14px; color: #475569; font-size: 15px; line-height: 1.6;">
+        We received a request to reset the password for your Nova Cloud Edges account (<strong>${user.email}</strong>).
+      </p>
+      <p style="margin-bottom: 24px; color: #475569; font-size: 15px; line-height: 1.6;">
+        Click the secure button below to choose your new password. For your security, this password reset link is valid for <strong>1 hour</strong>.
+      </p>
     `,
-    ctaText: 'Sign In to Portal',
-    ctaLink: 'https://ncloud.co.ug/admin',
-    footerNote: 'If you did not request this password reset, please ignore this email or contact support.'
+    ctaText: 'Reset My Password',
+    ctaLink: resetLink,
+    shareLink: resetLink,
+    footerNote: 'If you did not request this password reset, please ignore this email. Your existing password will remain unchanged.'
   });
 
   // Non-blocking send
   sendMail({
     to: user.email,
-    subject: 'Nova Cloud Edges - Password Reset',
+    subject: 'Nova Cloud Edges - Password Reset Request',
     html: resetHtml
   }).catch(e => console.error('[Mailer] Forgot password email failed:', e));
 
-  return res.json({ message: 'If the email exists, a reset link has been dispatched.' });
+  return res.json({ message: 'If the account exists, a secure password reset link has been dispatched to the email on file.' });
+});
+
+// Endpoint to verify token and reset password with the new password
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Reset token and new password are required.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  }
+
+  // Find user by reset_token
+  let user = null;
+  let isMySQL = false;
+  const dbRes = await query('SELECT * FROM users WHERE reset_token = ?', [token]);
+  if (dbRes.success && dbRes.data.length > 0) {
+    user = dbRes.data[0];
+    isMySQL = true;
+  } else {
+    user = memoryStore.users.find(u => u && u.reset_token === token);
+  }
+
+  if (!user) {
+    return res.status(400).json({ error: 'Invalid or already used password reset link.' });
+  }
+
+  // Check expiration
+  const expiresAt = user.reset_expires ? new Date(user.reset_expires) : null;
+  if (!expiresAt || expiresAt < new Date()) {
+    return res.status(400).json({ error: 'This password reset link has expired. Please request a new one.' });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const now = new Date();
+
+  if (isMySQL) {
+    await query(
+      'UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires = NULL, password_updated_at = ? WHERE id = ?',
+      [hashedPassword, now, user.id]
+    );
+  }
+
+  const idx = memoryStore.users.findIndex(u => u.id === user.id);
+  if (idx !== -1) {
+    memoryStore.users[idx].passwordHash = hashedPassword;
+    memoryStore.users[idx].password_hash = hashedPassword;
+    memoryStore.users[idx].reset_token = null;
+    memoryStore.users[idx].reset_expires = null;
+    memoryStore.users[idx].password_updated_at = now.toISOString();
+    savePersistentStore();
+  }
+
+  return res.json({ success: true, message: 'Your password has been reset successfully! You can now sign in with your new password.' });
 });
 
 // Social SSO OAuth Endpoints (Google & Microsoft)
@@ -9498,7 +9610,6 @@ function generateCorporateEmailHtml({
     </div>
     
     <div class="email-body">
-      ${badgeText ? `<div class="badge">${badgeText}</div>` : ''}
       <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
       <p class="salutation">Dear ${finalRecipient},</p>
       <div class="intro-paragraph">${finalIntro}</div>
@@ -9545,7 +9656,7 @@ function generateCorporateEmailHtml({
       </div>
       ` : ''}
 
-      ${!hidePaymentMethods ? renderConfiguredBankAccountsHtml() : ''}
+      ${(isInvoice && !hidePaymentMethods) ? renderConfiguredBankAccountsHtml() : ''}
 
       ${(ctaLink || shareLink) ? `
       <div class="btn-container">

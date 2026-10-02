@@ -113,6 +113,12 @@ export async function loadFullStoreFromMysql() {
     try {
       await pool.query('ALTER TABLE users ADD COLUMN password_updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
     } catch {}
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN reset_token VARCHAR(255) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN reset_expires DATETIME NULL');
+    } catch {}
 
     // 2. Users
     try {
@@ -123,6 +129,8 @@ export async function loadFullStoreFromMysql() {
         is_verified: Boolean(u.is_verified),
         mfa_enabled: Boolean(u.mfa_enabled),
         mfa_secret: u.mfa_secret || null,
+        reset_token: u.reset_token || null,
+        reset_expires: u.reset_expires ? new Date(u.reset_expires).toISOString() : null,
         password_updated_at: safeIsoDate(u.password_updated_at, safeIsoDate(u.created_at, new Date().toISOString()))
       }));
     } catch (e) {

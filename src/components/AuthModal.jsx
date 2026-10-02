@@ -17,6 +17,27 @@ export default function AuthModal({ setActivePage }) {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaCopied, setMfaCopied] = useState(false);
+  const [requestingSetup, setRequestingSetup] = useState(false);
+
+  // Password Reset Link states
+  const [resetToken, setResetToken] = useState(null);
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // Check URL on mount for password reset token
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('reset_token');
+      if (token) {
+        setResetToken(token);
+        setIsResetPassword(true);
+        setIsAuthOpen(true);
+      }
+    }
+  }, [setIsAuthOpen]);
 
   useEffect(() => {
     setIsRegister(authMode === 'register');
@@ -287,6 +308,7 @@ export default function AuthModal({ setActivePage }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           temp_token: mfaData?.temp_token,
+          code: mfaCode.trim(),
           totp_code: mfaCode.trim()
         })
       });
@@ -316,6 +338,63 @@ export default function AuthModal({ setActivePage }) {
       setError(err.message || 'MFA Verification failed');
     } finally {
       setMfaLoading(false);
+    }
+  };
+
+  const handleRequestMfaSetup = async () => {
+    if (!mfaData?.temp_token) return;
+    setRequestingSetup(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/mfa/request-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temp_token: mfaData.temp_token })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initialize MFA setup.');
+      setMfaData(data);
+      setMfaCode('');
+      showToast('Scan the QR code with your Authenticator app, then enter the code.', 'info');
+    } catch (err) {
+      setError(err.message || 'Failed to start MFA setup.');
+    } finally {
+      setRequestingSetup(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setResetLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password: newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password.');
+      showToast(data.message || 'Password successfully updated! You can now sign in.', 'success');
+      setIsResetPassword(false);
+      setResetToken(null);
+      setNewPassword('');
+      setConfirmPassword('');
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to reset password.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -424,16 +503,20 @@ export default function AuthModal({ setActivePage }) {
 
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.4rem 0.9rem', borderRadius: '100px', border: '1px solid rgba(99, 102, 241, 0.25)', marginBottom: '0.75rem' }}>
-            <ShieldCheck size={16} color="var(--primary)" />
-            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              {mfaData ? 'Multi-Factor Authentication' : 'Secure SSO Cloud Portal'}
-            </span>
-          </div>
+          {mfaData && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(99, 102, 241, 0.1)', padding: '0.4rem 0.9rem', borderRadius: '100px', border: '1px solid rgba(99, 102, 241, 0.25)', marginBottom: '0.75rem' }}>
+              <ShieldCheck size={16} color="var(--primary)" />
+              <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Multi-Factor Authentication
+              </span>
+            </div>
+          )}
 
           <h2 style={{ fontSize: '1.65rem', fontWeight: '900', color: 'var(--text-main)', marginBottom: '0.35rem', letterSpacing: '-0.02em' }}>
             {mfaData
-              ? (mfaData.setup_required ? 'Setup Authenticator App' : 'Two-Factor Challenge')
+              ? ((mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code) ? 'Setup Authenticator App' : 'Two-Factor Challenge')
+              : isResetPassword
+              ? 'Set New Password'
               : isForgotPassword
               ? 'Reset Your Password'
               : isRegister
@@ -442,9 +525,11 @@ export default function AuthModal({ setActivePage }) {
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0 auto', lineHeight: '1.45' }}>
             {mfaData
-              ? (mfaData.setup_required
-                  ? (mfaData.is_mandatory ? 'MFA is mandatory for Super Administrator accounts. Scan the QR code below using Google Authenticator, Microsoft Authenticator, or Authy.' : 'Enhance your account security. Scan the QR code with your authenticator app.')
+              ? ((mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code)
+                  ? (mfaData.is_mandatory ? 'MFA is mandatory for Super Administrator accounts. Scan the QR code below using Google Authenticator, Microsoft Authenticator, or Authy.' : 'Scan the QR code below using Google Authenticator, Microsoft Authenticator, or Authy, then enter the 6-digit code to complete setup.')
                   : `Please enter the 6-digit TOTP security code from your mobile authenticator app.`)
+              : isResetPassword
+              ? 'Enter your new password below to secure your account.'
               : isForgotPassword
               ? 'Enter your registered email address or username and we will send you a secure link to reset your password.'
               : isRegister
@@ -528,7 +613,7 @@ export default function AuthModal({ setActivePage }) {
               </div>
             )}
 
-            {mfaData.setup_required && mfaData.qr_code && (
+            {(mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code) && mfaData.qr_code && (
               <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
                 <div style={{
                   background: '#ffffff',
@@ -550,7 +635,7 @@ export default function AuthModal({ setActivePage }) {
               </div>
             )}
 
-            {mfaData.setup_required && mfaData.secret && (
+            {(mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code) && mfaData.secret && (
               <div style={{
                 background: 'var(--bg-main)',
                 border: '1px solid var(--border-color)',
@@ -620,8 +705,29 @@ export default function AuthModal({ setActivePage }) {
                 }}
                 disabled={mfaLoading || mfaCode.length !== 6}
               >
-                {mfaLoading ? 'Verifying...' : (mfaData.setup_required ? 'Verify & Complete Setup' : 'Verify & Continue')}
+                {mfaLoading ? 'Verifying...' : ((mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code) ? 'Verify & Complete Setup' : 'Verify & Continue')}
               </button>
+
+              {!(mfaData.setup_required || mfaData.mfa_type === 'setup' || mfaData.qr_code) && (
+                <div style={{ textAlign: 'center', marginTop: '0.85rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleRequestMfaSetup}
+                    disabled={requestingSetup}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontSize: '0.825rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    {requestingSetup ? 'Generating setup QR code...' : "Haven't set up Authenticator yet? Configure app on this device"}
+                  </button>
+                </div>
+              )}
 
               <div style={{ textAlign: 'center', marginTop: '1rem' }}>
                 <button
@@ -637,7 +743,7 @@ export default function AuthModal({ setActivePage }) {
         ) : (
           <>
             {/* Clear Switcher Tabs (Sign In vs Register Account) */}
-            {!isForgotPassword && (
+            {!isForgotPassword && !isResetPassword && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', background: 'var(--bg-main)', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
                 <button
                   type="button"
@@ -716,7 +822,73 @@ export default function AuthModal({ setActivePage }) {
               </div>
             )}
 
-            {isForgotPassword ? (
+            {isResetPassword ? (
+              <form onSubmit={handleResetPasswordSubmit}>
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Lock size={14} color="var(--primary)" /> New Password
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="At least 8 characters"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required
+                      minLength={8}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Lock size={14} color="var(--primary)" /> Confirm New Password
+                  </label>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-input"
+                    placeholder="Re-enter your new password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    width: '100%',
+                    justifyContent: 'center',
+                    padding: '0.85rem',
+                    fontSize: '0.95rem',
+                    fontWeight: '800',
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                  }}
+                  disabled={resetLoading || !newPassword || !confirmPassword}
+                >
+                  {resetLoading ? 'Updating Password...' : 'Save New Password & Sign In'}
+                </button>
+              </form>
+            ) : isForgotPassword ? (
           <form onSubmit={handleForgotPasswordSubmit}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label style={{ fontSize: '0.825rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
