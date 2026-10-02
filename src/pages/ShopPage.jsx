@@ -3,6 +3,79 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide-react';
 
+const DEFAULT_CATALOG_PRODUCTS = [
+  {
+    id: 1,
+    name: 'Cloud VPS Server Hosting (Uganda IXP)',
+    slug: 'cloud-vps-server-hosting-uganda-ixp',
+    category: 'Hosting Services',
+    price: 120000,
+    currency: 'UGX',
+    stock: 50,
+    billing_period: 'monthly',
+    badge: 'Popular',
+    image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80',
+    short_desc: 'High performance SSD VPS directly interconnected with the Uganda Internet Exchange Point (UIXP).',
+    description: '2 vCPU, 4GB ECC RAM, 80GB NVMe SSD, 1Gbps unmetered local traffic, sovereign Uganda IP.'
+  },
+  {
+    id: 2,
+    name: 'Tier III Data Center Colocation & 1U Rack Hosting',
+    slug: 'tier-iii-data-center-colocation-1u-rack-hosting',
+    category: 'Hosting Services',
+    price: 450000,
+    currency: 'UGX',
+    stock: 24,
+    billing_period: 'monthly',
+    badge: 'Enterprise',
+    image_url: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80',
+    short_desc: 'Carrier-neutral rack space colocation with 99.982% uptime SLA and biometric security.',
+    description: '1U server space, dual redundant UPS & generator power feeds, 10Gbps cross-connect capability.'
+  },
+  {
+    id: 3,
+    name: 'Zimbra Enterprise Mailbox & Server Administration',
+    slug: 'zimbra-enterprise-mailbox-server-administration',
+    category: 'Hosting Services',
+    price: 15000,
+    currency: 'UGX',
+    stock: 500,
+    billing_period: 'monthly',
+    badge: 'Corporate',
+    image_url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80',
+    short_desc: 'Secure corporate email with custom domain, active spam/virus protection, and sync.',
+    description: '25GB mailbox storage, collaborative calendars, contacts, webmail, and mobile device sync.'
+  },
+  {
+    id: 4,
+    name: 'Intuit QuickBooks Enterprise Solutions v24.0',
+    slug: 'intuit-quickbooks-enterprise-solutions-v24',
+    category: 'Software & Licenses',
+    price: 3500000,
+    currency: 'UGX',
+    stock: 15,
+    billing_period: 'one-time',
+    badge: 'Certified',
+    image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+    short_desc: 'Complete ERP business accounting license with Uganda tax customization.',
+    description: 'Up to 30 simultaneous users, advanced inventory, job costing, and local certified deployment.'
+  },
+  {
+    id: 5,
+    name: 'WiFi Hotspot Internet Access Pass (High Speed)',
+    slug: 'wifi-hotspot-internet-access-pass-high-speed',
+    category: 'WiFi Vouchers',
+    price: 1000,
+    currency: 'UGX',
+    stock: 9999,
+    billing_period: 'one-time',
+    badge: 'Instant Access',
+    image_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+    short_desc: 'Ultra high-speed instant wireless hotspot pass token for laptops and mobile devices.',
+    description: 'Instant token delivery upon full payment. Connect to Nova High-Speed WiFi network.'
+  }
+];
+
 export default function ShopPage({ setActivePage }) {
   const { cart, addToCart, openDirectCheckout, openSubscriptionCheckout, showToast } = useApp();
   const [products, setProducts] = useState(() => {
@@ -15,19 +88,11 @@ export default function ShopPage({ setActivePage }) {
         }
       } catch {}
     }
-    return [];
+    return DEFAULT_CATALOG_PRODUCTS;
   });
   const [category, setCategory] = useState('Hosting Services');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('nova_shop_products_cache');
-        if (cached && JSON.parse(cached).length > 0) return false;
-      } catch {}
-    }
-    return true;
-  });
+  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [quantities, setQuantities] = useState({});
   const [selectedProductModal, setSelectedProductModal] = useState(null);
@@ -308,6 +373,8 @@ export default function ShopPage({ setActivePage }) {
                       <img
                         src={prod.image_url}
                         alt={prod.name}
+                        loading="lazy"
+                        decoding="async"
                         style={{ width: '100%', height: '200px', objectFit: 'cover', filter: isOutOfStock ? 'grayscale(30%)' : 'none' }}
                       />
                       {isOutOfStock && (

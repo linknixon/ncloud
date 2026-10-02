@@ -2846,11 +2846,20 @@ const normalizeTabName = (rawTab) => {
       showToast(data.message || 'Delivery note generated and dispatched with PDF attached!', 'success');
 
       if (data.delivery_note?.dn_number) {
-        setInvoices(prev => prev.map(inv => 
-          (inv.id === selectedInvoiceForDN.id || inv.invoice_number === selectedInvoiceForDN.invoice_number)
-            ? { ...inv, delivery_note_ref: data.delivery_note.dn_number, delivery_dispatched_at: new Date().toISOString() }
-            : inv
-        ));
+        setData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            invoices: (prev.invoices || []).map(inv => 
+              (inv.id === selectedInvoiceForDN.id || inv.invoice_number === selectedInvoiceForDN.invoice_number)
+                ? { ...inv, delivery_note_ref: data.delivery_note.dn_number, delivery_dispatched_at: new Date().toISOString() }
+                : inv
+            )
+          };
+        });
+        if (typeof fetchDashboardData === 'function') {
+          fetchDashboardData();
+        }
       }
 
       setShowDeliveryNoteModal(false);

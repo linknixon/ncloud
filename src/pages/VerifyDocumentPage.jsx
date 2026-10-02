@@ -27,6 +27,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
+  const [cardEmail, setCardEmail] = useState('');
   const [useTestNumber, setUseTestNumber] = useState(true);
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -123,6 +124,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
     setPaymentPolling(true);
     setPaymentStatus('Initiating payment...');
     try {
+      const effectiveEmail = (paymentMethod === 'card' && cardEmail)
+        ? cardEmail.trim()
+        : (verifyResult.customer_email || 'support@ncloud.co.ug');
+
       const res = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,8 +136,10 @@ export default function VerifyDocumentPage({ setActivePage }) {
           amount: balanceDue,
           reference: verifyResult.document_number,
           phone: mobileMoneyPhone,
-          email: verifyResult.customer_email || 'client@company.com',
-          notes: `Public Payment for ${verifyResult.document_number}`
+          email: effectiveEmail,
+          name: verifyResult.customer_name || 'Customer',
+          notes: `Public Payment for ${verifyResult.document_number}`,
+          redirectUrl: window.location.href
         })
       });
 
@@ -144,7 +151,11 @@ export default function VerifyDocumentPage({ setActivePage }) {
       }
 
       if (paymentMethod === 'card' && data.cardRedirectUrl) {
-        window.location.href = data.cardRedirectUrl;
+        setPaymentStatus('Connecting securely to Card Payment Gateway...');
+        setPaymentPolling(true);
+        setTimeout(() => {
+          window.location.assign(data.cardRedirectUrl);
+        }, 200);
         return;
       }
 
@@ -965,6 +976,28 @@ export default function VerifyDocumentPage({ setActivePage }) {
                       required
                       style={{ border: '1px solid #f59e0b', background: '#ffffff', color: '#000' }}
                     />
+                  </div>
+                )}
+
+                {paymentMethod === 'card' && (
+                  <div className="form-group" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <label style={{ fontWeight: '800', margin: 0, color: '#166534', fontSize: '0.85rem' }}>
+                        Cardholder Email (for 3D-Secure & receipt)
+                      </label>
+                    </div>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={cardEmail || verifyResult?.customer_email || ''}
+                      onChange={e => setCardEmail(e.target.value)}
+                      placeholder="e.g. name@company.co.ug"
+                      required
+                      style={{ border: '1px solid #10b981', background: '#ffffff', color: '#000' }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.35rem' }}>
+                      🔒 You will be securely transferred to the PegPay 3D-Secure payment processor.
+                    </div>
                   </div>
                 )}
 

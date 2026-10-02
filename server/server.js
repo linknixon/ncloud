@@ -2403,6 +2403,7 @@ app.put('/api/admin/product-categories/:id/toggle-hide', (req, res) => {
 // Products Endpoints (Shop - Full Database & In-Memory CRUD)
 // ----------------------------------------------------
 app.get('/api/products', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
   let dbProducts = [];
   const dbRes = await query('SELECT * FROM products ORDER BY id DESC');
   if (dbRes.success && !dbRes.isFallback && Array.isArray(dbRes.data)) {
@@ -12024,6 +12025,7 @@ app.post('/api/admin/invoices/:id/remind', async (req, res) => {
 });
 
 app.get('/api/sliders', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json(memoryStore.sliders || []);
 });
 
@@ -12360,16 +12362,30 @@ app.post('/api/payments/initiate', async (req, res) => {
       return res.json({ success: true, transactionId: data.id, status: data.status });
       
     } else if (method === 'card') {
+      const customerEmail = (email && typeof email === 'string' && email.includes('@')) 
+        ? email.trim() 
+        : ((req.body.payer && typeof req.body.payer === 'string' && req.body.payer.includes('@')) ? req.body.payer.trim() : 'support@ncloud.co.ug');
+      const customerName = (req.body.name || req.body.customer_name || 'Valued Customer').trim();
+      const returnUrl = (req.body.redirectUrl && req.body.redirectUrl.startsWith('http')) 
+        ? req.body.redirectUrl 
+        : (reference ? `https://ncloud.co.ug/verify?doc=${encodeURIComponent(reference)}` : 'https://ncloud.co.ug/shop');
+
       const payload = {
         category: "Card",
         currency: "UGX",
-        walletId: iotecConfig.wallet_id,
-        externalId: reference,
-        payer: email,
-        amount: Number(amount),
-        payerNote: notes || `Payment for ${reference}`,
-        redirectUrl: "https://ncloud.co.ug/shop"
+        walletId: (iotecConfig.wallet_id || '').trim(),
+        externalId: String(reference),
+        payer: customerEmail,
+        accountNumber: customerEmail,
+        name: customerName,
+        payerName: customerName,
+        amount: Math.round(Number(amount)),
+        payerNote: notes || `Card Payment for ${reference}`,
+        message: notes || `Card Payment for ${reference}`,
+        redirectUrl: returnUrl
       };
+
+      console.log('[ioTec Card Initiate Request Payload]:', JSON.stringify({ ...payload, walletId: payload.walletId ? '***CONFIGURED***' : 'EMPTY' }));
 
       const iotecRes = await fetch('https://pay.iotec.io/api/collections/collect/card', {
         method: 'POST',
@@ -12382,11 +12398,19 @@ app.post('/api/payments/initiate', async (req, res) => {
 
       if (!iotecRes.ok) {
         const errText = await iotecRes.text();
+        console.error('[ioTec Card Initiation HTTP Error]:', iotecRes.status, errText);
         return res.status(400).json({ error: `Card payment initiation failed: ${errText}` });
       }
 
       const data = await iotecRes.json();
-      return res.json({ success: true, transactionId: data.id, cardRedirectUrl: data.cardRedirectUrl });
+      console.log('[ioTec Card Initiation Success Data]:', JSON.stringify(data));
+      const redirectLink = data.cardRedirectUrl || data.redirectUrl || data.paymentUrl || data.url;
+      return res.json({ 
+        success: true, 
+        transactionId: data.id, 
+        cardRedirectUrl: redirectLink,
+        status: data.status || 'Pending'
+      });
     } else {
       return res.status(400).json({ error: 'Invalid payment method selected.' });
     }
