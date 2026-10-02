@@ -1621,7 +1621,7 @@ app.post('/api/auth/login', verifyTurnstile, async (req, res) => {
 });
 
 // Verify 6-digit MFA code during login
-app.post('/api/auth/mfa/verify-login', verifyTurnstile, async (req, res) => {
+app.post('/api/auth/mfa/verify-login', async (req, res) => {
   const temp_token = req.body.temp_token;
   const code = req.body.code || req.body.totp_code;
   if (!temp_token || !code) {
