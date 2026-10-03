@@ -14,7 +14,8 @@ import {
   generateForensicsAuditPDF,
   generateWorkOrderPOSReceiptPDF,
   generateWifiVoucherPrintoutPDF,
-  generateJobApplicationReceipt80mmPDF
+  generateJobApplicationReceipt80mmPDF,
+  generateContractLetterPDF
 } from '../utils/pdfGenerator';
 import { 
   LayoutDashboard, 
@@ -536,7 +537,18 @@ export default function AdminDashboard({ setActivePage }) {
     }
   }, [user?.role]);
   const updateActiveTab = (newTab) => {
-    setActiveTab(newTab);
+    let targetTab = newTab;
+    if (newTab === 'careers') {
+      targetTab = 'hr';
+      setHrTab('careers');
+    } else if (newTab === 'applications') {
+      targetTab = 'hr';
+      setHrTab('applications');
+    } else if (newTab === 'contracts') {
+      targetTab = 'hr';
+      setHrTab('contracts');
+    }
+    setActiveTab(targetTab);
     if (typeof window !== 'undefined') {
       try {
         const url = new URL(window.location.href);
@@ -560,6 +572,9 @@ const normalizeTabName = (rawTab) => {
   if (['payments', 'payment', 'payouts'].includes(t)) return 'payments';
   if (['bank_accounts', 'bank_account', 'banks', 'bank'].includes(t)) return 'bank_accounts';
   if (['schedules', 'schedule', 'timers', 'cron'].includes(t)) return 'schedules';
+  if (['careers', 'career', 'jobs', 'vacancies'].includes(t)) return 'hr';
+  if (['applications', 'application', 'candidate_applications', 'candidates', 'hiring'].includes(t)) return 'hr';
+  if (['contracts', 'contract', 'engagement_contract', 'dispatch_contract'].includes(t)) return 'hr';
   return t;
 };
 
@@ -585,13 +600,25 @@ const normalizeTabName = (rawTab) => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const tabParam = params.get('tab');
-        const normalized = normalizeTabName(tabParam);
-        if (normalized) {
-          setActiveTab(normalized);
-        } else if (window.location.pathname === '/subscriptions' || window.location.pathname === '/subscription') {
-          setActiveTab('subscriptions');
-        } else if (user?.role === 'customer') {
-          setActiveTab('customer_portal');
+        const t = (tabParam || '').toLowerCase().trim();
+        if (['careers', 'career', 'jobs'].includes(t)) {
+          setActiveTab('hr');
+          setHrTab('careers');
+        } else if (['applications', 'application', 'candidate_applications'].includes(t)) {
+          setActiveTab('hr');
+          setHrTab('applications');
+        } else if (['contracts', 'contract'].includes(t)) {
+          setActiveTab('hr');
+          setHrTab('contracts');
+        } else {
+          const normalized = normalizeTabName(tabParam);
+          if (normalized) {
+            setActiveTab(normalized);
+          } else if (window.location.pathname === '/subscriptions' || window.location.pathname === '/subscription') {
+            setActiveTab('subscriptions');
+          } else if (user?.role === 'customer') {
+            setActiveTab('customer_portal');
+          }
         }
       }
     };
@@ -614,7 +641,7 @@ const normalizeTabName = (rawTab) => {
   const [usersRoleFilter, setUsersRoleFilter] = useState('ALL');
   const [usersStatusFilter, setUsersStatusFilter] = useState('ALL');
   const [usersPage, setUsersPage] = useState(1);
-  const USERS_PER_PAGE = 50;
+  const USERS_PER_PAGE = 8;
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [userToResetPassword, setUserToResetPassword] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
@@ -1082,12 +1109,37 @@ const normalizeTabName = (rawTab) => {
     items: []
   });
 
-  // HR Manager & Staff Modals State
+  // HR Manager, Staff & Contracts State
   const [hrTab, setHrTab] = useState('payroll');
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [showStaffInvoiceModal, setShowStaffInvoiceModal] = useState(false);
+
+  // Engagement Contract Auto-PDF Dispatch State
+  const [contractsList, setContractsList] = useState([]);
+  const [isDispatchingContract, setIsDispatchingContract] = useState(false);
+  const [contractForm, setContractForm] = useState({
+    ref: `NCE-SMM-${new Date().getFullYear()}-01`,
+    appointee_name: 'Julius Niyonsaba',
+    telephone: '+256 754 617962',
+    email: '',
+    designation: 'Social Media Brand Support Personnel',
+    effective_date: 'October 02, 2026',
+    expiry_date: 'January 02, 2027 (3 Months, Renewable)',
+    base_retainer: 'UGX 100,000 / Month (Net payable)',
+    intro_text: 'Following your application and mutual agreement, Nova Cloud Edges, Uganda Limited hereby offers you an engagement as Social Media Brand Support Personnel commencing on October 02, 2026 and concluding on January 02, 2027, subject to renewal upon satisfactory performance and mutual written agreement.',
+    primary_platforms: 'LinkedIn, TikTok, and X (formerly Twitter) corporate/brand accounts.',
+    mode_of_operation: 'Primarily Remote / Online: Routine deliverables are conducted virtually. In the event of required physical attendance for outreaches, gatherings, workshops, or corporate events, you will be formally engaged and adequately facilitated (transport and logistics).',
+    core_duties: 'Trend tracking, audience engagement, scheduled publishing, proactive brand community moderation, and supporting digital growth. Strict compliance with company directives and regular activity submissions to the assigned supervisor are mandatory.',
+    remuneration_details: 'Base Stipend: UGX 100,000 per calendar month.\nInternet Facilitation: Monthly internet data reimbursement of up to 5GB per week, calculated and refunded based on prevailing market rates with local telecommunications networks upon verification.',
+    tenure_details: 'Term: October 02, 2026 – January 02, 2027 (3 months renewable).\nSpecialized IT Support: In view of your IT skills, whenever activities require technical input beyond social media duties, you will be engaged and separately remunerated for the service rendered under mutually agreed terms.',
+    conditions_left: '• Credentials Security: Platform login credentials, tokens, and multi-factor authentication codes are proprietary and strictly non-transferable.\n• Authorized Voice: Content must strictly mirror official editorial style guides, brand values, and pre-approved marketing campaigns.\n• Supervisory Compliance: Content calendars, weekly analytics, and engagement reports must be submitted punctually to the supervisor.',
+    conditions_right: '• Reputational Shield: Maintain extreme professionalism. Zero involvement in partisan debates, offensive remarks, or unverified claims.\n• Confidentiality: Absolute non-disclosure regarding internal strategies, draft assets, client interactions, and company data.\n• Crisis Escalation: Negative virality, press queries, or platform security anomalies must immediately be escalated within 1 hour.',
+    governing_law: 'This contract is governed by and construed in accordance with all applicable laws of the Republic of Uganda, specifically governing Information and Communications Technology (ICT) and Human Resources / Employment regulations. All creative content, intellectual property, and media assets remain the sole property of Nova Cloud Edges. Either party may terminate this agreement with two (2) weeks\' prior written notice, or summarily in cases of gross breach of policy.',
+    signatory_name: 'Authorized Signatory',
+    signatory_title: 'Operations Director'
+  });
 
   // New Payroll Form Data
   const [payrollForm, setPayrollForm] = useState({
@@ -1308,6 +1360,13 @@ const normalizeTabName = (rawTab) => {
       .catch(() => {});
   };
 
+  const fetchContracts = () => {
+    fetch('/api/admin/contracts')
+      .then(r => r.json())
+      .then(contracts => Array.isArray(contracts) && setContractsList(contracts))
+      .catch(() => {});
+  };
+
   const fetchBannerSettings = () => {
     fetch('/api/admin/banner-settings')
       .then(r => r.json())
@@ -1457,6 +1516,8 @@ const normalizeTabName = (rawTab) => {
         .then(r => r.json())
         .then(ev => { if (Array.isArray(ev) && ev.length > 0) setEventsList(ev); })
         .catch(() => {});
+
+      fetchContracts();
     };
 
     // 2. Transactional & operational data
@@ -1975,6 +2036,79 @@ const normalizeTabName = (rawTab) => {
       showToast(resData.message || 'Expenditure marked as Disapproved / Rejected.', 'info');
       fetchDashboardData();
       fetch('/api/admin/company-expenses').then(r => r.json()).then(ex => Array.isArray(ex) && setCompanyExpensesList(ex));
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  // Engagement Contract Handlers
+  const handleDownloadContractPDF = async (customData) => {
+    try {
+      showToast('Generating official 1-page Engagement Contract PDF...', 'info');
+      await generateContractLetterPDF(customData || contractForm, {
+        autoSave: true,
+        siteLogo: logoInput || siteLogo
+      });
+      showToast(`Contract PDF for ${(customData || contractForm).appointee_name} generated successfully!`, 'success');
+    } catch (err) {
+      console.error('Contract PDF generation failed:', err);
+      showToast('Failed to generate contract PDF: ' + err.message, 'error');
+    }
+  };
+
+  const handleDispatchContractEmail = async (e, customData) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const dataToSend = customData || contractForm;
+    if (!dataToSend.appointee_name?.trim()) {
+      showToast('Appointee name is required.', 'error');
+      return;
+    }
+    if (!dataToSend.email?.trim()) {
+      showToast('Recipient email address is required for dispatch.', 'error');
+      return;
+    }
+    if (!dataToSend.ref?.trim()) {
+      showToast('Contract reference number is required.', 'error');
+      return;
+    }
+
+    try {
+      setIsDispatchingContract(true);
+      const res = await fetch('/api/admin/contracts/dispatch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole
+        },
+        body: JSON.stringify({
+          contractData: dataToSend,
+          recipient_email: dataToSend.email
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch contract');
+      showToast(resData.message || `Contract ${dataToSend.ref} dispatched to ${dataToSend.email}`, 'success');
+      fetchContracts();
+      fetchForensics();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsDispatchingContract(false);
+    }
+  };
+
+  const handleDeleteContract = async (id) => {
+    if (!window.confirm("Are you sure you want to remove this contract record from the dispatch registry?")) return;
+    try {
+      const res = await fetch(`/api/admin/contracts/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete contract');
+      showToast(data.message || 'Contract record deleted', 'success');
+      fetchContracts();
+      fetchForensics();
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -4697,15 +4831,7 @@ const normalizeTabName = (rawTab) => {
       btnText: 'View Subscriptions',
       show: canRead('subscriptions') || isSalesAdmin || isSuperAdmin || (isCustomer && data?.subscriptions?.length > 0)
     },
-    {
-      id: 'careers',
-      title: 'Careers',
-      desc: 'Manage career openings, HR initial screening, and candidate application hiring pipeline.',
-      icon: Briefcase,
-      color: '#0ea5e9',
-      btnText: 'Manage Careers',
-      show: canRead('jobs') || canRead('careers') || isHrManager || isSuperAdmin
-    },
+
     {
       id: 'team_mgmt',
       title: 'Executive Team',
@@ -4744,12 +4870,12 @@ const normalizeTabName = (rawTab) => {
     },
     {
       id: 'hr',
-      title: 'HR & Payroll',
-      desc: 'Manage staff roll, approve business expense claims, and issue monthly payroll slips.',
+      title: 'HR, Recruitment & Payroll',
+      desc: 'Centralized Human Resources: staff payroll, business expenses, careers & vacancies, candidate applications, and 1-page engagement contract letter auto-dispatch.',
       icon: Users,
       color: '#f97316',
-      btnText: 'Manage HR & Payroll',
-      show: canRead('hr') || isHrManager || isStaff || isSuperAdmin
+      btnText: 'Manage HR & Recruitment',
+      show: canRead('hr') || canRead('jobs') || canRead('careers') || canRead('applications') || isHrManager || isStaff || isSuperAdmin
     },
     {
       id: 'contacts',
@@ -4759,15 +4885,6 @@ const normalizeTabName = (rawTab) => {
       color: '#f59e0b',
       btnText: 'Open Messages',
       show: canRead('contacts') || isWebAdmin || isSuperAdmin
-    },
-    {
-      id: 'applications',
-      title: 'Applications',
-      desc: 'Review candidate job applications, HR approve/disapprove, and Super Admin hiring user account creation.',
-      icon: FileCheck,
-      color: '#6366f1',
-      btnText: 'Review Applications',
-      show: canRead('jobs') || canRead('applications') || isHrManager || isSuperAdmin || isWebAdmin
     },
     {
       id: 'reports',
@@ -5212,24 +5329,6 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isHrManager || isSuperAdmin || canRead('jobs') || canRead('careers')) && (
-            <button
-              onClick={() => updateActiveTab('careers')}
-              className="btn-secondary"
-              style={{
-                padding: '0.55rem 1.1rem',
-                fontSize: '0.85rem',
-                fontWeight: '700',
-                background: activeTab === 'careers' ? '#0ea5e9' : 'transparent',
-                color: activeTab === 'careers' ? '#fff' : 'var(--text-main)',
-                border: activeTab === 'careers' ? 'none' : '1px solid var(--border-color)',
-                borderRadius: '10px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Briefcase size={15} /> Careers
-            </button>
-          )}
 
           {(isWebAdmin || isSuperAdmin || canRead('team_mgmt') || canRead('settings')) && (
             <button
@@ -5308,7 +5407,7 @@ const normalizeTabName = (rawTab) => {
           )}
 
 
-          {(isHrManager || isStaff || isSuperAdmin || canRead('hr')) && (
+          {(isHrManager || isStaff || isSuperAdmin || isWebAdmin || canRead('hr') || canRead('jobs') || canRead('careers') || canRead('applications')) && (
             <button
               onClick={() => updateActiveTab('hr')}
               className="btn-secondary"
@@ -5387,24 +5486,6 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
-          {(isHrManager || isSuperAdmin || isWebAdmin || canRead('jobs') || canRead('applications')) && (
-            <button
-              onClick={() => updateActiveTab('applications')}
-              className="btn-secondary"
-              style={{
-                padding: '0.55rem 1.1rem',
-                fontSize: '0.85rem',
-                fontWeight: '700',
-                background: activeTab === 'applications' ? '#0ea5e9' : 'transparent',
-                color: activeTab === 'applications' ? '#fff' : 'var(--text-main)',
-                border: activeTab === 'applications' ? 'none' : '1px solid var(--border-color)',
-                borderRadius: '10px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <FileCheck size={15} /> Candidate Applications
-            </button>
-          )}
 
           {(isSalesAdmin || isHrManager || isSuperAdmin || canRead('reports')) && (
             <button
@@ -7206,11 +7287,12 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* Forensics Table */}
-                  <div className="glass-card" style={{ overflowX: 'auto', padding: 0, marginBottom: '1rem' }}>
-                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <div className="glass-card" style={{ padding: 0, marginBottom: '1.25rem', overflow: 'hidden', border: '1px solid var(--border-color)', borderRadius: '14px' }}>
+                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                      <table style={{ minWidth: '1180px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '0.85rem 1rem', width: '40px' }}>
+                          <th style={{ padding: '0.85rem 1rem', width: '40px', whiteSpace: 'nowrap' }}>
                             <input
                               type="checkbox"
                               checked={paginatedLogs.length > 0 && paginatedLogs.every(l => selectedForensicsLogs.includes(l.id))}
@@ -7225,19 +7307,32 @@ const normalizeTabName = (rawTab) => {
                               }}
                             />
                           </th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Timestamp</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>User / Actor</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Action Code</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Resource Ref</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Client IP Address</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Device Footprint</th>
-                          <th style={{ padding: '0.85rem 1.1rem' }}>Event Details</th>
-                          <th style={{ padding: '0.85rem 1.1rem', textAlign: 'center', width: '120px' }}>Actions</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Timestamp</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>User / Actor</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Action Code</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Resource Ref</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Client IP Address</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Device Footprint</th>
+                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Event Details</th>
+                          <th style={{ padding: '0.85rem 1.1rem', textAlign: 'center', width: '130px', whiteSpace: 'nowrap', fontWeight: '800' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedLogs.map(log => {
                           const isSelected = selectedForensicsLogs.includes(log.id);
+                          const actUpper = (safeStr(log.action) || '').toUpperCase();
+                          let badgeBg = 'rgba(239, 68, 68, 0.12)';
+                          let badgeColor = '#ef4444';
+                          if (actUpper.includes('CREATE') || actUpper.includes('PAYMENT') || actUpper.includes('COMPLETE') || actUpper.includes('SUCCESS')) {
+                            badgeBg = 'rgba(16, 185, 129, 0.15)';
+                            badgeColor = '#10b981';
+                          } else if (actUpper.includes('EXPORT') || actUpper.includes('GENERATE') || actUpper.includes('PDF')) {
+                            badgeBg = 'rgba(14, 165, 233, 0.15)';
+                            badgeColor = '#0ea5e9';
+                          } else if (actUpper.includes('APPROV') || actUpper.includes('RESET') || actUpper.includes('UPDATE')) {
+                            badgeBg = 'rgba(245, 158, 11, 0.15)';
+                            badgeColor = '#f59e0b';
+                          }
                           return (
                             <tr
                               key={log.id}
@@ -7247,7 +7342,7 @@ const normalizeTabName = (rawTab) => {
                                 transition: 'background 0.15s ease'
                               }}
                             >
-                              <td style={{ padding: '0.85rem 1rem' }}>
+                              <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -7271,27 +7366,27 @@ const normalizeTabName = (rawTab) => {
                                   }
                                 })()}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem' }}>
-                                <div style={{ fontWeight: '700', color: 'var(--text-main)' }}>{safeStr(log.user_name)}</div>
-                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{safeStr(log.user_email)}</div>
+                              <td style={{ padding: '0.85rem 1.1rem', minWidth: '160px' }}>
+                                <div style={{ fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{safeStr(log.user_name)}</div>
+                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{safeStr(log.user_email)}</div>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem' }}>
-                                <span className="badge-tag" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap' }}>
+                                <span className="badge-tag" style={{ background: badgeBg, color: badgeColor, fontSize: '0.7rem', fontWeight: '800' }}>
                                   {safeStr(log.action)}
                                 </span>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', whiteSpace: 'nowrap' }}>
                                 <code>{safeStr(log.resource_id)}</code>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', fontWeight: '700', color: 'var(--primary)' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                 <Fingerprint size={12} style={{ display: 'inline', marginRight: '4px' }} />
                                 {safeStr(log.ip_address)}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                 {(safeStr(log.device_type) || '').includes('Mobile') ? <Smartphone size={12} style={{ display: 'inline', marginRight: '3px' }} /> : <Laptop size={12} style={{ display: 'inline', marginRight: '3px' }} />}
                                 {safeStr(log.device_type)}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', maxWidth: '280px', wordBreak: 'break-word' }}>
+                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', minWidth: '220px', maxWidth: '340px', wordBreak: 'break-word' }}>
                                 {safeStr(log.details)}
                               </td>
                               <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -8262,132 +8357,11 @@ const normalizeTabName = (rawTab) => {
               </div>
             )}
 
-            {/* CAREERS MODULE */}
-            {activeTab === 'careers' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Careers</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      Post new job opportunities, review applicant submissions, and manage company recruitment.
-                    </p>
-                  </div>
-                  {(canCreate('jobs') || canCreate('careers')) && (
-                    <button
-                      onClick={() => {
-                        setEditingJob(null);
-                        setJobForm({
-                          title: '',
-                          department: 'Engineering & Cloud Infrastructure',
-                          location: 'Kampala, Uganda',
-                          type: 'Full-time',
-                          vacancies: 1,
-                          status: 'open',
-                          deadline: '2026-10-31',
-                          description: '',
-                          requirements: '',
-                          responsibilities: ''
-                        });
-                        setShowJobModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}
-                    >
-                      <Plus size={16} /> Post New Job Opening
-                    </button>
-                  )}
-                </div>
-
-                {/* Search Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
-                    <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Search career openings by job title, department, location, or keywords..."
-                      value={jobSearch}
-                      onChange={e => setJobSearch(e.target.value)}
-                      style={{ paddingLeft: '2.5rem', width: '100%' }}
-                    />
-                  </div>
-                  <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                    Showing {jobsList.filter(j => !jobSearch || (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.department || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.location || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.description || '').toLowerCase().includes(jobSearch.toLowerCase())).length} of {jobsList.length} Job Vacancies
-                  </span>
-                </div>
-
-                {/* 2 items per row grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem' }}>
-                  {jobsList.filter(j => !jobSearch || (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.department || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.location || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.description || '').toLowerCase().includes(jobSearch.toLowerCase())).map(j => (
-                    <div key={j.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: '14px' }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                          <span className="badge-tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9' }}>
-                            {j.department}
-                          </span>
-                          <span className="badge-tag" style={{ background: (j.status === 'open' && !j.isExpired) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: (j.status === 'open' && !j.isExpired) ? 'var(--accent-emerald)' : '#ef4444' }}>
-                            {j.isExpired ? 'Expired' : (j.status === 'open' ? 'Active Recruitment' : 'Closed')}
-                          </span>
-                        </div>
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '0.4rem' }}>{j.title}</h4>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                          <span>Location: {j.location}</span>
-                          <span>Type: {j.type}</span>
-                          <span>Vacancies: {j.vacancies} {j.vacancies > 1 ? 'positions' : 'position'}</span>
-                        </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.825rem', lineHeight: '1.45', marginBottom: '1rem' }}>
-                          {j.description}
-                        </p>
-                      </div>
-
-                      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '#ef4444' : 'var(--text-muted)', fontWeight: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '700' : '400' }}>
-                          Deadline: <strong>{j.deadline || 'Open'}</strong> {(j.deadline && j.deadline < new Date().toISOString().split('T')[0]) && '• (Deadline Ended)'}
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
-                          {(canUpdate('jobs') || canUpdate('careers')) && (
-                            <button
-                              onClick={() => {
-                                setEditingJob(j);
-                                const reqText = Array.isArray(j.requirements) ? j.requirements.join('\n') : (typeof j.requirements === 'string' ? JSON.parse(j.requirements || '[]').join('\n') : '');
-                                const respText = Array.isArray(j.responsibilities) ? j.responsibilities.join('\n') : (typeof j.responsibilities === 'string' ? JSON.parse(j.responsibilities || '[]').join('\n') : '');
-                                setJobForm({
-                                  title: j.title,
-                                  department: j.department,
-                                  location: j.location,
-                                  type: j.type,
-                                  vacancies: j.vacancies,
-                                  status: j.status,
-                                  deadline: j.deadline,
-                                  description: j.description,
-                                  requirements: reqText,
-                                  responsibilities: respText
-                                });
-                                setShowJobModal(true);
-                              }}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                            >
-                              <Edit3 size={13} /> Edit
-                            </button>
-                          )}
-                          {((canDelete('jobs') || canDelete('careers')) || canDeleteSystemRecords) && (
-                            <button
-                              onClick={() => handleDeleteJob(j.id, j.title)}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
-                              title="Delete job posting"
-                            >
-                              <Trash size={13} /> Delete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* CAREERS MODULE (Consolidated into HR & Payroll) */}
+            {activeTab === 'careers' && (() => {
+              updateActiveTab('careers');
+              return null;
+            })()}
 
             {/* EXECUTIVE TEAM MODULE */}
             {activeTab === 'team_mgmt' && (
@@ -11705,8 +11679,12 @@ const normalizeTabName = (rawTab) => {
               );
             })()}
 
-            {/* APPLICATIONS MODULE — TWO-STAGE HR REVIEW & SUPER ADMIN HIRING PIPELINE */}
+            {/* APPLICATIONS MODULE (Consolidated into HR & Payroll) */}
             {activeTab === 'applications' && (() => {
+              updateActiveTab('applications');
+              return null;
+            })()}
+            {false && (() => {
               const allApps = applicationsList.length > 0 ? applicationsList : (data?.applications || []);
               const filteredApps = [...allApps].reverse().filter(app => {
                 const searchMatch = !applicationSearch ||
@@ -13505,40 +13483,112 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* HR Module Sub-Navigation */}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => setHrTab('payroll')}
                       style={{
                         padding: '0.5rem 1rem',
                         borderRadius: '8px',
                         border: 'none',
-                        background: hrTab === 'payroll' ? 'var(--primary)' : 'transparent',
-                        color: hrTab === 'payroll' ? '#fff' : 'var(--text-muted)',
+                        background: (hrTab === 'payroll' || hrTab === 'expenses') ? '#f97316' : 'transparent',
+                        color: (hrTab === 'payroll' || hrTab === 'expenses') ? '#fff' : 'var(--text-muted)',
                         fontWeight: '800',
                         fontSize: '0.85rem',
                         cursor: 'pointer'
                       }}
                     >
-                      Payroll Disbursement Roll
+                      Staff Roll & Payroll
                     </button>
                     <button
-                      onClick={() => setHrTab('expenses')}
+                      onClick={() => setHrTab('careers')}
                       style={{
                         padding: '0.5rem 1rem',
                         borderRadius: '8px',
                         border: 'none',
-                        background: hrTab === 'expenses' ? '#06b6d4' : 'transparent',
-                        color: hrTab === 'expenses' ? '#fff' : 'var(--text-muted)',
+                        background: hrTab === 'careers' ? '#0ea5e9' : 'transparent',
+                        color: hrTab === 'careers' ? '#fff' : 'var(--text-muted)',
                         fontWeight: '800',
                         fontSize: '0.85rem',
                         cursor: 'pointer'
                       }}
                     >
-                      Company Expenditures & Expense Claims ({(data?.staff_expenses || []).length || 4})
+                      Careers & Openings ({jobsList.length})
+                    </button>
+                    <button
+                      onClick={() => setHrTab('applications')}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: hrTab === 'applications' ? '#6366f1' : 'transparent',
+                        color: hrTab === 'applications' ? '#fff' : 'var(--text-muted)',
+                        fontWeight: '800',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Candidate Applications ({(applicationsList.length > 0 ? applicationsList : (data?.applications || [])).length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHrTab('contracts');
+                        fetchContracts();
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: hrTab === 'contracts' ? '#881337' : 'transparent',
+                        color: hrTab === 'contracts' ? '#fff' : 'var(--text-muted)',
+                        fontWeight: '800',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <FileText size={15} /> Engagement Contracts & Dispatch ({contractsList.length})
                     </button>
                   </div>
 
-                  {hrTab === 'expenses' ? (
+                  {(hrTab === 'payroll' || hrTab === 'expenses') && (
+                    <div>
+                      {/* Secondary Payroll vs Expense Claims Switch */}
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        <button
+                          onClick={() => setHrTab('payroll')}
+                          style={{
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: hrTab === 'payroll' ? 'var(--primary)' : 'transparent',
+                            color: hrTab === 'payroll' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: '700',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Payroll Disbursement Roll
+                        </button>
+                        <button
+                          onClick={() => setHrTab('expenses')}
+                          style={{
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: hrTab === 'expenses' ? '#06b6d4' : 'transparent',
+                            color: hrTab === 'expenses' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: '700',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Company Expenditures & Expense Claims ({(data?.staff_expenses || []).length || 4})
+                        </button>
+                      </div>
+
+                      {hrTab === 'expenses' ? (
                     <div>
                       {/* Expenses List */}
                       <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
@@ -13813,6 +13863,1098 @@ const normalizeTabName = (rawTab) => {
                   })()}
                 </div>
               )}
+            </div>
+          )}
+
+                  {/* CAREERS & VACANCIES SUBTAB */}
+                  {hrTab === 'careers' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.3rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Briefcase size={22} color="#0ea5e9" /> Careers & Job Openings
+                          </h3>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            Publish and manage corporate job vacancies, define job requirements, and oversee recruitment listings.
+                          </p>
+                        </div>
+                        {(canCreate('jobs') || canCreate('careers') || isSuperAdmin || isHrManager) && (
+                          <button
+                            onClick={() => {
+                              setEditingJob(null);
+                              setJobForm({
+                                title: '',
+                                department: 'Engineering & Cloud Infrastructure',
+                                location: 'Kampala, Uganda',
+                                type: 'Full-time',
+                                vacancies: 1,
+                                status: 'open',
+                                deadline: '2026-10-31',
+                                description: '',
+                                requirements: '',
+                                responsibilities: ''
+                              });
+                              setShowJobModal(true);
+                            }}
+                            className="btn-primary"
+                            style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#0ea5e9', borderColor: '#0ea5e9' }}
+                          >
+                            <Plus size={16} /> Post New Job Opening
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Search Bar */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+                          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Search career openings by job title, department, location, or keywords..."
+                            value={jobSearch}
+                            onChange={e => setJobSearch(e.target.value)}
+                            style={{ paddingLeft: '2.5rem', width: '100%' }}
+                          />
+                        </div>
+                        <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+                          Showing {jobsList.filter(j => !jobSearch || (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.department || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.location || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.description || '').toLowerCase().includes(jobSearch.toLowerCase())).length} of {jobsList.length} Job Vacancies
+                        </span>
+                      </div>
+
+                      {/* 2 items per row grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.25rem' }}>
+                        {jobsList.filter(j => !jobSearch || (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.department || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.location || '').toLowerCase().includes(jobSearch.toLowerCase()) || (j.description || '').toLowerCase().includes(jobSearch.toLowerCase())).map(j => (
+                          <div key={j.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: '14px' }}>
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                <span className="badge-tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9' }}>
+                                  {j.department}
+                                </span>
+                                <span className="badge-tag" style={{ background: (j.status === 'open' && !j.isExpired) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: (j.status === 'open' && !j.isExpired) ? 'var(--accent-emerald)' : '#ef4444' }}>
+                                  {j.isExpired ? 'Expired' : (j.status === 'open' ? 'Active Recruitment' : 'Closed')}
+                                </span>
+                              </div>
+                              <h4 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '0.4rem' }}>{j.title}</h4>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <span>Location: {j.location}</span>
+                                <span>Type: {j.type}</span>
+                                <span>Vacancies: {j.vacancies} {j.vacancies > 1 ? 'positions' : 'position'}</span>
+                              </div>
+                              <p style={{ color: 'var(--text-muted)', fontSize: '0.825rem', lineHeight: '1.45', marginBottom: '1rem' }}>
+                                {j.description}
+                              </p>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ fontSize: '0.75rem', color: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '#ef4444' : 'var(--text-muted)', fontWeight: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '700' : '400' }}>
+                                Deadline: <strong>{j.deadline || 'Open'}</strong> {(j.deadline && j.deadline < new Date().toISOString().split('T')[0]) && '• (Deadline Ended)'}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                {(canUpdate('jobs') || canUpdate('careers') || isSuperAdmin || isHrManager) && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingJob(j);
+                                      const reqText = Array.isArray(j.requirements) ? j.requirements.join('\n') : (typeof j.requirements === 'string' ? JSON.parse(j.requirements || '[]').join('\n') : '');
+                                      const respText = Array.isArray(j.responsibilities) ? j.responsibilities.join('\n') : (typeof j.responsibilities === 'string' ? JSON.parse(j.responsibilities || '[]').join('\n') : '');
+                                      setJobForm({
+                                        title: j.title,
+                                        department: j.department,
+                                        location: j.location,
+                                        type: j.type,
+                                        vacancies: j.vacancies,
+                                        status: j.status,
+                                        deadline: j.deadline,
+                                        description: j.description,
+                                        requirements: reqText,
+                                        responsibilities: respText
+                                      });
+                                      setShowJobModal(true);
+                                    }}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                                  >
+                                    <Edit3 size={13} /> Edit
+                                  </button>
+                                )}
+                                {((canDelete('jobs') || canDelete('careers')) || canDeleteSystemRecords) && (
+                                  <button
+                                    onClick={() => handleDeleteJob(j.id, j.title)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                    title="Delete job posting"
+                                  >
+                                    <Trash size={13} /> Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CANDIDATE APPLICATIONS SUBTAB */}
+                  {hrTab === 'applications' && (() => {
+                    const allApps = applicationsList.length > 0 ? applicationsList : (data?.applications || []);
+                    const filteredApps = [...allApps].reverse().filter(app => {
+                      const searchMatch = !applicationSearch ||
+                        (app.name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.applicant_name || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.email || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.position || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.job_title || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.status || '').toLowerCase().includes(applicationSearch.toLowerCase()) ||
+                        (app.cover_letter || '').toLowerCase().includes(applicationSearch.toLowerCase());
+                      
+                      const dateMatch = !applicationDateFilter || 
+                        (app.created_at && app.created_at.startsWith(applicationDateFilter));
+                      
+                      return searchMatch && dateMatch;
+                    });
+
+                    const APPLICATIONS_PER_PAGE = 6;
+                    const totalAppPages = Math.ceil(filteredApps.length / APPLICATIONS_PER_PAGE) || 1;
+                    const currentAppPage = Math.min(applicationPage, totalAppPages);
+                    const appStartIndex = (currentAppPage - 1) * APPLICATIONS_PER_PAGE;
+                    const paginatedApps = filteredApps.slice(appStartIndex, appStartIndex + APPLICATIONS_PER_PAGE);
+
+                    return (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div>
+                            <h3 style={{ fontSize: '1.35rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <FileCheck size={22} color="#6366f1" /> Candidate Career Applications
+                            </h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              2-Stage Hiring Workflow: HR reviews candidate applications, forwards approved candidates to Super Admin for hiring role assignment and system account provisioning.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Workflow Status Metrics */}
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                          <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Total Submissions</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--primary)' }}>
+                              {allApps.length}
+                            </div>
+                          </div>
+                          <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Stage 1: Pending HR Review</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f59e0b' }}>
+                              {allApps.filter(a => !a.hr_status || a.hr_status === 'Pending').length}
+                            </div>
+                          </div>
+                          <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Stage 2: Pending Super Admin</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#8b5cf6' }}>
+                              {allApps.filter(a => a.hr_status === 'Approved' && a.super_admin_status !== 'Approved').length}
+                            </div>
+                          </div>
+                          <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Hired & Provisioned</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent-emerald)' }}>
+                              {allApps.filter(a => a.super_admin_status === 'Approved' || a.hired).length}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Search Bar & Date Filter */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: '1rem', flex: 1, minWidth: '300px' }}>
+                            <div style={{ position: 'relative', flex: 2, minWidth: '220px' }}>
+                              <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Search applications by candidate name, email, role, or keywords..."
+                                value={applicationSearch}
+                                onChange={e => { setApplicationSearch(e.target.value); setApplicationPage(1); }}
+                                style={{ paddingLeft: '2.5rem', width: '100%' }}
+                              />
+                            </div>
+                            <div style={{ position: 'relative', flex: 1, minWidth: '160px' }}>
+                              <input
+                                type="date"
+                                className="form-input"
+                                value={applicationDateFilter}
+                                onChange={e => { setApplicationDateFilter(e.target.value); setApplicationPage(1); }}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          </div>
+                          {applicationDateFilter && (
+                            <button
+                              onClick={() => setApplicationDateFilter('')}
+                              className="btn-secondary"
+                              style={{ padding: '0.55rem 0.8rem', fontSize: '0.85rem' }}
+                            >
+                              Clear Filter
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Candidate Applications Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.25rem' }}>
+                          {paginatedApps.map(app => {
+                            const isHrPending = !app.hr_status || app.hr_status === 'Pending';
+                            const isHrApproved = app.hr_status === 'Approved';
+                            const isHrRejected = app.hr_status === 'Rejected';
+                            const isSuperAdminPending = isHrApproved && (!app.super_admin_status || app.super_admin_status === 'Pending');
+                            const isSuperAdminApproved = app.super_admin_status === 'Approved';
+                            const isSuperAdminRejected = app.super_admin_status === 'Rejected';
+                            const isHired = app.hired || isSuperAdminApproved;
+
+                            return (
+                              <div
+                                key={app.id}
+                                className="glass-card"
+                                style={{
+                                  padding: '1.25rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'space-between',
+                                  borderRadius: '14px',
+                                  border: isHired
+                                    ? '1px solid rgba(16, 185, 129, 0.4)'
+                                    : isHrApproved
+                                      ? '1px solid rgba(59, 130, 246, 0.3)'
+                                      : '1px solid var(--border-color)',
+                                  background: isHired
+                                    ? 'rgba(16, 185, 129, 0.02)'
+                                    : 'transparent'
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                    <span className="badge-tag" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9', fontWeight: '800' }}>
+                                      {app.position || app.job_title || 'General Application'}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        {app.created_at ? new Date(app.created_at).toLocaleDateString() : 'Recent'}
+                                      </span>
+                                      {(isSuperAdmin || canDelete('jobs') || canDelete('applications')) && (
+                                        <button
+                                          onClick={() => handleDeleteApplication(app.id)}
+                                          className="btn-secondary"
+                                          style={{ padding: '0.2rem 0.4rem', color: '#ef4444', borderColor: 'transparent', background: 'transparent' }}
+                                          title="Delete application permanently"
+                                        >
+                                          <Trash size={13} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <h4 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.2rem', color: 'var(--text-main)' }}>
+                                    {app.applicant_name || app.name}
+                                  </h4>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <span><strong>Email:</strong> {app.email}</span>
+                                    {app.phone && <span><strong>Phone:</strong> {app.phone}</span>}
+                                    {app.experience_years && <span><strong>Experience:</strong> {app.experience_years} yrs</span>}
+                                  </div>
+
+                                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+                                    <span className="badge-tag" style={{
+                                      background: isHrApproved ? 'rgba(16, 185, 129, 0.15)' : isHrRejected ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                      color: isHrApproved ? 'var(--accent-emerald)' : isHrRejected ? '#ef4444' : '#f59e0b',
+                                      fontSize: '0.72rem',
+                                      fontWeight: '700'
+                                    }}>
+                                      Stage 1: {app.hr_status || 'Pending HR Review'}
+                                    </span>
+                                    <span className="badge-tag" style={{
+                                      background: isSuperAdminApproved ? 'rgba(139, 92, 246, 0.15)' : isSuperAdminRejected ? 'rgba(239, 68, 68, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                                      color: isSuperAdminApproved ? '#8b5cf6' : isSuperAdminRejected ? '#ef4444' : 'var(--text-muted)',
+                                      fontSize: '0.72rem',
+                                      fontWeight: '700'
+                                    }}>
+                                      Stage 2: {isSuperAdminApproved ? 'Approved for Hire' : (app.super_admin_status || 'Awaiting Super Admin')}
+                                    </span>
+                                  </div>
+
+                                  {app.cover_letter && (
+                                    <div style={{ background: 'var(--bg-main)', padding: '0.65rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: '1.45', marginBottom: '0.75rem' }}>
+                                      <strong style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Cover Letter:</strong>
+                                      {app.cover_letter.length > 200 ? `${app.cover_letter.slice(0, 200)}...` : app.cover_letter}
+                                    </div>
+                                  )}
+
+                                  {app.resume_url && (
+                                    <div style={{ marginBottom: '0.75rem' }}>
+                                      <a
+                                        href={app.resume_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-secondary"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                                      >
+                                        <FileText size={13} /> View Uploaded CV / Portfolio
+                                      </a>
+                                    </div>
+                                  )}
+
+                                  {(app.hr_comments || app.super_admin_comments) && (
+                                    <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)', fontSize: '0.775rem', color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+                                      <strong style={{ color: '#d97706', display: 'block', marginBottom: '0.2rem' }}>Internal Notes:</strong>
+                                      {app.hr_comments && (
+                                        <div style={{ marginBottom: app.super_admin_comments ? '0.4rem' : '0' }}>
+                                          <span style={{ fontWeight: '700', color: '#10b981' }}>HR:</span> {app.hr_comments}
+                                        </div>
+                                      )}
+                                      {app.super_admin_comments && (
+                                        <div>
+                                          <span style={{ fontWeight: '700', color: '#8b5cf6' }}>Super Admin:</span> {app.super_admin_comments}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                  {/* Direct Trigger to 1-Page Contract Dispatch */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const candidateName = app.applicant_name || app.name || '';
+                                      const candidateRole = app.position || app.job_title || 'Social Media Brand Support Personnel';
+                                      const candidatePhone = app.phone || app.telephone || '+256 700 000000';
+                                      const candidateEmail = app.email || '';
+                                      const nowYear = new Date().getFullYear();
+                                      const generatedRef = `NCE-SMM-${nowYear}-${String(app.id || '01').slice(-2).padStart(2, '0')}`;
+                                      
+                                      setContractForm(prev => ({
+                                        ...prev,
+                                        ref: generatedRef,
+                                        appointee_name: candidateName,
+                                        telephone: candidatePhone,
+                                        email: candidateEmail,
+                                        designation: candidateRole,
+                                        intro_text: `Following your application and mutual agreement, Nova Cloud Edges, Uganda Limited hereby offers you an engagement as ${candidateRole} commencing on ${prev.effective_date} and concluding on ${prev.expiry_date}, subject to renewal upon satisfactory performance and mutual written agreement.`
+                                      }));
+                                      setHrTab('contracts');
+                                      showToast(`Contract configurator loaded for ${candidateName}. Review terms and dispatch.`, 'info');
+                                    }}
+                                    className="btn-secondary"
+                                    style={{
+                                      padding: '0.45rem 0.75rem',
+                                      fontSize: '0.78rem',
+                                      color: '#881337',
+                                      borderColor: 'rgba(136, 19, 55, 0.4)',
+                                      background: 'rgba(136, 19, 55, 0.06)',
+                                      fontWeight: '800',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '5px'
+                                    }}
+                                    title="Open 1-Page Contract Dispatcher pre-populated with this candidate's details"
+                                  >
+                                    <FileText size={14} color="#881337" /> Dispatch Engagement Contract (1-Page PDF)
+                                  </button>
+
+                                  {(isHrManager || isSuperAdmin) && (
+                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                      <button
+                                        onClick={() => handleHrApproveApp(app.id)}
+                                        className="btn-primary"
+                                        disabled={!isHrPending}
+                                        style={{ flex: 1, background: !isHrPending ? 'var(--bg-main)' : '#10b981', color: !isHrPending ? 'var(--text-muted)' : '#fff', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isHrPending ? 0.6 : 1, cursor: !isHrPending ? 'not-allowed' : 'pointer' }}
+                                      >
+                                        {(!isHrPending && !isHrRejected) ? <CheckCircle2 size={13} /> : <CheckCircle size={13} />} 
+                                        {(!isHrPending && !isHrRejected) ? 'HR Approved' : 'HR Approve'}
+                                      </button>
+                                      <button
+                                        onClick={() => handleHrRejectApp(app.id)}
+                                        className="btn-secondary"
+                                        disabled={!isHrPending}
+                                        style={{ flex: 1, color: isHrRejected ? '#ef4444' : (!isHrPending ? 'var(--text-muted)' : '#ef4444'), borderColor: !isHrPending ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isHrPending ? 0.6 : 1, cursor: !isHrPending ? 'not-allowed' : 'pointer', background: isHrRejected ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                      >
+                                        {isHrRejected ? 'HR Rejected' : 'Reject'}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {isSuperAdmin && (
+                                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem' }}>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedAppForHire(app);
+                                          setHireForm({
+                                            role: 'staff',
+                                            position: app.job_title || app.position || 'Senior Cloud Systems Engineer',
+                                            department: 'Engineering & Infrastructure',
+                                            base_salary: 3500000,
+                                            allowances: 350000,
+                                            pay_period: 'August 2026',
+                                            provisional_password: 'Nova' + Math.floor(1000 + Math.random() * 9000) + '!'
+                                          });
+                                          setShowHireModal(true);
+                                        }}
+                                        className="btn-primary"
+                                        disabled={!isSuperAdminPending}
+                                        style={{ flex: 2, background: isHired ? 'var(--accent-emerald)' : (!isSuperAdminPending ? 'var(--bg-main)' : '#8b5cf6'), color: !isSuperAdminPending ? 'var(--text-muted)' : '#fff', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isSuperAdminPending ? 0.6 : 1, cursor: !isSuperAdminPending ? 'not-allowed' : 'pointer' }}
+                                      >
+                                        <UserCheck size={13} /> {isHired ? 'Hired & Provisioned' : 'Hire & Create User'}
+                                      </button>
+                                      <button
+                                        onClick={() => handleSuperAdminRejectApp(app.id)}
+                                        className="btn-secondary"
+                                        disabled={!isSuperAdminPending}
+                                        style={{ flex: 1, color: isSuperAdminRejected ? '#ef4444' : (!isSuperAdminPending ? 'var(--text-muted)' : '#ef4444'), borderColor: !isSuperAdminPending ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.4)', padding: '0.4rem 0.6rem', fontSize: '0.75rem', justifyContent: 'center', opacity: !isSuperAdminPending ? 0.6 : 1, cursor: !isSuperAdminPending ? 'not-allowed' : 'pointer', background: isSuperAdminRejected ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                      >
+                                        {isSuperAdminRejected ? 'Rejected' : 'Reject'}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {isHired && (
+                                    <div style={{ textAlign: 'center', fontSize: '0.775rem', color: 'var(--accent-emerald)', fontWeight: '700', padding: '0.4rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', marginTop: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                      <CheckCircle2 size={14} /> Assigned Role: {app.assigned_role || 'Staff'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {totalAppPages > 1 && (
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '1.5rem' }}>
+                            <button
+                              onClick={() => setApplicationPage(prev => Math.max(1, prev - 1))}
+                              disabled={applicationPage === 1}
+                              className="btn-secondary"
+                              style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', opacity: applicationPage === 1 ? 0.5 : 1 }}
+                            >
+                              ← Previous {APPLICATIONS_PER_PAGE} Applications
+                            </button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)' }}>
+                              Page {applicationPage} of {totalAppPages}
+                            </span>
+                            <button
+                              onClick={() => setApplicationPage(prev => Math.min(totalAppPages, prev + 1))}
+                              disabled={applicationPage === totalAppPages}
+                              className="btn-secondary"
+                              style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', opacity: applicationPage === totalAppPages ? 0.5 : 1 }}
+                            >
+                              Next {APPLICATIONS_PER_PAGE} Applications →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ENGAGEMENT CONTRACT LETTERS & AUTO-PDF DISPATCH SUBTAB */}
+                  {hrTab === 'contracts' && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.35rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#881337' }}>
+                            <FileText size={24} /> Engagement Contract Letter Configurator & Dispatch Hub
+                          </h3>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            Generate, customize, and dispatch executive appointment letters strictly on <strong>ONE single page</strong>. Live A4 document preview with instant email delivery to appointees.
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setContractForm({
+                                ref: `NCE-SMM-2026-01`,
+                                appointee_name: 'Julius Niyonsaba',
+                                telephone: '+256 754 617962',
+                                email: 'support@ncloud.co.ug',
+                                designation: 'Social Media Brand Support Personnel',
+                                effective_date: 'October 02, 2026',
+                                expiry_date: 'January 02, 2027 (3 Months, Renewable)',
+                                base_retainer: 'UGX 100,000 / Month (Net payable)',
+                                intro_text: 'Following your application and mutual agreement, Nova Cloud Edges, Uganda Limited hereby offers you an engagement as Social Media Brand Support Personnel commencing on October 02, 2026 and concluding on January 02, 2027, subject to renewal upon satisfactory performance and mutual written agreement.',
+                                primary_platforms: 'LinkedIn, TikTok, and X (formerly Twitter) corporate/brand accounts.',
+                                mode_of_operation: 'Primarily Remote / Online: Routine deliverables are conducted virtually. In the event of required physical attendance for outreaches, gatherings, workshops, or corporate events, you will be formally engaged and adequately facilitated (transport and logistics).',
+                                core_duties: 'Trend tracking, audience engagement, scheduled publishing, proactive brand community moderation, and supporting digital growth. Strict compliance with company directives and regular activity submissions to the assigned supervisor are mandatory.',
+                                remuneration_details: 'Base Stipend: UGX 100,000 per calendar month.\nInternet Facilitation: Monthly internet data reimbursement of up to 5GB per week, calculated and refunded based on prevailing market rates with local telecommunications networks upon verification.',
+                                tenure_details: 'Term: October 02, 2026 – January 02, 2027 (3 months renewable).\nSpecialized IT Support: In view of your IT skills, whenever activities require technical input beyond social media duties, you will be engaged and separately remunerated for the service rendered under mutually agreed terms.',
+                                conditions_left: '• Credentials Security: Platform login credentials, tokens, and multi-factor authentication codes are proprietary and strictly non-transferable.\n• Authorized Voice: Content must strictly mirror official editorial style guides, brand values, and pre-approved marketing campaigns.\n• Supervisory Compliance: Content calendars, weekly analytics, and engagement reports must be submitted punctually to the supervisor.',
+                                conditions_right: '• Reputational Shield: Maintain extreme professionalism. Zero involvement in partisan debates, offensive remarks, or unverified claims.\n• Confidentiality: Absolute non-disclosure regarding internal strategies, draft assets, client interactions, and company data.\n• Crisis Escalation: Negative virality, press queries, or platform security anomalies must immediately be escalated within 1 hour.',
+                                governing_law: 'This contract is governed by and construed in accordance with all applicable laws of the Republic of Uganda, specifically governing Information and Communications Technology (ICT) and Human Resources / Employment regulations. All creative content, intellectual property, and media assets remain the sole property of Nova Cloud Edges. Either party may terminate this agreement with two (2) weeks\' prior written notice, or summarily in cases of gross breach of policy.',
+                                signatory_name: 'Authorized Signatory',
+                                signatory_title: 'Operations Director'
+                              });
+                              showToast('Loaded default Julius Niyonsaba Engagement Contract (NCE-SMM-2026-01)', 'info');
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '0.55rem 1rem', fontSize: '0.85rem' }}
+                          >
+                            Reset to Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadContractPDF(contractForm)}
+                            className="btn-primary"
+                            style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem', background: '#881337', borderColor: '#881337', gap: '6px' }}
+                          >
+                            <Printer size={16} /> Download Official PDF (1 Page)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDispatchContractEmail(e, contractForm)}
+                            disabled={isDispatchingContract}
+                            className="btn-primary"
+                            style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem', background: '#10b981', borderColor: '#10b981', gap: '6px' }}
+                          >
+                            <Send size={16} /> {isDispatchingContract ? 'Dispatching...' : 'Dispatch via Email'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2-Column Responsive Layout: Configurator Form (Left) & Real-time Live Preview (Right) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 1080 ? '1fr' : '1.15fr 0.85fr', gap: '1.5rem', alignItems: 'flex-start', marginBottom: '2rem' }}>
+                        {/* LEFT COLUMN: System Configurator Form */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                          {/* Card 1: Appointee & Meta */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.85rem', color: '#881337', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <User size={16} /> Appointee & Document Identification
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Document Reference Ref *
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.ref}
+                                  onChange={e => setContractForm(prev => ({ ...prev, ref: e.target.value }))}
+                                  placeholder="e.g. NCE-SMM-2026-01"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Appointee Full Name *
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.appointee_name}
+                                  onChange={e => setContractForm(prev => ({ ...prev, appointee_name: e.target.value }))}
+                                  placeholder="e.g. Julius Niyonsaba"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Telephone Number *
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.telephone}
+                                  onChange={e => setContractForm(prev => ({ ...prev, telephone: e.target.value }))}
+                                  placeholder="e.g. +256 754 617962"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Appointee Email (for Dispatch) *
+                                </label>
+                                <input
+                                  type="email"
+                                  className="form-input"
+                                  value={contractForm.email}
+                                  onChange={e => setContractForm(prev => ({ ...prev, email: e.target.value }))}
+                                  placeholder="e.g. julius@ncloud.co.ug"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Designation / Appointed Position *
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.designation}
+                                  onChange={e => setContractForm(prev => ({ ...prev, designation: e.target.value }))}
+                                  placeholder="e.g. Social Media Brand Support Personnel"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card 2: Dates & Remuneration */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Clock size={16} /> Tenure, Effective Dates & Retainer
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Effective Start Date
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.effective_date}
+                                  onChange={e => setContractForm(prev => ({ ...prev, effective_date: e.target.value }))}
+                                  placeholder="e.g. October 02, 2026"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Expiry Date & Renewal Term
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.expiry_date}
+                                  onChange={e => setContractForm(prev => ({ ...prev, expiry_date: e.target.value }))}
+                                  placeholder="e.g. January 02, 2027 (3 Months, Renewable)"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Base Retainer Remuneration
+                                </label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={contractForm.base_retainer}
+                                  onChange={e => setContractForm(prev => ({ ...prev, base_retainer: e.target.value }))}
+                                  placeholder="e.g. UGX 100,000 / Month (Net payable)"
+                                  style={{ width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card 3: Formal Offer Sentence */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                              Introductory Offer Statement
+                            </h4>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                              Formal preamble introducing the mutual engagement terms.
+                            </p>
+                            <textarea
+                              className="form-input"
+                              rows={3}
+                              value={contractForm.intro_text}
+                              onChange={e => setContractForm(prev => ({ ...prev, intro_text: e.target.value }))}
+                              style={{ width: '100%', fontSize: '0.8rem', lineHeight: '1.4' }}
+                            />
+                          </div>
+
+                          {/* Card 4: Section 1 Operational Framework */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.85rem', color: '#0284c7' }}>
+                              | 1. Operational Framework & Remuneration
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Primary Platforms
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={2}
+                                  value={contractForm.primary_platforms}
+                                  onChange={e => setContractForm(prev => ({ ...prev, primary_platforms: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Mode of Operation
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={2}
+                                  value={contractForm.mode_of_operation}
+                                  onChange={e => setContractForm(prev => ({ ...prev, mode_of_operation: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Core Duties & Reporting
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={3}
+                                  value={contractForm.core_duties}
+                                  onChange={e => setContractForm(prev => ({ ...prev, core_duties: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Remuneration & Data Reimbursement
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={3}
+                                  value={contractForm.remuneration_details}
+                                  onChange={e => setContractForm(prev => ({ ...prev, remuneration_details: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Tenure & Ancillary IT Engagement
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={3}
+                                  value={contractForm.tenure_details}
+                                  onChange={e => setContractForm(prev => ({ ...prev, tenure_details: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card 5: Section 2 Conditions & Responsibilities */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.85rem', color: '#0284c7' }}>
+                              | 2. Usage Conditions & Corporate Responsibility
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Conditions of Usage & Reporting (Left Column)
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={5}
+                                  value={contractForm.conditions_left}
+                                  onChange={e => setContractForm(prev => ({ ...prev, conditions_left: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.78rem', lineHeight: '1.4' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Corporate Responsibility (Right Column)
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={5}
+                                  value={contractForm.conditions_right}
+                                  onChange={e => setContractForm(prev => ({ ...prev, conditions_right: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.78rem', lineHeight: '1.4' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Card 6: Governing Law & Signatories */}
+                          <div className="glass-card" style={{ padding: '1.25rem' }}>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: '800', marginBottom: '0.85rem', color: 'var(--text-main)' }}>
+                              3. Governing Law & Signatory Details
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                  Governing Law & Termination Policy
+                                </label>
+                                <textarea
+                                  className="form-input"
+                                  rows={3}
+                                  value={contractForm.governing_law}
+                                  onChange={e => setContractForm(prev => ({ ...prev, governing_law: e.target.value }))}
+                                  style={{ width: '100%', fontSize: '0.78rem' }}
+                                />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                    Employer Signatory Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    value={contractForm.signatory_name}
+                                    onChange={e => setContractForm(prev => ({ ...prev, signatory_name: e.target.value }))}
+                                    style={{ width: '100%', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                    Employer Signatory Title
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    value={contractForm.signatory_title}
+                                    onChange={e => setContractForm(prev => ({ ...prev, signatory_title: e.target.value }))}
+                                    style={{ width: '100%', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: Real-Time Live Document Preview (1-Page) */}
+                        <div style={{ position: 'sticky', top: '1.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Live 1-Page Document Preview
+                            </span>
+                            <span className="badge-tag" style={{ background: 'rgba(136, 19, 55, 0.12)', color: '#881337', fontWeight: '800', fontSize: '0.7rem' }}>
+                              Strictly Page 1 of 1
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              background: '#ffffff',
+                              color: '#0f172a',
+                              padding: '1.75rem',
+                              borderRadius: '12px',
+                              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.15)',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.72rem',
+                              lineHeight: '1.35',
+                              fontFamily: 'Trebuchet MS, sans-serif'
+                            }}
+                          >
+                            {/* Header: Logo, Company Name & Burgundy Pill */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#881337', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem' }}>
+                                  NC
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: '900', fontSize: '0.95rem', color: '#881337', lineHeight: '1.1' }}>NOVA CLOUD</div>
+                                  <div style={{ fontWeight: '900', fontSize: '0.85rem', color: '#881337', lineHeight: '1.1' }}>EDGES (U) LTD</div>
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ background: '#881337', color: '#fff', fontWeight: '800', fontSize: '0.65rem', padding: '0.2rem 0.6rem', borderRadius: '4px', letterSpacing: '0.5px', display: 'inline-block' }}>
+                                  ENGAGEMENT CONTRACT
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: '#334155', fontWeight: '700', marginTop: '3px' }}>
+                                  Ref: {contractForm.ref}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ fontSize: '0.62rem', color: '#64748b', marginBottom: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem' }}>
+                              Kampala, Uganda • Tel: +256 790 001 631 • Email: support@ncloud.co.ug
+                            </div>
+
+                            {/* Metadata Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '0.5rem', background: '#f8fafc', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '0.6rem', fontSize: '0.68rem' }}>
+                              <div>
+                                <div><strong>Appointee:</strong> {contractForm.appointee_name}</div>
+                                <div><strong>Telephone:</strong> {contractForm.telephone}</div>
+                                <div><strong>Designation:</strong> {contractForm.designation}</div>
+                              </div>
+                              <div>
+                                <div><strong>Effective Date:</strong> {contractForm.effective_date}</div>
+                                <div><strong>Expiry Date:</strong> {contractForm.expiry_date}</div>
+                                <div><strong>Base Retainer:</strong> {contractForm.base_retainer}</div>
+                              </div>
+                            </div>
+
+                            {/* Preamble */}
+                            <p style={{ color: '#334155', marginBottom: '0.6rem', fontSize: '0.65rem', lineHeight: '1.3' }}>
+                              {contractForm.intro_text}
+                            </p>
+
+                            {/* Section 1 Header & Table */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0f172a', fontWeight: '800', fontSize: '0.7rem', marginBottom: '0.35rem' }}>
+                              <div style={{ width: '3px', height: '12px', background: '#0284c7' }} />
+                              1. OPERATIONAL FRAMEWORK & REMUNERATION
+                            </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.6rem', fontSize: '0.62rem', border: '1px solid #e2e8f0' }}>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ background: '#f1f5f9', fontWeight: '800', width: '32%', padding: '0.3rem 0.4rem', borderRight: '1px solid #e2e8f0' }}>Primary Platforms</td>
+                                  <td style={{ padding: '0.3rem 0.4rem' }}>{contractForm.primary_platforms}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ background: '#f1f5f9', fontWeight: '800', padding: '0.3rem 0.4rem', borderRight: '1px solid #e2e8f0' }}>Mode of Operation</td>
+                                  <td style={{ padding: '0.3rem 0.4rem' }}>{contractForm.mode_of_operation}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ background: '#f1f5f9', fontWeight: '800', padding: '0.3rem 0.4rem', borderRight: '1px solid #e2e8f0' }}>Core Duties & Reporting</td>
+                                  <td style={{ padding: '0.3rem 0.4rem' }}>{contractForm.core_duties}</td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ background: '#f1f5f9', fontWeight: '800', padding: '0.3rem 0.4rem', borderRight: '1px solid #e2e8f0' }}>Remuneration & Data</td>
+                                  <td style={{ padding: '0.3rem 0.4rem', whiteSpace: 'pre-line' }}>{contractForm.remuneration_details}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ background: '#f1f5f9', fontWeight: '800', padding: '0.3rem 0.4rem', borderRight: '1px solid #e2e8f0' }}>Tenure & Ancillary IT</td>
+                                  <td style={{ padding: '0.3rem 0.4rem', whiteSpace: 'pre-line' }}>{contractForm.tenure_details}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            {/* Section 2 Header & Side-by-Side Cards */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0f172a', fontWeight: '800', fontSize: '0.7rem', marginBottom: '0.35rem' }}>
+                              <div style={{ width: '3px', height: '12px', background: '#0284c7' }} />
+                              2. USAGE CONDITIONS & CORPORATE RESPONSIBILITY
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem', fontSize: '0.6rem' }}>
+                              <div style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '0.2rem' }}>CONDITIONS OF USAGE & REPORTING</strong>
+                                <div style={{ color: '#334155', whiteSpace: 'pre-line' }}>{contractForm.conditions_left}</div>
+                              </div>
+                              <div style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                <strong style={{ color: '#0f172a', display: 'block', marginBottom: '0.2rem' }}>CORPORATE RESPONSIBILITY</strong>
+                                <div style={{ color: '#334155', whiteSpace: 'pre-line' }}>{contractForm.conditions_right}</div>
+                              </div>
+                            </div>
+
+                            {/* Section 3 */}
+                            <div style={{ fontSize: '0.6rem', color: '#334155', marginBottom: '0.6rem' }}>
+                              <strong style={{ color: '#0f172a' }}>3. Governing Law, IP & Termination:</strong> {contractForm.governing_law}
+                            </div>
+
+                            {/* Signatures */}
+                            <div style={{ borderTop: '1px solid #94a3b8', paddingTop: '0.5rem', marginBottom: '0.6rem', fontSize: '0.62rem' }}>
+                              <div style={{ fontWeight: '800', marginBottom: '0.35rem', color: '#0f172a' }}>Signatures & Acceptance:</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div>
+                                  <div style={{ fontWeight: '700' }}>For: Nova Cloud Edges, Uganda Limited</div>
+                                  <div style={{ borderBottom: '1px solid #0f172a', margin: '0.4rem 0' }} />
+                                  <div>Authorized Signatory: ___________________</div>
+                                  <div>Title / Date: {contractForm.signatory_title}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: '700' }}>Appointee Acceptance:</div>
+                                  <div style={{ borderBottom: '1px solid #0f172a', margin: '0.4rem 0' }} />
+                                  <div>Signature: {contractForm.appointee_name}</div>
+                                  <div>Date: ________________ Phone: {contractForm.telephone}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.58rem', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '0.3rem' }}>
+                              <span>Confidential • Nova Cloud Edges, Uganda Limited</span>
+                              <span>Page 1 of 1</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dispatched Contracts Registry & Audit Trail */}
+                      <div className="glass-card" style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div>
+                            <h4 style={{ fontSize: '1.05rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Clock3 size={18} color="#881337" /> Dispatched Engagement Contracts Registry ({contractsList.length})
+                            </h4>
+                            <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                              Audit trail of issued executive contracts, recipient records, and dispatch timestamps.
+                            </p>
+                          </div>
+                          <button
+                            onClick={fetchContracts}
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', gap: '4px' }}
+                          >
+                            <RefreshCw size={13} /> Refresh Registry
+                          </button>
+                        </div>
+
+                        {contractsList.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            No contracts dispatched yet. Configure the appointment terms above and click <strong>"Dispatch via Email"</strong> or <strong>"Download Official PDF"</strong>.
+                          </div>
+                        ) : (
+                          <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                            <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.825rem' }}>
+                              <thead>
+                                <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Ref</th>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Appointee</th>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Designation</th>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Base Retainer</th>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Dispatched To</th>
+                                  <th style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>Dispatched At</th>
+                                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {contractsList.map(c => (
+                                  <tr key={c.id || c.ref} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '0.75rem 1rem', fontWeight: '800', color: '#881337', whiteSpace: 'nowrap' }}>
+                                      {c.ref || c.contract_ref}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', fontWeight: '700' }}>
+                                      {c.appointee_name}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                                      {c.designation}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: 'var(--accent-emerald)', whiteSpace: 'nowrap' }}>
+                                      {c.base_retainer}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem' }}>
+                                      {c.email || c.recipient_email || 'N/A'}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                      {c.dispatched_at ? new Date(c.dispatched_at).toLocaleString() : (c.created_at ? new Date(c.created_at).toLocaleString() : 'Recent')}
+                                    </td>
+                                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                        <button
+                                          onClick={() => handleDownloadContractPDF(c)}
+                                          className="btn-secondary"
+                                          style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem', gap: '3px' }}
+                                          title="Download official 1-page PDF"
+                                        >
+                                          <Download size={12} /> PDF
+                                        </button>
+                                        {c.email && (
+                                          <button
+                                            onClick={(e) => handleDispatchContractEmail(e, c)}
+                                            className="btn-secondary"
+                                            style={{ padding: '0.3rem 0.55rem', fontSize: '0.72rem', gap: '3px', color: '#10b981', borderColor: '#10b981' }}
+                                            title="Re-dispatch contract to appointee email"
+                                          >
+                                            <Send size={12} /> Email
+                                          </button>
+                                        )}
+                                        {(isSuperAdmin || canDeleteSystemRecords) && (
+                                          <button
+                                            onClick={() => handleDeleteContract(c.id)}
+                                            className="btn-secondary"
+                                            style={{ padding: '0.3rem 0.45rem', fontSize: '0.72rem', color: '#ef4444', borderColor: '#ef4444' }}
+                                            title="Delete contract record"
+                                          >
+                                            <Trash size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
             </div>
           );
         })()}

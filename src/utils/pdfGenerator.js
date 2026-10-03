@@ -3021,3 +3021,297 @@ export async function generateJobApplicationReceipt80mmPDF(app) {
   openPdfInBrowser(doc, `Application_Receipt_${app.id}.pdf`);
   return doc;
 }
+
+/**
+ * Generates an official, executive-grade Appointment & Engagement Contract Letter (A4)
+ * strictly matching the Nova Cloud Edges legal engagement contract design on ONE single page.
+ */
+export async function generateContractLetterPDF(contractData = {}, options = {}) {
+  const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
+  const ref = contractData.ref || 'NCE-SMM-2026-01';
+  const appointee = contractData.appointee_name || contractData.applicant_name || 'Julius Niyonsaba';
+  const telephone = contractData.telephone || contractData.phone || '+256 754 617962';
+  const designation = contractData.designation || contractData.position || 'Social Media Brand Support Personnel';
+  const effectiveDate = contractData.effective_date || contractData.start_date || 'October 02, 2026';
+  const expiryDate = contractData.expiry_date || 'January 02, 2027 (3 Months, Renewable)';
+  const baseRetainer = contractData.remuneration || contractData.base_retainer || 'UGX 100,000 / Month (Net payable)';
+  
+  const modeOfOperation = contractData.mode_of_operation || 'Primarily Remote / Online: Routine deliverables are conducted virtually. In the event of required physical attendance for outreaches, gatherings, workshops, or corporate events, you will be formally engaged and adequately facilitated (transport and logistics).';
+  const primaryPlatforms = contractData.scope_of_work || contractData.primary_platforms || 'LinkedIn, TikTok, and X (formerly Twitter) corporate/brand accounts.';
+  const coreDuties = contractData.core_duties || 'Trend tracking, audience engagement, scheduled publishing, proactive brand community moderation, and supporting digital growth. Strict compliance with company directives and regular activity submissions to the assigned supervisor are mandatory.';
+  const remunerationDetails = contractData.remuneration_details || 'Base Stipend: UGX 100,000 per calendar month.\nInternet Facilitation: Monthly internet data reimbursement of up to 5GB per week, calculated and refunded based on prevailing market rates with local telecommunications networks upon verification.';
+  const tenureDetails = contractData.tenure_details || `Term: ${effectiveDate} – ${expiryDate}.\nSpecialized IT Support: In view of your IT skills, whenever activities require technical input beyond regular duties, you will be engaged and separately remunerated for the service rendered under mutually agreed terms.`;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
+
+  // 1. Header: Logo & Company Name (Left)
+  let y = 14;
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(136, 19, 55); // #881337 dark burgundy
+  doc.text('NOVA CLOUD', 32, y + 2.5);
+  doc.text('EDGES (U) LTD', 32, y + 7.5);
+
+  // Logo Badge Vector
+  doc.setFillColor(136, 19, 55);
+  doc.circle(21, y + 4.5, 7.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.text('NC', 21, y + 6.8, { align: 'center' });
+
+  // Top Right: Burgundy Pill & Reference
+  doc.setFillColor(136, 19, 55);
+  doc.roundedRect(144, y - 2, 52, 6.5, 1.8, 1.8, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text('ENGAGEMENT CONTRACT', 170, y + 2.3, { align: 'center' });
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(30, 41, 59);
+  doc.text(`Ref:  ${ref}`, 196, y + 9.5, { align: 'right' });
+
+  // Subtitle / Contact Line
+  y = 26;
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Kampala, Uganda  •  Tel: +256 790 001 631  •  Email: support@ncloud.co.ug', 14, y);
+
+  // Horizontal Header Divider
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.3);
+  doc.line(14, y + 3, 196, y + 3);
+
+  // 2. Metadata Grid (Boxed 2-column)
+  y = 33;
+  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, y, 182, 26, 1.5, 1.5, 'FD');
+
+  doc.setFontSize(8);
+  // Left Column
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('Appointee:', 18, y + 6);
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.text(appointee, 37, y + 6);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('Telephone:', 18, y + 13);
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.text(telephone, 37, y + 13);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('Designation:', 18, y + 20);
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.text(designation, 39, y + 20);
+
+  // Right Column
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('Effective Date:', 110, y + 6);
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.text(effectiveDate, 134, y + 6);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('Expiry Date:', 110, y + 13);
+  doc.setFont('TrebuchetMS', 'normal');
+  const splitExpiry = doc.splitTextToSize(expiryDate, 60);
+  doc.text(splitExpiry, 134, y + 13);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.text('Base Retainer:', 110, y + 21);
+  doc.setFont('TrebuchetMS', 'normal');
+  const splitRetainer = doc.splitTextToSize(baseRetainer, 58);
+  doc.text(splitRetainer, 134, y + 21);
+
+  // 3. Introductory Formal Offer Sentence
+  y = 63;
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(51, 65, 85);
+  const introP = contractData.intro_text || `Following your application and mutual agreement, Nova Cloud Edges, Uganda Limited hereby offers you an engagement as ${designation} commencing on ${effectiveDate} and concluding on ${expiryDate}, subject to renewal upon satisfactory performance and mutual written agreement.`;
+  const splitIntro = doc.splitTextToSize(introP, 182);
+  doc.text(splitIntro, 14, y);
+  y += splitIntro.length * 3.2 + 3;
+
+  // 4. Section 1: OPERATIONAL FRAMEWORK & REMUNERATION Table
+  doc.setFillColor(2, 132, 199); // #0284c7 Sky Blue vertical bar
+  doc.rect(14, y - 0.5, 1.8, 4.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  doc.text('1.  OPERATIONAL FRAMEWORK & REMUNERATION', 18, y + 3);
+  y += 5.5;
+
+  const tableRows = [
+    { label: 'Primary Platforms', content: primaryPlatforms, isFirst: true },
+    { label: 'Mode of Operation', content: modeOfOperation },
+    { label: 'Core Duties & Reporting', content: coreDuties },
+    { label: 'Remuneration & Data\nReimbursement', content: remunerationDetails },
+    { label: 'Tenure & Ancillary IT\nEngagement', content: tenureDetails }
+  ];
+
+  tableRows.forEach((row) => {
+    doc.setFontSize(7);
+    const contentLines = doc.splitTextToSize(row.content, 132);
+    const labelLines = doc.splitTextToSize(row.label, 42);
+    const rowH = Math.max(6.5, Math.max(contentLines.length, labelLines.length) * 2.9 + 2);
+
+    // Left cell background (Light gray)
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, y, 46, rowH, 'F');
+    // Right cell background (White)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(60, y, 136, rowH, 'F');
+
+    // Outer grid border & divider
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.25);
+    doc.rect(14, y, 182, rowH, 'D');
+    doc.line(60, y, 60, y + rowH);
+
+    // Label text
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(labelLines, 16, y + 3.2);
+
+    // Content text
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(contentLines, 62.5, y + 3.2);
+
+    y += rowH;
+  });
+
+  y += 3.5;
+
+  // 5. Section 2: USAGE CONDITIONS & CORPORATE RESPONSIBILITY (2-Column Side-by-Side)
+  doc.setFillColor(2, 132, 199);
+  doc.rect(14, y - 0.5, 1.8, 4.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  doc.text('2.  USAGE CONDITIONS & CORPORATE RESPONSIBILITY', 18, y + 3);
+  y += 5.5;
+
+  const cardH = 34.5;
+  // Left Box: Conditions of Usage & Reporting
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, y, 89, cardH, 1, 1, 'FD');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('CONDITIONS OF USAGE & REPORTING', 17, y + 4.5);
+
+  doc.setFontSize(6.7);
+  const leftTerms = contractData.conditions_left
+    ? (Array.isArray(contractData.conditions_left) ? contractData.conditions_left : contractData.conditions_left.split('\n').filter(Boolean))
+    : [
+    '• Credentials Security: Platform login credentials, tokens, and multi-factor authentication codes are proprietary and strictly non-transferable.',
+    '• Authorized Voice: Content must strictly mirror official editorial style guides, brand values, and pre-approved marketing campaigns.',
+    '• Supervisory Compliance: Content calendars, weekly analytics, and engagement reports must be submitted punctually to the supervisor.'
+  ];
+  let ly = y + 8.5;
+  leftTerms.forEach(t => {
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setTextColor(51, 65, 85);
+    const split = doc.splitTextToSize(t, 83);
+    doc.text(split, 17, ly);
+    ly += split.length * 2.8 + 1.2;
+  });
+
+  // Right Box: Corporate Responsibility
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(107, y, 89, cardH, 1, 1, 'FD');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('CORPORATE RESPONSIBILITY', 110, y + 4.5);
+
+  const rightTerms = contractData.conditions_right
+    ? (Array.isArray(contractData.conditions_right) ? contractData.conditions_right : contractData.conditions_right.split('\n').filter(Boolean))
+    : [
+    '• Reputational Shield: Maintain extreme professionalism. Zero involvement in partisan debates, offensive remarks, or unverified claims.',
+    '• Confidentiality: Absolute non-disclosure regarding internal strategies, draft assets, client interactions, and company data.',
+    '• Crisis Escalation: Negative virality, press queries, or platform security anomalies must immediately be escalated within 1 hour.'
+  ];
+  let ry = y + 8.5;
+  rightTerms.forEach(t => {
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setTextColor(51, 65, 85);
+    const split = doc.splitTextToSize(t, 83);
+    doc.text(split, 110, ry);
+    ry += split.length * 2.8 + 1.2;
+  });
+
+  y += cardH + 3;
+
+  // 6. Section 3: Governing Law, IP & Termination
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('3. Governing Law, IP & Termination:', 14, y + 2.5);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(6.7);
+  doc.setTextColor(51, 65, 85);
+  const lawP = contractData.governing_law || 'This contract is governed by and construed in accordance with all applicable laws of the Republic of Uganda, specifically governing Information and Communications Technology (ICT) and Human Resources / Employment regulations. All creative content, intellectual property, and media assets remain the sole property of Nova Cloud Edges. Either party may terminate this agreement with two (2) weeks\' prior written notice, or summarily in cases of gross breach of policy.';
+  const splitLaw = doc.splitTextToSize(lawP, 182);
+  doc.text(splitLaw, 14, y + 6);
+  y += splitLaw.length * 2.7 + 6;
+
+  // 7. Signatures & Acceptance
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Signatures & Acceptance:', 14, y);
+  y += 4.5;
+
+  // Employer Header
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.text('For: Nova Cloud Edges, Uganda Limited', 14, y);
+
+  // Appointee Header
+  doc.text('Appointee Acceptance:', 110, y);
+  y += 3;
+
+  // Solid black signature separator lines (matching screenshot)
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.65);
+  doc.line(14, y, 98, y);
+  doc.line(110, y, 196, y);
+  y += 4;
+
+  // Employer fields
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(30, 41, 59);
+  doc.text('Authorized Signatory: _________________________', 14, y);
+  doc.text('Title / Date: _________________________________', 14, y + 4.5);
+
+  // Appointee fields
+  doc.text(`Signature:  ${appointee}`, 110, y);
+  doc.text(`Date: ____________________       Phone: ${telephone}`, 110, y + 4.5);
+
+  // 8. Footer (Strictly Bottom of Single Page)
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(6.8);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Confidential  •  Nova Cloud Edges, Uganda Limited', 14, 290);
+  doc.text('Page 1 of 1', 196, 290, { align: 'right' });
+
+  // STRICT GUARANTEE: If a second page was accidentally spawned, delete it so it is strictly one page.
+  while (doc.internal.getNumberOfPages() > 1) {
+    doc.deletePage(doc.internal.getNumberOfPages());
+  }
+
+  if (opts.autoSave !== false) {
+    openPdfInBrowser(doc, `Contract_${appointee.replace(/[^a-zA-Z0-9]/g, '_')}_${ref}.pdf`);
+  }
+  return doc;
+}
+

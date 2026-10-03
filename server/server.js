@@ -402,6 +402,7 @@ const memoryStore = {
     { id: 3, title: 'Zimbra Collaboration Suite Migration Guide for Enterprise IT', date: '2026-07-15', category: 'Email', image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80', content: 'Learn how our Zimbra Email Experts migrate corporate mailboxes seamlessly with zero downtime and full spam filtering.' }
   ],
   applications: [],
+  contracts: [],
   contacts: [],
   events: [],
   subscriptions: [],
@@ -3236,6 +3237,115 @@ app.put('/api/admin/applications/:id/super-admin-reject', async (req, res) => {
     return res.json({ message: `Application for "${appItem.applicant_name}" has been rejected. Kept for 1-year retention policy.`, application: appItem });
   }
   res.status(404).json({ error: 'Application not found' });
+});
+
+// ----------------------------------------------------
+// Official Engagement Contracts & Appointment Letters
+// (Accessible to HR Manager & Super Admin)
+// ----------------------------------------------------
+app.get('/api/admin/contracts', (req, res) => {
+  if (!memoryStore.contracts) memoryStore.contracts = [];
+  res.json(memoryStore.contracts);
+});
+
+app.post('/api/admin/contracts/dispatch', async (req, res) => {
+  const {
+    ref,
+    appointee_name,
+    telephone,
+    email,
+    designation,
+    effective_date,
+    expiry_date,
+    remuneration,
+    scope_of_work,
+    mode_of_operation,
+    core_duties,
+    remuneration_details,
+    tenure_details,
+    notes
+  } = req.body;
+
+  if (!appointee_name || !designation) {
+    return res.status(400).json({ error: 'Appointee name and designation are required.' });
+  }
+
+  const contractRef = ref || `NCE-HR-${new Date().getFullYear()}-${String(Math.floor(100 + Math.random() * 900))}`;
+  const newContract = {
+    id: Date.now(),
+    ref: contractRef,
+    appointee_name,
+    telephone: telephone || '',
+    email: email || '',
+    designation,
+    effective_date: effective_date || new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
+    expiry_date: expiry_date || '3 Months (Renewable)',
+    remuneration: remuneration || 'UGX 100,000 / Month',
+    scope_of_work: scope_of_work || '',
+    mode_of_operation: mode_of_operation || '',
+    core_duties: core_duties || '',
+    remuneration_details: remuneration_details || '',
+    tenure_details: tenure_details || '',
+    notes: notes || '',
+    status: 'Dispatched & Active',
+    created_at: new Date().toISOString(),
+    dispatched_by: req.headers['x-user-email'] || 'HR Department'
+  };
+
+  if (!memoryStore.contracts) memoryStore.contracts = [];
+  memoryStore.contracts.unshift(newContract);
+  savePersistentStore();
+
+  // Audit Log
+  if (memoryStore.audit_logs) {
+    memoryStore.audit_logs.unshift({
+      id: memoryStore.audit_logs.length + 1,
+      timestamp: new Date().toISOString(),
+      user_email: req.headers['x-user-email'] || 'hr@ncloud.co.ug',
+      user_name: 'HR Management',
+      action: 'CONTRACT_DISPATCHED',
+      resource_id: contractRef,
+      ip_address: req.ip || '127.0.0.1',
+      device_type: 'Desktop Web Client',
+      details: `Official Engagement Contract (${contractRef}) dispatched to ${appointee_name} for role "${designation}".`
+    });
+  }
+
+  // Send Notification Email if email is present
+  if (email && email.includes('@')) {
+    try {
+      const emailHtml = generateCorporateEmailHtml({
+        title: 'Official Engagement Contract Offer',
+        badgeText: 'Contract Dispatched',
+        recipientName: appointee_name,
+        introText: `Congratulations! Nova Cloud Edges (U) Limited has officially dispatched your Engagement Contract for the position of <strong>${designation}</strong> (Reference: <code>${contractRef}</code>). Effective Date: <strong>${newContract.effective_date}</strong>.`,
+        summaryBoxes: [
+          { label: 'Role / Designation', value: designation, color: '#0284c7' },
+          { label: 'Contract Reference', value: contractRef, color: '#1e40af' },
+          { label: 'Remuneration', value: newContract.remuneration, color: '#16a34a' },
+          { label: 'Tenure', value: newContract.expiry_date, color: '#d97706' }
+        ],
+        hidePaymentMethods: true
+      });
+      sendMail({
+        to: email,
+        subject: `Official Engagement Contract (${contractRef}) — Nova Cloud Edges`,
+        html: emailHtml
+      }).catch(e => console.error('Failed to send contract email:', e));
+    } catch(err) {
+      console.warn('Contract email format error:', err);
+    }
+  }
+
+  res.json({ success: true, message: `Contract ${contractRef} successfully dispatched to ${appointee_name}`, contract: newContract });
+});
+
+app.delete('/api/admin/contracts/:id', (req, res) => {
+  const { id } = req.params;
+  if (!memoryStore.contracts) memoryStore.contracts = [];
+  memoryStore.contracts = memoryStore.contracts.filter(c => String(c.id) !== String(id) && String(c.ref) !== String(id));
+  savePersistentStore();
+  res.json({ success: true, message: 'Contract removed from active registry' });
 });
 
 // ----------------------------------------------------
