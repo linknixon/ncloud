@@ -1,7 +1,23 @@
 import SEO from "../components/SEO";
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, ChevronLeft, ChevronRight, Info, X, Wifi, Share2 } from 'lucide-react';
+import { 
+  Search, 
+  ChevronLeft, 
+  ChevronRight, 
+  Info, 
+  X, 
+  Wifi, 
+  Share2, 
+  HelpCircle, 
+  ChevronDown, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Truck, 
+  CreditCard, 
+  Server,
+  ExternalLink
+} from 'lucide-react';
 
 const DEFAULT_CATALOG_PRODUCTS = [
   {
@@ -90,25 +106,54 @@ export default function ShopPage({ setActivePage }) {
     }
     return DEFAULT_CATALOG_PRODUCTS;
   });
-  const [category, setCategory] = useState('Hosting Services');
+  
+  const [category, setCategory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlCat = new URLSearchParams(window.location.search).get('category');
+      if (urlCat) return urlCat;
+    }
+    return 'Hosting Services';
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [quantities, setQuantities] = useState({});
   const [selectedProductModal, setSelectedProductModal] = useState(null);
+  const [openFaq, setOpenFaq] = useState(null);
+
+  const toggleFaq = (idx) => setOpenFaq(prev => prev === idx ? null : idx);
 
   const openProductModal = (prod) => {
     setSelectedProductModal(prod);
     if (typeof window !== 'undefined') {
       const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      window.history.pushState({}, '', '?item=' + slug);
+      const url = new URL(window.location.href);
+      url.searchParams.set('item', slug);
+      window.history.pushState({}, '', url.pathname + url.search);
     }
   };
 
   const closeProductModal = () => {
     setSelectedProductModal(null);
     if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', '?page=shop');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('item');
+      window.history.pushState({}, '', url.pathname + url.search);
+    }
+  };
+
+  const handleSelectCategory = (cat) => {
+    setCategory(cat);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (cat === 'All') {
+        url.searchParams.delete('category');
+      } else {
+        url.searchParams.set('category', cat);
+      }
+      url.searchParams.delete('item');
+      window.history.pushState({}, '', url.pathname + url.search);
     }
   };
 
@@ -196,6 +241,26 @@ export default function ShopPage({ setActivePage }) {
       .catch(() => {});
   }, []);
 
+  // Sync category or item from URL upon browser history navigation (back/forward)
+  useEffect(() => {
+    const handleUrlSync = () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlCat = params.get('category');
+      if (urlCat) {
+        setCategory(urlCat);
+      }
+      const itemSlug = params.get('item');
+      if (itemSlug && products.length > 0) {
+        const matchingProd = products.find(p => (p.slug || '').includes(itemSlug) || (p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') === itemSlug);
+        if (matchingProd) setSelectedProductModal(matchingProd);
+      } else if (!itemSlug) {
+        setSelectedProductModal(null);
+      }
+    };
+    window.addEventListener('popstate', handleUrlSync);
+    return () => window.removeEventListener('popstate', handleUrlSync);
+  }, [products]);
+
   // Reset page when category or search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -239,66 +304,289 @@ export default function ShopPage({ setActivePage }) {
   // Dynamic Google Search Schema.org ItemList for Nova Cloud Shop
   const shopSchema = {
     "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    "name": "Nova Cloud Shop Uganda",
-    "description": "Official Nova Cloud online shop for Cloud VPS, Server Racks, Zimbra Mail, QuickBooks ERP Licenses, and Enterprise Networking Hardware in Uganda.",
-    "url": "https://ncloud.co.ug/shop",
-    "mainEntity": {
-      "@type": "ItemList",
-      "numberOfItems": filteredProducts.length,
-      "itemListElement": (filteredProducts.length > 0 ? filteredProducts.slice(0, 20) : products.slice(0, 15)).map((p, idx) => ({
-        "@type": "ListItem",
-        "position": idx + 1,
-        "item": {
-          "@type": "Product",
-          "name": `${p.name} - Nova Cloud Uganda`,
-          "description": p.description || `${p.name} available at Nova Cloud Edges Kampala Uganda.`,
-          "image": p.image_url || "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
-          "category": p.category || "Cloud & IT Solutions",
-          "brand": {
-            "@type": "Brand",
-            "name": "Nova Cloud"
+    "@graph": [
+      {
+        "@type": "OnlineStore",
+        "@id": "https://ncloud.co.ug/shop#store",
+        "name": "Nova Cloud Store Uganda",
+        "alternateName": ["Nova Cloud Shop Kampala", "Nova Cloud Online Shop Uganda", "Nova Cloud IT Store"],
+        "url": "https://ncloud.co.ug/shop",
+        "logo": "https://ncloud.co.ug/vite.svg",
+        "image": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+        "description": "Uganda's official sovereign cloud and IT store in Kampala. Buy Edge Cloud VPS, Tier III Colocation, Zimbra Corporate Email, QuickBooks Enterprise ERP, WiFi Vouchers & IT Hardware.",
+        "currenciesAccepted": "UGX, USD",
+        "paymentAccepted": "Cash on Delivery, MTN Mobile Money, Airtel Money, Bank Wire Transfer, Visa, Mastercard",
+        "priceRange": "UGX 1000 - UGX 15000000",
+        "telephone": "+256-790-001631",
+        "email": "support@ncloud.co.ug",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Lugga Zone, Ndejje, Wakiso",
+          "addressLocality": "Kampala",
+          "addressRegion": "Central Region",
+          "postalCode": "00256",
+          "addressCountry": "UG"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": 0.3156,
+          "longitude": 32.5811
+        },
+        "areaServed": [
+          { "@type": "Country", "name": "Uganda" },
+          { "@type": "City", "name": "Kampala" },
+          { "@type": "AdministrativeArea", "name": "Wakiso" },
+          { "@type": "AdministrativeArea", "name": "Entebbe" },
+          { "@type": "AdministrativeArea", "name": "Mukono" },
+          { "@type": "AdministrativeArea", "name": "Jinja" },
+          { "@type": "AdministrativeArea", "name": "Mbarara" },
+          { "@type": "AdministrativeArea", "name": "Gulu" }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://ncloud.co.ug/shop#breadcrumbs",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://ncloud.co.ug/"
           },
-          "offers": {
-            "@type": "Offer",
-            "priceCurrency": "UGX",
-            "price": p.price ? String(p.price) : "50000",
-            "priceValidUntil": "2027-12-31",
-            "availability": "https://schema.org/InStock",
-            "itemCondition": "https://schema.org/NewCondition",
-            "seller": {
-              "@type": "Organization",
-              "name": "Nova Cloud (U) Limited",
-              "url": "https://ncloud.co.ug"
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Nova Cloud Shop Uganda",
+            "item": "https://ncloud.co.ug/shop"
+          },
+          ...(category && category !== 'All' ? [{
+            "@type": "ListItem",
+            "position": 3,
+            "name": category,
+            "item": `https://ncloud.co.ug/shop?category=${encodeURIComponent(category)}`
+          }] : [])
+        ]
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://ncloud.co.ug/shop#catalog",
+        "name": `Nova Cloud Shop Uganda${category !== 'All' ? ` - ${category}` : ''}`,
+        "description": "Catalog of Cloud VPS, Server Racks, Zimbra Mail, QuickBooks ERP Licenses, and Enterprise Networking Hardware in Uganda.",
+        "url": `https://ncloud.co.ug/shop${category !== 'All' ? `?category=${encodeURIComponent(category)}` : ''}`,
+        "mainEntity": {
+          "@type": "ItemList",
+          "numberOfItems": filteredProducts.length,
+          "itemListElement": (filteredProducts.length > 0 ? filteredProducts.slice(0, 20) : products.slice(0, 15)).map((p, idx) => ({
+            "@type": "ListItem",
+            "position": idx + 1,
+            "item": {
+              "@type": "Product",
+              "name": `${p.name} - Nova Cloud Uganda`,
+              "description": p.short_desc || p.description || `${p.name} available at Nova Cloud Edges Kampala Uganda.`,
+              "image": p.image_url || "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+              "category": p.category || "Cloud & IT Solutions",
+              "brand": {
+                "@type": "Brand",
+                "name": "Nova Cloud"
+              },
+              "offers": {
+                "@type": "Offer",
+                "priceCurrency": p.currency || "UGX",
+                "price": p.price ? String(p.price) : "50000",
+                "priceValidUntil": "2027-12-31",
+                "availability": (Number(p.stock) || 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                "itemCondition": "https://schema.org/NewCondition",
+                "eligibleRegion": {
+                  "@type": "Country",
+                  "name": "UG"
+                },
+                "seller": {
+                  "@type": "Organization",
+                  "name": "Nova Cloud Edges (U) Limited",
+                  "url": "https://ncloud.co.ug"
+                }
+              }
+            }
+          }))
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://ncloud.co.ug/shop#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How can I pay for Nova Cloud servers, vouchers, and IT hardware in Uganda?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Nova Cloud accepts instant automated payments via MTN Mobile Money (*165#) and Airtel Money (*185#), as well as Visa, Mastercard, and direct Ugandan bank wire transfers in UGX and USD."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where are Nova Cloud Edge VPS servers hosted?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "All Nova Cloud VPS instances and server racks are hosted in sovereign Tier III datacenters located in Kampala, Uganda, directly interconnected with the Uganda Internet Exchange Point (UIXP) for ultra-low single-digit latency."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How fast is delivery of physical IT equipment and server hardware across Uganda?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Physical hardware (routers, server accessories, colocation equipment) is dispatched same-day in Kampala and Wakiso, and delivered within 24 to 48 hours to all districts of Uganda. Digital products like Cloud VPS and WiFi vouchers activate instantly upon payment confirmation."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are QuickBooks Enterprise software licenses customized for Uganda tax compliance?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Our QuickBooks Enterprise solutions are official genuine licenses bundled with local Uganda VAT, withholding tax settings, and URA EFRIS compliance configuration by certified ERP engineers."
             }
           }
-        }
-      }))
-    }
+        ]
+      }
+    ]
   };
+
+  const selectedProductSchema = selectedProductModal ? {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": `${selectedProductModal.name} - Nova Cloud Uganda`,
+    "description": selectedProductModal.short_desc || selectedProductModal.description || `${selectedProductModal.name} available at Nova Cloud Edges Kampala Uganda.`,
+    "image": selectedProductModal.image_url || "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80",
+    "category": selectedProductModal.category || "Cloud & IT Solutions",
+    "sku": `NC-UG-${selectedProductModal.id}`,
+    "brand": {
+      "@type": "Brand",
+      "name": "Nova Cloud"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": typeof window !== 'undefined' ? window.location.href : `https://ncloud.co.ug/shop?item=${selectedProductModal.slug || selectedProductModal.id}`,
+      "priceCurrency": selectedProductModal.currency || "UGX",
+      "price": selectedProductModal.price ? String(selectedProductModal.price) : "50000",
+      "priceValidUntil": "2027-12-31",
+      "itemCondition": "https://schema.org/NewCondition",
+      "availability": (Number(selectedProductModal.stock) || 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "eligibleRegion": {
+        "@type": "Country",
+        "name": "UG"
+      },
+      "seller": {
+        "@type": "Organization",
+        "name": "Nova Cloud Edges (U) Limited",
+        "url": "https://ncloud.co.ug"
+      }
+    }
+  } : null;
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
       <SEO 
-        title="Nova Cloud Shop Uganda | Cloud VPS, Servers, Enterprise ERP, WiFi Vouchers & IT Hardware" 
-        description="Shop official Nova Cloud infrastructure in Uganda. Buy Cloud VPS Hosting, Tier III Colocation, Zimbra Corporate Email, QuickBooks Enterprise ERP, WiFi Hotspot Vouchers, Routers & IT hardware with instant delivery in Kampala." 
-        keywords="Nova Cloud, Nova Cloud Uganda, Nova Cloud shop, Nova Cloud store, Nova Cloud Edges, buy Nova Cloud, cloud provider Uganda, cloud hosting Kampala, buy VPS Uganda, enterprise server Uganda, MikroTik routers Kampala, Zimbra email Uganda, WiFi vouchers Kampala, IT hardware shop Uganda, QuickBooks ERP Uganda" 
-        canonical="https://ncloud.co.ug/shop"
-        ogTitle="Nova Cloud Shop Uganda | Cloud VPS, Enterprise ERP & Hardware"
-        ogDescription="Official Nova Cloud store in Uganda. Instant deployment for Cloud VPS, Corporate Email, QuickBooks ERP, WiFi Passes, and Networking Hardware."
-        schemaJson={shopSchema}
+        title={
+          selectedProductModal
+            ? `${selectedProductModal.name} | Buy in Uganda at Nova Cloud IT Store`
+            : category && category !== 'All' && category !== 'Hosting Services'
+              ? `${category} Uganda | Buy at Nova Cloud IT Store Kampala`
+              : "Nova Cloud Online Shop Uganda | Buy Cloud VPS, Colocation, QuickBooks ERP, WiFi Vouchers & IT Hardware Kampala"
+        }
+        description={
+          selectedProductModal
+            ? `${selectedProductModal.short_desc || selectedProductModal.description || selectedProductModal.name} - Available in Uganda at Nova Cloud Edges Kampala with MTN MoMo, Airtel Money, and nationwide delivery.`
+            : "Shop official Nova Cloud infrastructure in Uganda. Buy Cloud VPS Hosting, Tier III Colocation, Zimbra Corporate Email, QuickBooks Enterprise ERP, WiFi Hotspot Vouchers, Routers & IT hardware with instant delivery in Kampala."
+        }
+        keywords="Nova Cloud, Nova Cloud Uganda, Nova Cloud shop, Nova Cloud store, Nova Cloud Edges, buy Nova Cloud, cloud provider Uganda, cloud hosting Kampala, buy VPS Uganda, enterprise server Uganda, MikroTik routers Kampala, Zimbra email Uganda, WiFi vouchers Kampala, IT hardware shop Uganda, QuickBooks ERP Uganda, MTN Mobile Money shop Uganda, Airtel Money shop Uganda"
+        canonical={
+          selectedProductModal
+            ? `https://ncloud.co.ug/shop?item=${selectedProductModal.slug || selectedProductModal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+            : category && category !== 'All'
+              ? `https://ncloud.co.ug/shop?category=${encodeURIComponent(category)}`
+              : "https://ncloud.co.ug/shop"
+        }
+        ogTitle={
+          selectedProductModal
+            ? `${selectedProductModal.name} | Nova Cloud Uganda Store`
+            : "Nova Cloud Online Shop Uganda | Cloud VPS, Enterprise ERP & IT Hardware"
+        }
+        ogDescription={
+          selectedProductModal
+            ? `Buy ${selectedProductModal.name} in Uganda. Local UGX pricing, instant checkout via MTN Mobile Money & Airtel Money.`
+            : "Uganda's official sovereign cloud and IT store. Instant deployment for Cloud VPS, Corporate Email, QuickBooks ERP, WiFi Passes, and Networking Hardware in Kampala."
+        }
+        ogImage={selectedProductModal ? selectedProductModal.image_url : undefined}
+        geoRegion="UG-C"
+        geoPlacename="Kampala, Wakiso, Central Region, Uganda"
+        geoPosition="0.3156;32.5811"
+        icbm="0.3156, 32.5811"
+        targetCountry="UG"
+        schemaJson={selectedProductModal ? selectedProductSchema : shopSchema}
       />
       <div className="container">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(30, 58, 138, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ display: 'inline-block', padding: '0.25rem 0.85rem', borderRadius: '999px', background: 'rgba(30, 58, 138, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
             Official Nova Cloud Store • Kampala, Uganda
           </div>
-          <h1 style={{ fontSize: '2.1rem', marginTop: '0.2rem' }}>Nova Cloud Shop: Infrastructure, Enterprise ERP & IT Solutions</h1>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0' }}>
-            Explore enterprise cloud hosting, high-speed WiFi vouchers, QuickBooks ERP licenses, and carrier-grade IT networking hardware with localized sovereign delivery in Uganda.
+          <h1 style={{ fontSize: '2.1rem', marginTop: '0.2rem', lineHeight: '1.25' }}>Nova Cloud Shop: Sovereign Cloud, Enterprise ERP & IT Hardware</h1>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0', fontSize: '1rem', lineHeight: '1.6' }}>
+            Uganda's verified online IT store for high-speed Cloud VPS, carrier-grade colocation racks, QuickBooks ERP licenses, and MikroTik networking hardware with localized delivery across Kampala & nationwide Uganda.
           </p>
+        </div>
+
+        {/* Uganda Geo-Location & Trust Highlights Ribbon */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gap: '1rem',
+          marginBottom: '2rem',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '16px',
+          padding: '1.25rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--accent-cyan)' }}>
+              <Server size={22} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-main)' }}>Sovereign Uganda Datacenter</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Direct UIXP Peering in Kampala (&lt;5ms latency)</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--accent-emerald)' }}>
+              <CreditCard size={22} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-main)' }}>MTN MoMo & Airtel Money</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Automated instant checkout in UGX (*165# / *185#)</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f59e0b' }}>
+              <Truck size={22} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-main)' }}>Same-Day Dispatch Kampala</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Nationwide delivery across all Uganda districts</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--primary)' }}>
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-main)' }}>Certified IT & Tax Ready</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Uganda URA EFRIS compatible ERP & 24/7 NOC</div>
+            </div>
+          </div>
         </div>
 
         {/* Filter & Search Bar */}
@@ -314,24 +602,32 @@ export default function ShopPage({ setActivePage }) {
           borderRadius: '16px',
           border: '1px solid var(--border-color)'
         }}>
-          {/* Category Tabs */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {/* Category Tabs with Crawlable Links */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }} aria-label="Shop Categories">
             {categories.map(cat => (
-              <button
+              <a
                 key={cat}
-                onClick={() => setCategory(cat)}
+                href={`/shop?category=${encodeURIComponent(cat)}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSelectCategory(cat);
+                }}
                 style={{
+                  textDecoration: 'none',
                   padding: '0.5rem 1rem',
                   borderRadius: '999px',
                   fontSize: '0.85rem',
                   fontWeight: '600',
                   background: category === cat ? 'var(--primary)' : 'var(--bg-main)',
                   color: category === cat ? '#fff' : 'var(--text-main)',
-                  border: '1px solid var(--border-color)'
+                  border: '1px solid var(--border-color)',
+                  display: 'inline-block',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 {cat}
-              </button>
+              </a>
             ))}
           </div>
 
@@ -369,10 +665,15 @@ export default function ShopPage({ setActivePage }) {
                 return (
                   <div key={prod.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: isOutOfStock ? 0.85 : 1 }}>
                     
-                    <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => openProductModal(prod)}>
+                    <a 
+                      href={`/shop?item=${prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                      style={{ position: 'relative', cursor: 'pointer', display: 'block', textDecoration: 'none' }} 
+                      onClick={(e) => { e.preventDefault(); openProductModal(prod); }}
+                      title={`View specifications for ${prod.name}`}
+                    >
                       <img
                         src={prod.image_url}
-                        alt={prod.name}
+                        alt={`${prod.name} - Nova Cloud Uganda`}
                         loading="lazy"
                         decoding="async"
                         style={{ width: '100%', height: '200px', objectFit: 'cover', filter: isOutOfStock ? 'grayscale(30%)' : 'none' }}
@@ -382,7 +683,7 @@ export default function ShopPage({ setActivePage }) {
                           Out of Stock
                         </div>
                       )}
-                    </div>
+                    </a>
 
                     <div style={{ padding: '1.35rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                       
@@ -401,11 +702,15 @@ export default function ShopPage({ setActivePage }) {
                         )}
                       </div>
 
-                      <h3
-                        onClick={() => openProductModal(prod)}
-                        style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: '1.3', fontWeight: '800', cursor: 'pointer' }}
-                      >
-                        {prod.name}
+                      <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: '1.3', fontWeight: '800' }}>
+                        <a
+                          href={`/shop?item=${prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                          onClick={(e) => { e.preventDefault(); openProductModal(prod); }}
+                          style={{ color: 'inherit', textDecoration: 'none', cursor: 'pointer' }}
+                          title={`${prod.name} in Kampala, Uganda`}
+                        >
+                          {prod.name}
+                        </a>
                       </h3>
 
                       {isWifiVoucherItem(prod) && (
@@ -595,6 +900,132 @@ export default function ShopPage({ setActivePage }) {
             )}
           </>
         )}
+
+        {/* Why Buy from Nova Cloud Uganda - SEO Geo Content & Trust Grid */}
+        <section style={{ marginTop: '5rem', paddingTop: '3.5rem', borderTop: '1px solid var(--border-color)' }}>
+          <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 2.5rem' }}>
+            <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-emerald)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Uganda's Sovereign Infrastructure Advantage
+            </div>
+            <h2 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: '1.3' }}>
+              Why Ugandan Enterprises & Tech Teams Choose Nova Cloud
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.5rem', lineHeight: '1.6' }}>
+              Built specifically for Uganda's regulatory compliance, currency stability, and network ecosystem.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', marginBottom: '4rem' }}>
+            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-cyan)' }}>
+                <Server size={20} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>Kampala Sovereign Datacenter & UIXP</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
+                Data stays strictly within Uganda's sovereign borders. Direct fiber interconnects with the Uganda Internet Exchange Point (UIXP) guarantee single-digit millisecond latency across MTN, Airtel, and local ISPs.
+              </p>
+            </div>
+
+            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-emerald)' }}>
+                <CreditCard size={20} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>UGX Pricing & Instant Mobile Money</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
+                Zero foreign currency exchange risk. Settle orders instantly in Ugandan Shillings (UGX) via MTN Mobile Money (*165#), Airtel Money (*185#), Stanbic Bank wire, or local Visa and Mastercard.
+              </p>
+            </div>
+
+            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                <Truck size={20} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>Same-Day Dispatch & Delivery</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
+                Rapid fulfillment for physical servers, MikroTik routers, SFP modules, and racks within Kampala, Wakiso, and Entebbe. Reliable nationwide courier coverage across all districts of Uganda.
+              </p>
+            </div>
+
+            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                <ShieldCheck size={20} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>URA EFRIS & Local Enterprise Support</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', margin: 0 }}>
+                QuickBooks Enterprise and ERP software deployments are configured to support Uganda Revenue Authority (URA) EFRIS fiscalization, withholding tax, and local VAT compliance.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Uganda IT Store & Local Cloud FAQ Section */}
+        <section style={{ marginBottom: '4rem' }}>
+          <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 2.5rem' }}>
+            <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Customer Support & Buyer Guide
+            </div>
+            <h2 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: '1.3' }}>
+              Frequently Asked Questions (Uganda IT Store & Local Cloud)
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.5rem', lineHeight: '1.6' }}>
+              Everything you need to know about purchasing, local payments, hardware shipping, and server hosting in Uganda.
+            </p>
+          </div>
+
+          <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {[
+              {
+                q: "How can I pay for Nova Cloud servers, vouchers, and IT hardware in Uganda?",
+                a: "Nova Cloud supports instant automated payments via MTN Mobile Money (*165#) and Airtel Money (*185#), as well as Visa, Mastercard, and direct Ugandan bank wire transfers in UGX and USD. Your invoice and receipts are automatically generated in UGX."
+              },
+              {
+                q: "Where are Nova Cloud Edge VPS servers hosted?",
+                a: "All Nova Cloud VPS instances, colocation racks, and email servers are hosted in sovereign Tier III datacenters located in Kampala, Uganda, directly interconnected with the Uganda Internet Exchange Point (UIXP) for ultra-low single-digit latency across all domestic telecom networks."
+              },
+              {
+                q: "How fast is delivery of physical IT equipment and server hardware across Uganda?",
+                a: "Physical equipment (MikroTik routers, server accessories, colocation hardware) is dispatched same-day within Kampala and Wakiso, and delivered within 24 to 48 hours to all districts across Uganda. Digital products like Cloud VPS and WiFi vouchers activate immediately upon payment confirmation."
+              },
+              {
+                q: "Are QuickBooks Enterprise software licenses customized for Uganda tax compliance?",
+                a: "Yes. Our QuickBooks Enterprise solutions are official genuine licenses bundled with local Uganda VAT, withholding tax settings, and URA EFRIS compliance configuration by certified ERP engineers with on-site or remote support."
+              }
+            ].map((faq, idx) => (
+              <div 
+                key={idx}
+                className="glass-card"
+                style={{ 
+                  padding: '1.25rem 1.5rem',
+                  cursor: 'pointer',
+                  borderRadius: '14px',
+                  border: openFaq === idx ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => toggleFaq(idx)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '700', margin: 0, color: openFaq === idx ? 'var(--primary)' : 'var(--text-main)', lineHeight: '1.4' }}>
+                    {faq.q}
+                  </h3>
+                  <ChevronDown 
+                    size={18} 
+                    style={{ 
+                      transform: openFaq === idx ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                      flexShrink: 0,
+                      color: 'var(--text-muted)'
+                    }} 
+                  />
+                </div>
+                {openFaq === idx && (
+                  <p style={{ marginTop: '0.85rem', marginBottom: 0, color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.7', borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem' }}>
+                    {faq.a}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* FULL PRODUCT SPECIFICATIONS & DETAILS MODAL */}
         {selectedProductModal && (

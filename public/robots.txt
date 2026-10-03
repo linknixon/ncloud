@@ -10,6 +10,7 @@ Allow: /subscription
 Allow: /contact
 Allow: /news
 Allow: /jobs
+Allow: /events
 Allow: /verify
 Allow: /terms
 Allow: /privacy

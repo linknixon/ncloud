@@ -9,6 +9,14 @@ export default function SEO({
   ogDescription, 
   ogImage, 
   ogType = 'website',
+  ogUrl,
+  ogLocale = 'en_UG',
+  geoRegion = 'UG-C',
+  geoPlacename = 'Kampala, Wakiso, Central Region, Uganda',
+  geoPosition = '0.3156;32.5811',
+  icbm = '0.3156, 32.5811',
+  targetCountry = 'UG',
+  hreflangs,
   schemaJson 
 }) {
   useEffect(() => {
@@ -77,6 +85,25 @@ export default function SEO({
       ogTypeTag.setAttribute('content', ogType);
     }
 
+    const currentUrl = ogUrl || canonical || (typeof window !== 'undefined' ? window.location.href : 'https://ncloud.co.ug/');
+    let ogUrlTag = document.querySelector('meta[property="og:url"]');
+    if (!ogUrlTag) {
+      ogUrlTag = document.createElement('meta');
+      ogUrlTag.setAttribute('property', 'og:url');
+      document.head.appendChild(ogUrlTag);
+    }
+    ogUrlTag.setAttribute('content', currentUrl);
+
+    if (ogLocale) {
+      let ogLocaleTag = document.querySelector('meta[property="og:locale"]');
+      if (!ogLocaleTag) {
+        ogLocaleTag = document.createElement('meta');
+        ogLocaleTag.setAttribute('property', 'og:locale');
+        document.head.appendChild(ogLocaleTag);
+      }
+      ogLocaleTag.setAttribute('content', ogLocale);
+    }
+
     // 5. Twitter Card Tags
     if (ogTitleContent) {
       let twTitle = document.querySelector('meta[name="twitter:title"]');
@@ -109,7 +136,46 @@ export default function SEO({
       canonicalLink.setAttribute('href', canonical);
     }
 
-    // 7. Dynamic JSON-LD Structured Data
+    // 7. Geo-Targeting Metadata for Uganda
+    const setMetaTag = (attrName, attrValue, content) => {
+      let tag = document.querySelector(`meta[${attrName}="${attrValue}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attrName, attrValue);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    if (geoRegion) setMetaTag('name', 'geo.region', geoRegion);
+    if (geoPlacename) setMetaTag('name', 'geo.placename', geoPlacename);
+    if (geoPosition) setMetaTag('name', 'geo.position', geoPosition);
+    if (icbm) setMetaTag('name', 'ICBM', icbm);
+    if (targetCountry) {
+      setMetaTag('name', 'target_country', targetCountry);
+      setMetaTag('name', 'geo.country', targetCountry);
+      setMetaTag('name', 'country', 'Uganda');
+    }
+
+    // 8. Hreflang alternates
+    const hreflangConfigs = hreflangs || [
+      { lang: 'en-ug', href: canonical || currentUrl },
+      { lang: 'en', href: canonical || currentUrl },
+      { lang: 'x-default', href: canonical || currentUrl }
+    ];
+
+    hreflangConfigs.forEach(item => {
+      let hrefTag = document.querySelector(`link[rel="alternate"][hreflang="${item.lang}"]`);
+      if (!hrefTag) {
+        hrefTag = document.createElement('link');
+        hrefTag.rel = 'alternate';
+        hrefTag.setAttribute('hreflang', item.lang);
+        document.head.appendChild(hrefTag);
+      }
+      hrefTag.setAttribute('href', item.href);
+    });
+
+    // 9. Dynamic JSON-LD Structured Data
     if (schemaJson) {
       let scriptTag = document.getElementById('dynamic-page-schema');
       if (!scriptTag) {
@@ -127,7 +193,25 @@ export default function SEO({
         scriptTag.remove();
       }
     };
-  }, [title, description, keywords, canonical, ogTitle, ogDescription, ogImage, ogType, schemaJson]);
+  }, [
+    title, 
+    description, 
+    keywords, 
+    canonical, 
+    ogTitle, 
+    ogDescription, 
+    ogImage, 
+    ogType, 
+    ogUrl, 
+    ogLocale, 
+    geoRegion, 
+    geoPlacename, 
+    geoPosition, 
+    icbm, 
+    targetCountry, 
+    hreflangs, 
+    schemaJson
+  ]);
 
   return null;
 }

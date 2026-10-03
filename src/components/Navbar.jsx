@@ -135,14 +135,15 @@ export default function Navbar({ activePage, setActivePage }) {
   };
 
   const navItems = [
-    { id: 'home', label: 'Home' },
-    { id: 'about', label: 'About' },
-    { id: 'services', label: 'Services' },
-    { id: 'shop', label: 'Shop' },
-    { id: 'jobs', label: 'Careers' },
-    { id: 'events', label: 'Events' },
-    { id: 'subscription', label: 'Hosting' },
-    { id: 'contact', label: 'Contact' }
+    { id: 'home', label: 'Home', path: '/' },
+    { id: 'about', label: 'About', path: '/about' },
+    { id: 'services', label: 'Services', path: '/services' },
+    { id: 'shop', label: 'Shop', path: '/shop' },
+    { id: 'jobs', label: 'Careers', path: '/jobs' },
+    { id: 'events', label: 'Events', path: '/events' },
+    { id: 'subscription', label: 'Hosting', path: '/subscription' },
+    { id: 'news', label: 'News', path: '/news' },
+    { id: 'contact', label: 'Contact', path: '/contact' }
   ];
 
   return (
@@ -372,9 +373,11 @@ export default function Navbar({ activePage, setActivePage }) {
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '76px' }}>
         
         {/* Brand Logo */}
-        <div 
-          onClick={() => { setActivePage('home'); setMobileOpen(false); }}
-          style={{ cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+        <a 
+          href="/"
+          onClick={(e) => { e.preventDefault(); setActivePage('home'); setMobileOpen(false); }}
+          style={{ cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}
+          title="Nova Cloud Edges Uganda - Home"
         >
           {siteLogo ? (
             <img src={siteLogo} alt="Nova Cloud Edges Logo" style={{ height: '44px', maxWidth: '180px', objectFit: 'contain' }} />
@@ -388,14 +391,16 @@ export default function Navbar({ activePage, setActivePage }) {
               </div>
             </div>
           )}
-        </div>
+        </a>
 
         {/* Desktop Nav Links */}
-        <nav style={{ display: 'flex', gap: '1.1rem', alignItems: 'center' }} className="desktop-nav">
+        <nav style={{ display: 'flex', gap: '0.85rem', alignItems: 'center' }} className="desktop-nav" aria-label="Main Navigation">
           {navItems.map(item => (
-            <button
+            <a
               key={item.id}
-              onClick={() => {
+              href={item.path}
+              onClick={(e) => {
+                e.preventDefault();
                 if (item.id === 'admin' && !user) {
                   openAuthModal('login');
                 } else {
@@ -403,22 +408,27 @@ export default function Navbar({ activePage, setActivePage }) {
                 }
               }}
               style={{
+                textDecoration: 'none',
                 background: 'none',
                 color: activePage === item.id ? 'var(--primary)' : 'var(--text-main)',
                 fontWeight: activePage === item.id ? '700' : '500',
-                fontSize: '0.925rem',
-                padding: '0.4rem 0.5rem',
+                fontSize: '0.88rem',
+                padding: '0.35rem 0.45rem',
                 borderRadius: '6px',
                 whiteSpace: 'nowrap',
-                borderBottom: activePage === item.id ? '2px solid var(--primary)' : '2px solid transparent'
+                borderBottom: activePage === item.id ? '2px solid var(--primary)' : '2px solid transparent',
+                transition: 'all 0.2s ease',
+                display: 'inline-block'
               }}
             >
               {item.label}
-            </button>
+            </a>
           ))}
 
-          <button
-            onClick={() => {
+          <a
+            href={user ? '/admin' : '/login'}
+            onClick={(e) => {
+              e.preventDefault();
               if (!user) {
                 openAuthModal('login');
               } else {
@@ -426,6 +436,7 @@ export default function Navbar({ activePage, setActivePage }) {
               }
             }}
             style={{
+              textDecoration: 'none',
               background: 'rgba(124, 58, 237, 0.1)',
               color: 'var(--primary)',
               border: '1px solid rgba(124, 58, 237, 0.3)',
@@ -440,7 +451,7 @@ export default function Navbar({ activePage, setActivePage }) {
             }}
           >
             <LayoutDashboard size={15} /> Portal
-          </button>
+          </a>
         </nav>
 
         {/* Actions (Cart, Theme, Auth / Circular Profile) */}
@@ -958,20 +969,27 @@ export default function Navbar({ activePage, setActivePage }) {
           </div>
 
           {navItems.map(item => (
-            <button
+            <a
               key={item.id}
-              onClick={() => { setActivePage(item.id); setMobileOpen(false); }}
+              href={item.path}
+              onClick={(e) => { 
+                e.preventDefault(); 
+                setActivePage(item.id); 
+                setMobileOpen(false); 
+              }}
               style={{
+                textDecoration: 'none',
                 textAlign: 'left',
                 padding: '0.75rem',
                 borderRadius: '8px',
                 background: activePage === item.id ? 'var(--bg-card-hover)' : 'transparent',
                 color: activePage === item.id ? 'var(--primary)' : 'var(--text-main)',
-                fontWeight: '600'
+                fontWeight: '600',
+                display: 'block'
               }}
             >
               {item.label}
-            </button>
+            </a>
           ))}
           
           {!user && (

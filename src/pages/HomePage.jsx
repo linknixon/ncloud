@@ -193,12 +193,22 @@ export default function HomePage({ setActivePage }) {
                   </p>
                   
                   <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button onClick={() => handleSlideNav(slide.btn1_link || 'services')} className="btn-primary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem' }}>
+                    <a 
+                      href={`/${slide.btn1_link || 'services'}`}
+                      onClick={(e) => { e.preventDefault(); handleSlideNav(slide.btn1_link || 'services'); }} 
+                      className="btn-primary" 
+                      style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
                       {slide.btn1_text || 'Explore Services'} <ArrowRight size={20} />
-                    </button>
-                    <button onClick={() => handleSlideNav(slide.btn2_link || 'shop')} className="btn-secondary" style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)' }}>
+                    </a>
+                    <a 
+                      href={`/${slide.btn2_link || 'shop'}`}
+                      onClick={(e) => { e.preventDefault(); handleSlideNav(slide.btn2_link || 'shop'); }} 
+                      className="btn-secondary" 
+                      style={{ padding: '1.05rem 2.5rem', fontSize: '1.1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.4)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
                       <ShoppingBag size={20} /> {slide.btn2_text || 'Colocation & Software'}
-                    </button>
+                    </a>
                   </div>
 
                 </div>
@@ -336,12 +346,13 @@ export default function HomePage({ setActivePage }) {
               </p>
             </div>
 
-            <button
-              onClick={() => setActivePage('about')}
-              style={{ background: '#ffffff', color: 'var(--primary)', fontWeight: '800', padding: '1.1rem 2.25rem', borderRadius: '12px', fontSize: '1.05rem', boxShadow: '0 6px 20px rgba(0,0,0,0.3)' }}
+            <a
+              href="/about"
+              onClick={(e) => { e.preventDefault(); setActivePage('about'); }}
+              style={{ background: '#ffffff', color: 'var(--primary)', fontWeight: '800', padding: '1.1rem 2.25rem', borderRadius: '12px', fontSize: '1.05rem', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
             >
               Consult Cyber Security Team <ArrowRight size={20} />
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -354,15 +365,32 @@ export default function HomePage({ setActivePage }) {
             <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', marginTop: '0.4rem', marginBottom: '1.25rem' }}>
               Enterprise software solutions, virtual private servers, and datacenter colocation.
             </p>
-            <button onClick={() => setActivePage('shop')} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}>
+            <a 
+              href="/shop" 
+              onClick={(e) => { e.preventDefault(); setActivePage('shop'); }} 
+              className="btn-secondary" 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto', textDecoration: 'none' }}
+            >
               View Digital Shop <ArrowRight size={18} />
-            </button>
+            </a>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.25rem' }}>
             {featuredProducts.map(prod => (
               <div key={prod.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <img src={prod.image_url} alt={prod.name} style={{ width: '100%', height: '220px', objectFit: 'cover' }} />
+                <a 
+                  href={`/shop?item=${prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActivePage('shop');
+                    const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    window.history.pushState({}, '', `/shop?item=${slug}`);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  style={{ display: 'block', textDecoration: 'none' }}
+                >
+                  <img src={prod.image_url} alt={prod.name} style={{ width: '100%', height: '220px', objectFit: 'cover' }} />
+                </a>
                 <div style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
                     <span className="badge-tag" style={{ fontSize: '0.75rem' }}>{prod.badge}</span>
@@ -370,13 +398,43 @@ export default function HomePage({ setActivePage }) {
                       {prod.currency} {prod.price.toLocaleString()} / mo
                     </span>
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.6rem', lineHeight: '1.35' }}>{prod.name}</h3>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.6rem', lineHeight: '1.35' }}>
+                    <a 
+                      href={`/shop?item=${prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setActivePage('shop');
+                        const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                        window.history.pushState({}, '', `/shop?item=${slug}`);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }}
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      {prod.name}
+                    </a>
+                  </h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', flex: 1, marginBottom: '1.75rem', lineHeight: '1.6' }}>
                     {prod.short_desc || prod.description || prod.desc}
                   </p>
-                  <button onClick={() => addToCart(prod)} className="btn-primary" style={{ justifyContent: 'center', padding: '0.9rem' }}>
-                    <ShoppingBag size={20} /> Add to Cart
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
+                    <a 
+                      href={`/shop?item=${prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setActivePage('shop');
+                        const slug = prod.slug || prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                        window.history.pushState({}, '', `/shop?item=${slug}`);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }}
+                      className="btn-secondary" 
+                      style={{ flex: 1, justifyContent: 'center', padding: '0.85rem', textDecoration: 'none', fontSize: '0.9rem' }}
+                    >
+                      Details
+                    </a>
+                    <button onClick={() => addToCart(prod)} className="btn-primary" style={{ flex: 1.4, justifyContent: 'center', padding: '0.85rem' }}>
+                      <ShoppingBag size={18} /> Add to Cart
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -464,9 +522,14 @@ export default function HomePage({ setActivePage }) {
             <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', marginTop: '0.4rem', marginBottom: '1.25rem' }}>
               Technical advisories, enterprise cloud updates, and ISO compliance releases.
             </p>
-            <button onClick={() => setActivePage('about')} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}>
+            <a 
+              href="/news" 
+              onClick={(e) => { e.preventDefault(); setActivePage('news'); }} 
+              className="btn-secondary" 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto', textDecoration: 'none' }}
+            >
               View More News <ArrowRight size={18} />
-            </button>
+            </a>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.25rem' }}>

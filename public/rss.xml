@@ -3,11 +3,19 @@
   <channel>
     <title>Nova Cloud Edges (U) Limited — Tech Advisories &amp; Product Updates</title>
     <link>https://ncloud.co.ug/</link>
-    <description>Official RSS Feed for Nova Cloud Edges — #1 Cloud Infrastructure, Zimbra Email, QuickBooks ERP, and Cybersecurity Updates in Uganda and Africa.</description>
-    <language>en-us</language>
+    <description>Official RSS Feed for Nova Cloud Edges — #1 Sovereign Cloud Infrastructure, Online IT Store, Zimbra Email, QuickBooks ERP, and Cybersecurity Updates in Uganda and East Africa.</description>
+    <language>en-ug</language>
     <copyright>Copyright 2026 Nova Cloud Edges (U) Limited</copyright>
-    <lastBuildDate>Sat, 22 Aug 2026 18:00:00 EAT</lastBuildDate>
+    <lastBuildDate>Sat, 03 Oct 2026 09:00:00 EAT</lastBuildDate>
     <atom:link href="https://ncloud.co.ug/rss.xml" rel="self" type="application/rss+xml" />
+
+    <item>
+      <title>Nova Cloud Launches Online IT Store with Automated MTN &amp; Airtel MoMo in Uganda</title>
+      <link>https://ncloud.co.ug/shop</link>
+      <guid>https://ncloud.co.ug/news/4</guid>
+      <pubDate>Sat, 03 Oct 2026 08:00:00 EAT</pubDate>
+      <description>Ugandans can now order Cloud VPS hosting, Tier III colocation rack space, QuickBooks Enterprise licenses, and WiFi hotspot access passes online with instant automated settlement in UGX via MTN Mobile Money (*165#) and Airtel Money (*185#).</description>
+    </item>
 
     <item>
       <title>Nova Cloud Edges Achieves ISO/IEC 27001 Security Certification</title>
