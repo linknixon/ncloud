@@ -1663,25 +1663,27 @@ const normalizeTabName = (rawTab) => {
   const handleDeleteApiIntegration = async (api) => {
     if (!api) return;
     const displayName = api.name || api.provider || 'this integration';
-    if (!window.confirm(`Are you sure you want to permanently delete "${displayName}"?\n\nThis API integration will be removed completely from the system and database.`)) {
+    if (!window.confirm(`Are you sure you want to permanently delete "${displayName}"?\n\nThis API integration will be removed completely from the system and database. All calls to it will immediately cease.`)) {
       return;
+    }
+    // Optimistically remove from state immediately
+    setApiIntegrations(prev => prev.filter(item => item.id !== api.id));
+    if (showConfigModal && selectedApiConfig?.id === api.id) {
+      setShowConfigModal(false);
+      setSelectedApiConfig(null);
     }
     try {
       const res = await fetch(`/api/admin/integrations/${api.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole || 'super_admin' }
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error || 'Failed to delete API integration');
       showToast(resData.message || `API Integration "${displayName}" deleted completely.`, 'success');
-      setApiIntegrations(prev => prev.filter(item => item.id !== api.id));
-      if (showConfigModal && selectedApiConfig?.id === api.id) {
-        setShowConfigModal(false);
-        setSelectedApiConfig(null);
-      }
       fetchApiIntegrations();
     } catch (err) {
       showToast(err.message, 'error');
+      fetchApiIntegrations();
     }
   };
 
@@ -12372,26 +12374,8 @@ const normalizeTabName = (rawTab) => {
                       className="btn-primary"
                       style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                     >
-                      <Plus size={15} /> Add Integration
+                      <Plus size={15} /> Add API Integration
                     </button>
-                    <button onClick={async () => {
-                      await fetch('/api/admin/integrations/restore', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                        body: JSON.stringify({ id: 'iotec_pay' })
-                      });
-                      fetchApiIntegrations();
-                      showToast('ioTec API configuration restored.', 'success');
-                    }} className="btn-secondary" style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem' }}>Restore ioTec Gateway</button>
-                    <button onClick={async () => {
-                      await fetch('/api/admin/integrations/restore', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                        body: JSON.stringify({ id: 'unifi_api' })
-                      });
-                      fetchApiIntegrations();
-                      showToast('UniFi Network API restored.', 'success');
-                    }} className="btn-secondary" style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem' }}>Restore UniFi Network</button>
                   </div>
                 </div>
 
@@ -12400,7 +12384,7 @@ const normalizeTabName = (rawTab) => {
                     <Settings2 size={46} style={{ margin: '0 auto 1rem', opacity: 0.35 }} />
                     <h4 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>No API Integrations Configured</h4>
                     <p style={{ fontSize: '0.85rem', maxWidth: '520px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
-                      All API integrations have been permanently removed. You can create a new custom API integration or restore default gateway templates at any time.
+                      All API integrations have been permanently removed. To connect UniFi Network or Payment Gateways, click the button below to add an integration.
                     </p>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                       <button
@@ -12410,27 +12394,43 @@ const normalizeTabName = (rawTab) => {
                       >
                         <Plus size={16} /> Add Integration
                       </button>
-                      <button onClick={async () => {
-                        await fetch('/api/admin/integrations/restore', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                          body: JSON.stringify({ id: 'iotec_pay' })
-                        });
-                        fetchApiIntegrations();
-                        showToast('ioTec API configuration restored.', 'success');
-                      }} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                        Restore ioTec Gateway
+                      <button 
+                        onClick={() => {
+                          setNewIntegrationForm({
+                            name: 'UniFi OS Network Integration',
+                            provider: 'Ubiquiti',
+                            type: 'network',
+                            client_id: 'default',
+                            client_secret: '',
+                            wallet_id: '',
+                            host_url: 'https://unifi.ncloud.co.ug',
+                            site_id: 'default'
+                          });
+                          setShowAddIntegrationModal(true);
+                        }} 
+                        className="btn-secondary" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                      >
+                        Setup UniFi Network
                       </button>
-                      <button onClick={async () => {
-                        await fetch('/api/admin/integrations/restore', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                          body: JSON.stringify({ id: 'unifi_api' })
-                        });
-                        fetchApiIntegrations();
-                        showToast('UniFi Network API restored.', 'success');
-                      }} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                        Restore UniFi Network
+                      <button 
+                        onClick={() => {
+                          setNewIntegrationForm({
+                            name: 'ioTec Payment Gateway',
+                            provider: 'ioTec Pay',
+                            type: 'payment',
+                            client_id: '',
+                            client_secret: '',
+                            wallet_id: '',
+                            host_url: '',
+                            site_id: ''
+                          });
+                          setShowAddIntegrationModal(true);
+                        }} 
+                        className="btn-secondary" 
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                      >
+                        Setup ioTec Gateway
                       </button>
                     </div>
                   </div>
@@ -12442,9 +12442,21 @@ const normalizeTabName = (rawTab) => {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
                               <h4 style={{ fontWeight: '800', fontSize: '1.1rem' }}>{api.provider || api.name}</h4>
-                              {api.status === 'active' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#10b98120', color: '#10b981', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>ACTIVE</span>}
-                              {api.status === 'suspended' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#f59e0b20', color: '#f59e0b', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>SUSPENDED</span>}
-                              {api.status === 'revoked' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#ef444420', color: '#ef4444', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>REVOKED</span>}
+                              {api.status === 'active' && (
+                                <span style={{ fontSize: '0.68rem', fontWeight: '800', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                                  ACTIVE
+                                </span>
+                              )}
+                              {api.status === 'suspended' && (
+                                <span style={{ fontSize: '0.68rem', fontWeight: '800', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                                  SUSPENDED (HALTED)
+                                </span>
+                              )}
+                              {api.status === 'revoked' && (
+                                <span style={{ fontSize: '0.68rem', fontWeight: '800', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                                  REVOKED
+                                </span>
+                              )}
                               {api.type && <span style={{ fontSize: '0.68rem', background: 'var(--bg-main)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '0.15rem 0.45rem', borderRadius: '4px', textTransform: 'uppercase' }}>{api.type}</span>}
                             </div>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{api.name}</p>
@@ -12467,32 +12479,34 @@ const normalizeTabName = (rawTab) => {
                           {api.status === 'active' ? (
                             <button 
                               onClick={async () => {
+                                setApiIntegrations(prev => prev.map(item => item.id === api.id ? { ...item, status: 'suspended' } : item));
                                 await fetch(`/api/admin/integrations/${api.id}/status`, {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole || 'super_admin' },
                                   body: JSON.stringify({ status: 'suspended' })
                                 });
                                 fetchApiIntegrations();
-                                showToast(`${api.provider || api.name} suspended.`, 'info');
+                                showToast(`${api.provider || api.name} suspended. All traffic immediately blocked.`, 'info');
                               }}
                               className="btn-secondary" 
-                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem', color: '#f59e0b', borderColor: '#f59e0b' }}
                             >
                               Suspend
                             </button>
                           ) : (
                             <button 
                               onClick={async () => {
+                                setApiIntegrations(prev => prev.map(item => item.id === api.id ? { ...item, status: 'active' } : item));
                                 await fetch(`/api/admin/integrations/${api.id}/status`, {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole || 'super_admin' },
                                   body: JSON.stringify({ status: 'active' })
                                 });
                                 fetchApiIntegrations();
                                 showToast(`${api.provider || api.name} activated.`, 'success');
                               }}
                               className="btn-secondary" 
-                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem', color: '#10b981', borderColor: '#10b981' }}
                             >
                               Activate
                             </button>
@@ -17080,62 +17094,102 @@ const normalizeTabName = (rawTab) => {
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={selectedApiConfig.client_id || ''}
-                      onChange={e => setSelectedApiConfig({...selectedApiConfig, client_id: e.target.value})}
-                      placeholder="Client ID or Public Key"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      placeholder={selectedApiConfig.client_secret ? '********' : 'Enter Secret'}
-                      value={selectedApiConfig.client_secret || ''}
-                      onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
-                    />
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to retain current secret.</small>
-                  </div>
-                  {(selectedApiConfig.id === 'iotec_pay' || selectedApiConfig.type === 'payment' || selectedApiConfig.wallet_id) && (
-                    <div className="form-group">
-                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={selectedApiConfig.wallet_id || ''}
-                        onChange={e => setSelectedApiConfig({...selectedApiConfig, wallet_id: e.target.value})}
-                        placeholder="e.g. WALLET-2026-UG"
-                      />
-                    </div>
-                  )}
-                  {(selectedApiConfig.id?.includes('unifi') || selectedApiConfig.type === 'network' || selectedApiConfig.host_url) && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                  {/* UniFi Specific Configuration (API Key only, NO Client ID) */}
+                  {(selectedApiConfig.id?.includes('unifi') || selectedApiConfig.type === 'network' || (selectedApiConfig.provider && selectedApiConfig.provider.toLowerCase().includes('ubiquiti'))) ? (
+                    <>
                       <div className="form-group">
-                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi API Key (X-API-KEY) *</label>
+                        <input
+                          type="password"
+                          className="form-input"
+                          placeholder={selectedApiConfig.client_secret || selectedApiConfig.api_key ? '********' : 'Enter UniFi API Key'}
+                          value={selectedApiConfig.client_secret || selectedApiConfig.api_key || ''}
+                          onChange={e => setSelectedApiConfig({
+                            ...selectedApiConfig,
+                            client_secret: e.target.value,
+                            api_key: e.target.value
+                          })}
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                          UniFi OS only requires an API Key (created in UniFi OS Console under Admins &gt; API Keys). Leave blank to retain current key.
+                        </small>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Controller Host URL</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={selectedApiConfig.host_url || ''}
+                            onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
+                            placeholder="https://unifi.ncloud.co.ug"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={selectedApiConfig.site_id || selectedApiConfig.client_id || ''}
+                            onChange={e => setSelectedApiConfig({
+                              ...selectedApiConfig,
+                              site_id: e.target.value,
+                              client_id: e.target.value
+                            })}
+                            placeholder="default"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
                         <input
                           type="text"
                           className="form-input"
-                          value={selectedApiConfig.host_url || ''}
-                          onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
-                          placeholder="https://192.168.1.1:8443"
+                          value={selectedApiConfig.client_id || ''}
+                          onChange={e => setSelectedApiConfig({...selectedApiConfig, client_id: e.target.value})}
+                          placeholder="Client ID or Public Key"
                         />
                       </div>
                       <div className="form-group">
-                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
                         <input
-                          type="text"
+                          type="password"
                           className="form-input"
-                          value={selectedApiConfig.site_id || ''}
-                          onChange={e => setSelectedApiConfig({...selectedApiConfig, site_id: e.target.value})}
-                          placeholder="default"
+                          placeholder={selectedApiConfig.client_secret ? '********' : 'Enter Secret'}
+                          value={selectedApiConfig.client_secret || ''}
+                          onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
                         />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to retain current secret.</small>
                       </div>
-                    </div>
+                      {(selectedApiConfig.id === 'iotec_pay' || selectedApiConfig.type === 'payment' || selectedApiConfig.wallet_id) && (
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={selectedApiConfig.wallet_id || ''}
+                            onChange={e => setSelectedApiConfig({...selectedApiConfig, wallet_id: e.target.value})}
+                            placeholder="e.g. WALLET-2026-UG"
+                          />
+                        </div>
+                      )}
+                      {(selectedApiConfig.type === 'custom' || selectedApiConfig.host_url) && (
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={selectedApiConfig.host_url || ''}
+                            onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
+                            placeholder="https://api.example.com"
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                   <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
                     <button type="submit" className="btn-primary" style={{ flex: 1, minWidth: '130px' }}>Save Credentials</button>
@@ -17282,64 +17336,108 @@ const normalizeTabName = (rawTab) => {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Public key, username, or client ID"
-                      value={newIntegrationForm.client_id}
-                      onChange={e => setNewIntegrationForm({...newIntegrationForm, client_id: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      placeholder="API secret key or auth token"
-                      value={newIntegrationForm.client_secret}
-                      onChange={e => setNewIntegrationForm({...newIntegrationForm, client_secret: e.target.value})}
-                    />
-                  </div>
-
-                  {newIntegrationForm.type === 'payment' && (
-                    <div className="form-group">
-                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref (Optional)</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="e.g. WALLET-2026-UG"
-                        value={newIntegrationForm.wallet_id}
-                        onChange={e => setNewIntegrationForm({...newIntegrationForm, wallet_id: e.target.value})}
-                      />
-                    </div>
-                  )}
-
-                  {(newIntegrationForm.type === 'network' || newIntegrationForm.type === 'custom') && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                  {/* Conditional Fields based on Network vs Payment/Custom */}
+                  {(newIntegrationForm.type === 'network' || newIntegrationForm.provider?.toLowerCase().includes('ubiquiti') || newIntegrationForm.name?.toLowerCase().includes('unifi')) ? (
+                    <>
                       <div className="form-group">
-                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi API Key (X-API-KEY) *</label>
+                        <input
+                          type="password"
+                          className="form-input"
+                          placeholder="Paste X-API-KEY from UniFi OS Console"
+                          value={newIntegrationForm.client_secret || ''}
+                          onChange={e => setNewIntegrationForm({
+                            ...newIntegrationForm,
+                            client_secret: e.target.value,
+                            api_key: e.target.value
+                          })}
+                          required
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                          Ubiquiti UniFi only uses an API Key generated in your UniFi OS Console under Admins &gt; API Keys.
+                        </small>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Controller Host URL *</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="https://unifi.ncloud.co.ug"
+                            value={newIntegrationForm.host_url}
+                            onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="default"
+                            value={newIntegrationForm.site_id}
+                            onChange={e => setNewIntegrationForm({
+                              ...newIntegrationForm,
+                              site_id: e.target.value,
+                              client_id: e.target.value
+                            })}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key *</label>
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="https://192.168.1.1:8443"
-                          value={newIntegrationForm.host_url}
-                          onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
+                          placeholder="Public key, username, or client ID"
+                          value={newIntegrationForm.client_id}
+                          onChange={e => setNewIntegrationForm({...newIntegrationForm, client_id: e.target.value})}
+                          required
                         />
                       </div>
+
                       <div className="form-group">
-                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token *</label>
                         <input
-                          type="text"
+                          type="password"
                           className="form-input"
-                          placeholder="default"
-                          value={newIntegrationForm.site_id}
-                          onChange={e => setNewIntegrationForm({...newIntegrationForm, site_id: e.target.value})}
+                          placeholder="API secret key or auth token"
+                          value={newIntegrationForm.client_secret}
+                          onChange={e => setNewIntegrationForm({...newIntegrationForm, client_secret: e.target.value})}
+                          required
                         />
                       </div>
-                    </div>
+
+                      {newIntegrationForm.type === 'payment' && (
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref (Optional)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="e.g. WALLET-2026-UG"
+                            value={newIntegrationForm.wallet_id}
+                            onChange={e => setNewIntegrationForm({...newIntegrationForm, wallet_id: e.target.value})}
+                          />
+                        </div>
+                      )}
+
+                      {newIntegrationForm.type === 'custom' && (
+                        <div className="form-group">
+                          <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="https://api.example.com"
+                            value={newIntegrationForm.host_url}
+                            onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>

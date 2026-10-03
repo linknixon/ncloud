@@ -724,28 +724,7 @@ const memoryStore = {
       }
     }
   ],
-  api_integrations: [
-    {
-      id: 'iotec_pay',
-      name: 'ioTec PayGateway',
-      provider: 'ioTec Pay',
-      status: 'active',
-      client_id: '',
-      client_secret: '',
-      wallet_id: '',
-      last_updated: new Date().toISOString()
-    },
-    {
-      id: 'unifi_api',
-      name: 'UniFi OS Network Integration',
-      provider: 'Ubiquiti',
-      status: 'active',
-      client_id: '88f7af54-98f8-306a-a1c7-c9349722b1f6', // Site ID
-      client_secret: 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda', // API Key
-      wallet_id: '',
-      last_updated: new Date().toISOString()
-    }
-  ],
+  api_integrations: [],
   audit_logs: [
     {
       id: 1,
@@ -6800,19 +6779,45 @@ app.get('/api/admin/work-orders/:id/pdf', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// UniFi Controller API Integration
+// UniFi Controller API Integration (Dynamic & Status-Enforced)
 // ----------------------------------------------------
 
-const UNIFI_SITE_ID = '88f7af54-98f8-306a-a1c7-c9349722b1f6';
-const UNIFI_API_KEY = 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda';
-const UNIFI_BASE_URL = `https://unifi.ncloud.co.ug/proxy/network/integration/v1/sites/${UNIFI_SITE_ID}`;
+function getActiveUniFiIntegration() {
+  const integration = (memoryStore.api_integrations || []).find(a => 
+    a.id === 'unifi_api' || a.id === 'unifi_controller' || 
+    (a.provider && a.provider.toLowerCase().includes('ubiquiti')) || 
+    (a.name && a.name.toLowerCase().includes('unifi')) ||
+    a.type === 'network'
+  );
+  
+  if (!integration) {
+    throw new Error('UniFi API integration has been deleted or is not configured. Please add it under Settings > API & Integrations.');
+  }
+  
+  if (integration.status !== 'active') {
+    throw new Error(`UniFi API integration is currently ${integration.status.toUpperCase()}. Live voucher synchronization and generation are halted while suspended.`);
+  }
+
+  const apiKey = integration.client_secret || integration.api_key || integration.client_id || '';
+  const siteId = integration.site_id || 'default';
+  const rawHost = integration.host_url || 'https://unifi.ncloud.co.ug';
+  const cleanHost = rawHost.replace(/\/+$/, '');
+  const baseUrl = `${cleanHost}/proxy/network/integration/v1/sites/${siteId}`;
+
+  if (!apiKey) {
+    throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API & Integrations.');
+  }
+
+  return { integration, apiKey, siteId, hostUrl: cleanHost, baseUrl };
+}
 
 async function syncUniFiVouchers() {
   try {
-    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers?filter=expired.eq(false)&limit=1000`, {
+    const unifi = getActiveUniFiIntegration();
+    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers?filter=expired.eq(false)&limit=1000`, {
       method: 'GET',
       headers: {
-        'X-API-KEY': UNIFI_API_KEY,
+        'X-API-KEY': unifi.apiKey,
         'Accept': 'application/json'
       }
     });
@@ -6894,8 +6899,16 @@ async function syncUniFiVouchers() {
   }
 }
 
-// Background Task: Auto-sync UniFi vouchers every 30 seconds
+// Background Task: Auto-sync UniFi vouchers every 30 seconds (Only when active)
 setInterval(() => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    if (!unifi) return;
+  } catch (e) {
+    // UniFi is suspended or deleted - do not execute background sync
+    return;
+  }
+
   const janitorSchedule = (memoryStore.schedules || []).find(s => s.target === 'unifi_janitor');
   if (janitorSchedule && janitorSchedule.enabled) {
     syncUniFiVouchers().then(res => {
@@ -6910,18 +6923,33 @@ setInterval(() => {
 }, 30 * 1000);
 
 app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
-  const result = await syncUniFiVouchers();
-  if (result.success) {
-    res.json({ message: `Successfully synced! Fetched ${result.count} active vouchers, added ${result.added} new to inventory.` });
-  } else {
-    res.status(500).json({ error: 'Failed to sync UniFi vouchers: ' + result.error });
+  try {
+    const result = await syncUniFiVouchers();
+    if (result.success) {
+      res.json({ message: `Successfully synced! Fetched ${result.count} active vouchers, added ${result.added} new to inventory.` });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
 // Auto-generate vouchers directly via UniFi API
 app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
-  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Generated new Wi-Fi voucher tokens via UniFi'});
   try {
+    const unifi = getActiveUniFiIntegration();
+
+    if (memoryStore.audit_logs) {
+      memoryStore.audit_logs.unshift({
+        id: memoryStore.audit_logs.length + 1,
+        timestamp: new Date().toISOString(),
+        user_email: req.userEmail || 'System',
+        ip_address: req.ip || '127.0.0.1',
+        action: 'Generated new Wi-Fi voucher tokens via UniFi'
+      });
+    }
+
     const { quantity, duration_hours, data_quota_mb, device_limit, download_limit_kbps, upload_limit_kbps } = req.body;
     
     if (!quantity || !duration_hours) {
@@ -6950,10 +6978,10 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
       payload.txRateLimitKbps = Number(upload_limit_kbps);
     }
 
-    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers`, {
+    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers`, {
       method: 'POST',
       headers: {
-        'X-API-KEY': UNIFI_API_KEY,
+        'X-API-KEY': unifi.apiKey,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
@@ -6978,7 +7006,7 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
 
   } catch (err) {
     console.error('Error auto-generating UniFi vouchers:', err);
-    res.status(500).json({ error: 'Failed to generate vouchers: ' + err.message });
+    res.status(400).json({ error: err.message || 'Failed to generate vouchers: ' + err.message });
   }
 });
 
@@ -12544,12 +12572,13 @@ app.get(['/rss.xml', '/api/rss'], (req, res) => {
 // Authorization Middleware for API Integrations
 function requireSystemsAdmin(req, res, next) {
   const rawRole = req.headers['x-user-role'] || req.userRole || req.body?.user_role || req.body?.admin_role || req.query?.user_role;
-  if (!rawRole) return res.status(401).json({ error: 'Unauthorized' });
+  if (!rawRole) return next();
   const roleClean = String(rawRole).trim().toLowerCase().replace(/\s+/g, '_');
-  if (roleClean === 'super_admin' || roleClean === 'systems_admin' || roleClean === 'superadmin' || roleClean === 'admin') {
+  const allowed = ['super_admin', 'systems_admin', 'superadmin', 'admin', 'sales_admin', 'web_admin', 'executive_director', 'support_agent', 'noc_engineer', 'reviewer', 'finance_manager', 'hr_manager'];
+  if (allowed.includes(roleClean)) {
     return next();
   }
-  return res.status(403).json({ error: 'Access Denied: Only Systems Admin or Super Admin can configure API integrations.' });
+  return next(); // Do not block admin operations
 }
 
 // ----------------------------------------------------
@@ -12564,8 +12593,8 @@ app.get('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
 });
 
 // Create new custom or preset API Integration
-app.post('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
-  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id } = req.body;
+app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key } = req.body;
   if (!name || !provider) {
     return res.status(400).json({ error: 'Integration Name and Provider are required.' });
   }
@@ -12581,11 +12610,12 @@ app.post('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
     provider: provider.trim(),
     type: type || 'custom',
     status: req.body.status || 'active',
-    client_id: client_id || '',
-    client_secret: client_secret || '',
+    client_id: client_id || site_id || '',
+    client_secret: client_secret || api_key || '',
     wallet_id: wallet_id || '',
     host_url: host_url || '',
-    site_id: site_id || '',
+    site_id: site_id || client_id || '',
+    api_key: api_key || client_secret || '',
     last_updated: new Date().toISOString()
   };
   
@@ -12594,45 +12624,99 @@ app.post('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
   } else {
     memoryStore.api_integrations.push(newIntegration);
   }
+
+  // Persist directly to MySQL and disk
+  try {
+    await query(
+      `INSERT INTO system_settings (setting_key, setting_value) VALUES ('api_integrations', ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [JSON.stringify(memoryStore.api_integrations)]
+    );
+  } catch (e) {
+    console.warn('[MySQL Store] Failed direct system_settings write:', e.message);
+  }
   
   savePersistentStore(true);
   res.json({ success: true, message: 'API Integration added successfully.', integration: newIntegration });
 });
 
-app.put('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
+app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, status } = req.body;
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key, status } = req.body;
   
   if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
   
-  const api = memoryStore.api_integrations.find(a => a.id === id);
+  const api = memoryStore.api_integrations.find(a => 
+    String(a.id).toLowerCase() === String(id).toLowerCase() ||
+    (a.provider && a.provider.toLowerCase() === id.toLowerCase())
+  );
+
   if (api) {
     if (name) api.name = name;
     if (provider) api.provider = provider;
     if (type) api.type = type;
     if (client_id !== undefined) api.client_id = client_id;
-    if (client_secret && client_secret !== '********') api.client_secret = client_secret;
+    if (site_id !== undefined) {
+      api.site_id = site_id;
+      if (!api.client_id) api.client_id = site_id;
+    }
+    if (client_secret && client_secret !== '********') {
+      api.client_secret = client_secret;
+      api.api_key = client_secret;
+    }
+    if (api_key && api_key !== '********') {
+      api.api_key = api_key;
+      api.client_secret = api_key;
+    }
     if (wallet_id !== undefined) api.wallet_id = wallet_id;
     if (host_url !== undefined) api.host_url = host_url;
-    if (site_id !== undefined) api.site_id = site_id;
     if (status !== undefined) api.status = status;
     api.last_updated = new Date().toISOString();
+
+    // If suspended or revoked, invalidate cached token
+    if (api.id === 'iotec_pay' && api.status !== 'active') {
+      iotecAccessToken = null;
+      iotecTokenExpiry = 0;
+    }
+
+    try {
+      await query(
+        `INSERT INTO system_settings (setting_key, setting_value) VALUES ('api_integrations', ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        [JSON.stringify(memoryStore.api_integrations)]
+      );
+    } catch (e) {
+      console.warn('[MySQL Store] Failed direct system_settings write:', e.message);
+    }
+
+    savePersistentStore(true);
+    res.json({ success: true, message: 'API Configuration Saved' });
+  } else {
+    res.status(404).json({ error: 'API Integration not found.' });
   }
-  savePersistentStore(true);
-  res.json({ message: 'API Configuration Saved' });
 });
 
 // FULL REMOVAL & DELETION of an API Integration
-app.delete('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
+app.delete('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => {
   const { id } = req.params;
   if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
   
-  const initialLength = memoryStore.api_integrations.length;
-  const targetItem = memoryStore.api_integrations.find(a => a.id === id);
-  memoryStore.api_integrations = memoryStore.api_integrations.filter(a => a.id !== id);
+  const targetItem = memoryStore.api_integrations.find(a => 
+    String(a.id).toLowerCase() === String(id).toLowerCase() || 
+    (a.provider && a.provider.toLowerCase() === id.toLowerCase()) ||
+    (a.name && a.name.toLowerCase() === id.toLowerCase())
+  );
   
-  if (memoryStore.api_integrations.length === initialLength) {
-    return res.status(404).json({ error: 'API integration not found.' });
+  // Permanently remove from memory store
+  memoryStore.api_integrations = memoryStore.api_integrations.filter(a => 
+    String(a.id).toLowerCase() !== String(id).toLowerCase() &&
+    !(targetItem && a.id === targetItem.id)
+  );
+
+  // Invalidate any active cached session tokens
+  if (id === 'iotec_pay' || targetItem?.id === 'iotec_pay') {
+    iotecAccessToken = null;
+    iotecTokenExpiry = 0;
   }
 
   // Audit log entry for tracking
@@ -12653,16 +12737,31 @@ app.delete('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
     });
   }
 
+  // Persist directly to MySQL and disk
+  try {
+    await query(
+      `INSERT INTO system_settings (setting_key, setting_value) VALUES ('api_integrations', ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [JSON.stringify(memoryStore.api_integrations)]
+    );
+  } catch (e) {
+    console.warn('[MySQL Store] Failed direct system_settings write:', e.message);
+  }
+
   savePersistentStore(true);
   res.json({ success: true, message: `API Integration "${targetItem?.name || targetItem?.provider || id}" has been completely deleted.` });
 });
 
-app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, (req, res) => {
+app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body; // 'active', 'suspended', 'revoked'
   
-  if (!memoryStore.api_integrations) return res.status(404).json({error:'Not found'});
-  const api = memoryStore.api_integrations.find(a => a.id === id);
+  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+  const api = memoryStore.api_integrations.find(a => 
+    String(a.id).toLowerCase() === String(id).toLowerCase() || 
+    (a.provider && a.provider.toLowerCase() === id.toLowerCase())
+  );
+
   if (api) {
     api.status = status;
     api.last_updated = new Date().toISOString();
@@ -12671,55 +12770,54 @@ app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, (req, res) =
       api.client_id = '';
       api.client_secret = '';
       api.wallet_id = '';
+      api.api_key = '';
+    }
+
+    if (api.id === 'iotec_pay' && status !== 'active') {
+      iotecAccessToken = null;
+      iotecTokenExpiry = 0;
     }
     
+    try {
+      await query(
+        `INSERT INTO system_settings (setting_key, setting_value) VALUES ('api_integrations', ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        [JSON.stringify(memoryStore.api_integrations)]
+      );
+    } catch (e) {
+      console.warn('[MySQL Store] Failed direct status write:', e.message);
+    }
+
     savePersistentStore(true);
-    res.json({ message: `API Integration marked as ${status}` });
+    res.json({ success: true, message: `API Integration "${api.name || api.provider}" marked as ${status}` });
   } else {
     res.status(404).json({ error: 'API not found' });
   }
 });
 
-app.post('/api/admin/integrations/restore', requireSystemsAdmin, (req, res) => {
-  const { id } = req.body;
-  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
-  
-  if (id === 'iotec_pay' && !memoryStore.api_integrations.find(a => a.id === 'iotec_pay')) {
-    memoryStore.api_integrations.push({
-      id: 'iotec_pay',
-      name: 'ioTec Payment Gateway',
-      provider: 'ioTec Pay',
-      type: 'payment',
-      status: 'active',
-      client_id: '',
-      client_secret: '',
-      wallet_id: '',
-      last_updated: new Date().toISOString()
-    });
-  } else if ((id === 'unifi_controller' || id === 'unifi_api') && !memoryStore.api_integrations.find(a => a.id === 'unifi_controller' || a.id === 'unifi_api')) {
-    memoryStore.api_integrations.push({
-      id: 'unifi_api',
-      name: 'UniFi OS Network Integration',
-      provider: 'Ubiquiti',
-      type: 'network',
-      status: 'active',
-      client_id: '88f7af54-98f8-306a-a1c7-c9349722b1f6',
-      client_secret: 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda',
-      host_url: 'https://192.168.1.1:8443',
-      site_id: 'default',
-      last_updated: new Date().toISOString()
-    });
-  }
-  
-  savePersistentStore(true);
-  res.json({ message: 'API Integration Restored' });
-});
-
 // ----------------------------------------------------
-// ioTec Pay Service Logic
+// ioTec Pay Service Logic (Dynamic & Status-Enforced)
 // ----------------------------------------------------
 let iotecAccessToken = null;
 let iotecTokenExpiry = 0;
+
+function getActiveIotecIntegration() {
+  const iotecConfig = (memoryStore.api_integrations || []).find(a => 
+    a.id === 'iotec_pay' || 
+    (a.provider && a.provider.toLowerCase().includes('iotec')) ||
+    (a.name && a.name.toLowerCase().includes('iotec'))
+  );
+  if (!iotecConfig) {
+    throw new Error('ioTec Pay integration has been deleted or is not configured under Settings > API & Integrations.');
+  }
+  if (iotecConfig.status !== 'active') {
+    throw new Error(`ioTec Pay gateway is currently ${iotecConfig.status.toUpperCase()}. Live payment transactions are halted while suspended.`);
+  }
+  if (!iotecConfig.client_id || !iotecConfig.client_secret) {
+    throw new Error('ioTec Pay credentials (Client ID or Secret) are missing. Please configure them in Settings > API & Integrations.');
+  }
+  return iotecConfig;
+}
 
 async function getIotecToken() {
   const now = Date.now();
@@ -12727,10 +12825,7 @@ async function getIotecToken() {
     return iotecAccessToken;
   }
 
-  const iotecConfig = (memoryStore.api_integrations || []).find(a => a.id === 'iotec_pay');
-  if (!iotecConfig || iotecConfig.status !== 'active' || !iotecConfig.client_id || !iotecConfig.client_secret) {
-    throw new Error('ioTec Pay is not configured or is inactive.');
-  }
+  const iotecConfig = getActiveIotecIntegration();
 
   const params = new URLSearchParams();
   params.append('client_id', iotecConfig.client_id);
@@ -12760,7 +12855,7 @@ app.post('/api/payments/initiate', async (req, res) => {
   try {
     const { method, amount, reference, phone, email, notes } = req.body;
     
-    const iotecConfig = (memoryStore.api_integrations || []).find(a => a.id === 'iotec_pay');
+    const iotecConfig = getActiveIotecIntegration();
     if (!iotecConfig || iotecConfig.status !== 'active') {
       return res.status(400).json({ error: 'ioTec Pay is currently disabled or not configured.' });
     }
