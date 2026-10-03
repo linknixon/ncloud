@@ -2959,38 +2959,36 @@ const MASTER_DEFAULT_JOBS = [
 ];
 
 const getUnifiedJobsList = async () => {
-  const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
-  let currentList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : (memoryStore.jobs || []);
+  if (!memoryStore.jobs) memoryStore.jobs = [];
   
-  // Merge any master default jobs not present in current list
-  const existingSlugs = new Set(currentList.map(j => (j.slug || '').toLowerCase()));
-  const existingTitles = new Set(currentList.map(j => (j.title || '').toLowerCase()));
-
-  for (const masterJob of MASTER_DEFAULT_JOBS) {
-    if (!existingSlugs.has(masterJob.slug.toLowerCase()) && !existingTitles.has(masterJob.title.toLowerCase())) {
-      currentList.push({ ...masterJob, id: currentList.length + 1 });
-      // If DB is active, insert missing master jobs
-      try {
-        await query(
-          'INSERT INTO jobs (title, slug, department, location, type, vacancies, status, deadline, description, requirements, responsibilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [masterJob.title, masterJob.slug, masterJob.department, masterJob.location, masterJob.type, masterJob.vacancies, masterJob.status, masterJob.deadline, masterJob.description, JSON.stringify(masterJob.requirements), JSON.stringify(masterJob.responsibilities)]
-        );
-      } catch (e) {}
+  // If memoryStore.jobs is completely empty on initial startup, check database or seed defaults
+  if (memoryStore.jobs.length === 0) {
+    try {
+      const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
+      if (dbRes.success && dbRes.data && dbRes.data.length > 0) {
+        memoryStore.jobs = dbRes.data.map(j => ({
+          ...j,
+          requirements: typeof j.requirements === 'string' ? parseJsonSafe(j.requirements, []) : (j.requirements || []),
+          responsibilities: typeof j.responsibilities === 'string' ? parseJsonSafe(j.responsibilities, []) : (j.responsibilities || [])
+        }));
+      } else {
+        memoryStore.jobs = [...MASTER_DEFAULT_JOBS];
+      }
+    } catch (e) {
+      memoryStore.jobs = [...MASTER_DEFAULT_JOBS];
     }
   }
 
-  // Update memoryStore
-  memoryStore.jobs = currentList;
-  return currentList;
+  return memoryStore.jobs;
 };
 
 app.get('/api/jobs', async (req, res) => {
   let jobsList = await getUnifiedJobsList();
   
-  // Filter out closed and expired jobs for the public
+  // Filter out closed and expired jobs for public viewers
   const now = new Date();
   jobsList = jobsList.filter(j => {
-    if (j.status !== 'open') return false;
+    if (j.status === 'closed' || j.status === 'inactive' || j.status === 'expired') return false;
     if (j.deadline) {
       const deadlineDate = new Date(j.deadline);
       if (deadlineDate < now) return false;
@@ -3005,14 +3003,10 @@ app.get('/api/jobs', async (req, res) => {
 app.get('/api/admin/jobs', async (req, res) => {
   let jobsList = await getUnifiedJobsList();
   
-  // Tag jobs as expired if their deadline has passed (for Admin UI)
-  const now = new Date();
+  // Tag jobs as expired if their deadline has passed or status is closed
+  const todayStr = new Date().toISOString().split('T')[0];
   jobsList = jobsList.map(j => {
-    let isExpired = false;
-    if (j.deadline) {
-      const deadlineDate = new Date(j.deadline);
-      if (deadlineDate < now) isExpired = true;
-    }
+    const isExpired = (j.deadline && j.deadline < todayStr) || j.status === 'closed' || j.status === 'expired';
     return { ...j, isExpired };
   });
   
@@ -3021,11 +3015,16 @@ app.get('/api/admin/jobs', async (req, res) => {
 
 app.get('/api/jobs/:slug', async (req, res) => {
   const { slug } = req.params;
-  const dbRes = await query('SELECT * FROM jobs WHERE slug = ?', [slug]);
+  const dbRes = await query('SELECT * FROM jobs WHERE slug = ? OR id = ?', [slug, slug]);
   if (dbRes.success && dbRes.data.length > 0) {
-    return res.json(dbRes.data[0]);
+    const row = dbRes.data[0];
+    return res.json({
+      ...row,
+      requirements: typeof row.requirements === 'string' ? parseJsonSafe(row.requirements, []) : (row.requirements || []),
+      responsibilities: typeof row.responsibilities === 'string' ? parseJsonSafe(row.responsibilities, []) : (row.responsibilities || [])
+    });
   }
-  const job = memoryStore.jobs.find(j => j.slug === slug || j.id == slug);
+  const job = (memoryStore.jobs || []).find(j => j.slug === slug || String(j.id) === String(slug));
   if (!job) return res.status(404).json({ error: 'Job opening not found' });
   res.json(job);
 });
@@ -3034,17 +3033,27 @@ app.post('/api/jobs', async (req, res) => {
   const { title, department, location, type, vacancies, status, deadline, description, requirements, responsibilities } = req.body;
   if (!title) return res.status(400).json({ error: 'Job title is required.' });
 
-  const slug = req.body.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const rawSlug = req.body.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const slug = `${rawSlug}-${Date.now().toString().slice(-4)}`;
   const reqArray = Array.isArray(requirements) ? requirements : (typeof requirements === 'string' ? requirements.split('\n').map(r => r.trim()).filter(Boolean) : []);
   const respArray = Array.isArray(responsibilities) ? responsibilities : (typeof responsibilities === 'string' ? responsibilities.split('\n').map(r => r.trim()).filter(Boolean) : []);
 
-  const dbRes = await query(
-    'INSERT INTO jobs (title, slug, department, location, type, vacancies, status, deadline, description, requirements, responsibilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [title, slug, department || 'Operations', location || 'Kampala, Uganda', type || 'Full-time', Number(vacancies) || 1, status || 'open', deadline || '2026-12-31', description || '', JSON.stringify(reqArray), JSON.stringify(respArray)]
-  );
+  let insertId = null;
+  try {
+    const dbRes = await query(
+      'INSERT INTO jobs (title, slug, department, location, type, vacancies, status, deadline, description, requirements, responsibilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, slug, department || 'Operations', location || 'Kampala, Uganda', type || 'Full-time', Number(vacancies) || 1, status || 'open', deadline || '2026-12-31', description || '', JSON.stringify(reqArray), JSON.stringify(respArray)]
+    );
+    if (dbRes.success && dbRes.data) insertId = dbRes.data.insertId;
+  } catch (dbErr) {
+    console.warn('[Jobs Insert DB Note]:', dbErr.message);
+  }
+
+  if (!memoryStore.jobs) memoryStore.jobs = [];
+  const nextId = insertId || (memoryStore.jobs.length > 0 ? Math.max(...memoryStore.jobs.map(j => Number(j.id) || 0)) + 1 : 1);
 
   const newJob = {
-    id: dbRes.success ? dbRes.data.insertId : (memoryStore.jobs.length > 0 ? Math.max(...memoryStore.jobs.map(j => j.id || 0)) + 1 : 1),
+    id: nextId,
     title,
     slug,
     department: department || 'Operations',
@@ -3059,6 +3068,7 @@ app.post('/api/jobs', async (req, res) => {
   };
 
   memoryStore.jobs.push(newJob);
+  savePersistentStore(true);
   res.json({ message: `Career vacancy "${title}" posted successfully!`, job: newJob });
 });
 
@@ -3066,37 +3076,105 @@ app.put('/api/jobs/:id', async (req, res) => {
   const { id } = req.params;
   const { title, department, location, type, vacancies, status, deadline, description, requirements, responsibilities } = req.body;
 
+  if (!memoryStore.jobs) memoryStore.jobs = [];
+  const jIndex = memoryStore.jobs.findIndex(j => String(j.id) === String(id) || j.slug === id);
+
   const reqArray = Array.isArray(requirements) ? requirements : (typeof requirements === 'string' ? requirements.split('\n').map(r => r.trim()).filter(Boolean) : undefined);
   const respArray = Array.isArray(responsibilities) ? responsibilities : (typeof responsibilities === 'string' ? responsibilities.split('\n').map(r => r.trim()).filter(Boolean) : undefined);
 
-  await query(
-    'UPDATE jobs SET title = COALESCE(?, title), department = COALESCE(?, department), location = COALESCE(?, location), type = COALESCE(?, type), vacancies = COALESCE(?, vacancies), status = COALESCE(?, status), deadline = COALESCE(?, deadline), description = COALESCE(?, description), requirements = COALESCE(?, requirements), responsibilities = COALESCE(?, responsibilities) WHERE id = ?',
-    [title, department, location, type, vacancies, status, deadline, description, reqArray ? JSON.stringify(reqArray) : null, respArray ? JSON.stringify(respArray) : null, id]
-  );
+  try {
+    await query(
+      `UPDATE jobs SET 
+        title = COALESCE(?, title), 
+        department = COALESCE(?, department), 
+        location = COALESCE(?, location), 
+        type = COALESCE(?, type), 
+        vacancies = COALESCE(?, vacancies), 
+        status = COALESCE(?, status), 
+        deadline = COALESCE(?, deadline), 
+        description = COALESCE(?, description), 
+        requirements = COALESCE(?, requirements), 
+        responsibilities = COALESCE(?, responsibilities) 
+      WHERE id = ? OR slug = ?`,
+      [
+        title || null, department || null, location || null, type || null, 
+        vacancies !== undefined ? Number(vacancies) : null, status || null, deadline || null, 
+        description || null, reqArray ? JSON.stringify(reqArray) : null, 
+        respArray ? JSON.stringify(respArray) : null, id, id
+      ]
+    );
+  } catch (dbErr) {
+    console.warn('[Jobs Update DB Note]:', dbErr.message);
+  }
 
-  const jIndex = memoryStore.jobs.findIndex(j => j.id == id);
   if (jIndex !== -1) {
     if (title) memoryStore.jobs[jIndex].title = title;
-    if (department) memoryStore.jobs[jIndex].department = department;
-    if (location) memoryStore.jobs[jIndex].location = location;
-    if (type) memoryStore.jobs[jIndex].type = type;
+    if (department !== undefined) memoryStore.jobs[jIndex].department = department;
+    if (location !== undefined) memoryStore.jobs[jIndex].location = location;
+    if (type !== undefined) memoryStore.jobs[jIndex].type = type;
     if (vacancies !== undefined) memoryStore.jobs[jIndex].vacancies = Number(vacancies);
-    if (status) memoryStore.jobs[jIndex].status = status;
-    if (deadline) memoryStore.jobs[jIndex].deadline = deadline;
-    if (description) memoryStore.jobs[jIndex].description = description;
-    if (reqArray) memoryStore.jobs[jIndex].requirements = reqArray;
-    if (respArray) memoryStore.jobs[jIndex].responsibilities = respArray;
+    if (status !== undefined) memoryStore.jobs[jIndex].status = status;
+    if (deadline !== undefined) memoryStore.jobs[jIndex].deadline = deadline;
+    if (description !== undefined) memoryStore.jobs[jIndex].description = description;
+    if (reqArray !== undefined) memoryStore.jobs[jIndex].requirements = reqArray;
+    if (respArray !== undefined) memoryStore.jobs[jIndex].responsibilities = respArray;
+    
+    savePersistentStore(true);
     return res.json({ message: 'Career vacancy updated successfully!', job: memoryStore.jobs[jIndex] });
   }
 
-  res.json({ message: 'Job record updated' });
+  savePersistentStore(true);
+  res.json({ message: 'Job record updated successfully' });
+});
+
+// QUICK TOGGLE EXPIRE / REOPEN JOB ADVERT
+app.post('/api/jobs/:id/expire', requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!memoryStore.jobs) memoryStore.jobs = [];
+  const target = memoryStore.jobs.find(j => String(j.id) === String(id) || j.slug === id);
+  if (!target) {
+    return res.status(404).json({ error: 'Career vacancy not found.' });
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const isCurrentlyActive = (target.status === 'open' || !target.status) && (!target.deadline || target.deadline >= todayStr);
+
+  if (isCurrentlyActive) {
+    target.status = 'closed';
+    target.deadline = yesterday;
+  } else {
+    target.status = 'open';
+    target.deadline = '2026-12-31';
+  }
+
+  try {
+    await query('UPDATE jobs SET status = ?, deadline = ? WHERE id = ? OR slug = ?', [target.status, target.deadline, target.id, target.id]);
+  } catch (e) {
+    console.warn('[Jobs Expire DB Note]:', e.message);
+  }
+
+  savePersistentStore(true);
+  res.json({
+    success: true,
+    message: isCurrentlyActive ? `"${target.title}" advert marked as Closed / Expired.` : `"${target.title}" advert reopened!`,
+    job: target
+  });
 });
 
 app.delete('/api/jobs/:id', requireSuperAdmin, async (req, res) => {
   const { id } = req.params;
-  await query('DELETE FROM jobs WHERE id = ?', [id]);
-  memoryStore.jobs = memoryStore.jobs.filter(j => j.id != id);
-  res.json({ message: 'Job opening removed successfully!' });
+  try {
+    await query('DELETE FROM jobs WHERE id = ? OR slug = ?', [id, id]);
+  } catch (e) {
+    console.warn('[Jobs Delete DB Note]:', e.message);
+  }
+  if (!memoryStore.jobs) memoryStore.jobs = [];
+  const initialLen = memoryStore.jobs.length;
+  memoryStore.jobs = memoryStore.jobs.filter(j => String(j.id) !== String(id) && j.slug !== id);
+  
+  savePersistentStore(true);
+  res.json({ success: true, message: 'Career vacancy removed permanently!' });
 });
 
 // DELETE /api/jobs/apply/:id - Delete an application permanently

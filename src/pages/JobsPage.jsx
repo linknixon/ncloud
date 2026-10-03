@@ -120,12 +120,12 @@ export default function JobsPage() {
     fetch('/api/jobs')
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) setJobs(data);
-        else setJobs(defaultJobs);
+        if (Array.isArray(data)) setJobs(data);
+        else setJobs([]);
         setLoading(false);
       })
       .catch(() => {
-        setJobs(defaultJobs);
+        setJobs([]);
         setLoading(false);
       });
   }, []);

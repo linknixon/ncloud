@@ -975,7 +975,7 @@ const normalizeTabName = (rawTab) => {
   });
 
   // Career Vacancies (Jobs) State
-  const [jobsList, setJobsList] = useState(initialMasterJobs);
+  const [jobsList, setJobsList] = useState([]);
   const [showJobModal, setShowJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState({
@@ -1329,7 +1329,7 @@ const normalizeTabName = (rawTab) => {
       setData(resData);
       if (resData.products && Array.isArray(resData.products) && resData.products.length > 0) setStoreProducts(resData.products);
       if (resData.services && Array.isArray(resData.services)) setServicesList(resData.services);
-      if (resData.jobs && Array.isArray(resData.jobs) && resData.jobs.length > 0) setJobsList(resData.jobs);
+      if (resData.jobs && Array.isArray(resData.jobs)) setJobsList(resData.jobs);
       if (resData.team && Array.isArray(resData.team)) setTeamList(resData.team);
       if (resData.companyExpenses && Array.isArray(resData.companyExpenses)) setCompanyExpensesList(resData.companyExpenses);
       if (resData.sliders && Array.isArray(resData.sliders)) setSlidersList(resData.sliders);
@@ -1565,7 +1565,7 @@ const normalizeTabName = (rawTab) => {
 
       fetch('/api/admin/jobs')
         .then(res => res.json())
-        .then(jb => { if (Array.isArray(jb) && jb.length > 0) setJobsList(jb); })
+        .then(jb => { if (Array.isArray(jb)) setJobsList(jb); })
         .catch(() => {});
 
       fetch('/api/team')
@@ -1990,13 +1990,19 @@ const normalizeTabName = (rawTab) => {
     try {
       const method = editingJob ? 'PUT' : 'POST';
       const url = editingJob ? `/api/jobs/${editingJob.id}` : '/api/jobs';
+      
+      // Optimistic update
+      if (editingJob) {
+        setJobsList(prev => prev.map(item => String(item.id) === String(editingJob.id) ? { ...item, ...jobForm } : item));
+      }
+
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
         body: JSON.stringify(jobForm)
       });
       const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
+      if (!res.ok) throw new Error(resData.error || 'Failed to save career vacancy');
       showToast(resData.message || (editingJob ? 'Career vacancy updated!' : 'Career vacancy posted!'), 'success');
       setShowJobModal(false);
       setEditingJob(null);
@@ -2007,7 +2013,7 @@ const normalizeTabName = (rawTab) => {
         type: 'Full-time',
         vacancies: 1,
         status: 'open',
-        deadline: '2026-10-31',
+        deadline: '2026-12-31',
         description: '',
         requirements: '',
         responsibilities: ''
@@ -2016,19 +2022,49 @@ const normalizeTabName = (rawTab) => {
       fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     } catch (err) {
       showToast(err.message, 'error');
+      fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     }
   };
 
-  const handleDeleteJob = async (id, title) => {
-    if (!window.confirm(`Are you sure you want to remove career vacancy "${title}"?`)) return;
+  const handleExpireJob = async (id, title, isCurrentlyExpired) => {
+    const actionName = isCurrentlyExpired ? 'reopen recruitment for' : 'expire and close';
+    if (!window.confirm(`Are you sure you want to ${actionName} "${title}"?`)) return;
     try {
-      const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/jobs/${id}/expire`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+      });
       const resData = await res.json();
-      showToast(resData.message || 'Job vacancy removed!', 'success');
+      if (!res.ok) throw new Error(resData.error || 'Failed to update job status');
+      showToast(resData.message || 'Job status updated!', 'success');
+      if (resData.job) {
+        setJobsList(prev => prev.map(item => String(item.id) === String(id) ? { ...item, ...resData.job, isExpired: !isCurrentlyExpired } : item));
+      }
       fetchDashboardData();
       fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleDeleteJob = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to permanently delete career vacancy "${title}"?\n\nThis will remove the job opening completely from the website and database.`)) return;
+    try {
+      // Optimistically remove from state immediately
+      setJobsList(prev => prev.filter(item => String(item.id) !== String(id)));
+      
+      const res = await fetch(`/api/jobs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to delete job');
+      showToast(resData.message || 'Job vacancy removed permanently!', 'success');
+      fetchDashboardData();
+      fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
+    } catch (err) {
+      showToast(err.message, 'error');
+      fetch('/api/admin/jobs').then(r => r.json()).then(j => Array.isArray(j) && setJobsList(j));
     }
   };
 
@@ -14299,7 +14335,22 @@ const normalizeTabName = (rawTab) => {
                               <div style={{ fontSize: '0.75rem', color: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '#ef4444' : 'var(--text-muted)', fontWeight: (j.deadline && j.deadline < new Date().toISOString().split('T')[0]) ? '700' : '400' }}>
                                 Deadline: <strong>{j.deadline || 'Open'}</strong> {(j.deadline && j.deadline < new Date().toISOString().split('T')[0]) && '• (Deadline Ended)'}
                               </div>
-                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                {(canUpdate('jobs') || canUpdate('careers') || isSuperAdmin || isHrManager) && (
+                                  <button
+                                    onClick={() => handleExpireJob(j.id, j.title, j.isExpired || j.status === 'closed')}
+                                    className="btn-secondary"
+                                    style={{
+                                      padding: '0.35rem 0.65rem',
+                                      fontSize: '0.75rem',
+                                      color: (j.isExpired || j.status === 'closed') ? '#10b981' : '#f59e0b',
+                                      borderColor: (j.isExpired || j.status === 'closed') ? '#10b981' : '#f59e0b'
+                                    }}
+                                    title={j.isExpired || j.status === 'closed' ? "Reopen recruitment for this position" : "Expire and close recruitment"}
+                                  >
+                                    <Clock3 size={13} /> {j.isExpired || j.status === 'closed' ? 'Reopen' : 'Expire'}
+                                  </button>
+                                )}
                                 {(canUpdate('jobs') || canUpdate('careers') || isSuperAdmin || isHrManager) && (
                                   <button
                                     onClick={() => {
@@ -14330,8 +14381,8 @@ const normalizeTabName = (rawTab) => {
                                   <button
                                     onClick={() => handleDeleteJob(j.id, j.title)}
                                     className="btn-secondary"
-                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
-                                    title="Delete job posting"
+                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444', borderColor: '#ef4444' }}
+                                    title="Delete career vacancy permanently"
                                   >
                                     <Trash size={13} /> Delete
                                   </button>
@@ -14341,6 +14392,40 @@ const normalizeTabName = (rawTab) => {
                           </div>
                         ))}
                       </div>
+
+                      {jobsList.length === 0 && (
+                        <div className="glass-card" style={{ padding: '3.5rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <Briefcase size={44} style={{ margin: '0 auto 1rem', opacity: 0.35 }} />
+                          <h4 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>No Career Openings Listed</h4>
+                          <p style={{ fontSize: '0.85rem', maxWidth: '480px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+                            All career adverts have been removed or closed. You can publish a new job opening at any time.
+                          </p>
+                          {(canCreate('jobs') || canCreate('careers') || isSuperAdmin || isHrManager) && (
+                            <button
+                              onClick={() => {
+                                setEditingJob(null);
+                                setJobForm({
+                                  title: '',
+                                  department: 'Engineering & Cloud Infrastructure',
+                                  location: 'Kampala, Uganda',
+                                  type: 'Full-time',
+                                  vacancies: 1,
+                                  status: 'open',
+                                  deadline: '2026-12-31',
+                                  description: '',
+                                  requirements: '',
+                                  responsibilities: ''
+                                });
+                                setShowJobModal(true);
+                              }}
+                              className="btn-primary"
+                              style={{ padding: '0.5rem 1.2rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                            >
+                              <Plus size={16} /> Post New Job Opening
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 

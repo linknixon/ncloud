@@ -670,6 +670,30 @@ export async function syncStoreToMysql(store) {
         );
       }
     }
+
+    // 13. Jobs / Careers Openings
+    if (Array.isArray(store.jobs)) {
+      for (const j of store.jobs) {
+        const slug = j.slug || (j.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const reqJson = safeJson(Array.isArray(j.requirements) ? j.requirements : []);
+        const respJson = safeJson(Array.isArray(j.responsibilities) ? j.responsibilities : []);
+        const deadlineDate = parseDateOnly(j.deadline) || null;
+        
+        await pool.query(
+          `INSERT INTO jobs (id, title, slug, department, location, type, vacancies, status, deadline, description, requirements, responsibilities)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             title=VALUES(title), slug=VALUES(slug), department=VALUES(department), location=VALUES(location), 
+             type=VALUES(type), vacancies=VALUES(vacancies), status=VALUES(status), deadline=VALUES(deadline), 
+             description=VALUES(description), requirements=VALUES(requirements), responsibilities=VALUES(responsibilities)`,
+          [
+            j.id || null, j.title, slug, j.department || 'Operations', j.location || 'Kampala, Uganda',
+            j.type || 'Full-time', Number(j.vacancies) || 1, j.status || 'open', deadlineDate,
+            j.description || '', reqJson, respJson
+          ]
+        );
+      }
+    }
   } catch (err) {
     console.error('[MySQL Store] Error synchronizing store to MySQL:', err.message);
   }
