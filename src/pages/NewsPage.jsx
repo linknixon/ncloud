@@ -30,7 +30,6 @@ export default function NewsPage() {
         
         {/* Page Header */}
         <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <span className="badge-tag">Latest Feeds & News</span>
           <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem' }}>Technology Insights & Announcements</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
             Stay updated with enterprise cloud developments, ISO security compliance announcements, and Zimbra mail server advisories.

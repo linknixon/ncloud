@@ -168,7 +168,6 @@ export default function EventsPage() {
         
         {/* Page Header */}
         <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <span className="badge-tag">Events & Summits</span>
           <h1 style={{ fontSize: '2.6rem', marginTop: '0.5rem' }}>Upcoming Technology Events</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '640px', margin: '0.5rem auto 0' }}>
             Join industry leaders, cloud architects, and cybersecurity experts at our upcoming conferences, webinars, and masterclasses.

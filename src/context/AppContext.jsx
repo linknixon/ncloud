@@ -207,6 +207,16 @@ export function AppProvider({ children }) {
     setIsAuthOpen(true);
   };
 
+  const [paymentSuccessModal, setPaymentSuccessModal] = useState({ isOpen: false, data: null });
+
+  const openPaymentSuccessModal = (paymentData) => {
+    setPaymentSuccessModal({ isOpen: true, data: paymentData });
+  };
+
+  const closePaymentSuccessModal = () => {
+    setPaymentSuccessModal({ isOpen: false, data: null });
+  };
+
   const showToast = (message, type = 'info') => {
     setNotification({ message, type });
     setTimeout(() => {
@@ -512,7 +522,10 @@ export function AppProvider({ children }) {
         siteFavicon,
         updateSiteFavicon,
         topbarSettings,
-        updateTopbarSettings
+        updateTopbarSettings,
+        paymentSuccessModal,
+        openPaymentSuccessModal,
+        closePaymentSuccessModal
       }}
     >
       {children}

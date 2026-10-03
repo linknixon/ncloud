@@ -5,7 +5,7 @@ import { CheckCircle2, Lock, Search, ChevronLeft, ChevronRight, Check, User, Fil
 import { generateInvoicePDF, generateQuotationPDF } from '../utils/pdfGenerator';
 
 export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
-  const { user, setUser, clearCart, showToast, cart, addToCart, removeFromCart, updateCartQuantity, updateCartItemDuration, siteLogo } = useApp();
+  const { user, setUser, clearCart, showToast, cart, addToCart, removeFromCart, updateCartQuantity, updateCartItemDuration, siteLogo, openPaymentSuccessModal } = useApp();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generatingQuote, setGeneratingQuote] = useState(false);
@@ -193,9 +193,24 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
   const hasHostingProducts = selectedProducts.some(p => isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting')));
   const nonHostingItems = selectedProducts.filter(p => !(isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting'))));
 
+  const isVoucherProduct = (item) => {
+    if (!item) return false;
+    const catStr = (item.category || '').toLowerCase();
+    const nameStr = (item.name || '').toLowerCase();
+    return catStr.includes('voucher') || catStr.includes('wifi') || nameStr.includes('voucher') || nameStr.includes('wifi') || nameStr.includes('hotspot') || nameStr.includes('pass');
+  };
+
+  const areAllVouchers = selectedProducts.length > 0 && selectedProducts.every(isVoucherProduct);
+
   const subtotalAmount = hostingSubtotal + nonHostingSubtotal;
 
-  const vatAmount = includeVat ? subtotalAmount * 0.18 : 0;
+  // Zero VAT for all WiFi voucher sales
+  const vatAmount = includeVat ? selectedProducts.reduce((acc, p) => {
+    if (isVoucherProduct(p)) return acc;
+    const isHosting = isHostingItem(p) || (p.category && p.category.toLowerCase().includes('hosting'));
+    const mult = isHosting ? getDurationMultiplier(p.subscriptionDuration || '1 Year') : 1;
+    return acc + (Number(p.price) * (p.quantity || 1) * mult * 0.18);
+  }, 0) : 0;
   const grandTotal = subtotalAmount + vatAmount;
 
   const handlePayment = async (e) => {
@@ -349,7 +364,20 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
         if (data.status === 'Success') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Successful! Thank you.');
-          setTimeout(() => setPaymentPolling(false), 3000);
+          setPaymentPolling(false);
+          // Trigger React Payment Celebration Popup Modal
+          if (openPaymentSuccessModal) {
+            openPaymentSuccessModal({
+              reference: successData?.subscription?.reference || successData?.reference || 'NV-SUB-8812',
+              invoice_number: successData?.invoice?.invoice_number || 'INV-2026-0041',
+              amount: grandTotal,
+              currency: 'UGX',
+              payment_method: paymentMethod === 'mobile_money' ? 'MTN / Airtel Mobile Money' : 'Card / Bank',
+              customer_name: customerInfo.name,
+              customer_email: customerInfo.email,
+              wifi_voucher_token: data.voucher_token || successData?.invoice?.wifi_voucher_token || ''
+            });
+          }
         } else if (data.status === 'Failed') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Failed or Cancelled.');
@@ -1006,22 +1034,36 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
                 </div>
 
                 {/* Tax & VAT Option Checkbox */}
-                <div style={{
-                  background: 'var(--bg-main)',
-                  padding: '0.85rem 1rem',
-                  borderRadius: '10px',
-                  border: '1.5px solid var(--primary)',
-                  marginBottom: '1.25rem'
-                }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      Standard 18% Value Added Tax (VAT) Applied
-                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
-                        Compulsory Uganda VAT
-                      </span>
+                {areAllVouchers ? (
+                  <div style={{
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    marginBottom: '1.25rem'
+                  }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-emerald)', fontWeight: '700', fontSize: '0.85rem' }}>
+                      <CheckCircle2 size={16} /> WiFi Vouchers: URA Tax-Exempt Status (0% VAT Applied)
                     </span>
-                  </label>
-                </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    background: 'var(--bg-main)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '10px',
+                    border: '1.5px solid var(--primary)',
+                    marginBottom: '1.25rem'
+                  }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        Standard 18% Value Added Tax (VAT) Applied
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
+                          Compulsory Uganda VAT
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                )}
 
                 <div style={{
                   background: 'var(--bg-main)',

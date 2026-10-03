@@ -2860,9 +2860,132 @@ app.delete('/api/team/:id', requireSuperAdmin, async (req, res) => {
 // ----------------------------------------------------
 // Job Openings & Application Endpoints
 // ----------------------------------------------------
-app.get('/api/jobs', async (req, res) => {
+const MASTER_DEFAULT_JOBS = [
+  {
+    id: 1,
+    title: "Assistant Office Attendant (1)",
+    slug: "assistant-office-attendant",
+    department: "Administration & Operations",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 1,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
+    requirements: [
+      "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management",
+      "Minimum 1-2 years of relevant experience in a corporate or tech office setting",
+      "Strong written and verbal communication skills in English and Luganda",
+      "Punctual, organized, trustworthy, and proactive attitude",
+      "Basic computer literacy (MS Word, Email, Web Browsing)"
+    ],
+    responsibilities: [
+      "Welcome clients, visitors, and partners at the reception area",
+      "Ensure office cleanliness, orderly meeting rooms, and refreshment management",
+      "Receive and log incoming mail, packages, and office supplies deliveries",
+      "Assist administrative officers with filing, photocopying, and scanning documents",
+      "Run essential external errands for office operations when required"
+    ]
+  },
+  {
+    id: 2,
+    title: "Cloud Systems & DevOps Engineer",
+    slug: "cloud-systems-engineer",
+    department: "Engineering & Cloud Infrastructure",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 2,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
+    requirements: [
+      "Bachelor's Degree in Computer Science, Software Engineering, or IT",
+      "3+ years experience with Linux administration (Debian/Ubuntu/CentOS), Docker, and KVM/Proxmox",
+      "Hands-on experience with MySQL/MariaDB replication and performance tuning",
+      "Certifications in AWS, CKA, or RHCE are an added advantage"
+    ],
+    responsibilities: [
+      "Manage cloud virtualization hosts and storage networks",
+      "Implement CI/CD pipelines and automated backup strategies",
+      "Monitor server performance and resolve escalation alerts 24/7"
+    ]
+  },
+  {
+    id: 3,
+    title: "Cyber Security & SOC Analyst",
+    slug: "cyber-security-soc-analyst",
+    department: "Information Security & SOC",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 1,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Monitor, analyze, and neutralize incoming security events, manage Next-Gen Firewalls, conduct vulnerability assessments, and protect sovereign cloud infrastructure.",
+    requirements: [
+      "Bachelor's Degree in Computer Science, Cyber Security, or Information Systems",
+      "2+ years experience in SIEM monitoring, threat hunting, and firewall configuration",
+      "Knowledge of ISO/IEC 27001 standards and zero-trust security architectures",
+      "CEH, CompTIA Security+, or CISSP is an added advantage"
+    ],
+    responsibilities: [
+      "24/7 incident triage and forensic investigation of security alerts",
+      "Coordinate patch management and endpoint protection across edge servers",
+      "Audit access logs and prepare compliance reports"
+    ]
+  },
+  {
+    id: 4,
+    title: "Enterprise Solutions & Cloud Sales Executive",
+    slug: "enterprise-cloud-sales-executive",
+    department: "Sales & Business Development",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 2,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Drive enterprise client acquisition for Cloud VPS, Tier III Colocation, QuickBooks ERP deployment, and corporate connectivity solutions across Uganda.",
+    requirements: [
+      "Bachelor's Degree in Business Administration, Marketing, IT, or related field",
+      "2+ years experience in B2B corporate sales or telecommunications / ISP solutions",
+      "Demonstrated ability to close corporate IT infrastructure contracts",
+      "Excellent presentation, negotiation, and relationship management skills"
+    ],
+    responsibilities: [
+      "Identify and engage corporate prospects, NGOs, and financial institutions",
+      "Prepare custom quotations, respond to tenders, and present technical proposals",
+      "Maintain long-term client relationships and ensure SLA satisfaction"
+    ]
+  }
+];
+
+const getUnifiedJobsList = async () => {
   const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
-  let jobsList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : memoryStore.jobs;
+  let currentList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : (memoryStore.jobs || []);
+  
+  // Merge any master default jobs not present in current list
+  const existingSlugs = new Set(currentList.map(j => (j.slug || '').toLowerCase()));
+  const existingTitles = new Set(currentList.map(j => (j.title || '').toLowerCase()));
+
+  for (const masterJob of MASTER_DEFAULT_JOBS) {
+    if (!existingSlugs.has(masterJob.slug.toLowerCase()) && !existingTitles.has(masterJob.title.toLowerCase())) {
+      currentList.push({ ...masterJob, id: currentList.length + 1 });
+      // If DB is active, insert missing master jobs
+      try {
+        await query(
+          'INSERT INTO jobs (title, slug, department, location, type, vacancies, status, deadline, description, requirements, responsibilities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [masterJob.title, masterJob.slug, masterJob.department, masterJob.location, masterJob.type, masterJob.vacancies, masterJob.status, masterJob.deadline, masterJob.description, JSON.stringify(masterJob.requirements), JSON.stringify(masterJob.responsibilities)]
+        );
+      } catch (e) {}
+    }
+  }
+
+  // Update memoryStore
+  memoryStore.jobs = currentList;
+  return currentList;
+};
+
+app.get('/api/jobs', async (req, res) => {
+  let jobsList = await getUnifiedJobsList();
   
   // Filter out closed and expired jobs for the public
   const now = new Date();
@@ -2880,8 +3003,7 @@ app.get('/api/jobs', async (req, res) => {
 
 // Admin endpoint to get ALL jobs (including closed/expired)
 app.get('/api/admin/jobs', async (req, res) => {
-  const dbRes = await query('SELECT * FROM jobs ORDER BY id ASC');
-  let jobsList = dbRes.success && dbRes.data.length > 0 ? dbRes.data : memoryStore.jobs;
+  let jobsList = await getUnifiedJobsList();
   
   // Tag jobs as expired if their deadline has passed (for Admin UI)
   const now = new Date();
@@ -3346,6 +3468,69 @@ app.delete('/api/admin/contracts/:id', (req, res) => {
   memoryStore.contracts = memoryStore.contracts.filter(c => String(c.id) !== String(id) && String(c.ref) !== String(id));
   savePersistentStore();
   res.json({ success: true, message: 'Contract removed from active registry' });
+});
+
+// Helper: Detect any product/item or title that represents a WiFi voucher or pass
+function isWifiVoucherProduct(it) {
+  if (!it) return false;
+  if (typeof it === 'string') {
+    const s = it.toLowerCase();
+    return s.includes('wifi') || s.includes('voucher') || s.includes('hotspot') || s.includes('access pass') || s.includes('unifi pass') || s.includes('wifi -');
+  }
+  const name = (it.name || it.item_name || it.title || it.plan_name || it.description || '').toLowerCase();
+  const cat = (it.category || '').toLowerCase();
+  return cat.includes('wifi') || cat.includes('voucher') ||
+         name.includes('wifi') || name.includes('voucher') || name.includes('hotspot') || name.includes('access pass') || name.includes('unifi pass') || name.includes('wifi -');
+}
+
+// ----------------------------------------------------
+// Protected In-Browser PDF Preview Sessions (No Direct Downloads, No Blob URLs)
+// ----------------------------------------------------
+const protectedPdfPreviews = new Map();
+
+app.post('/api/documents/preview-session', (req, res) => {
+  const { pdfBase64, filename } = req.body;
+  if (!pdfBase64) return res.status(400).json({ error: 'PDF content base64 is required' });
+  const token = 'doc_' + crypto.randomBytes(16).toString('hex');
+  const buffer = Buffer.from(pdfBase64, 'base64');
+  protectedPdfPreviews.set(token, {
+    buffer,
+    filename: filename || 'Nova_Official_Document.pdf',
+    createdAt: Date.now()
+  });
+  // Auto-expire session after 30 minutes
+  setTimeout(() => protectedPdfPreviews.delete(token), 30 * 60 * 1000);
+  res.json({ success: true, token, viewUrl: `/api/documents/view/${token}` });
+});
+
+app.get('/api/documents/view/:token', (req, res) => {
+  const { token } = req.params;
+  const item = protectedPdfPreviews.get(token);
+  if (!item) {
+    return res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Preview Session Expired</title><style>body{font-family:sans-serif;padding:3rem;text-align:center;background:#0f172a;color:#fff}a{color:#38bdf8}</style></head>
+        <body>
+          <h2>Document Preview Session Expired</h2>
+          <p>This protected document preview URL has expired. Please view or generate the document again from the portal.</p>
+        </body>
+      </html>
+    `);
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${item.filename}"`);
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  res.send(item.buffer);
+});
+
+// Stream Engagement Contract PDF details for in-browser viewing
+app.get('/api/admin/contracts/:id/pdf', (req, res) => {
+  const { id } = req.params;
+  const contract = (memoryStore.contracts || []).find(c => String(c.id) === String(id) || String(c.ref) === String(id));
+  if (!contract) return res.status(404).json({ error: 'Contract record not found' });
+  res.json(contract);
 });
 
 // ----------------------------------------------------
@@ -4291,12 +4476,7 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
           const itemAmount = authenticPrice * itemQty;
           calculatedTotalAmount += itemAmount;
 
-          const isWifi = it.name && (
-            it.name.toLowerCase().includes('wifi voucher') ||
-            it.name.toLowerCase().includes('ticket') ||
-            it.name.toLowerCase().includes('wifi - ') ||
-            it.name.toLowerCase().includes('nova wifi')
-          );
+          const isWifi = isWifiVoucherProduct(it) || (dbProduct && isWifiVoucherProduct(dbProduct));
 
           if (!isWifi) {
             calculatedVatAmount += itemAmount * 0.18;
@@ -4339,12 +4519,7 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
           }
           calculatedTotalAmount = fallbackPrice;
           
-          const isWifi = plan_name && (
-            plan_name.toLowerCase().includes('wifi voucher') ||
-            plan_name.toLowerCase().includes('ticket') ||
-            plan_name.toLowerCase().includes('wifi - ') ||
-            plan_name.toLowerCase().includes('nova wifi')
-          );
+          const isWifi = isWifiVoucherProduct(plan_name) || (dbProduct && isWifiVoucherProduct(dbProduct));
           if (!isWifi) calculatedVatAmount = fallbackPrice * 0.18;
           
           return [{ name: plan_name, description: plan_name, quantity: 1, qty: 1, unit_price: fallbackPrice, price: fallbackPrice, amount: fallbackPrice }];
@@ -4354,15 +4529,12 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
     const isVatIncluded = req.body.include_vat !== false;
     const computedVat = isVatIncluded ? calculatedVatAmount : 0;
 
-    // Detect if ALL items in this order are WiFi vouchers → force VAT-exempt
-    const allItemsAreWifi = inputItems.length > 0 && inputItems.every(it => {
-      const n = (it.name || it.description || '').toLowerCase();
-      return n.includes('wifi voucher') || n.includes('nova wifi') || n.includes('wifi –') || n.includes('wifi -');
-    });
+    // Detect if ANY item or ALL items are WiFi vouchers → vouchers are strictly 0% VAT
+    const allItemsAreWifi = inputItems.length > 0 && inputItems.every(it => isWifiVoucherProduct(it));
     const finalVatExempt = allItemsAreWifi ? true : !isVatIncluded;
     const finalVatAmount  = allItemsAreWifi ? 0 : computedVat;
     if (allItemsAreWifi) {
-      // Recalculate total without VAT for WiFi-only orders
+      // Recalculate total strictly without VAT for WiFi orders
       amount = calculatedTotalAmount;
     }
 
@@ -4714,6 +4886,7 @@ app.get('/api/admin/overview', async (req, res) => {
     return memoryProds;
   })();
   const services = (servicesDb.success && !servicesDb.isFallback) ? servicesDb.data : memoryStore.services;
+  const allJobs = await getUnifiedJobsList();
 
   const isCust = req.userRole === 'customer';
   const cMail = (req.userEmail || '').toLowerCase();
@@ -4725,7 +4898,7 @@ app.get('/api/admin/overview', async (req, res) => {
     totalProducts: products.length,
     totalServices: services.length,
     totalTeam: memoryStore.team.length,
-    totalJobs: memoryStore.jobs.length,
+    totalJobs: allJobs.length,
     totalUsers: memoryStore.users.length,
     totalInvoices: memoryStore.invoices.length,
     totalStaff: memoryStore.users.filter(u => u.role === 'staff').length,
@@ -4742,7 +4915,7 @@ app.get('/api/admin/overview', async (req, res) => {
     partners: memoryStore.partners || [],
     news: memoryStore.news || [],
     team: memoryStore.team,
-    jobs: memoryStore.jobs,
+    jobs: allJobs,
     users: isCust ? memoryStore.users.filter(u => (u.email || '').toLowerCase() === cMail) : memoryStore.users,
     invoices: isCust ? memoryStore.invoices.filter(i => (i.customer_email || '').toLowerCase() === cMail || (i.party || '').toLowerCase().includes(cMail.split('@')[0])) : memoryStore.invoices,
     payments: isCust ? (memoryStore.payments || []).filter(p => (p.party_email || '').toLowerCase() === cMail) : (memoryStore.payments || []),
@@ -10171,10 +10344,8 @@ app.post('/api/admin/invoices', async (req, res) => {
     : Math.min(grossSubtotal, dValue);
 
   const netSubtotal = Math.max(0, grossSubtotal - discountAmount);
-  const isWifiVoucher = (item_name || '').toLowerCase().includes('wifi voucher') || 
-                        (item_name || '').toLowerCase().includes('wifi -') || 
-                        (item_name || '').toLowerCase().includes('nova wifi') || 
-                        (items || []).some(i => (i.name || '').toLowerCase().includes('wifi voucher')) ||
+  const isWifiVoucher = isWifiVoucherProduct(item_name) || 
+                        (items || []).some(i => isWifiVoucherProduct(i)) || 
                         Boolean(wifi_voucher_id);
   
   const isExempt = isWifiVoucher ? true : Boolean(vat_exempt);
@@ -11043,10 +11214,8 @@ app.put('/api/admin/invoices/:id', async (req, res) => {
       }
     }
     
-    const isWifiVoucher = (inv.item_name || '').toLowerCase().includes('wifi voucher') || 
-                          (inv.item_name || '').toLowerCase().includes('wifi -') || 
-                          (inv.item_name || '').toLowerCase().includes('nova wifi') || 
-                          (inv.items || []).some(i => (i.name || '').toLowerCase().includes('wifi voucher')) ||
+    const isWifiVoucher = isWifiVoucherProduct(inv.item_name) || 
+                          (inv.items || []).some(i => isWifiVoucherProduct(i)) || 
                           Boolean(inv.wifi_voucher_id) || Boolean(wifi_voucher_id);
     
     if (vat_exempt !== undefined) inv.vat_exempt = isWifiVoucher ? true : vat_exempt;

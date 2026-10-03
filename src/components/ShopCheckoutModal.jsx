@@ -11,7 +11,8 @@ export default function ShopCheckoutModal() {
     isDirectCheckoutOpen, 
     directCheckoutItems, 
     closeDirectCheckout, 
-    setActivePage 
+    setActivePage,
+    openPaymentSuccessModal
   } = useApp();
 
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -174,16 +175,21 @@ export default function ShopCheckoutModal() {
     );
   });
 
+  const isWifiVoucherItem = (item) => {
+    if (!item) return false;
+    const cat = (item.category || '').toLowerCase();
+    const name = (item.name || item.title || '').toLowerCase();
+    return cat.includes('voucher') || cat.includes('wifi') ||
+           name.includes('voucher') || name.includes('wifi') || name.includes('hotspot') || name.includes('pass') || name.includes('ticket');
+  };
+
+  const areAllItemsWifi = selectedItems.length > 0 && selectedItems.every(isWifiVoucherItem);
+
   const subtotalAmount = selectedItems.reduce((acc, item) => acc + (Number(item.price) * (item.quantity || 1)), 0);
   
+  // Strictly zero tax for any WiFi voucher sales
   const vatAmount = includeVat ? selectedItems.reduce((acc, item) => {
-    const isWifi = item.name && (
-      item.name.toLowerCase().includes('wifi voucher') ||
-      item.name.toLowerCase().includes('ticket') ||
-      item.name.toLowerCase().includes('wifi - ') ||
-      item.name.toLowerCase().includes('nova wifi')
-    );
-    if (isWifi) return acc;
+    if (isWifiVoucherItem(item)) return acc;
     return acc + (Number(item.price) * (item.quantity || 1) * 0.18);
   }, 0) : 0;
   
@@ -347,7 +353,20 @@ export default function ShopCheckoutModal() {
         if (data.status === 'Success') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Successful! Thank you.');
-          setTimeout(() => setPaymentPolling(false), 3000);
+          setPaymentPolling(false);
+          // Show React Payment Celebration Popup Modal
+          if (openPaymentSuccessModal) {
+            openPaymentSuccessModal({
+              reference: successData?.reference || 'NV-SUB-8812',
+              invoice_number: successData?.invoice?.invoice_number || 'INV-2026-0042',
+              amount: grandTotal,
+              currency: 'UGX',
+              payment_method: paymentMethod === 'mobile_money' ? 'MTN / Airtel Mobile Money' : 'Card / Bank',
+              customer_name: customerInfo.name,
+              customer_email: customerInfo.email,
+              wifi_voucher_token: data.voucher_token || successData?.invoice?.wifi_voucher_token || ''
+            });
+          }
         } else if (data.status === 'Failed') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Failed or Cancelled.');
@@ -698,20 +717,26 @@ export default function ShopCheckoutModal() {
 
               {/* Tax & VAT Option Checkbox */}
               <div style={{
-                background: 'var(--bg-main)',
+                background: areAllItemsWifi ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-main)',
                 padding: '0.85rem 1rem',
                 borderRadius: '10px',
-                border: '1px solid var(--border-color)',
+                border: areAllItemsWifi ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
                 marginBottom: '1.25rem'
               }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    Standard 18% Value Added Tax (VAT) Applied
-                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
-                      Compulsory Uganda VAT
-                    </span>
+                {areAllItemsWifi ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-emerald)', fontWeight: '700', fontSize: '0.85rem' }}>
+                    <CheckCircle2 size={16} /> WiFi Vouchers: URA Tax-Exempt Status (0% VAT Applied)
                   </span>
-                </label>
+                ) : (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      Standard 18% Value Added Tax (VAT) Applied
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '600' }}>
+                        Compulsory Uganda VAT
+                      </span>
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* Order Summary Financial Breakdown */}

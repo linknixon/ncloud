@@ -12,7 +12,7 @@ const defaultJobs = [
     type: "Full-time",
     vacancies: 1,
     status: "open",
-    deadline: "2026-09-30",
+    deadline: "2026-12-31",
     description: "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
     requirements: [
       "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management",
@@ -38,7 +38,7 @@ const defaultJobs = [
     type: "Full-time",
     vacancies: 2,
     status: "open",
-    deadline: "2026-10-15",
+    deadline: "2026-12-31",
     description: "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
     requirements: [
       "Bachelor's Degree in Computer Science, Software Engineering, or IT",
@@ -50,6 +50,52 @@ const defaultJobs = [
       "Manage cloud virtualization hosts and storage networks",
       "Implement CI/CD pipelines and automated backup strategies",
       "Monitor server performance and resolve escalation alerts 24/7"
+    ]
+  },
+  {
+    id: 3,
+    title: "Cyber Security & SOC Analyst",
+    slug: "cyber-security-soc-analyst",
+    department: "Information Security & SOC",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 1,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Monitor, analyze, and neutralize incoming security events, manage Next-Gen Firewalls, conduct vulnerability assessments, and protect sovereign cloud infrastructure.",
+    requirements: [
+      "Bachelor's Degree in Computer Science, Cyber Security, or Information Systems",
+      "2+ years experience in SIEM monitoring, threat hunting, and firewall configuration",
+      "Knowledge of ISO/IEC 27001 standards and zero-trust security architectures",
+      "CEH, CompTIA Security+, or CISSP is an added advantage"
+    ],
+    responsibilities: [
+      "24/7 incident triage and forensic investigation of security alerts",
+      "Coordinate patch management and endpoint protection across edge servers",
+      "Audit access logs and prepare compliance reports"
+    ]
+  },
+  {
+    id: 4,
+    title: "Enterprise Solutions & Cloud Sales Executive",
+    slug: "enterprise-cloud-sales-executive",
+    department: "Sales & Business Development",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 2,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Drive enterprise client acquisition for Cloud VPS, Tier III Colocation, QuickBooks ERP deployment, and corporate connectivity solutions across Uganda.",
+    requirements: [
+      "Bachelor's Degree in Business Administration, Marketing, IT, or related field",
+      "2+ years experience in B2B corporate sales or telecommunications / ISP solutions",
+      "Demonstrated ability to close corporate IT infrastructure contracts",
+      "Excellent presentation, negotiation, and relationship management skills"
+    ],
+    responsibilities: [
+      "Identify and engage corporate prospects, NGOs, and financial institutions",
+      "Prepare custom quotations, respond to tenders, and present technical proposals",
+      "Maintain long-term client relationships and ensure SLA satisfaction"
     ]
   }
 ];

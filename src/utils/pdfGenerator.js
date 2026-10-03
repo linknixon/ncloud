@@ -33,14 +33,52 @@ export const BRAND = {
   }
 };
 
-// Safe Cross-Platform PDF Download / Browser Viewer
-const openPdfInBrowser = (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf') => {
+// Safe In-Browser PDF Renderer (Protected Server URL, No Forced Download, No Blob URL)
+const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf') => {
   try {
-    // Always use .save() for reliable cross-platform downloading with the correct filename.
-    // dataurlnewwindow fails on iOS and strips the filename on many browsers.
-    pdfDoc.save(fileName);
+    // 1. Generate clean base64 data string from jsPDF
+    const fullDataUri = pdfDoc.output('datauristring');
+    const base64Content = fullDataUri.split(',')[1];
+
+    // 2. Request a short-lived protected preview URL from the backend server
+    const res = await fetch('/api/documents/preview-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdfBase64: base64Content, filename: fileName })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.viewUrl) {
+        // Open the protected URL directly in a new browser tab for native inline PDF rendering
+        window.open(data.viewUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+
+    // 3. Robust offline fallback: Render in browser tab via protected viewer frame (avoid forced download)
+    const viewerWindow = window.open('', '_blank');
+    if (viewerWindow) {
+      viewerWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${fileName}</title>
+            <style>
+              html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0f172a; }
+              iframe { border: none; width: 100%; height: 100%; }
+            </style>
+          </head>
+          <body>
+            <iframe src="${fullDataUri}" title="${fileName}"></iframe>
+          </body>
+        </html>
+      `);
+      viewerWindow.document.close();
+      return;
+    }
   } catch (err) {
-    console.error('Failed to save PDF:', err);
+    console.error('Failed to render PDF in browser tab:', err);
   }
 };
 
@@ -2368,7 +2406,6 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   
   const estimatedHeight = Math.max(480, 360 + (items.length * 36));
   
-  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',

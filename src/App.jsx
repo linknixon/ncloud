@@ -8,6 +8,7 @@ import PasswordExpiryModal from './components/PasswordExpiryModal';
 import CartDrawer from './components/CartDrawer';
 import Toast from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
+import PaymentSuccessModal from './components/PaymentSuccessModal';
 
 import HomePage from './pages/HomePage';
 import ServicesPage from './pages/ServicesPage';
@@ -203,6 +204,7 @@ export default function App() {
           <PasswordExpiryModal />
           <CartDrawer onCheckout={() => setActivePage('subscription')} />
           <ShopCheckoutModal />
+          <PaymentSuccessModal />
           <Toast />
           <InstallPrompt />
         </div>

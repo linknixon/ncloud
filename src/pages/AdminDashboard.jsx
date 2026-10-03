@@ -268,6 +268,65 @@ class SettingsErrorBoundary extends React.Component {
   }
 }
 
+const initialMasterJobs = [
+  {
+    id: 1,
+    title: "Assistant Office Attendant (1)",
+    slug: "assistant-office-attendant",
+    department: "Administration & Operations",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 1,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
+    requirements: "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management\nMinimum 1-2 years of relevant experience in a corporate or tech office setting\nStrong written and verbal communication skills in English and Luganda\nPunctual, organized, trustworthy, and proactive attitude\nBasic computer literacy (MS Word, Email, Web Browsing)",
+    responsibilities: "Welcome clients, visitors, and partners at the reception area\nEnsure office cleanliness, orderly meeting rooms, and refreshment management\nReceive and log incoming mail, packages, and office supplies deliveries\nAssist administrative officers with filing, photocopying, and scanning documents\nRun essential external errands for office operations when required"
+  },
+  {
+    id: 2,
+    title: "Cloud Systems & DevOps Engineer",
+    slug: "cloud-systems-engineer",
+    department: "Engineering & Cloud Infrastructure",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 2,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
+    requirements: "Bachelor's Degree in Computer Science, Software Engineering, or IT\n3+ years experience with Linux administration (Debian/Ubuntu/CentOS), Docker, and KVM/Proxmox\nHands-on experience with MySQL/MariaDB replication and performance tuning\nCertifications in AWS, CKA, or RHCE are an added advantage",
+    responsibilities: "Manage cloud virtualization hosts and storage networks\nImplement CI/CD pipelines and automated backup strategies\nMonitor server performance and resolve escalation alerts 24/7"
+  },
+  {
+    id: 3,
+    title: "Cyber Security & SOC Analyst",
+    slug: "cyber-security-soc-analyst",
+    department: "Information Security & SOC",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 1,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Monitor, analyze, and neutralize incoming security events, manage Next-Gen Firewalls, conduct vulnerability assessments, and protect sovereign cloud infrastructure.",
+    requirements: "Bachelor's Degree in Computer Science, Cyber Security, or Information Systems\n2+ years experience in SIEM monitoring, threat hunting, and firewall configuration\nKnowledge of ISO/IEC 27001 standards and zero-trust security architectures\nCEH, CompTIA Security+, or CISSP is an added advantage",
+    responsibilities: "24/7 incident triage and forensic investigation of security alerts\nCoordinate patch management and endpoint protection across edge servers\nAudit access logs and prepare compliance reports"
+  },
+  {
+    id: 4,
+    title: "Enterprise Solutions & Cloud Sales Executive",
+    slug: "enterprise-cloud-sales-executive",
+    department: "Sales & Business Development",
+    location: "Kampala, Uganda",
+    type: "Full-time",
+    vacancies: 2,
+    status: "open",
+    deadline: "2026-12-31",
+    description: "Drive enterprise client acquisition for Cloud VPS, Tier III Colocation, QuickBooks ERP deployment, and corporate connectivity solutions across Uganda.",
+    requirements: "Bachelor's Degree in Business Administration, Marketing, IT, or related field\n2+ years experience in B2B corporate sales or telecommunications / ISP solutions\nDemonstrated ability to close corporate IT infrastructure contracts\nExcellent presentation, negotiation, and relationship management skills",
+    responsibilities: "Identify and engage corporate prospects, NGOs, and financial institutions\nPrepare custom quotations, respond to tenders, and present technical proposals\nMaintain long-term client relationships and ensure SLA satisfaction"
+  }
+];
+
 export default function AdminDashboard({ setActivePage }) {
   const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon, topbarSettings, updateTopbarSettings, logout } = useApp();
   const [logoInput, setLogoInput] = useState(siteLogo || '');
@@ -572,6 +631,7 @@ const normalizeTabName = (rawTab) => {
   if (['payments', 'payment', 'payouts'].includes(t)) return 'payments';
   if (['bank_accounts', 'bank_account', 'banks', 'bank'].includes(t)) return 'bank_accounts';
   if (['schedules', 'schedule', 'timers', 'cron'].includes(t)) return 'schedules';
+  if (['services', 'service', 'solutions'].includes(t)) return 'services';
   if (['careers', 'career', 'jobs', 'vacancies'].includes(t)) return 'hr';
   if (['applications', 'application', 'candidate_applications', 'candidates', 'hiring'].includes(t)) return 'hr';
   if (['contracts', 'contract', 'engagement_contract', 'dispatch_contract'].includes(t)) return 'hr';
@@ -904,7 +964,7 @@ const normalizeTabName = (rawTab) => {
   });
 
   // Career Vacancies (Jobs) State
-  const [jobsList, setJobsList] = useState([]);
+  const [jobsList, setJobsList] = useState(initialMasterJobs);
   const [showJobModal, setShowJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState({
@@ -1258,7 +1318,7 @@ const normalizeTabName = (rawTab) => {
       setData(resData);
       if (resData.products && Array.isArray(resData.products) && resData.products.length > 0) setStoreProducts(resData.products);
       if (resData.services && Array.isArray(resData.services)) setServicesList(resData.services);
-      if (resData.jobs && Array.isArray(resData.jobs)) setJobsList(resData.jobs);
+      if (resData.jobs && Array.isArray(resData.jobs) && resData.jobs.length > 0) setJobsList(resData.jobs);
       if (resData.team && Array.isArray(resData.team)) setTeamList(resData.team);
       if (resData.companyExpenses && Array.isArray(resData.companyExpenses)) setCompanyExpensesList(resData.companyExpenses);
       if (resData.sliders && Array.isArray(resData.sliders)) setSlidersList(resData.sliders);
@@ -5406,6 +5466,25 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
+          {(isWebAdmin || isSuperAdmin || canRead('services') || canRead('store')) && (
+            <button
+              onClick={() => updateActiveTab('services')}
+              className="btn-secondary"
+              style={{
+                padding: '0.55rem 1.1rem',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                background: activeTab === 'services' ? '#0284c7' : 'transparent',
+                color: activeTab === 'services' ? '#fff' : 'var(--text-main)',
+                border: activeTab === 'services' ? 'none' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Server size={15} /> Services
+            </button>
+          )}
+
 
           {(isHrManager || isStaff || isSuperAdmin || isWebAdmin || canRead('hr') || canRead('jobs') || canRead('careers') || canRead('applications')) && (
             <button
@@ -7289,10 +7368,10 @@ const normalizeTabName = (rawTab) => {
                   {/* Forensics Table */}
                   <div className="glass-card" style={{ padding: 0, marginBottom: '1.25rem', overflow: 'hidden', border: '1px solid var(--border-color)', borderRadius: '14px' }}>
                     <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                      <table style={{ minWidth: '1180px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <table style={{ minWidth: '1280px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '0.85rem 1rem', width: '40px', whiteSpace: 'nowrap' }}>
+                          <th style={{ padding: '0.85rem 1rem', width: '44px', minWidth: '44px', textAlign: 'center' }}>
                             <input
                               type="checkbox"
                               checked={paginatedLogs.length > 0 && paginatedLogs.every(l => selectedForensicsLogs.includes(l.id))}
@@ -7307,14 +7386,14 @@ const normalizeTabName = (rawTab) => {
                               }}
                             />
                           </th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Timestamp</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>User / Actor</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Action Code</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Resource Ref</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Client IP Address</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Device Footprint</th>
-                          <th style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap', fontWeight: '800' }}>Event Details</th>
-                          <th style={{ padding: '0.85rem 1.1rem', textAlign: 'center', width: '130px', whiteSpace: 'nowrap', fontWeight: '800' }}>Actions</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '155px', minWidth: '155px', whiteSpace: 'nowrap', fontWeight: '800' }}>Timestamp</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '185px', minWidth: '185px', whiteSpace: 'nowrap', fontWeight: '800' }}>User / Actor</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '175px', minWidth: '175px', whiteSpace: 'nowrap', fontWeight: '800' }}>Action Code</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '140px', minWidth: '140px', whiteSpace: 'nowrap', fontWeight: '800' }}>Resource Ref</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '140px', minWidth: '140px', whiteSpace: 'nowrap', fontWeight: '800' }}>Client IP Address</th>
+                          <th style={{ padding: '0.85rem 1rem', width: '135px', minWidth: '135px', whiteSpace: 'nowrap', fontWeight: '800' }}>Device Footprint</th>
+                          <th style={{ padding: '0.85rem 1rem', minWidth: '280px', fontWeight: '800' }}>Event Details</th>
+                          <th style={{ padding: '0.85rem 1rem', textAlign: 'center', width: '130px', minWidth: '130px', whiteSpace: 'nowrap', fontWeight: '800' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -7342,7 +7421,7 @@ const normalizeTabName = (rawTab) => {
                                 transition: 'background 0.15s ease'
                               }}
                             >
-                              <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '0.85rem 1rem', textAlign: 'center', width: '44px' }}>
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -7355,7 +7434,7 @@ const normalizeTabName = (rawTab) => {
                                   }}
                                 />
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.775rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                                 {(() => {
                                   if (!log.timestamp) return 'N/A';
                                   try {
@@ -7366,30 +7445,46 @@ const normalizeTabName = (rawTab) => {
                                   }
                                 })()}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', minWidth: '160px' }}>
-                                <div style={{ fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{safeStr(log.user_name)}</div>
-                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{safeStr(log.user_email)}</div>
+                              <td style={{ padding: '0.85rem 1rem', width: '185px' }}>
+                                <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '0.825rem' }}>{safeStr(log.user_name)}</div>
+                                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{safeStr(log.user_email)}</div>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', whiteSpace: 'nowrap' }}>
-                                <span className="badge-tag" style={{ background: badgeBg, color: badgeColor, fontSize: '0.7rem', fontWeight: '800' }}>
+                              <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap' }}>
+                                <span className="badge-tag" style={{ background: badgeBg, color: badgeColor, fontSize: '0.7rem', fontWeight: '800', letterSpacing: '0.02em' }}>
                                   {safeStr(log.action)}
                                 </span>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', whiteSpace: 'nowrap' }}>
-                                <code>{safeStr(log.resource_id)}</code>
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.775rem', whiteSpace: 'nowrap' }}>
+                                <code style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }}>{safeStr(log.resource_id)}</code>
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.775rem', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.775rem', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                                 <Fingerprint size={12} style={{ display: 'inline', marginRight: '4px' }} />
                                 {safeStr(log.ip_address)}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                 {(safeStr(log.device_type) || '').includes('Mobile') ? <Smartphone size={12} style={{ display: 'inline', marginRight: '3px' }} /> : <Laptop size={12} style={{ display: 'inline', marginRight: '3px' }} />}
                                 {safeStr(log.device_type)}
                               </td>
-                              <td style={{ padding: '0.85rem 1.1rem', fontSize: '0.8rem', color: 'var(--text-main)', minWidth: '220px', maxWidth: '340px', wordBreak: 'break-word' }}>
-                                {safeStr(log.details)}
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.825rem', color: 'var(--text-main)', minWidth: '280px', lineHeight: '1.5', wordBreak: 'normal', overflowWrap: 'anywhere' }}>
+                                {(() => {
+                                  const raw = log.details;
+                                  if (!raw) return <span style={{ color: 'var(--text-muted)' }}>System event recorded</span>;
+                                  if (typeof raw === 'object') {
+                                    return Object.entries(raw).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' • ');
+                                  }
+                                  const s = String(raw).trim();
+                                  if (s.startsWith('{') && s.endsWith('}')) {
+                                    try {
+                                      const parsed = JSON.parse(s);
+                                      return Object.entries(parsed).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' • ');
+                                    } catch(e) {
+                                      return s;
+                                    }
+                                  }
+                                  return s;
+                                })()}
                               </td>
-                              <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap', width: '130px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
                                   <button
                                     onClick={(e) => {
@@ -8783,6 +8878,141 @@ const normalizeTabName = (rawTab) => {
                               title="Remove event"
                             >
                               <Trash size={13} /> Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SERVICES PAGE CONTENT MODULE (https://ncloud.co.ug/services) */}
+            {activeTab === 'services' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Server size={22} color="#0284c7" /> Core Services Page Manager
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Edit and publish public services, technical capability offerings, and features displayed on <a href="/services" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>https://ncloud.co.ug/services ↗</a>
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <a
+                      href="/services"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary"
+                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      <Globe size={15} /> Preview Services Page
+                    </a>
+                    {(canCreate('store') || isSuperAdmin || isWebAdmin) && (
+                      <button
+                        onClick={() => {
+                          setEditingService(null);
+                          setServiceForm({
+                            title: '',
+                            summary: '',
+                            description: '',
+                            icon: 'Server',
+                            features: ''
+                          });
+                          setShowServiceModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#0284c7', borderColor: '#0284c7' }}
+                      >
+                        <Plus size={16} /> Add New Service
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Search services by title, capabilities, keywords, or description..."
+                      value={catalogSearch}
+                      onChange={e => setCatalogSearch(e.target.value)}
+                      style={{ paddingLeft: '2.5rem', width: '100%' }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+                    Showing {servicesList.filter(s => !catalogSearch || (s.title || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.summary || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.description || '').toLowerCase().includes(catalogSearch.toLowerCase())).length} of {servicesList.length} Public Services
+                  </span>
+                </div>
+
+                {/* Services Grid Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+                  {servicesList.filter(s => !catalogSearch || (s.title || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.summary || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (s.description || '').toLowerCase().includes(catalogSearch.toLowerCase())).map(s => (
+                    <div key={s.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: '14px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Server size={22} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h4 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0, lineHeight: '1.3' }}>{s.title}</h4>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>URL Slug: /services?item={s.slug || s.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}</span>
+                          </div>
+                        </div>
+
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '0.85rem' }}>
+                          {s.summary || s.description}
+                        </p>
+
+                        {s.features && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
+                            {(Array.isArray(s.features) ? s.features : (typeof s.features === 'string' ? JSON.parse(s.features || '[]') : [])).slice(0, 4).map((f, i) => (
+                              <span key={i} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                ✓ {f}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-emerald)', fontSize: '0.72rem' }}>
+                          Active on /services
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          {(canUpdate('store') || isSuperAdmin || isWebAdmin) && (
+                            <button
+                              onClick={() => {
+                                setEditingService(s);
+                                const featText = Array.isArray(s.features) ? s.features.join('\n') : (typeof s.features === 'string' ? JSON.parse(s.features || '[]').join('\n') : '');
+                                setServiceForm({
+                                  title: s.title,
+                                  summary: s.summary || '',
+                                  description: s.description || '',
+                                  icon: s.icon || 'Server',
+                                  features: featText
+                                });
+                                setShowServiceModal(true);
+                              }}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', gap: '4px' }}
+                            >
+                              <Edit3 size={13} /> Edit
+                            </button>
+                          )}
+                          {(canDelete('store') || isSuperAdmin || canDeleteSystemRecords) && (
+                            <button
+                              onClick={() => handleDeleteService(s.id, s.title)}
+                              className="btn-secondary"
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', color: '#ef4444', gap: '4px' }}
+                              title="Delete service from public page"
+                            >
+                              <Trash size={13} /> Delete
                             </button>
                           )}
                         </div>
@@ -12915,6 +13145,17 @@ const normalizeTabName = (rawTab) => {
                                 value={topbarForm.facebook || ''}
                                 onChange={e => setTopbarForm({ ...topbarForm, facebook: e.target.value })}
                                 placeholder="https://facebook.com/..."
+                              />
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '0.72rem', fontWeight: '700' }}>GitHub URL</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ fontSize: '0.75rem' }}
+                                value={topbarForm.github || ''}
+                                onChange={e => setTopbarForm({ ...topbarForm, github: e.target.value })}
+                                placeholder="https://github.com/..."
                               />
                             </div>
                           </div>

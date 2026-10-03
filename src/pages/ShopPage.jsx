@@ -528,9 +528,6 @@ export default function ShopPage({ setActivePage }) {
         
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-block', padding: '0.25rem 0.85rem', borderRadius: '999px', background: 'rgba(30, 58, 138, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
-            Official Nova Cloud Store • Kampala, Uganda
-          </div>
           <h1 style={{ fontSize: '2.1rem', marginTop: '0.2rem', lineHeight: '1.25' }}>Nova Cloud Shop: Sovereign Cloud, Enterprise ERP & IT Hardware</h1>
           <p style={{ color: 'var(--text-muted)', maxWidth: '680px', margin: '0.5rem auto 0', fontSize: '1rem', lineHeight: '1.6' }}>
             Uganda's verified online IT store for high-speed Cloud VPS, carrier-grade colocation racks, QuickBooks ERP licenses, and MikroTik networking hardware with localized delivery across Kampala & nationwide Uganda.
@@ -904,9 +901,6 @@ export default function ShopPage({ setActivePage }) {
         {/* Why Buy from Nova Cloud Uganda - SEO Geo Content & Trust Grid */}
         <section style={{ marginTop: '5rem', paddingTop: '3.5rem', borderTop: '1px solid var(--border-color)' }}>
           <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 2.5rem' }}>
-            <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-emerald)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              Uganda's Sovereign Infrastructure Advantage
-            </div>
             <h2 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: '1.3' }}>
               Why Ugandan Enterprises & Tech Teams Choose Nova Cloud
             </h2>
@@ -961,9 +955,6 @@ export default function ShopPage({ setActivePage }) {
         {/* Uganda IT Store & Local Cloud FAQ Section */}
         <section style={{ marginBottom: '4rem' }}>
           <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 2.5rem' }}>
-            <div style={{ display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', fontWeight: '800', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-              Customer Support & Buyer Guide
-            </div>
             <h2 style={{ fontSize: '1.85rem', fontWeight: '800', lineHeight: '1.3' }}>
               Frequently Asked Questions (Uganda IT Store & Local Cloud)
             </h2>
