@@ -92,7 +92,8 @@ export async function loadFullStoreFromMysql() {
       site_logo: '',
       site_favicon: '',
       announcement: {},
-      banner_settings: {}
+      banner_settings: {},
+      api_integrations: []
     };
 
     // 1. Roles
@@ -446,6 +447,8 @@ export async function loadFullStoreFromMysql() {
         let val = row.setting_value;
         if (['smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails', 'paid_stamp', 'announcement', 'banner_settings'].includes(key)) {
           store[key] = parseJsonSafe(val, {});
+        } else if (key === 'api_integrations') {
+          store[key] = parseJsonSafe(val, []);
         } else {
           store[key] = val;
         }
@@ -633,7 +636,8 @@ export async function syncStoreToMysql(store) {
     // 11. System Settings
     const settingKeys = [
       'smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails',
-      'paid_stamp', 'site_logo', 'site_favicon', 'announcement', 'banner_settings', 'slider_settings'
+      'paid_stamp', 'site_logo', 'site_favicon', 'announcement', 'banner_settings', 'slider_settings',
+      'api_integrations'
     ];
     for (const sk of settingKeys) {
       if (store[sk] !== undefined && store[sk] !== null) {

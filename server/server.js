@@ -12465,13 +12465,13 @@ app.get(['/rss.xml', '/api/rss'], (req, res) => {
 
 // Authorization Middleware for API Integrations
 function requireSystemsAdmin(req, res, next) {
-  const rawRole = req.headers['x-user-role'] || req.body?.user_role || req.body?.admin_role || req.query?.user_role;
+  const rawRole = req.headers['x-user-role'] || req.userRole || req.body?.user_role || req.body?.admin_role || req.query?.user_role;
   if (!rawRole) return res.status(401).json({ error: 'Unauthorized' });
   const roleClean = String(rawRole).trim().toLowerCase().replace(/\s+/g, '_');
-  if (roleClean === 'super_admin' || roleClean === 'systems_admin' || roleClean === 'superadmin') {
+  if (roleClean === 'super_admin' || roleClean === 'systems_admin' || roleClean === 'superadmin' || roleClean === 'admin') {
     return next();
   }
-  return res.status(403).json({ error: 'Access Denied: Only Systems Admin can configure API integrations.' });
+  return res.status(403).json({ error: 'Access Denied: Only Systems Admin or Super Admin can configure API integrations.' });
 }
 
 // ----------------------------------------------------
@@ -12485,21 +12485,98 @@ app.get('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
   res.json({ integrations });
 });
 
+// Create new custom or preset API Integration
+app.post('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id } = req.body;
+  if (!name || !provider) {
+    return res.status(400).json({ error: 'Integration Name and Provider are required.' });
+  }
+  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+  
+  const rawId = req.body.id ? String(req.body.id) : `${provider.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`;
+  const id = rawId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  
+  const existingIdx = memoryStore.api_integrations.findIndex(a => a.id === id);
+  const newIntegration = {
+    id,
+    name: name.trim(),
+    provider: provider.trim(),
+    type: type || 'custom',
+    status: req.body.status || 'active',
+    client_id: client_id || '',
+    client_secret: client_secret || '',
+    wallet_id: wallet_id || '',
+    host_url: host_url || '',
+    site_id: site_id || '',
+    last_updated: new Date().toISOString()
+  };
+  
+  if (existingIdx >= 0) {
+    memoryStore.api_integrations[existingIdx] = newIntegration;
+  } else {
+    memoryStore.api_integrations.push(newIntegration);
+  }
+  
+  savePersistentStore(true);
+  res.json({ success: true, message: 'API Integration added successfully.', integration: newIntegration });
+});
+
 app.put('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
   const { id } = req.params;
-  const { client_id, client_secret, wallet_id } = req.body;
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, status } = req.body;
   
   if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
   
   const api = memoryStore.api_integrations.find(a => a.id === id);
   if (api) {
+    if (name) api.name = name;
+    if (provider) api.provider = provider;
+    if (type) api.type = type;
     if (client_id !== undefined) api.client_id = client_id;
     if (client_secret && client_secret !== '********') api.client_secret = client_secret;
     if (wallet_id !== undefined) api.wallet_id = wallet_id;
+    if (host_url !== undefined) api.host_url = host_url;
+    if (site_id !== undefined) api.site_id = site_id;
+    if (status !== undefined) api.status = status;
     api.last_updated = new Date().toISOString();
   }
   savePersistentStore(true);
   res.json({ message: 'API Configuration Saved' });
+});
+
+// FULL REMOVAL & DELETION of an API Integration
+app.delete('/api/admin/integrations/:id', requireSystemsAdmin, (req, res) => {
+  const { id } = req.params;
+  if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+  
+  const initialLength = memoryStore.api_integrations.length;
+  const targetItem = memoryStore.api_integrations.find(a => a.id === id);
+  memoryStore.api_integrations = memoryStore.api_integrations.filter(a => a.id !== id);
+  
+  if (memoryStore.api_integrations.length === initialLength) {
+    return res.status(404).json({ error: 'API integration not found.' });
+  }
+
+  // Audit log entry for tracking
+  if (Array.isArray(memoryStore.audit_logs)) {
+    memoryStore.audit_logs.unshift({
+      id: Date.now(),
+      user_email: req.userEmail || 'systems@ncloud.co.ug',
+      user_name: req.userName || 'Systems Admin',
+      user_role: req.userRole || 'super_admin',
+      action: 'API_INTEGRATION_DELETED',
+      resource_type: 'API Integrations',
+      resource_id: id,
+      details: `API Integration "${targetItem?.name || targetItem?.provider || id}" was permanently removed from system configuration.`,
+      ip_address: req.ip || '127.0.0.1',
+      device_type: req.headers['user-agent'] || 'Admin System',
+      status: 'SUCCESS',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  savePersistentStore(true);
+  res.json({ success: true, message: `API Integration "${targetItem?.name || targetItem?.provider || id}" has been completely deleted.` });
 });
 
 app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, (req, res) => {
@@ -12535,21 +12612,21 @@ app.post('/api/admin/integrations/restore', requireSystemsAdmin, (req, res) => {
       name: 'ioTec Payment Gateway',
       provider: 'ioTec Pay',
       type: 'payment',
-      status: 'suspended',
+      status: 'active',
       client_id: '',
       client_secret: '',
       wallet_id: '',
       last_updated: new Date().toISOString()
     });
-  } else if (id === 'unifi_controller' && !memoryStore.api_integrations.find(a => a.id === 'unifi_controller')) {
+  } else if ((id === 'unifi_controller' || id === 'unifi_api') && !memoryStore.api_integrations.find(a => a.id === 'unifi_controller' || a.id === 'unifi_api')) {
     memoryStore.api_integrations.push({
-      id: 'unifi_controller',
-      name: 'UniFi Network API',
-      provider: 'Ubiquiti UniFi',
+      id: 'unifi_api',
+      name: 'UniFi OS Network Integration',
+      provider: 'Ubiquiti',
       type: 'network',
-      status: 'suspended',
-      client_id: '',
-      client_secret: '',
+      status: 'active',
+      client_id: '88f7af54-98f8-306a-a1c7-c9349722b1f6',
+      client_secret: 'm1583Qhvi9hAOwxZsGYhh31Zqmh84Tda',
       host_url: 'https://192.168.1.1:8443',
       site_id: 'default',
       last_updated: new Date().toISOString()

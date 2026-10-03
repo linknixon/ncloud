@@ -896,6 +896,17 @@ const normalizeTabName = (rawTab) => {
   const [apiIntegrations, setApiIntegrations] = useState([]);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedApiConfig, setSelectedApiConfig] = useState(null);
+  const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
+  const [newIntegrationForm, setNewIntegrationForm] = useState({
+    name: '',
+    provider: '',
+    type: 'payment',
+    client_id: '',
+    client_secret: '',
+    wallet_id: '',
+    host_url: '',
+    site_id: ''
+  });
   
   // Invoice Payment State
   const [showInvoicePaymentModal, setShowInvoicePaymentModal] = useState(false);
@@ -1646,6 +1657,63 @@ const normalizeTabName = (rawTab) => {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleDeleteApiIntegration = async (api) => {
+    if (!api) return;
+    const displayName = api.name || api.provider || 'this integration';
+    if (!window.confirm(`Are you sure you want to permanently delete "${displayName}"?\n\nThis API integration will be removed completely from the system and database.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/integrations/${api.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole }
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to delete API integration');
+      showToast(resData.message || `API Integration "${displayName}" deleted completely.`, 'success');
+      setApiIntegrations(prev => prev.filter(item => item.id !== api.id));
+      if (showConfigModal && selectedApiConfig?.id === api.id) {
+        setShowConfigModal(false);
+        setSelectedApiConfig(null);
+      }
+      fetchApiIntegrations();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleCreateApiIntegration = async (e) => {
+    e.preventDefault();
+    if (!newIntegrationForm.name || !newIntegrationForm.provider) {
+      showToast('Integration Name and Provider are required.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify(newIntegrationForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to create integration');
+      showToast(resData.message || 'API Integration created successfully!', 'success');
+      setShowAddIntegrationModal(false);
+      setNewIntegrationForm({
+        name: '',
+        provider: '',
+        type: 'payment',
+        client_id: '',
+        client_secret: '',
+        wallet_id: '',
+        host_url: '',
+        site_id: ''
+      });
+      fetchApiIntegrations();
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -12255,14 +12323,21 @@ const normalizeTabName = (rawTab) => {
             {/* API INTEGRATIONS MODULE */}
             {activeTab === 'api_integrations' && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>API Integrations & Keys Management</h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
                       Securely manage payment gateways (ioTec Pay, MTN, Airtel) and core system APIs (UniFi).
                     </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setShowAddIntegrationModal(true)}
+                      className="btn-primary"
+                      style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <Plus size={15} /> Add Integration
+                    </button>
                     <button onClick={async () => {
                       await fetch('/api/admin/integrations/restore', {
                         method: 'POST',
@@ -12271,105 +12346,138 @@ const normalizeTabName = (rawTab) => {
                       });
                       fetchApiIntegrations();
                       showToast('ioTec API configuration restored.', 'success');
-                    }} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>Restore ioTec API</button>
+                    }} className="btn-secondary" style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem' }}>Restore ioTec Gateway</button>
                     <button onClick={async () => {
                       await fetch('/api/admin/integrations/restore', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                        body: JSON.stringify({ id: 'unifi_controller' })
+                        body: JSON.stringify({ id: 'unifi_api' })
                       });
                       fetchApiIntegrations();
-                      showToast('UniFi API configuration restored.', 'success');
-                    }} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>Restore UniFi API</button>
+                      showToast('UniFi Network API restored.', 'success');
+                    }} className="btn-secondary" style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem' }}>Restore UniFi Network</button>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                  {apiIntegrations.map(api => (
-                    <div key={api.id} className="glass-card" style={{ padding: '1.5rem', position: 'relative' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div>
-                          <h4 style={{ fontWeight: '800', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {api.provider}
-                            {api.status === 'active' && <span style={{ fontSize: '0.7rem', background: '#10b98120', color: '#10b981', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>ACTIVE</span>}
-                            {api.status === 'suspended' && <span style={{ fontSize: '0.7rem', background: '#f59e0b20', color: '#f59e0b', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>SUSPENDED</span>}
-                            {api.status === 'revoked' && <span style={{ fontSize: '0.7rem', background: '#ef444420', color: '#ef4444', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>REVOKED</span>}
-                          </h4>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>{api.name}</p>
-                        </div>
-                        <Settings2 size={24} color="var(--primary-color)" />
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-                        <button 
-                          onClick={() => {
-                            setSelectedApiConfig(api);
-                            setShowConfigModal(true);
-                          }}
-                          className="btn-primary" 
-                          style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
-                        >
-                          Configure Keys
-                        </button>
-                        
-                        {api.status === 'active' ? (
-                          <button 
-                            onClick={async () => {
-                              await fetch(`/api/admin/integrations/${api.id}/status`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                                body: JSON.stringify({ status: 'suspended' })
-                              });
-                              fetchApiIntegrations();
-                              showToast(`${api.provider} suspended successfully.`, 'info');
-                            }}
-                            className="btn-secondary" 
-                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
-                          >
-                            Suspend
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={async () => {
-                              await fetch(`/api/admin/integrations/${api.id}/status`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                                body: JSON.stringify({ status: 'active' })
-                              });
-                              fetchApiIntegrations();
-                              showToast(`${api.provider} activated successfully.`, 'success');
-                            }}
-                            className="btn-secondary" 
-                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
-                          >
-                            Activate
-                          </button>
-                        )}
-                        
-                        <button 
-                          onClick={async () => {
-                            if(window.confirm(`Are you sure you want to REVOKE ${api.provider}? This will delete the keys permanently.`)) {
-                              await fetch(`/api/admin/integrations/${api.id}/status`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-                                body: JSON.stringify({ status: 'revoked' })
-                              });
-                              fetchApiIntegrations();
-                              showToast(`${api.provider} credentials revoked.`, 'error');
-                            }
-                          }}
-                          className="btn-secondary" 
-                          style={{ padding: '0.4rem', fontSize: '0.85rem', color: '#ef4444', borderColor: '#ef4444' }}
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </div>
-                      <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Last Updated: {new Date(api.last_updated).toLocaleString()}
-                      </div>
+                {apiIntegrations.length === 0 ? (
+                  <div className="glass-card" style={{ padding: '3.5rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <Settings2 size={46} style={{ margin: '0 auto 1rem', opacity: 0.35 }} />
+                    <h4 style={{ fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>No API Integrations Configured</h4>
+                    <p style={{ fontSize: '0.85rem', maxWidth: '520px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+                      All API integrations have been permanently removed. You can create a new custom API integration or restore default gateway templates at any time.
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setShowAddIntegrationModal(true)}
+                        className="btn-primary"
+                        style={{ padding: '0.5rem 1.2rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Plus size={16} /> Add Integration
+                      </button>
+                      <button onClick={async () => {
+                        await fetch('/api/admin/integrations/restore', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                          body: JSON.stringify({ id: 'iotec_pay' })
+                        });
+                        fetchApiIntegrations();
+                        showToast('ioTec API configuration restored.', 'success');
+                      }} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                        Restore ioTec Gateway
+                      </button>
+                      <button onClick={async () => {
+                        await fetch('/api/admin/integrations/restore', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                          body: JSON.stringify({ id: 'unifi_api' })
+                        });
+                        fetchApiIntegrations();
+                        showToast('UniFi Network API restored.', 'success');
+                      }} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                        Restore UniFi Network
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                    {apiIntegrations.map(api => (
+                      <div key={api.id} className="glass-card" style={{ padding: '1.5rem', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                              <h4 style={{ fontWeight: '800', fontSize: '1.1rem' }}>{api.provider || api.name}</h4>
+                              {api.status === 'active' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#10b98120', color: '#10b981', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>ACTIVE</span>}
+                              {api.status === 'suspended' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#f59e0b20', color: '#f59e0b', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>SUSPENDED</span>}
+                              {api.status === 'revoked' && <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#ef444420', color: '#ef4444', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>REVOKED</span>}
+                              {api.type && <span style={{ fontSize: '0.68rem', background: 'var(--bg-main)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '0.15rem 0.45rem', borderRadius: '4px', textTransform: 'uppercase' }}>{api.type}</span>}
+                            </div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{api.name}</p>
+                          </div>
+                          <Settings2 size={22} color="var(--primary-color)" style={{ opacity: 0.8 }} />
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                          <button 
+                            onClick={() => {
+                              setSelectedApiConfig(api);
+                              setShowConfigModal(true);
+                            }}
+                            className="btn-primary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                          >
+                            Configure Keys
+                          </button>
+                          
+                          {api.status === 'active' ? (
+                            <button 
+                              onClick={async () => {
+                                await fetch(`/api/admin/integrations/${api.id}/status`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                  body: JSON.stringify({ status: 'suspended' })
+                                });
+                                fetchApiIntegrations();
+                                showToast(`${api.provider || api.name} suspended.`, 'info');
+                              }}
+                              className="btn-secondary" 
+                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                            >
+                              Suspend
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={async () => {
+                                await fetch(`/api/admin/integrations/${api.id}/status`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+                                  body: JSON.stringify({ status: 'active' })
+                                });
+                                fetchApiIntegrations();
+                                showToast(`${api.provider || api.name} activated.`, 'success');
+                              }}
+                              className="btn-secondary" 
+                              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                            >
+                              Activate
+                            </button>
+                          )}
+                          
+                          <button 
+                            title="Delete API Integration Permanently"
+                            onClick={() => handleDeleteApiIntegration(api)}
+                            className="btn-secondary" 
+                            style={{ padding: '0.4rem 0.65rem', fontSize: '0.85rem', color: '#ef4444', borderColor: '#ef4444' }}
+                          >
+                            <Trash size={14} />
+                          </button>
+                        </div>
+                        <div style={{ marginTop: '1rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          Last Updated: {api.last_updated ? new Date(api.last_updated).toLocaleString() : 'N/A'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -16827,13 +16935,12 @@ const normalizeTabName = (rawTab) => {
           </div>
         )}
 
-        {/* ISSUE INVOICE MODAL (Store Item & Customer Selection) */}
         {/* API CONFIG MODAL */}
         {showConfigModal && selectedApiConfig && (
           <div className="modal-overlay" onClick={() => setShowConfigModal(false)}>
-            <div className="modal-content" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-content" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
               <div className="modal-header">
-                <h3>Configure {selectedApiConfig.provider}</h3>
+                <h3>Configure {selectedApiConfig.provider || selectedApiConfig.name}</h3>
                 <button className="modal-close" onClick={() => setShowConfigModal(false)}><X size={20} /></button>
               </div>
               <div className="modal-body">
@@ -16844,20 +16951,50 @@ const normalizeTabName = (rawTab) => {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
                       body: JSON.stringify({
+                        name: selectedApiConfig.name,
+                        provider: selectedApiConfig.provider,
                         client_id: selectedApiConfig.client_id,
                         client_secret: selectedApiConfig.client_secret,
-                        wallet_id: selectedApiConfig.wallet_id
+                        wallet_id: selectedApiConfig.wallet_id,
+                        host_url: selectedApiConfig.host_url,
+                        site_id: selectedApiConfig.site_id
                       })
                     });
                     if (res.ok) {
                       showToast('API Configuration saved successfully!', 'success');
                       setShowConfigModal(false);
                       fetchApiIntegrations();
+                    } else {
+                      const d = await res.json();
+                      throw new Error(d.error || 'Failed to save');
                     }
                   } catch(err) {
-                    showToast('Failed to save API config', 'error');
+                    showToast(err.message || 'Failed to save API config', 'error');
                   }
                 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontWeight: '700', fontSize: '0.82rem' }}>Integration Name</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={selectedApiConfig.name || ''}
+                        onChange={e => setSelectedApiConfig({...selectedApiConfig, name: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontWeight: '700', fontSize: '0.82rem' }}>Provider</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={selectedApiConfig.provider || ''}
+                        onChange={e => setSelectedApiConfig({...selectedApiConfig, provider: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
                     <input
@@ -16865,7 +17002,7 @@ const normalizeTabName = (rawTab) => {
                       className="form-input"
                       value={selectedApiConfig.client_id || ''}
                       onChange={e => setSelectedApiConfig({...selectedApiConfig, client_id: e.target.value})}
-                      required
+                      placeholder="Client ID or Public Key"
                     />
                   </div>
                   <div className="form-group">
@@ -16877,22 +17014,252 @@ const normalizeTabName = (rawTab) => {
                       value={selectedApiConfig.client_secret || ''}
                       onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
                     />
-                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to keep current secret.</small>
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to retain current secret.</small>
                   </div>
-                  {selectedApiConfig.id === 'iotec_pay' && (
+                  {(selectedApiConfig.id === 'iotec_pay' || selectedApiConfig.type === 'payment' || selectedApiConfig.wallet_id) && (
                     <div className="form-group">
-                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID</label>
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref</label>
                       <input
                         type="text"
                         className="form-input"
                         value={selectedApiConfig.wallet_id || ''}
                         onChange={e => setSelectedApiConfig({...selectedApiConfig, wallet_id: e.target.value})}
+                        placeholder="e.g. WALLET-2026-UG"
                       />
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Credentials</button>
+                  {(selectedApiConfig.id?.includes('unifi') || selectedApiConfig.type === 'network' || selectedApiConfig.host_url) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={selectedApiConfig.host_url || ''}
+                          onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
+                          placeholder="https://192.168.1.1:8443"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={selectedApiConfig.site_id || ''}
+                          onChange={e => setSelectedApiConfig({...selectedApiConfig, site_id: e.target.value})}
+                          placeholder="default"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                    <button type="submit" className="btn-primary" style={{ flex: 1, minWidth: '130px' }}>Save Credentials</button>
                     <button type="button" className="btn-secondary" onClick={() => setShowConfigModal(false)}>Cancel</button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ color: '#ef4444', borderColor: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                      onClick={() => handleDeleteApiIntegration(selectedApiConfig)}
+                    >
+                      <Trash size={14} /> Delete Integration
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ADD NEW API INTEGRATION MODAL */}
+        {showAddIntegrationModal && (
+          <div className="modal-overlay" onClick={() => setShowAddIntegrationModal(false)}>
+            <div className="modal-content" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Add API Integration</h3>
+                <button className="modal-close" onClick={() => setShowAddIntegrationModal(false)}><X size={20} /></button>
+              </div>
+              <div className="modal-body">
+                {/* Presets Quick-Select */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Quick Presets
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+                      onClick={() => setNewIntegrationForm({
+                        name: 'ioTec Payment Gateway',
+                        provider: 'ioTec Pay',
+                        type: 'payment',
+                        client_id: '',
+                        client_secret: '',
+                        wallet_id: '',
+                        host_url: '',
+                        site_id: ''
+                      })}
+                    >
+                      ioTec Gateway
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+                      onClick={() => setNewIntegrationForm({
+                        name: 'UniFi Network API',
+                        provider: 'Ubiquiti UniFi',
+                        type: 'network',
+                        client_id: '',
+                        client_secret: '',
+                        wallet_id: '',
+                        host_url: 'https://192.168.1.1:8443',
+                        site_id: 'default'
+                      })}
+                    >
+                      UniFi Network
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+                      onClick={() => setNewIntegrationForm({
+                        name: 'MTN Mobile Money Open API',
+                        provider: 'MTN Uganda',
+                        type: 'payment',
+                        client_id: '',
+                        client_secret: '',
+                        wallet_id: '',
+                        host_url: 'https://sandbox.momodeveloper.mtn.com',
+                        site_id: ''
+                      })}
+                    >
+                      MTN MoMo
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem' }}
+                      onClick={() => setNewIntegrationForm({
+                        name: 'Airtel Money OpenAPI',
+                        provider: 'Airtel Uganda',
+                        type: 'payment',
+                        client_id: '',
+                        client_secret: '',
+                        wallet_id: '',
+                        host_url: 'https://openapi.airtel.africa',
+                        site_id: ''
+                      })}
+                    >
+                      Airtel Money
+                    </button>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCreateApiIntegration}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Integration Name *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. ioTec PayGateway"
+                        value={newIntegrationForm.name}
+                        onChange={e => setNewIntegrationForm({...newIntegrationForm, name: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Provider *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. ioTec Pay, MTN, Ubiquiti"
+                        value={newIntegrationForm.provider}
+                        onChange={e => setNewIntegrationForm({...newIntegrationForm, provider: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Integration Type</label>
+                    <select
+                      className="form-input"
+                      value={newIntegrationForm.type}
+                      onChange={e => setNewIntegrationForm({...newIntegrationForm, type: e.target.value})}
+                    >
+                      <option value="payment">Payment Gateway</option>
+                      <option value="network">Network / WiFi Controller</option>
+                      <option value="sms">SMS / Notification API</option>
+                      <option value="cloud">Cloud / Infrastructure API</option>
+                      <option value="custom">Custom Webhook / API</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client ID / API Key</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Public key, username, or client ID"
+                      value={newIntegrationForm.client_id}
+                      onChange={e => setNewIntegrationForm({...newIntegrationForm, client_id: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="API secret key or auth token"
+                      value={newIntegrationForm.client_secret}
+                      onChange={e => setNewIntegrationForm({...newIntegrationForm, client_secret: e.target.value})}
+                    />
+                  </div>
+
+                  {newIntegrationForm.type === 'payment' && (
+                    <div className="form-group">
+                      <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Wallet ID / Account Ref (Optional)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. WALLET-2026-UG"
+                        value={newIntegrationForm.wallet_id}
+                        onChange={e => setNewIntegrationForm({...newIntegrationForm, wallet_id: e.target.value})}
+                      />
+                    </div>
+                  )}
+
+                  {(newIntegrationForm.type === 'network' || newIntegrationForm.type === 'custom') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Host / Base URL</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="https://192.168.1.1:8443"
+                          value={newIntegrationForm.host_url}
+                          onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="default"
+                          value={newIntegrationForm.site_id}
+                          onChange={e => setNewIntegrationForm({...newIntegrationForm, site_id: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                    <button type="submit" className="btn-primary" style={{ flex: 1 }}>Add Integration</button>
+                    <button type="button" className="btn-secondary" onClick={() => setShowAddIntegrationModal(false)}>Cancel</button>
                   </div>
                 </form>
               </div>
