@@ -1038,10 +1038,20 @@ const normalizeTabName = (rawTab) => {
   const [eventForm, setEventForm] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
-    location: 'Virtual',
+    time: '09:00 AM - 05:00 PM EAT',
+    location: 'Virtual / Online',
+    event_link: '',
+    is_paid: false,
+    price: 0,
+    currency: 'UGX',
+    registration_deadline: '',
+    capacity: 0,
     description: '',
-    image: ''
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80'
   });
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [selectedEventForAttendees, setSelectedEventForAttendees] = useState(null);
+  const [attendeeSearch, setAttendeeSearch] = useState('');
 
 
   // Company Expenditures & Staff Attachment State (Sales Manager / HR / Admin)
@@ -3024,11 +3034,18 @@ const normalizeTabName = (rawTab) => {
       setEventForm({
         title: '',
         date: new Date().toISOString().split('T')[0],
-        location: 'Virtual',
+        time: '09:00 AM - 05:00 PM EAT',
+        location: 'Virtual / Online',
+        event_link: '',
+        is_paid: false,
+        price: 0,
+        currency: 'UGX',
+        registration_deadline: '',
+        capacity: 0,
         description: '',
-        image: ''
+        image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80'
       });
-      fetch('/api/events').then(r => r.json()).then(data => Array.isArray(data) && setEventsList(data));
+      fetch('/api/admin/events').then(r => r.json()).then(data => Array.isArray(data) && setEventsList(data));
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -3045,6 +3062,73 @@ const normalizeTabName = (rawTab) => {
     } catch (err) {
       showToast(err.message, 'error');
     }
+  };
+
+  const handleConfirmAttendee = async (eventId, ticketId) => {
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/attendees/${ticketId}/confirm`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: 'ADMIN-MANUAL-VERIFIED' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm attendee');
+      showToast(data.message || 'Attendee confirmed and ticket pass emailed.', 'success');
+      
+      // Update local state
+      fetch('/api/admin/events')
+        .then(r => r.json())
+        .then(evList => {
+          if (Array.isArray(evList)) {
+            setEventsList(evList);
+            const updatedEvt = evList.find(e => e.id === eventId);
+            if (updatedEvt) setSelectedEventForAttendees(updatedEvt);
+          }
+        });
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleResendAttendeeTicket = async (eventId, ticketId) => {
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/attendees/${ticketId}/resend`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend ticket');
+      showToast(data.message || 'Ticket email resent.', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const exportAttendeesToCSV = (event) => {
+    if (!event || !event.registrations || event.registrations.length === 0) {
+      return showToast('No attendees to export for this event.', 'error');
+    }
+    const headers = ['Ticket ID', 'Full Name', 'Email', 'Phone', 'Company', 'Admission Type', 'Status', 'Payment Status', 'Registered At'];
+    const rows = event.registrations.map(r => [
+      r.ticket_id || '',
+      `"${(r.name || '').replace(/"/g, '""')}"`,
+      r.email || '',
+      r.phone || '',
+      `"${(r.company || '').replace(/"/g, '""')}"`,
+      event.is_paid ? 'Paid' : 'Free',
+      r.status || 'confirmed',
+      r.payment_status || 'free',
+      r.registered_at ? new Date(r.registered_at).toLocaleString() : ''
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Attendees_${(event.title || 'Event').replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Attendee roster exported to CSV successfully.', 'success');
   };
 
   const handleSendReminder = async (invoiceId, invoiceNumber) => {
@@ -9013,105 +9097,222 @@ const normalizeTabName = (rawTab) => {
             )}
 
             {/* EVENTS MODULE */}
-            {activeTab === 'events' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Events</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      Publish upcoming events and view public registrations.
-                    </p>
-                  </div>
-                  {canCreate('events') && (
-                    <button
-                      onClick={() => {
-                        setEditingEvent(null);
-                        setEventForm({
-                          title: '',
-                          date: new Date().toISOString().split('T')[0],
-                          location: 'Virtual',
-                          description: '',
-                          image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80'
-                        });
-                        setShowEventModal(true);
-                      }}
-                      className="btn-primary"
-                      style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', background: '#8b5cf6' }}
-                    >
-                      <Plus size={16} /> Add Event
-                    </button>
-                  )}
-                </div>
+            {activeTab === 'events' && (() => {
+              const totalEventsCount = eventsList.length;
+              const paidEventsCount = eventsList.filter(e => e.is_paid).length;
+              const freeEventsCount = totalEventsCount - paidEventsCount;
+              const totalAttendeesCount = eventsList.reduce((acc, e) => acc + ((e.registrations || []).filter(r => r.status !== 'cancelled').length), 0);
+              const confirmedAttendeesCount = eventsList.reduce((acc, e) => acc + ((e.registrations || []).filter(r => r.status === 'confirmed').length), 0);
 
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                  {eventsList.map((item, idx) => (
-                    <div key={item.id || idx} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px' }}>
-                      <img src={item.image} alt={item.title} style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
-                      <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          <span className="badge-tag" style={{ fontSize: '0.7rem', background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa' }}>{item.location}</span>
-                          <span>{item.date}</span>
+              return (
+                <div>
+                  {/* Top Header & Actions */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(139, 92, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                          <Ticket size={20} />
                         </div>
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: '800', lineHeight: '1.35', marginBottom: '0.6rem' }}>{item.title}</h4>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '1.25rem', flex: 1 }}>
-                          {item.description || item.title}
-                        </p>
-                        
-                        <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '1rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Registrations:</span>
-                            <span className="badge" style={{ background: 'var(--primary)', color: '#fff' }}>
-                              {item.registrations?.length || 0}
-                            </span>
-                          </div>
-                          {item.registrations && item.registrations.length > 0 && (
-                            <div style={{ marginTop: '0.5rem', maxHeight: '100px', overflowY: 'auto' }}>
-                              {item.registrations.map((reg, ri) => (
-                                <div key={ri} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.2rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                  {reg.name} ({reg.email})
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                          {canUpdate('events') && (
-                            <button
-                              onClick={() => {
-                                setEditingEvent(item);
-                                setEventForm({
-                                  title: item.title,
-                                  date: item.date || new Date().toISOString().split('T')[0],
-                                  location: item.location || 'Virtual',
-                                  image: item.image || '',
-                                  description: item.description || ''
-                                });
-                                setShowEventModal(true);
-                              }}
-                              className="btn-secondary"
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
-                            >
-                              <Edit3 size={13} /> Edit
-                            </button>
-                          )}
-                          {(canDelete('events') || canDeleteSystemRecords) && (
-                            <button
-                              onClick={() => handleDeleteEvent(item.id, item.title)}
-                              className="btn-secondary"
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#ef4444' }}
-                              title="Remove event"
-                            >
-                              <Trash size={13} /> Remove
-                            </button>
-                          )}
+                        <div>
+                          <h3 style={{ fontSize: '1.35rem', fontWeight: '900', margin: 0 }}>Technology Events & Summits</h3>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                            Configure free or paid events, enforce registration deadlines, and manage attendee rosters.
+                          </p>
                         </div>
                       </div>
                     </div>
-                  ))}
+
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <a
+                        href="/events"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary"
+                        style={{ padding: '0.55rem 1rem', fontSize: '0.825rem', gap: '0.4rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                      >
+                        <Globe size={14} /> View Public Events Page
+                      </a>
+                      {canCreate('events') && (
+                        <button
+                          onClick={() => {
+                            setEditingEvent(null);
+                            setEventForm({
+                              title: '',
+                              date: new Date().toISOString().split('T')[0],
+                              time: '09:00 AM - 05:00 PM EAT',
+                              location: 'Virtual / Online',
+                              event_link: '',
+                              is_paid: false,
+                              price: 0,
+                              currency: 'UGX',
+                              registration_deadline: '',
+                              capacity: 0,
+                              description: '',
+                              image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80'
+                            });
+                            setShowEventModal(true);
+                          }}
+                          className="btn-primary"
+                          style={{ padding: '0.55rem 1.1rem', fontSize: '0.825rem', gap: '0.4rem', background: '#8b5cf6', borderColor: '#8b5cf6', fontWeight: '800' }}
+                        >
+                          <Plus size={16} /> Create Event
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Summary KPI Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #8b5cf6' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Events</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#8b5cf6', marginTop: '0.2rem' }}>{totalEventsCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{paidEventsCount} Paid • {freeEventsCount} Free</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #10b981' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Registrations</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981', marginTop: '0.2rem' }}>{totalAttendeesCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{confirmedAttendeesCount} Confirmed Passes</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #0284c7' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ioTec Payment Status</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#0284c7', marginTop: '0.4rem' }}>Tracking Active</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mobile Money & Card Auto-Capture</div>
+                    </div>
+                  </div>
+
+                  {/* Events Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(330px, 1fr))', gap: '1.5rem' }}>
+                    {eventsList.map((item, idx) => {
+                      const isPaid = Boolean(item.is_paid && Number(item.price) > 0);
+                      const regs = item.registrations || [];
+                      const activeRegs = regs.filter(r => r.status !== 'cancelled');
+                      const paidCount = regs.filter(r => r.payment_status === 'paid').length;
+                      const pendingCount = regs.filter(r => r.status === 'pending_payment').length;
+                      const isDeadlinePassed = item.registration_deadline ? (Date.now() > new Date(item.registration_deadline).getTime()) : false;
+
+                      return (
+                        <div key={item.id || idx} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                          <div style={{ position: 'relative', width: '100%', height: '170px' }}>
+                            <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            
+                            <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px' }}>
+                              <span style={{
+                                background: isPaid ? 'rgba(15, 23, 42, 0.85)' : 'rgba(16, 185, 129, 0.9)',
+                                color: isPaid ? '#38bdf8' : '#ffffff',
+                                backdropFilter: 'blur(6px)',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '12px',
+                                fontSize: '0.7rem',
+                                fontWeight: '800',
+                                textTransform: 'uppercase'
+                              }}>
+                                {isPaid ? `UGX ${Number(item.price).toLocaleString()}` : 'FREE EVENT'}
+                              </span>
+                            </div>
+
+                            {isDeadlinePassed && (
+                              <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                <span style={{ background: 'rgba(239, 68, 68, 0.9)', color: '#ffffff', padding: '0.25rem 0.6rem', borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
+                                  Registration Closed
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              <span className="badge-tag" style={{ fontSize: '0.7rem' }}>{item.location}</span>
+                              <span style={{ fontWeight: '600' }}>{item.date}</span>
+                            </div>
+
+                            <h4 style={{ fontSize: '1.15rem', fontWeight: '800', lineHeight: '1.3', marginBottom: '0.4rem', color: 'var(--text-main)' }}>{item.title}</h4>
+                            
+                            {item.event_link && (
+                              <div style={{ fontSize: '0.75rem', color: '#0284c7', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <ExternalLink size={12} /> <a href={item.event_link} target="_blank" rel="noopener noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '700' }}>Virtual Link Configured</a>
+                              </div>
+                            )}
+
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '1rem', flex: 1 }}>
+                              {item.description || item.title}
+                            </p>
+                            
+                            {/* Registration metrics card */}
+                            <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '0.825rem', fontWeight: '700' }}>Registered Attendees:</span>
+                                <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '1rem', color: '#8b5cf6' }}>
+                                  {activeRegs.length} {item.capacity ? `/ ${item.capacity}` : ''}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {isPaid ? `${paidCount} Paid • ${pendingCount} Awaiting Payment` : 'All Free Passes Confirmed'}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                              <button
+                                onClick={() => {
+                                  setSelectedEventForAttendees(item);
+                                  setShowAttendeesModal(true);
+                                }}
+                                className="btn-secondary"
+                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}
+                              >
+                                <Ticket size={13} color="#8b5cf6" /> Attendees ({activeRegs.length})
+                              </button>
+
+                              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                {canUpdate('events') && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingEvent(item);
+                                      setEventForm({
+                                        title: item.title,
+                                        date: item.date || new Date().toISOString().split('T')[0],
+                                        time: item.time || '09:00 AM - 05:00 PM EAT',
+                                        location: item.location || 'Virtual / Online',
+                                        event_link: item.event_link || '',
+                                        is_paid: Boolean(item.is_paid),
+                                        price: Number(item.price) || 0,
+                                        currency: item.currency || 'UGX',
+                                        registration_deadline: item.registration_deadline || '',
+                                        capacity: Number(item.capacity) || 0,
+                                        image: item.image || '',
+                                        description: item.description || ''
+                                      });
+                                      setShowEventModal(true);
+                                    }}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.4rem 0.65rem', fontSize: '0.75rem' }}
+                                    title="Edit Event"
+                                  >
+                                    <Edit3 size={13} />
+                                  </button>
+                                )}
+                                {(canDelete('events') || canDeleteSystemRecords) && (
+                                  <button
+                                    onClick={() => handleDeleteEvent(item.id, item.title)}
+                                    className="btn-secondary"
+                                    style={{ padding: '0.4rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                    title="Remove event"
+                                  >
+                                    <Trash size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* SERVICES PAGE CONTENT MODULE (https://ncloud.co.ug/services) */}
             {activeTab === 'services' && (
@@ -23930,22 +24131,29 @@ const normalizeTabName = (rawTab) => {
         {/* EVENT MODAL */}
         {showEventModal && (
           <div className="modal-overlay" onClick={() => setShowEventModal(false)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
-              <h2 style={{ fontSize: '1.4rem', marginBottom: '0.25rem', fontWeight: '800' }}>
-                {editingEvent ? 'Edit Event' : 'Create New Event'}
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-                Configure the event details and upload a poster.
-              </p>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.4rem', margin: 0, fontWeight: '800' }}>
+                    {editingEvent ? 'Edit Technology Event' : 'Create Technology Event'}
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+                    Configure admissions (Free or Paid), deadlines, virtual meeting link, and details.
+                  </p>
+                </div>
+                <button onClick={() => setShowEventModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                  <X size={20} />
+                </button>
+              </div>
 
               <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
-                    <label style={{ fontWeight: '700' }}>Event Title *</label>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Event Title *</label>
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="e.g. Cyber Security Summit 2026"
+                      placeholder="e.g. Uganda Cloud & Zero-Trust Cybersecurity Summit 2026"
                       value={eventForm.title}
                       onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
                       required
@@ -23953,10 +24161,11 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   <div className="form-group">
-                    <label style={{ fontWeight: '700' }}>Date *</label>
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Event Date *</label>
                     <input
-                      type="date"
+                      type="text"
                       className="form-input"
+                      placeholder="e.g. November 12, 2026"
                       value={eventForm.date}
                       onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
                       required
@@ -23964,24 +24173,132 @@ const normalizeTabName = (rawTab) => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label style={{ fontWeight: '700' }}>Location / Venue *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Kampala Serena Hotel or Virtual (Zoom)"
-                    value={eventForm.location}
-                    onChange={e => setEventForm({ ...eventForm, location: e.target.value })}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Time Schedule</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 09:00 AM - 05:00 PM EAT"
+                      value={eventForm.time}
+                      onChange={e => setEventForm({ ...eventForm, time: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Location / Venue *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Kampala Serena Hotel & Online (Hybrid)"
+                      value={eventForm.location}
+                      onChange={e => setEventForm({ ...eventForm, location: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontWeight: '700' }}>Poster Image URL *</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Official Event / Virtual Meeting Link</label>
                   <input
                     type="url"
                     className="form-input"
-                    placeholder="Base64 or external URL"
+                    placeholder="https://meet.google.com/xyz-abc or Zoom URL"
+                    value={eventForm.event_link}
+                    onChange={e => setEventForm({ ...eventForm, event_link: e.target.value })}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Dispatched automatically to confirmed attendee tickets and email confirmations.
+                  </span>
+                </div>
+
+                {/* Admission & Pricing Configuration */}
+                <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <label style={{ fontWeight: '800', fontSize: '0.85rem', margin: 0 }}>Admission Type & Pricing</label>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        <input
+                          type="radio"
+                          name="is_paid"
+                          checked={!eventForm.is_paid}
+                          onChange={() => setEventForm({ ...eventForm, is_paid: false, price: 0 })}
+                        />
+                        Free Event
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                        <input
+                          type="radio"
+                          name="is_paid"
+                          checked={eventForm.is_paid}
+                          onChange={() => setEventForm({ ...eventForm, is_paid: true })}
+                        />
+                        Paid Event (ioTec Pay)
+                      </label>
+                    </div>
+                  </div>
+
+                  {eventForm.is_paid && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Ticket Price (UGX) *</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min="1000"
+                          step="500"
+                          placeholder="e.g. 50000"
+                          value={eventForm.price}
+                          onChange={e => setEventForm({ ...eventForm, price: Number(e.target.value) })}
+                          required={eventForm.is_paid}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.8rem' }}>Currency</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={eventForm.currency || 'UGX'}
+                          onChange={e => setEventForm({ ...eventForm, currency: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Deadlines & Capacity */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Registration Deadline (Optional)</label>
+                    <input
+                      type="datetime-local"
+                      className="form-input"
+                      value={eventForm.registration_deadline ? eventForm.registration_deadline.substring(0, 16) : ''}
+                      onChange={e => setEventForm({ ...eventForm, registration_deadline: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Registration locks automatically after this date/time.</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Maximum Capacity (Seats)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      min="0"
+                      placeholder="0 for unlimited"
+                      value={eventForm.capacity || 0}
+                      onChange={e => setEventForm({ ...eventForm, capacity: Number(e.target.value) })}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>0 means no seat limit.</span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Poster Image URL *</label>
+                  <input
+                    type="url"
+                    className="form-input"
+                    placeholder="https://images.unsplash.com/..."
                     value={eventForm.image}
                     onChange={e => setEventForm({ ...eventForm, image: e.target.value })}
                     required
@@ -23989,11 +24306,11 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontWeight: '700' }}>Description *</label>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Description & Agenda *</label>
                   <textarea
-                    rows="6"
+                    rows="5"
                     className="form-input"
-                    placeholder="Provide full details of the event."
+                    placeholder="Provide full details, speakers, agenda, and instructions for attendees."
                     value={eventForm.description}
                     onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
                     required
@@ -24001,7 +24318,7 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem' }}>
-                  <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#8b5cf6' }}>
+                  <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#8b5cf6', borderColor: '#8b5cf6', fontWeight: '800' }}>
                     {editingEvent ? 'Update Event' : 'Publish Event'}
                   </button>
                   <button type="button" onClick={() => setShowEventModal(false)} className="btn-secondary">
@@ -24009,6 +24326,164 @@ const normalizeTabName = (rawTab) => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* EVENT ATTENDEES ROSTER MODAL */}
+        {showAttendeesModal && selectedEventForAttendees && (
+          <div className="modal-overlay" onClick={() => setShowAttendeesModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span className="badge-tag" style={{ background: selectedEventForAttendees.is_paid ? 'rgba(139, 92, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)', color: selectedEventForAttendees.is_paid ? '#8b5cf6' : '#10b981' }}>
+                      {selectedEventForAttendees.is_paid ? `Paid Event (UGX ${Number(selectedEventForAttendees.price).toLocaleString()})` : 'Free Event'}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Total Registered: <strong>{(selectedEventForAttendees.registrations || []).length}</strong>
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+                    {selectedEventForAttendees.title}
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {selectedEventForAttendees.date} • {selectedEventForAttendees.location}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => exportAttendeesToCSV(selectedEventForAttendees)}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Download size={13} /> Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAttendeesModal(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Filter */}
+              <div style={{ marginBottom: '1rem' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Filter attendees by Name, Email, or Ticket ID..."
+                  value={attendeeSearch}
+                  onChange={e => setAttendeeSearch(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {/* Attendees Table */}
+              {(() => {
+                const regs = (selectedEventForAttendees.registrations || []).filter(r => {
+                  if (!attendeeSearch.trim()) return true;
+                  const q = attendeeSearch.toLowerCase();
+                  return (
+                    (r.name || '').toLowerCase().includes(q) ||
+                    (r.email || '').toLowerCase().includes(q) ||
+                    (r.ticket_id || '').toLowerCase().includes(q) ||
+                    (r.company || '').toLowerCase().includes(q)
+                  );
+                });
+
+                if (regs.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                      No attendees match your query or nobody has registered yet.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ maxHeight: '420px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
+                          <th style={{ padding: '10px 12px' }}>Ticket ID</th>
+                          <th style={{ padding: '10px 12px' }}>Attendee</th>
+                          <th style={{ padding: '10px 12px' }}>Contact</th>
+                          <th style={{ padding: '10px 12px' }}>Status</th>
+                          <th style={{ padding: '10px 12px' }}>Payment</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {regs.map((reg, ri) => (
+                          <tr key={reg.id || ri} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: '800', color: '#0284c7' }}>
+                              {reg.ticket_id}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <div style={{ fontWeight: '700', color: 'var(--text-main)' }}>{reg.name}</div>
+                              {reg.company && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{reg.company}</div>}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <div>{reg.email}</div>
+                              {reg.phone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{reg.phone}</div>}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '0.7rem',
+                                fontWeight: '700',
+                                background: reg.status === 'confirmed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                color: reg.status === 'confirmed' ? '#10b981' : '#f59e0b'
+                              }}>
+                                {reg.status === 'confirmed' ? 'CONFIRMED' : 'PENDING'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <div style={{ fontWeight: '600', textTransform: 'capitalize' }}>{reg.payment_status || (selectedEventForAttendees.is_paid ? 'Pending' : 'Free')}</div>
+                              {reg.payment_reference && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Ref: {reg.payment_reference}</div>}
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                {reg.status !== 'confirmed' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmAttendee(selectedEventForAttendees.id, reg.ticket_id)}
+                                    className="btn-primary"
+                                    style={{ fontSize: '0.72rem', padding: '3px 8px', background: '#10b981', borderColor: '#10b981' }}
+                                    title="Manually Confirm & Dispatch Ticket Email"
+                                  >
+                                    Confirm
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleResendAttendeeTicket(selectedEventForAttendees.id, reg.ticket_id)}
+                                  className="btn-secondary"
+                                  style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                                  title="Resend Ticket Email"
+                                >
+                                  Resend Pass
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+              <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
+                <button type="button" onClick={() => setShowAttendeesModal(false)} className="btn-secondary">
+                  Close Roster
+                </button>
+              </div>
             </div>
           </div>
         )}

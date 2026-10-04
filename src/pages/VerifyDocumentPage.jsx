@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Search, Download, CheckCircle, AlertCircle, 
   FileText, Building, Calendar, Phone, Mail, ArrowLeft, 
-  Printer, ExternalLink, Award, Copy, Check, Lock
+  Printer, ExternalLink, Award, Copy, Check, Lock, Clock
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { generateInvoicePDF, generateQuotationPDF } from '../utils/pdfGenerator';
@@ -242,6 +242,9 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const isWorkOrder = docTypeStr.includes('work order') || docNumStr.startsWith('WO');
   const isExpense = docTypeStr.includes('expense') || docTypeStr.includes('voucher') || docNumStr.startsWith('EXP');
   const isDeliveryNote = docTypeStr.includes('delivery') || docNumStr.startsWith('DN');
+  const isReceipt = docTypeStr.includes('receipt') || docNumStr.startsWith('REC');
+  const isContract = docTypeStr.includes('contract') || docNumStr.startsWith('CNT') || docNumStr.startsWith('CON');
+  const isTaxInvoice = !isQuotation && !isWorkOrder && !isExpense && !isDeliveryNote && !isReceipt && !isContract && (docTypeStr.includes('tax') || docTypeStr.includes('invoice') || docNumStr.startsWith('INV'));
 
   const issueDateStr = verifyResult?.issued_date || Date.now();
   const baseIssueDate = new Date(issueDateStr);
@@ -460,7 +463,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
                     Lugga Zone, Ndejje, Wakiso, Republic of Uganda
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: '600', lineHeight: '1.4' }}>
-                    TIN: 1014892019 • Email: support@ncloud.co.ug • Tel: +256 790 001 631
+                    {isTaxInvoice ? 'TIN: 1014892019 • ' : ''}Email: support@ncloud.co.ug • Tel: +256 790 001 631
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: '700', marginTop: '2px' }}>
                     Official Web Clearance: https://ncloud.co.ug
@@ -891,7 +894,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
             {/* Bottom Footer Bar */}
             <div style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0', padding: '0.75rem 2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b' }}>
               <div>
-                Lugga Zone, Ndejje, Wakiso, Kampala • TIN: 1014892019 • support@ncloud.co.ug
+                Lugga Zone, Ndejje, Wakiso, Kampala • {isTaxInvoice ? 'TIN: 1014892019 • ' : ''}support@ncloud.co.ug
               </div>
               <div style={{ fontWeight: '700', color: '#0f172a' }}>
                 Page 1 of 1 • Official Legal Instrument

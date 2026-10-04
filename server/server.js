@@ -902,11 +902,13 @@ try {
   if (mysqlStore && mysqlStore.users && mysqlStore.users.length > 0) {
     Object.keys(mysqlStore).forEach(key => {
       if (Array.isArray(mysqlStore[key])) {
-        // If MySQL returned an empty array for api_integrations or contacts, preserve existing disk configs!
+        // If MySQL returned an empty array for api_integrations, contacts, or events, preserve existing disk configs!
         if (key === 'api_integrations' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.api_integrations?.length > 0) {
           memoryStore[key] = loadedDiskStore.api_integrations;
         } else if (key === 'contacts' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.contacts?.length > 0) {
           memoryStore[key] = loadedDiskStore.contacts;
+        } else if (key === 'events' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.events?.length > 0) {
+          memoryStore[key] = loadedDiskStore.events;
         } else {
           memoryStore[key] = mysqlStore[key];
         }
@@ -1307,81 +1309,614 @@ app.get('/api/iso', (req, res) => {
 // ==========================================
 // EVENTS API
 // ==========================================
+// ==========================================
+// EVENTS & TICKETING API WITH IOTEC PAY INTEGRATION
+// ==========================================
+
+function generateEventTicketEmailHtml({ event, registration, isConfirmed = true }) {
+  const isPaid = Boolean(event.is_paid && Number(event.price) > 0);
+  const eventLink = event.event_link ? event.event_link.trim() : '';
+  const ticketUrl = `https://ncloud.co.ug/events?ticket=${encodeURIComponent(registration.ticket_id)}`;
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${isConfirmed ? 'Official Event Pass & Ticket' : 'Event Registration Pending'}</title>
+    <style>
+      body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+      .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+      .header-bar { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 32px 28px; text-align: center; color: #ffffff; }
+      .badge-tag { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: ${isConfirmed ? '#10b981' : '#f59e0b'}; color: #ffffff; margin-bottom: 12px; }
+      .ticket-box { background: #f8fafc; border: 2px dashed #0284c7; border-radius: 12px; padding: 20px; margin: 24px; text-align: center; }
+      .ticket-num { font-family: monospace; font-size: 24px; font-weight: 800; color: #0284c7; letter-spacing: 2px; }
+      .content-body { padding: 0 28px 28px; color: #334155; line-height: 1.6; }
+      .event-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 12px; }
+      .meta-table { width: 100%; border-collapse: collapse; margin: 16px 0; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+      .meta-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
+      .meta-table tr:last-child td { border-bottom: none; }
+      .meta-label { font-weight: 700; color: #64748b; width: 35%; }
+      .meta-val { font-weight: 700; color: #0f172a; }
+      .btn-primary { display: inline-block; background: #0284c7; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 14px; margin: 8px 4px; }
+      .btn-secondary { display: inline-block; background: #0f172a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 14px; margin: 8px 4px; }
+      .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 28px; text-align: center; font-size: 12px; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header-bar">
+        <div class="badge-tag">${isConfirmed ? 'OFFICIAL EVENT PASS & TICKET' : 'REGISTRATION AWAITING PAYMENT'}</div>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff;">Nova Cloud Edges Events</h1>
+        <p style="margin: 6px 0 0; font-size: 13px; color: #94a3b8;">${isConfirmed ? 'Your seat has been officially secured and registered.' : 'Please complete payment to secure your ticket.'}</p>
+      </div>
+
+      <div class="ticket-box">
+        <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 4px;">YOUR EVENT TICKET ID</div>
+        <div class="ticket-num">${registration.ticket_id}</div>
+        <div style="font-size: 12px; color: ${isConfirmed ? '#10b981' : '#d97706'}; font-weight: 700; margin-top: 6px;">
+          ● ${isConfirmed ? 'CONFIRMED PASS (VALID FOR ENTRY)' : 'PENDING PAYMENT'}
+        </div>
+      </div>
+
+      <div class="content-body">
+        <h2 class="event-title">${event.title}</h2>
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Hello <strong>${registration.name}</strong>, thank you for registering with Nova Cloud Edges. Below are your official event schedule and access coordinates:
+        </p>
+
+        <table class="meta-table">
+          <tr>
+            <td class="meta-label">Ticket ID:</td>
+            <td class="meta-val"><span style="font-family: monospace; color: #0284c7;">${registration.ticket_id}</span></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Attendee Name:</td>
+            <td class="meta-val">${registration.name} ${registration.company ? `(${registration.company})` : ''}</td>
+          </tr>
+          <tr>
+            <td class="meta-label">Date & Time:</td>
+            <td class="meta-val">${event.date || 'TBA'} ${event.time ? `• ${event.time}` : ''}</td>
+          </tr>
+          <tr>
+            <td class="meta-label">Location / Venue:</td>
+            <td class="meta-val">${event.location || 'Virtual / Online'}</td>
+          </tr>
+          ${event.registration_deadline ? `
+          <tr>
+            <td class="meta-label">Registration Deadline:</td>
+            <td class="meta-val">${new Date(event.registration_deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+          </tr>` : ''}
+          <tr>
+            <td class="meta-label">Admission Type:</td>
+            <td class="meta-val">${isPaid ? `Paid Pass (${event.currency || 'UGX'} ${Number(event.price).toLocaleString()})` : 'Free Admission'}</td>
+          </tr>
+          ${isConfirmed && eventLink ? `
+          <tr>
+            <td class="meta-label">Event / Meeting Link:</td>
+            <td class="meta-val"><a href="${eventLink}" style="color: #0284c7; font-weight: 700; word-break: break-all;">${eventLink}</a></td>
+          </tr>` : ''}
+        </table>
+
+        <div style="text-align: center; margin: 24px 0 12px;">
+          ${isConfirmed && eventLink ? `
+          <a href="${eventLink}" class="btn-primary" target="_blank" rel="noopener noreferrer">
+            🚀 Join Virtual Session / Access Venue
+          </a>` : ''}
+          <a href="${ticketUrl}" class="btn-secondary" target="_blank" rel="noopener noreferrer">
+            🎫 Open Digital Event Pass
+          </a>
+        </div>
+
+        <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 8px; font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 20px;">
+          <strong>Important Instructions:</strong> Please present your Ticket ID <strong>${registration.ticket_id}</strong> or digital pass when joining virtual rooms or checking in at physical summit desks.
+        </div>
+      </div>
+
+      <div class="footer">
+        <div>Nova Cloud Edges (U) Limited  •  Official Event Administration</div>
+        <div style="margin-top: 6px;">Lugga Zone, Ndejje, Wakiso, Uganda  •  support@ncloud.co.ug</div>
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
+}
+
+async function sendEventTicketConfirmationEmail(event, registration) {
+  const html = generateEventTicketEmailHtml({ event, registration, isConfirmed: true });
+  await sendMail({
+    to: registration.email,
+    subject: `[TICKET CONFIRMED] ${event.title} — Pass #${registration.ticket_id}`,
+    html
+  }).catch(e => console.warn('[Mail Warning] Event ticket confirmation:', e.message));
+}
+
+async function sendEventTicketPendingEmail(event, registration) {
+  const html = generateEventTicketEmailHtml({ event, registration, isConfirmed: false });
+  await sendMail({
+    to: registration.email,
+    subject: `[PAYMENT PENDING] ${event.title} — Ticket #${registration.ticket_id}`,
+    html
+  }).catch(e => console.warn('[Mail Warning] Event ticket pending notice:', e.message));
+}
+
+// 1. Public Events List (with calculated deadline & availability status)
 app.get('/api/events', (req, res) => {
+  const now = Date.now();
+  const results = (memoryStore.events || []).map(e => {
+    const deadlinePassed = e.registration_deadline ? (now > new Date(e.registration_deadline).getTime()) : false;
+    const activeRegs = (e.registrations || []).filter(r => r.status !== 'cancelled');
+    const isSoldOut = e.capacity && Number(e.capacity) > 0 ? (activeRegs.length >= Number(e.capacity)) : false;
+    
+    return {
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      time: e.time || '',
+      location: e.location || 'Virtual',
+      event_link: e.event_link || '',
+      is_paid: Boolean(e.is_paid),
+      price: Number(e.price) || 0,
+      currency: e.currency || 'UGX',
+      registration_deadline: e.registration_deadline || null,
+      capacity: Number(e.capacity) || 0,
+      description: e.description || '',
+      image: e.image || '',
+      total_registered: activeRegs.length,
+      seats_left: (e.capacity && Number(e.capacity) > 0) ? Math.max(0, Number(e.capacity) - activeRegs.length) : null,
+      is_deadline_passed: deadlinePassed,
+      is_sold_out: isSoldOut
+    };
+  });
+  res.json(results);
+});
+
+// 2. Public Event Ticket Lookup (Digital Pass Verification)
+app.get('/api/events/tickets/:ticketId', (req, res) => {
+  const { ticketId } = req.params;
+  const qTicket = (ticketId || '').trim();
+
+  let matchedEvent = null;
+  let matchedReg = null;
+
+  for (const evt of (memoryStore.events || [])) {
+    const reg = (evt.registrations || []).find(r => 
+      String(r.ticket_id).toUpperCase() === qTicket.toUpperCase() || 
+      String(r.id) === qTicket
+    );
+    if (reg) {
+      matchedEvent = evt;
+      matchedReg = reg;
+      break;
+    }
+  }
+
+  if (!matchedEvent || !matchedReg) {
+    return res.status(404).json({ error: 'Event Ticket not found. Please check your reference number.' });
+  }
+
+  res.json({
+    success: true,
+    ticket: matchedReg,
+    event: {
+      id: matchedEvent.id,
+      title: matchedEvent.title,
+      date: matchedEvent.date,
+      time: matchedEvent.time,
+      location: matchedEvent.location,
+      event_link: matchedReg.status === 'confirmed' ? (matchedEvent.event_link || '') : null,
+      is_paid: Boolean(matchedEvent.is_paid),
+      price: Number(matchedEvent.price) || 0,
+      currency: matchedEvent.currency || 'UGX',
+      image: matchedEvent.image
+    }
+  });
+});
+
+// 3. Register for Event (Free auto-confirmed; Paid generates pending ticket with ioTec Pay checkout)
+app.post('/api/events/:id/register', verifyTurnstile, async (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone, company } = req.body;
+  
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required to register.' });
+  }
+
+  const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
+  if (!event) return res.status(404).json({ error: 'Event not found.' });
+
+  // 1. Enforce Registration Deadline
+  if (event.registration_deadline) {
+    const deadlineTime = new Date(event.registration_deadline).getTime();
+    if (!isNaN(deadlineTime) && Date.now() > deadlineTime) {
+      const formattedDl = new Date(event.registration_deadline).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return res.status(400).json({ error: `Registration for this event closed on ${formattedDl}.` });
+    }
+  }
+
+  if (!Array.isArray(event.registrations)) event.registrations = [];
+
+  // 2. Enforce Capacity
+  if (event.capacity && Number(event.capacity) > 0) {
+    const activeRegs = event.registrations.filter(r => r.status !== 'cancelled');
+    if (activeRegs.length >= Number(event.capacity)) {
+      return res.status(400).json({ error: 'This event has reached full capacity. Registration is closed.' });
+    }
+  }
+
+  // 3. Duplicate Registration Check
+  const existing = event.registrations.find(r => r.email.toLowerCase() === email.trim().toLowerCase());
+  if (existing) {
+    if (existing.status === 'confirmed') {
+      return res.status(400).json({ 
+        error: `You are already registered for this event with Ticket ID #${existing.ticket_id}. Check your email or look up your pass.`,
+        ticket_id: existing.ticket_id
+      });
+    } else if (existing.status === 'pending_payment') {
+      return res.json({
+        success: true,
+        message: 'Resuming registration. Please complete your payment.',
+        ticket_id: existing.ticket_id,
+        registration: existing,
+        is_paid: true,
+        price: event.price,
+        currency: event.currency || 'UGX',
+        event
+      });
+    }
+  }
+
+  const isPaid = Boolean(event.is_paid && Number(event.price) > 0);
+  const ticketId = `EVT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  const nowIso = new Date().toISOString();
+
+  const registration = {
+    id: Date.now(),
+    ticket_id: ticketId,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    phone: phone ? phone.trim() : '',
+    company: company ? company.trim() : '',
+    amount: isPaid ? Number(event.price) : 0,
+    currency: event.currency || 'UGX',
+    status: isPaid ? 'pending_payment' : 'confirmed',
+    payment_status: isPaid ? 'pending' : 'free',
+    payment_reference: null,
+    registered_at: nowIso,
+    paid_at: isPaid ? null : nowIso
+  };
+
+  event.registrations.unshift(registration);
+  savePersistentStore();
+
+  if (isPaid) {
+    // Send email with ticket ID and payment instructions
+    await sendEventTicketPendingEmail(event, registration);
+    return res.json({
+      success: true,
+      message: `Ticket #${ticketId} created! Complete payment via ioTec Pay to confirm your admission.`,
+      ticket_id: ticketId,
+      registration,
+      is_paid: true,
+      price: event.price,
+      currency: event.currency || 'UGX',
+      event: {
+        id: event.id,
+        title: event.title,
+        date: event.date,
+        time: event.time,
+        location: event.location,
+        event_link: event.event_link
+      }
+    });
+  } else {
+    // Free Event: Instantly confirm and send ticket with Event Link
+    await sendEventTicketConfirmationEmail(event, registration);
+    return res.json({
+      success: true,
+      message: `Registration confirmed! Official Event Ticket #${ticketId} and access link dispatched to your email.`,
+      ticket_id: ticketId,
+      registration,
+      is_paid: false,
+      event: {
+        id: event.id,
+        title: event.title,
+        date: event.date,
+        time: event.time,
+        location: event.location,
+        event_link: event.event_link
+      }
+    });
+  }
+});
+
+// 4. Initiate ioTec Payment for Event Ticket
+app.post('/api/events/tickets/:ticketId/pay', async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { method, phone, email } = req.body;
+
+    let matchedEvent = null;
+    let matchedReg = null;
+
+    for (const evt of (memoryStore.events || [])) {
+      const reg = (evt.registrations || []).find(r => 
+        String(r.ticket_id).toUpperCase() === String(ticketId).toUpperCase() || 
+        String(r.id) === String(ticketId)
+      );
+      if (reg) {
+        matchedEvent = evt;
+        matchedReg = reg;
+        break;
+      }
+    }
+
+    if (!matchedEvent || !matchedReg) {
+      return res.status(404).json({ error: 'Event Ticket not found.' });
+    }
+
+    if (matchedReg.status === 'confirmed' && matchedReg.payment_status === 'paid') {
+      return res.json({ success: true, message: 'This ticket is already paid and confirmed.', status: 'Success' });
+    }
+
+    const payAmount = Number(matchedReg.amount) || Number(matchedEvent.price) || 0;
+    if (payAmount <= 0) {
+      matchedReg.status = 'confirmed';
+      matchedReg.payment_status = 'free';
+      savePersistentStore();
+      await sendEventTicketConfirmationEmail(matchedEvent, matchedReg);
+      return res.json({ success: true, message: 'Free ticket confirmed.', status: 'Success' });
+    }
+
+    const iotecConfig = getActiveIotecIntegration();
+    const token = await getIotecToken();
+
+    if (method === 'card') {
+      const custEmail = (email && email.includes('@')) ? email.trim() : (matchedReg.email || 'support@ncloud.co.ug');
+      const returnUrl = `https://ncloud.co.ug/events?ticket=${encodeURIComponent(matchedReg.ticket_id)}&paid=true`;
+
+      const cardPayload = {
+        category: "Card",
+        currency: "UGX",
+        walletId: iotecConfig.wallet_id,
+        externalId: matchedReg.ticket_id,
+        payer: custEmail,
+        payerName: matchedReg.name,
+        amount: payAmount,
+        payerNote: `Event Pass: ${matchedEvent.title} (Ticket #${matchedReg.ticket_id})`,
+        redirectUrl: returnUrl
+      };
+
+      const iotecRes = await fetch('https://pay.iotec.io/api/collections/collect/card', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardPayload)
+      });
+
+      if (!iotecRes.ok) {
+        const errText = await iotecRes.text();
+        return res.status(400).json({ error: `Card payment initiation failed: ${errText}` });
+      }
+
+      const cardData = await iotecRes.json();
+      const redirectLink = cardData.cardRedirectUrl || cardData.redirectUrl || cardData.paymentUrl || cardData.url;
+      return res.json({ success: true, transactionId: cardData.id, cardRedirectUrl: redirectLink, status: cardData.status || 'Pending' });
+
+    } else {
+      // Default: Mobile Money (MTN / Airtel)
+      const payerPhone = phone || matchedReg.phone;
+      if (!payerPhone) {
+        return res.status(400).json({ error: 'Valid Mobile Money phone number is required.' });
+      }
+
+      const mmPayload = {
+        category: "MobileMoney",
+        currency: "UGX",
+        walletId: iotecConfig.wallet_id,
+        externalId: matchedReg.ticket_id,
+        payer: payerPhone,
+        amount: payAmount,
+        payerNote: `Event Ticket #${matchedReg.ticket_id}: ${matchedEvent.title}`
+      };
+
+      const iotecRes = await fetch('https://pay.iotec.io/api/collections/collect', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(mmPayload)
+      });
+
+      if (!iotecRes.ok) {
+        const errText = await iotecRes.text();
+        return res.status(400).json({ error: `Mobile Money payment prompt failed: ${errText}` });
+      }
+
+      const mmData = await iotecRes.json();
+      return res.json({ success: true, transactionId: mmData.id, status: mmData.status || 'Pending' });
+    }
+
+  } catch (err) {
+    console.error('ioTec Event Pay Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Poll Payment Status for Event Ticket
+app.get('/api/events/tickets/:ticketId/status', async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { transactionId } = req.query;
+
+    let matchedEvent = null;
+    let matchedReg = null;
+
+    for (const evt of (memoryStore.events || [])) {
+      const reg = (evt.registrations || []).find(r => 
+        String(r.ticket_id).toUpperCase() === String(ticketId).toUpperCase() || 
+        String(r.id) === String(ticketId)
+      );
+      if (reg) {
+        matchedEvent = evt;
+        matchedReg = reg;
+        break;
+      }
+    }
+
+    if (!matchedEvent || !matchedReg) {
+      return res.status(404).json({ error: 'Ticket not found.' });
+    }
+
+    if (matchedReg.status === 'confirmed' && matchedReg.payment_status === 'paid') {
+      return res.json({ status: 'Success', ticket: matchedReg, event: matchedEvent });
+    }
+
+    // Check with ioTec if transactionId provided
+    if (transactionId) {
+      try {
+        const token = await getIotecToken();
+        const iotecRes = await fetch(`https://pay.iotec.io/api/collections/status/${transactionId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (iotecRes.ok) {
+          const data = await iotecRes.json();
+          if (data.status === 'Success') {
+            matchedReg.status = 'confirmed';
+            matchedReg.payment_status = 'paid';
+            matchedReg.payment_reference = transactionId;
+            matchedReg.paid_at = new Date().toISOString();
+            savePersistentStore();
+
+            await sendEventTicketConfirmationEmail(matchedEvent, matchedReg);
+            return res.json({ status: 'Success', ticket: matchedReg, event: matchedEvent });
+          }
+          return res.json({ status: data.status, ticket: matchedReg });
+        }
+      } catch (e) {
+        console.warn('ioTec status check note:', e.message);
+      }
+    }
+
+    return res.json({ status: matchedReg.payment_status, ticket: matchedReg });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. Admin Events API (Create, Update, Delete, View Attendees, Confirm Manually)
+app.get('/api/admin/events', (req, res) => {
   res.json(memoryStore.events || []);
 });
 
 app.post('/api/admin/events', (req, res) => {
-  const { title, date, location, description, image } = req.body;
-  if (!title) return res.status(400).json({ error: 'Event title is required' });
+  const { title, date, time, location, event_link, is_paid, price, currency, registration_deadline, capacity, description, image } = req.body;
+  if (!title) return res.status(400).json({ error: 'Event title is required.' });
+
   const newEvent = {
     id: Date.now(),
-    title,
+    title: title.trim(),
     date: date || new Date().toISOString().split('T')[0],
-    location: location || 'Virtual',
+    time: time || '09:00 AM - 05:00 PM EAT',
+    location: location || 'Virtual / Online',
+    event_link: event_link || '',
+    is_paid: Boolean(is_paid),
+    price: Boolean(is_paid) ? (Number(price) || 0) : 0,
+    currency: currency || 'UGX',
+    registration_deadline: registration_deadline || null,
+    capacity: Number(capacity) || 0,
     description: description || '',
-    image: image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+    image: image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80',
     registrations: []
   };
+
   if (!memoryStore.events) memoryStore.events = [];
   memoryStore.events.unshift(newEvent);
   savePersistentStore();
-  res.json({ message: 'Event posted successfully!', event: newEvent });
+  res.json({ message: 'Event created successfully!', event: newEvent });
 });
 
 app.put('/api/admin/events/:id', (req, res) => {
   const { id } = req.params;
-  const { title, date, location, description, image } = req.body;
+  const { title, date, time, location, event_link, is_paid, price, currency, registration_deadline, capacity, description, image } = req.body;
+
   const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
-  if (event) {
-    if (title) event.title = title;
-    if (date) event.date = date;
-    if (location) event.location = location;
-    if (description) event.description = description;
-    if (image) event.image = image;
-    savePersistentStore();
-    return res.json({ message: 'Event updated successfully!', event });
-  }
-  res.status(404).json({ error: 'Event not found' });
+  if (!event) return res.status(404).json({ error: 'Event not found.' });
+
+  if (title) event.title = title.trim();
+  if (date !== undefined) event.date = date;
+  if (time !== undefined) event.time = time;
+  if (location !== undefined) event.location = location;
+  if (event_link !== undefined) event.event_link = event_link;
+  if (is_paid !== undefined) event.is_paid = Boolean(is_paid);
+  if (price !== undefined) event.price = Boolean(is_paid) ? Number(price) : 0;
+  if (currency !== undefined) event.currency = currency;
+  if (registration_deadline !== undefined) event.registration_deadline = registration_deadline;
+  if (capacity !== undefined) event.capacity = Number(capacity) || 0;
+  if (description !== undefined) event.description = description;
+  if (image !== undefined) event.image = image;
+
+  savePersistentStore();
+  res.json({ message: 'Event updated successfully!', event });
 });
 
-app.delete('/api/admin/events/:id', requireSuperAdmin, async (req, res) => {
+app.delete('/api/admin/events/:id', requireSuperAdmin, (req, res) => {
   const { id } = req.params;
   memoryStore.events = (memoryStore.events || []).filter(e => String(e.id) !== String(id));
   savePersistentStore();
-  return res.json({ message: 'Event removed successfully!' });
+  res.json({ message: 'Event deleted successfully.' });
 });
 
-app.post('/api/events/:id/register', verifyTurnstile, (req, res) => {
+app.get('/api/admin/events/:id/attendees', (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, company } = req.body;
-  
-  if (!name || !email) return res.status(400).json({ error: 'Name and email are required to register.' });
-
   const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
-  if (!event) return res.status(404).json({ error: 'Event not found' });
+  if (!event) return res.status(404).json({ error: 'Event not found.' });
+  res.json({
+    event_id: event.id,
+    event_title: event.title,
+    event_link: event.event_link,
+    attendees: event.registrations || []
+  });
+});
 
-  if (!event.registrations) event.registrations = [];
-  
-  // Prevent duplicate registration for the same event
-  const alreadyRegistered = event.registrations.find(r => r.email.toLowerCase() === email.toLowerCase());
-  if (alreadyRegistered) {
-    return res.status(400).json({ error: 'You are already registered for this event.' });
+app.put('/api/admin/events/:id/attendees/:ticketId/confirm', async (req, res) => {
+  const { id, ticketId } = req.params;
+  const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
+  if (!event) return res.status(404).json({ error: 'Event not found.' });
+
+  const reg = (event.registrations || []).find(r => 
+    String(r.ticket_id).toUpperCase() === String(ticketId).toUpperCase() || 
+    String(r.id) === String(ticketId)
+  );
+  if (!reg) return res.status(404).json({ error: 'Attendee ticket not found.' });
+
+  reg.status = 'confirmed';
+  reg.payment_status = 'paid';
+  reg.paid_at = new Date().toISOString();
+  reg.payment_reference = req.body.reference || 'MANUAL-ADMIN-CONFIRMED';
+  savePersistentStore();
+
+  await sendEventTicketConfirmationEmail(event, reg);
+  res.json({ success: true, message: `Attendee Ticket #${reg.ticket_id} confirmed and official pass emailed.`, ticket: reg });
+});
+
+app.post('/api/admin/events/:id/attendees/:ticketId/resend', async (req, res) => {
+  const { id, ticketId } = req.params;
+  const event = (memoryStore.events || []).find(e => String(e.id) === String(id));
+  if (!event) return res.status(404).json({ error: 'Event not found.' });
+
+  const reg = (event.registrations || []).find(r => 
+    String(r.ticket_id).toUpperCase() === String(ticketId).toUpperCase() || 
+    String(r.id) === String(ticketId)
+  );
+  if (!reg) return res.status(404).json({ error: 'Attendee ticket not found.' });
+
+  if (reg.status === 'confirmed') {
+    await sendEventTicketConfirmationEmail(event, reg);
+  } else {
+    await sendEventTicketPendingEmail(event, reg);
   }
 
-  const registration = {
-    id: Date.now(),
-    name,
-    email,
-    phone: phone || '',
-    company: company || '',
-    registered_at: new Date().toISOString()
-  };
-
-  event.registrations.push(registration);
-  savePersistentStore();
-  
-  res.json({ success: true, message: 'You have successfully registered for this event!' });
+  res.json({ success: true, message: `Official Event Ticket email resent to ${reg.email}.` });
 });
 
 app.get('/api/iso-standards', (req, res) => {
@@ -9586,7 +10121,7 @@ export async function generateServerQuotationPDFBuffer(quote, options = {}) {
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
-  doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
+  doc.text('Web: www.ncloud.co.ug', 18, cardY + 24.5);
 
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
@@ -10325,7 +10860,7 @@ export async function generateServerPaymentReceiptPDFBuffer(pmt, options = {}) {
   doc.setTextColor(71, 85, 105);
   doc.text(SERVER_BRAND.address, centerX, y, { align: 'center' });
   y += 3.2;
-  doc.text(`TIN: ${SERVER_BRAND.tin} • Tel: +256 790 001 631`, centerX, y, { align: 'center' });
+  doc.text('Email: support@ncloud.co.ug • Tel: +256 790 001 631', centerX, y, { align: 'center' });
   y += 3.2;
   doc.text('support@ncloud.co.ug', centerX, y, { align: 'center' });
   y += 5.5;
@@ -10815,7 +11350,7 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
     doc.setFont('TrebuchetMS', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(148, 163, 184);
-    doc.text(`Official Delivery Note issued by Nova Cloud Edges (U) Limited  |  Lugga Zone, Ndejje, Wakiso, Uganda  |  TIN: 1014892019`, 105, 286, { align: 'center' });
+    doc.text(`Official Delivery Note issued by Nova Cloud Edges (U) Limited  |  Lugga Zone, Ndejje, Wakiso, Uganda  |  support@ncloud.co.ug`, 105, 286, { align: 'center' });
     doc.text(`Page ${p} of ${totalPages}  |  Certified Proof of Fulfillment & Inventory Handover`, 105, 289.5, { align: 'center' });
   }
 
@@ -11021,7 +11556,7 @@ function generateCorporateEmailHtml({
     
     <div class="email-footer">
       <div>This is an automatically generated communication from <span class="footer-highlight">Nova Cloud Edges (U) Limited</span>.</div>
-      <div style="margin-top: 10px;">Lugga Zone, Ndejje, Wakiso, Uganda | TIN: 1014892019</div>
+      <div style="margin-top: 10px;">Lugga Zone, Ndejje, Wakiso, Uganda | support@ncloud.co.ug</div>
       ${footerNote ? `<div style="margin-top: 16px; color: #a1a1aa; font-style: italic;">${footerNote}</div>` : ''}
       <div style="margin-top: 20px; font-size: 10px; color: #52525b; text-transform: uppercase; letter-spacing: 1px;">
         &copy; ${new Date().getFullYear()} Nova Cloud Edges. All rights reserved.
@@ -13932,6 +14467,30 @@ app.post('/api/webhooks/iotec', async (req, res) => {
 });
 
 async function processSuccessfulPayment(externalId, amount, transactionId, method) {
+  // 1. Handle Event Ticket Payment (Ticket ID starting with EVT- or TCK-)
+  if (externalId && (String(externalId).startsWith('EVT-') || String(externalId).startsWith('TCK-'))) {
+    for (const evt of (memoryStore.events || [])) {
+      const reg = (evt.registrations || []).find(r => 
+        String(r.ticket_id).toUpperCase() === String(externalId).toUpperCase() || 
+        String(r.id) === String(externalId)
+      );
+      if (reg) {
+        reg.status = 'confirmed';
+        reg.payment_status = 'paid';
+        reg.payment_reference = transactionId;
+        reg.paid_amount = Number(amount) || Number(reg.amount) || Number(evt.price) || 0;
+        reg.paid_at = new Date().toISOString();
+        savePersistentStore();
+
+        if (typeof sendEventTicketConfirmationEmail === 'function') {
+          await sendEventTicketConfirmationEmail(evt, reg).catch(e => console.warn('[Mail Warning] Event ticket email on payment:', e.message));
+        }
+        console.log(`[ioTec Payment Success] Event Ticket ${reg.ticket_id} for ${reg.name} (${evt.title}) marked PAID & CONFIRMED.`);
+        return;
+      }
+    }
+  }
+
   const invIndex = (memoryStore.invoices || []).findIndex(i => i.invoice_number === externalId);
   if (invIndex >= 0 && memoryStore.invoices[invIndex].status !== '100% Paid' && memoryStore.invoices[invIndex].status !== 'Paid' && memoryStore.invoices[invIndex].status !== 'PAID' && memoryStore.invoices[invIndex].status !== 'Paid & Settled') {
     const inv = memoryStore.invoices[invIndex];

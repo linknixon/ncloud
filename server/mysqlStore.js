@@ -84,6 +84,7 @@ export async function loadFullStoreFromMysql() {
       sliders: [],
       news: [],
       contacts: [],
+      events: [],
       smtp_settings: {},
       topbar_settings: {},
       security_settings: {},
@@ -493,6 +494,47 @@ export async function loadFullStoreFromMysql() {
       console.warn('[MySQL Store] Contacts query note:', e.message);
     }
 
+    // 26b. Events
+    try {
+      await pool.query(`CREATE TABLE IF NOT EXISTS events (
+        id BIGINT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        date VARCHAR(100) NULL,
+        time VARCHAR(100) NULL,
+        location VARCHAR(255) NULL,
+        event_link VARCHAR(500) NULL,
+        is_paid TINYINT(1) DEFAULT 0,
+        price DECIMAL(15,2) DEFAULT 0.00,
+        currency VARCHAR(10) DEFAULT 'UGX',
+        registration_deadline DATETIME NULL,
+        capacity INT DEFAULT 0,
+        description TEXT NULL,
+        image LONGTEXT NULL,
+        registrations JSON NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN time VARCHAR(100) NULL'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN event_link VARCHAR(500) NULL'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN is_paid TINYINT(1) DEFAULT 0'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN price DECIMAL(15,2) DEFAULT 0.00'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN currency VARCHAR(10) DEFAULT "UGX"'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN registration_deadline DATETIME NULL'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN capacity INT DEFAULT 0'); } catch {}
+    try { await pool.query('ALTER TABLE events ADD COLUMN registrations JSON NULL'); } catch {}
+
+    try {
+      const [events] = await pool.query('SELECT * FROM events ORDER BY id DESC');
+      store.events = (events || []).map(e => ({
+        ...e,
+        is_paid: Boolean(e.is_paid),
+        price: Number(e.price) || 0,
+        registrations: parseJsonSafe(e.registrations, [])
+      }));
+    } catch (e) {
+      console.warn('[MySQL Store] Events query note:', e.message);
+    }
+
     // 27. Universal System Settings
     try {
       const [settings] = await pool.query('SELECT * FROM system_settings');
@@ -770,6 +812,29 @@ export async function syncStoreToMysql(store) {
             parseDate(c.assigned_at) || null, c.response || null, parseDate(c.replied_at) || null,
             parseDate(c.closed_at) || null, c.closed_by || null, safeJson(c.timeline || c.history || []),
             parseDate(c.created_at) || new Date()
+          ]
+        ).catch(() => {});
+      }
+    }
+
+    // 14b. Events & Attendee Registrations
+    if (store.events && Array.isArray(store.events)) {
+      for (const e of store.events) {
+        await pool.query(
+          `INSERT INTO events (id, title, date, time, location, event_link, is_paid, price, currency, registration_deadline, capacity, description, image, registrations, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             title=VALUES(title), date=VALUES(date), time=VALUES(time), location=VALUES(location), 
+             event_link=VALUES(event_link), is_paid=VALUES(is_paid), price=VALUES(price), 
+             currency=VALUES(currency), registration_deadline=VALUES(registration_deadline), 
+             capacity=VALUES(capacity), description=VALUES(description), image=VALUES(image), 
+             registrations=VALUES(registrations)`,
+          [
+            e.id, e.title, e.date || null, e.time || null, e.location || 'Virtual',
+            e.event_link || null, e.is_paid ? 1 : 0, Number(e.price) || 0, e.currency || 'UGX',
+            parseDate(e.registration_deadline) || null, Number(e.capacity) || 0,
+            e.description || '', e.image || '', safeJson(e.registrations || []),
+            parseDate(e.created_at) || new Date()
           ]
         ).catch(() => {});
       }

@@ -469,3 +469,22 @@ CREATE TABLE IF NOT EXISTS system_settings (
     setting_value LONGTEXT NOT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 28. Technology Events & Conferences Table
+CREATE TABLE IF NOT EXISTS events (
+    id BIGINT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    date VARCHAR(100) NULL,
+    time VARCHAR(100) NULL,
+    location VARCHAR(255) NULL,
+    event_link VARCHAR(500) NULL,
+    is_paid TINYINT(1) DEFAULT 0,
+    price DECIMAL(15,2) DEFAULT 0.00,
+    currency VARCHAR(10) DEFAULT 'UGX',
+    registration_deadline DATETIME NULL,
+    capacity INT DEFAULT 0,
+    description TEXT NULL,
+    image LONGTEXT NULL,
+    registrations JSON NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

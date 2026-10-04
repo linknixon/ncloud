@@ -201,13 +201,13 @@ function drawA4ExecutiveHeader(doc, {
   doc.setFont('TrebuchetMS', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.colors.textMuted);
-  doc.text(BRAND.tagline, textX, 23);
-  doc.text(`${BRAND.address} • ${BRAND.tin}`, textX, 27.5);
-  doc.text(BRAND.contact, textX, 32);
-
   // Header Right: Document Title & Reference
   doc.setFont('TrebuchetMS', 'bold');
   const titleStr = (title || 'OFFICIAL DOCUMENT').toUpperCase();
+  const isTaxInvoiceDoc = titleStr.includes('TAX INVOICE') || Boolean(opts?.isTaxInvoice);
+  doc.text(isTaxInvoiceDoc ? `${BRAND.address} • ${BRAND.tin}` : BRAND.address, textX, 27.5);
+  doc.text(BRAND.contact, textX, 32);
+
   doc.setFontSize(titleStr.length > 25 ? 11 : 14);
   doc.setTextColor(...BRAND.colors.navyDark);
   doc.text(titleStr, 196, 19, { align: 'right' });
@@ -822,7 +822,7 @@ export async function generateQuotationPDF(quote, options = {}) {
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
-  doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
+  doc.text('Web: www.ncloud.co.ug', 18, cardY + 24.5);
 
   // Bank Remittance (strictly what is configured in database)
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
@@ -1137,9 +1137,9 @@ export function generatePayrollPayslipPDF(payroll, options = {}) {
 
   doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
-  doc.text('TIN Registration:', 115, y + 22);
+  doc.text('Payment Reference:', 115, y + 22);
   doc.setTextColor(...BRAND.colors.textBody);
-  doc.text('1014892019 (Verified)', 150, y + 22);
+  doc.text('Verified Clearance', 150, y + 22);
 
   doc.setFont('TrebuchetMS', 'normal');
   doc.setTextColor(...BRAND.colors.textMuted);
@@ -2473,7 +2473,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.setFont('TrebuchetMS', 'normal');
   doc.text("Lugga Zone, Ndejje, Wakiso, Uganda", center, cursorY, { align: 'center' });
   cursorY += 10;
-  doc.text("TIN: 1014892019 • support@ncloud.co.ug", center, cursorY, { align: 'center' });
+  doc.text("support@ncloud.co.ug • www.ncloud.co.ug", center, cursorY, { align: 'center' });
   cursorY += 14;
 
   // Separator
