@@ -431,10 +431,64 @@ export async function loadFullStoreFromMysql() {
       console.warn('[MySQL Store] News query note:', e.message);
     }
 
-    // 26. Contacts
+    // 26. Contacts & Helpdesk Tickets
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN ticket_number VARCHAR(50) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN priority VARCHAR(20) DEFAULT "medium"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN category VARCHAR(100) DEFAULT "General Technical Support"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN source VARCHAR(50) DEFAULT "website_contact_form"');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN assigned_to_id INT NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN assigned_to_name VARCHAR(255) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN assigned_to_email VARCHAR(255) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN assigned_at DATETIME NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN response TEXT NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN replied_at DATETIME NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN closed_at DATETIME NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN closed_by VARCHAR(255) NULL');
+    } catch {}
+    try {
+      await pool.query('ALTER TABLE contacts ADD COLUMN history JSON NULL');
+    } catch {}
+
     try {
       const [contacts] = await pool.query('SELECT * FROM contacts ORDER BY id DESC');
-      store.contacts = contacts;
+      store.contacts = (contacts || []).map(c => ({
+        ...c,
+        ticket_number: c.ticket_number || `TKT-2026-${String(c.id).padStart(4, '0')}`,
+        priority: c.priority || 'medium',
+        category: c.category || 'General Technical Support',
+        status: c.status || 'open',
+        timeline: parseJsonSafe(c.history || c.timeline, [
+          {
+            timestamp: c.created_at || new Date().toISOString(),
+            action: 'CREATED',
+            actor: c.name || 'Customer',
+            note: 'Ticket logged'
+          }
+        ])
+      }));
     } catch (e) {
       console.warn('[MySQL Store] Contacts query note:', e.message);
     }
@@ -695,7 +749,33 @@ export async function syncStoreToMysql(store) {
       }
     }
 
-    // 14. Universal System Settings (Including api_integrations, smtp, topbar, security)
+    // 14. Contacts & Helpdesk Support Tickets
+    if (store.contacts && Array.isArray(store.contacts)) {
+      for (const c of store.contacts) {
+        await pool.query(
+          `INSERT INTO contacts (id, ticket_number, name, email, phone, subject, message, category, priority, status, source, assigned_to_id, assigned_to_name, assigned_to_email, assigned_at, response, replied_at, closed_at, closed_by, history, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             ticket_number=VALUES(ticket_number), name=VALUES(name), email=VALUES(email), phone=VALUES(phone), 
+             subject=VALUES(subject), message=VALUES(message), category=VALUES(category), priority=VALUES(priority), 
+             status=VALUES(status), source=VALUES(source), assigned_to_id=VALUES(assigned_to_id), 
+             assigned_to_name=VALUES(assigned_to_name), assigned_to_email=VALUES(assigned_to_email), 
+             assigned_at=VALUES(assigned_at), response=VALUES(response), replied_at=VALUES(replied_at), 
+             closed_at=VALUES(closed_at), closed_by=VALUES(closed_by), history=VALUES(history)`,
+          [
+            c.id || null, c.ticket_number || null, c.name, c.email, c.phone || '',
+            c.subject || 'General Inquiry', c.message || '', c.category || 'General Support',
+            c.priority || 'medium', c.status || 'open', c.source || 'website_contact_form',
+            c.assigned_to_id || null, c.assigned_to_name || null, c.assigned_to_email || null,
+            parseDate(c.assigned_at) || null, c.response || null, parseDate(c.replied_at) || null,
+            parseDate(c.closed_at) || null, c.closed_by || null, safeJson(c.timeline || c.history || []),
+            parseDate(c.created_at) || new Date()
+          ]
+        ).catch(() => {});
+      }
+    }
+
+    // 15. Universal System Settings (Including api_integrations, smtp, topbar, security)
     const systemSettingsKeys = [
       'api_integrations', 'smtp_settings', 'topbar_settings', 
       'security_settings', 'notification_emails', 'paid_stamp', 

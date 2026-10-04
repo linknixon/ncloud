@@ -437,19 +437,31 @@ CREATE TABLE IF NOT EXISTS news (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 26. Contact Inquiries Table
+-- 26. Contact Inquiries & Helpdesk Support Tickets Table
 CREATE TABLE IF NOT EXISTS contacts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticket_number VARCHAR(50) NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NULL,
     subject VARCHAR(255) NULL,
     message TEXT NOT NULL,
-    status VARCHAR(50) DEFAULT 'new',
+    category VARCHAR(100) DEFAULT 'General Support',
+    priority VARCHAR(50) DEFAULT 'medium',
+    status VARCHAR(50) DEFAULT 'open',
+    source VARCHAR(50) DEFAULT 'website_contact_form',
+    assigned_to_id BIGINT NULL,
+    assigned_to_name VARCHAR(255) NULL,
+    assigned_to_email VARCHAR(255) NULL,
+    assigned_at DATETIME NULL,
     response TEXT NULL,
     replied_at DATETIME NULL,
+    closed_at DATETIME NULL,
+    closed_by VARCHAR(255) NULL,
+    history LONGTEXT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- 27. Universal System Settings (Key-Value configuration for SMTP, Branding, Paid Stamp, Turnstile, etc.)
 CREATE TABLE IF NOT EXISTS system_settings (

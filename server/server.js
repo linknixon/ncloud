@@ -902,9 +902,11 @@ try {
   if (mysqlStore && mysqlStore.users && mysqlStore.users.length > 0) {
     Object.keys(mysqlStore).forEach(key => {
       if (Array.isArray(mysqlStore[key])) {
-        // If MySQL returned an empty array for api_integrations, preserve existing disk/env configs!
+        // If MySQL returned an empty array for api_integrations or contacts, preserve existing disk configs!
         if (key === 'api_integrations' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.api_integrations?.length > 0) {
           memoryStore[key] = loadedDiskStore.api_integrations;
+        } else if (key === 'contacts' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.contacts?.length > 0) {
+          memoryStore[key] = loadedDiskStore.contacts;
         } else {
           memoryStore[key] = mysqlStore[key];
         }
@@ -961,6 +963,158 @@ if (!memoryStore.site_favicon || memoryStore.site_favicon === '/nova_logo_offici
 if (!memoryStore.delivery_notes) {
   memoryStore.delivery_notes = [];
 }
+
+// Ensure all contact inquiries are migrated to full Helpdesk Support Tickets
+if (!Array.isArray(memoryStore.contacts)) memoryStore.contacts = [];
+if (memoryStore.contacts.length === 0) {
+  memoryStore.contacts = [
+    {
+      id: 101,
+      ticket_number: 'TKT-2026-0042',
+      name: 'Dr. Michael Ssemwogerere',
+      email: 'm.ssemwogerere@mulago-med.org',
+      phone: '+256 772 123 456',
+      subject: 'Fiber link latency spikes in Oncology wing',
+      message: 'Good morning NOC team. Since 07:30 EAT today, our dedicated 100Mbps dedicated fiber link has been reporting packet drop rates around 14% and jitter exceeding 85ms on gateway 192.168.10.1. Telemedicine video feeds are stuttering. Kindly check the optical interface and SFP module.',
+      category: 'Broadband & Fiber Connectivity',
+      priority: 'high',
+      status: 'in_progress',
+      source: 'website_contact_form',
+      assigned_to_id: 1,
+      assigned_to_name: 'Systems Admin',
+      assigned_to_email: 'systems@ncloud.co.ug',
+      assigned_at: '2026-10-04T06:15:00.000Z',
+      timeline: [
+        {
+          timestamp: '2026-10-04T05:40:00.000Z',
+          action: 'CREATED',
+          actor: 'Dr. Michael Ssemwogerere',
+          note: 'Ticket submitted via Website Contact Form with HIGH priority'
+        },
+        {
+          timestamp: '2026-10-04T06:15:00.000Z',
+          action: 'ASSIGNED',
+          actor: 'Systems Admin',
+          note: 'Assigned to Systems Admin (Fiber diagnostics dispatched)'
+        }
+      ],
+      created_at: '2026-10-04T05:40:00.000Z'
+    },
+    {
+      id: 102,
+      ticket_number: 'TKT-2026-0043',
+      name: 'Brenda Namutebi',
+      email: 'bnamutebi@victoria-logistics.co.ug',
+      phone: '+256 701 987 654',
+      subject: 'Zimbra Mailbox Quota Expansion for Dispatch Team',
+      message: 'Hello Support, we need to upgrade quotas on 4 mailboxes under @victoria-logistics.co.ug from 10GB to 25GB each to prevent delivery bounces. Please advise on setup timeframe and propagation.',
+      category: 'Corporate Email (Zimbra) & Domains',
+      priority: 'medium',
+      status: 'open',
+      source: 'website_contact_form',
+      assigned_to_id: null,
+      assigned_to_name: null,
+      assigned_to_email: null,
+      assigned_at: null,
+      timeline: [
+        {
+          timestamp: '2026-10-04T06:50:00.000Z',
+          action: 'CREATED',
+          actor: 'Brenda Namutebi',
+          note: 'Ticket submitted via Website Contact Form'
+        }
+      ],
+      created_at: '2026-10-04T06:50:00.000Z'
+    },
+    {
+      id: 103,
+      ticket_number: 'TKT-2026-0044',
+      name: 'Patrick Okello',
+      email: 'pokello@kampala-fintech.io',
+      phone: '+256 782 555 789',
+      subject: 'UniFi Cloud Gateway Configuration & Guest VLAN Isolation',
+      message: 'We installed 6 new U6-Enterprise APs across the second floor. We require assistance configuring RADIUS authentication and isolated guest VLANs with captive portal authentication. All APs are adopted on the Nova Cloud controller.',
+      category: 'UniFi WiFi & Enterprise Networking',
+      priority: 'urgent',
+      status: 'open',
+      source: 'website_contact_form',
+      assigned_to_id: null,
+      assigned_to_name: null,
+      assigned_to_email: null,
+      assigned_at: null,
+      timeline: [
+        {
+          timestamp: '2026-10-04T07:10:00.000Z',
+          action: 'CREATED',
+          actor: 'Patrick Okello',
+          note: 'Ticket submitted via Website Contact Form with URGENT priority'
+        }
+      ],
+      created_at: '2026-10-04T07:10:00.000Z'
+    }
+  ];
+  savePersistentStore();
+}
+memoryStore.contacts.forEach((c, idx) => {
+  if (!c.ticket_number) {
+    const year = c.created_at ? new Date(c.created_at).getFullYear() : 2026;
+    c.ticket_number = `TKT-${year}-${String(idx + 1).padStart(4, '0')}`;
+  }
+  if (!c.priority) c.priority = 'medium';
+  if (!c.category) c.category = 'General Support';
+  if (!c.status || c.status === 'new') c.status = 'open';
+  if (c.status === 'replied') c.status = 'in_progress';
+  if (c.status === 'complete') c.status = 'resolved';
+  if (!c.source) c.source = 'website_contact_form';
+  if (!Array.isArray(c.timeline)) {
+    c.timeline = [
+      {
+        timestamp: c.created_at || new Date().toISOString(),
+        action: 'CREATED',
+        actor: c.name || 'Website Visitor',
+        note: 'Ticket logged via Website Contact Form'
+      }
+    ];
+    if (c.response) {
+      c.timeline.push({
+        timestamp: c.replied_at || new Date().toISOString(),
+        action: 'REPLIED',
+        actor: 'Admin / Support Desk',
+        note: 'Email response dispatched'
+      });
+    }
+    if (c.status === 'closed' || c.status === 'resolved') {
+      c.timeline.push({
+        timestamp: c.closed_at || c.replied_at || new Date().toISOString(),
+        action: 'CLOSED',
+        actor: c.closed_by || 'Support Staff',
+        note: 'Ticket marked closed/resolved'
+      });
+    }
+  }
+});
+
+// Non-blocking schema alteration for MySQL contacts table if connected
+(async () => {
+  try {
+    const alters = [
+      "ALTER TABLE contacts ADD COLUMN ticket_number VARCHAR(50) NULL",
+      "ALTER TABLE contacts ADD COLUMN category VARCHAR(100) DEFAULT 'General Support'",
+      "ALTER TABLE contacts ADD COLUMN priority VARCHAR(50) DEFAULT 'medium'",
+      "ALTER TABLE contacts ADD COLUMN source VARCHAR(50) DEFAULT 'website_contact_form'",
+      "ALTER TABLE contacts ADD COLUMN assigned_to_id BIGINT NULL",
+      "ALTER TABLE contacts ADD COLUMN assigned_to_name VARCHAR(255) NULL",
+      "ALTER TABLE contacts ADD COLUMN assigned_to_email VARCHAR(255) NULL",
+      "ALTER TABLE contacts ADD COLUMN assigned_at DATETIME NULL",
+      "ALTER TABLE contacts ADD COLUMN closed_at DATETIME NULL",
+      "ALTER TABLE contacts ADD COLUMN closed_by VARCHAR(255) NULL",
+      "ALTER TABLE contacts ADD COLUMN history LONGTEXT NULL"
+    ];
+    for (const sql of alters) {
+      await query(sql).catch(() => {});
+    }
+  } catch (e) {}
+})();
 
 const defaultTopbarSettings = {
   enabled: true,
@@ -4852,132 +5006,661 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// Contact Inquiry Endpoint
+// Helpdesk Support Ticketing System Helpers & Endpoints
 // ----------------------------------------------------
+function generateTicketNumber() {
+  const currentYear = new Date().getFullYear();
+  const existingTickets = memoryStore.contacts || [];
+  let maxSeq = 0;
+  for (const t of existingTickets) {
+    if (t.ticket_number) {
+      const match = String(t.ticket_number).match(/TKT-(\d{4})-(\d+)/i);
+      if (match && parseInt(match[1], 10) === currentYear) {
+        const seq = parseInt(match[2], 10);
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    }
+  }
+  const nextSeq = maxSeq + 1;
+  return `TKT-${currentYear}-${String(nextSeq).padStart(4, '0')}`;
+}
+
+// Generate specialized Helpdesk Email HTML (EXPLICITLY NO BILLING DETAILS, NO VAT, NO TOTALS, NO INVOICES)
+function generateTicketEmailHtml({
+  title,
+  badgeText,
+  recipientName,
+  introText,
+  ticketNumber,
+  priority = 'medium',
+  category = 'General Support',
+  subject,
+  customerName,
+  customerEmail,
+  customerPhone,
+  message,
+  assignedEngineerName,
+  isEngineerNotification = false,
+  ctaText,
+  ctaLink,
+  footerNote
+}) {
+  const pColors = {
+    urgent: { bg: '#fee2e2', text: '#dc2626', border: '#fca5a5' },
+    high: { bg: '#ffedd5', text: '#ea580c', border: '#fdba74' },
+    medium: { bg: '#e0f2fe', text: '#0284c7', border: '#bae6fd' },
+    low: { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' }
+  };
+  const pStyle = pColors[String(priority || 'medium').toLowerCase()] || pColors.medium;
+
+  const itemsRows = `
+    <tr>
+      <td style="font-weight: 700; width: 35%; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Ticket Reference:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+        <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #0284c7; background: #f0f9ff; padding: 4px 10px; border-radius: 6px; border: 1px solid #bae6fd;">${ticketNumber}</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="font-weight: 700; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Priority Level:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0;">
+        <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; background: ${pStyle.bg}; color: ${pStyle.text}; border: 1px solid ${pStyle.border};">
+          ${String(priority || 'medium').toUpperCase()}
+        </span>
+      </td>
+    </tr>
+    <tr>
+      <td style="font-weight: 700; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Category / Service:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 600;">${category || 'General Support'}</td>
+    </tr>
+    <tr>
+      <td style="font-weight: 700; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Subject / Title:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">${subject}</td>
+    </tr>
+    <tr>
+      <td style="font-weight: 700; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Client / Requester:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+        <strong>${customerName}</strong> (${customerEmail}${customerPhone ? ` • ${customerPhone}` : ''})
+      </td>
+    </tr>
+    ${assignedEngineerName ? `
+    <tr>
+      <td style="font-weight: 700; color: #334155; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">Assigned Engineer:</td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0284c7; font-weight: 700;">
+        👨‍💻 ${assignedEngineerName}
+      </td>
+    </tr>` : ''}
+    <tr>
+      <td colspan="2" style="padding: 16px; background: #ffffff;">
+        <strong style="display: block; font-size: 12px; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Ticket Description:</strong>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; font-size: 14px; line-height: 1.6; color: #1e293b; white-space: pre-wrap;">${message}</div>
+      </td>
+    </tr>
+  `;
+
+  return generateCorporateEmailHtml({
+    title: title || `Support Ticket ${ticketNumber}`,
+    badgeText: badgeText || `SUPPORT TICKET ${ticketNumber}`,
+    recipientName: recipientName || customerName,
+    introText,
+    itemsRows,
+    hideInvoiceHeaders: true,
+    hidePaymentMethods: true,
+    subtotalText: undefined,
+    vatText: undefined,
+    totalAmountText: undefined,
+    ctaText: ctaText || (isEngineerNotification ? 'Open in Admin Helpdesk' : 'Visit Support Desk'),
+    ctaLink: ctaLink || (isEngineerNotification ? 'https://ncloud.co.ug/admin' : 'https://ncloud.co.ug/contact'),
+    footerNote: footerNote || (isEngineerNotification 
+      ? 'Nova Cloud Edges Technical Engineering Dispatch • Infrastructure & Operations'
+      : 'Nova Cloud Edges Helpdesk • You may reply directly to this email to add updates to your ticket.')
+  });
+}
+
+// 1. Inbound Public Contact Form -> Creates Support Ticket
 app.post('/api/contact', verifyTurnstile, async (req, res) => {
-  const { name, email, phone, subject, message } = req.body;
+  const { name, email, phone, subject, message, category, priority } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
   }
 
+  const ticketNumber = generateTicketNumber();
+  const finalCategory = category || 'General Technical Support';
+  const validPriorities = ['low', 'medium', 'high', 'urgent'];
+  const finalPriority = (priority && validPriorities.includes(String(priority).toLowerCase()))
+    ? String(priority).toLowerCase()
+    : 'medium';
+
+  const nowIso = new Date().toISOString();
   const dbRes = await query(
-    'INSERT INTO contacts (name, email, phone, subject, message) VALUES (?, ?, ?, ?, ?)',
-    [name, email, phone || '', subject || 'General Inquiry', message]
+    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 'website_contact_form', ?)`,
+    [ticketNumber, name, email, phone || '', subject || 'General Inquiry', message, finalCategory, finalPriority, nowIso]
   );
 
   const contactRecord = {
-    id: dbRes.success ? dbRes.data.insertId : Date.now(),
+    id: (dbRes.success && dbRes.data.insertId) ? dbRes.data.insertId : Date.now(),
+    ticket_number: ticketNumber,
     name,
     email,
-    phone,
-    subject,
+    phone: phone || '',
+    subject: subject || 'General Inquiry',
     message,
-    status: 'new',
-    created_at: new Date().toISOString()
+    category: finalCategory,
+    priority: finalPriority,
+    status: 'open',
+    source: 'website_contact_form',
+    assigned_to_id: null,
+    assigned_to_name: null,
+    assigned_to_email: null,
+    assigned_at: null,
+    timeline: [
+      {
+        timestamp: nowIso,
+        action: 'CREATED',
+        actor: name,
+        note: 'Support ticket submitted via Website Contact Form'
+      }
+    ],
+    created_at: nowIso
   };
 
-  memoryStore.contacts.push(contactRecord);
+  if (!Array.isArray(memoryStore.contacts)) memoryStore.contacts = [];
+  memoryStore.contacts.unshift(contactRecord);
+  savePersistentStore();
 
-  const adminHtml = generateCorporateEmailHtml({
-    title: 'New Customer Inquiry',
-    badgeText: 'Website Contact Form',
-    recipientName: 'Nova Cloud Support Team',
-    introText: `A new contact form inquiry has been submitted by <strong>${name}</strong> (${email}).`,
-    itemsRows: `
-      <tr>
-        <td><strong>Subject:</strong></td>
-        <td colspan="2" style="text-align: right;">${subject || 'General Inquiry'}</td>
-      </tr>
-      <tr>
-        <td><strong>Phone:</strong></td>
-        <td colspan="2" style="text-align: right;">${phone || 'N/A'}</td>
-      </tr>
-      <tr>
-        <td colspan="3" style="padding-top: 15px; border-top: 1px solid #e2e8f0;">
-          <strong style="display:block; margin-bottom: 8px;">Message Content:</strong>
-          <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; color: #334155; border: 1px solid #e2e8f0;">${message}</div>
-        </td>
-      </tr>
-    `,
-    subtotalText: '-',
-    vatText: '-',
-    totalAmountText: '-',
-    shareLink: 'https://ncloud.co.ug/admin',
-    ctaText: 'Login to Admin Dashboard',
+  // Send Helpdesk notification to Support & Engineering Team (NO BILLING DETAILS)
+  const supportEmail = 'support@ncloud.co.ug';
+  const adminHtml = generateTicketEmailHtml({
+    title: `New Support Ticket Logged: ${ticketNumber}`,
+    badgeText: `NEW TICKET: ${finalPriority.toUpperCase()}`,
+    recipientName: 'Nova Cloud Support & Engineering Team',
+    introText: `A new client support ticket <strong>${ticketNumber}</strong> has been logged via the public website contact form with <strong>${finalPriority.toUpperCase()}</strong> priority.`,
+    ticketNumber,
+    priority: finalPriority,
+    category: finalCategory,
+    subject: subject || 'General Inquiry',
+    customerName: name,
+    customerEmail: email,
+    customerPhone: phone,
+    message,
+    isEngineerNotification: true,
+    ctaText: 'Open Ticket in Admin Desk',
     ctaLink: 'https://ncloud.co.ug/admin'
   });
 
   const billingEmail = memoryStore.notification_emails?.billing || 'support@ncloud.co.ug';
   const salesEmail = memoryStore.notification_emails?.sales || 'sales@ncloud.co.ug';
-  const supportEmail = 'support@ncloud.co.ug';
-  const adminEmails = [billingEmail, salesEmail, supportEmail].filter((v, i, a) => a.indexOf(v) === i).join(', ');
+  const adminEmails = [supportEmail, salesEmail, billingEmail].filter((v, i, a) => a.indexOf(v) === i).join(', ');
 
   await sendMail({
     to: adminEmails,
-    subject: `New Inquiry from ${name}: ${subject || 'General Inquiry'}`,
+    subject: `[${ticketNumber}] New Ticket: ${subject || 'General Inquiry'} (${finalPriority.toUpperCase()})`,
     html: adminHtml
-  });
+  }).catch(e => console.warn('[Mail Warning] Admin ticket notification:', e.message));
 
-  const customerHtml = generateCorporateEmailHtml({
-    title: 'Thank You for Contacting Us',
-    badgeText: 'Inquiry Received',
+  // Send Ticket Receipt Confirmation to Customer (EXPLICITLY NO BILLING DETAILS)
+  const customerHtml = generateTicketEmailHtml({
+    title: `Ticket Logged: ${ticketNumber}`,
+    badgeText: `TICKET CONFIRMED [${ticketNumber}]`,
     recipientName: name,
-    introText: `Thank you for reaching out to Nova Cloud Edges (U) Limited. We have successfully received your inquiry regarding <strong>"${subject || 'General Inquiry'}"</strong>.`,
-    itemsRows: `<tr><td colspan="3" style="text-align: center;">Our infrastructure support team will review your message and respond shortly.</td></tr>`,
-    subtotalText: '-',
-    vatText: '-',
-    totalAmountText: '-',
-    shareLink: 'https://ncloud.co.ug',
-    ctaText: 'Visit Our Website',
-    ctaLink: 'https://ncloud.co.ug',
-    footerNote: 'Nova Cloud Edges (U) Limited • Lugga Zone, Ndejje, Wakiso, Uganda'
+    introText: `Thank you for contacting Nova Cloud Edges Support Desk. We have received your technical request and registered ticket <strong>${ticketNumber}</strong> in our engineering queue.`,
+    ticketNumber,
+    priority: finalPriority,
+    category: finalCategory,
+    subject: subject || 'General Inquiry',
+    customerName: name,
+    customerEmail: email,
+    customerPhone: phone,
+    message,
+    isEngineerNotification: false,
+    ctaText: 'Visit Support Desk',
+    ctaLink: 'https://ncloud.co.ug/contact',
+    footerNote: 'Our engineering specialists are reviewing your inquiry. You may reply directly to this email to add more details.'
   });
 
   await sendMail({
     to: email,
-    subject: `Thank you for contacting Nova Cloud Edges`,
+    subject: `[Ticket #${ticketNumber}] We have received your request: ${subject || 'General Inquiry'}`,
     html: customerHtml
-  });
+  }).catch(e => console.warn('[Mail Warning] Customer ticket receipt:', e.message));
 
   res.json({
-    message: 'Thank you! Your message has been received by Nova Cloud Edges.',
+    success: true,
+    message: `Thank you! Your support ticket #${ticketNumber} has been logged in our helpdesk queue.`,
+    ticket_number: ticketNumber,
     contact: contactRecord
   });
 });
 
-// ----------------------------------------------------
-// Admin Dashboard Data Endpoint
-// ----------------------------------------------------
-app.post('/api/admin/contacts/:id/reply', async (req, res) => {
+// 2. Eligible Staff Engineers for Assignment
+app.get('/api/admin/tickets/engineers', (req, res) => {
+  const eligible = (memoryStore.users || []).filter(u => 
+    u.role === 'staff' || 
+    u.role === 'super_admin' || 
+    u.role === 'admin' || 
+    u.role === 'sales_admin' ||
+    (u.position && /engineer|technician|specialist|support|operations|infrastructure/i.test(u.position))
+  ).map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    position: u.position || (u.role === 'staff' ? 'Engineering Staff Specialist' : 'Technical Specialist'),
+    phone: u.phone || ''
+  }));
+  res.json(eligible);
+});
+
+// 3. Admin / Staff Create Support Ticket Directly Inside System
+app.post('/api/admin/tickets', async (req, res) => {
+  const { name, email, phone, subject, message, category, priority, assigned_to_id, status } = req.body;
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Customer Name, Email, and Ticket Message are required.' });
+  }
+
+  const ticketNumber = generateTicketNumber();
+  const finalCategory = category || 'General Technical Support';
+  const validPriorities = ['low', 'medium', 'high', 'urgent'];
+  const finalPriority = (priority && validPriorities.includes(String(priority).toLowerCase()))
+    ? String(priority).toLowerCase()
+    : 'medium';
+
+  let assignedEngineer = null;
+  if (assigned_to_id) {
+    assignedEngineer = (memoryStore.users || []).find(u => String(u.id) === String(assigned_to_id));
+  }
+
+  const nowIso = new Date().toISOString();
+  const finalStatus = status || (assignedEngineer ? 'in_progress' : 'open');
+
+  const newTicket = {
+    id: Date.now(),
+    ticket_number: ticketNumber,
+    name,
+    email,
+    phone: phone || '',
+    subject: subject || 'Technical Support Request',
+    message,
+    category: finalCategory,
+    priority: finalPriority,
+    status: finalStatus,
+    source: 'admin_created',
+    assigned_to_id: assignedEngineer ? assignedEngineer.id : null,
+    assigned_to_name: assignedEngineer ? assignedEngineer.name : null,
+    assigned_to_email: assignedEngineer ? assignedEngineer.email : null,
+    assigned_at: assignedEngineer ? nowIso : null,
+    timeline: [
+      {
+        timestamp: nowIso,
+        action: 'ADMIN_CREATED',
+        actor: req.body.created_by || 'Administrator',
+        note: `Ticket created manually by Admin${assignedEngineer ? ` and assigned to ${assignedEngineer.name}` : ''}`
+      }
+    ],
+    created_at: nowIso
+  };
+
+  if (!Array.isArray(memoryStore.contacts)) memoryStore.contacts = [];
+  memoryStore.contacts.unshift(newTicket);
+
+  await query(
+    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, assigned_to_id, assigned_to_name, assigned_to_email, assigned_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin_created', ?, ?, ?, ?, ?)`,
+    [
+      ticketNumber, name, email, phone || '', subject || 'Technical Support Request',
+      message, finalCategory, finalPriority, finalStatus,
+      newTicket.assigned_to_id, newTicket.assigned_to_name, newTicket.assigned_to_email,
+      newTicket.assigned_at ? new Date(newTicket.assigned_at) : null, new Date(nowIso)
+    ]
+  ).catch(e => console.warn('[DB Note] Inserting admin ticket:', e.message));
+
+  savePersistentStore();
+
+  // If assigned to an engineer, dispatch email alert to the engineer (NO BILLING DETAILS)
+  if (assignedEngineer && assignedEngineer.email) {
+    const engineerHtml = generateTicketEmailHtml({
+      title: `Assigned Ticket: ${ticketNumber}`,
+      badgeText: `TICKET ASSIGNED: ${finalPriority.toUpperCase()}`,
+      recipientName: assignedEngineer.name,
+      introText: `You have been assigned to customer support ticket <strong>${ticketNumber}</strong> with <strong>${finalPriority.toUpperCase()}</strong> priority. Please review the ticket details below and begin technical investigation.`,
+      ticketNumber,
+      priority: finalPriority,
+      category: finalCategory,
+      subject: subject || 'Technical Support Request',
+      customerName: name,
+      customerEmail: email,
+      customerPhone: phone,
+      message,
+      assignedEngineerName: assignedEngineer.name,
+      isEngineerNotification: true,
+      ctaText: 'Open Ticket in Admin Desk',
+      ctaLink: 'https://ncloud.co.ug/admin'
+    });
+
+    await sendMail({
+      to: assignedEngineer.email,
+      subject: `[TICKET ASSIGNED] ${ticketNumber}: ${subject || 'Support Request'} (${finalPriority.toUpperCase()})`,
+      html: engineerHtml
+    }).catch(e => console.warn('[Mail Warning] Assigned engineer notice:', e.message));
+  }
+
+  // Send customer confirmation email with ticket number (NO BILLING DETAILS)
+  const custHtml = generateTicketEmailHtml({
+    title: `Support Ticket Created: ${ticketNumber}`,
+    badgeText: `TICKET #${ticketNumber}`,
+    recipientName: name,
+    introText: `Nova Cloud Edges technical team has logged a support ticket <strong>${ticketNumber}</strong> on your behalf regarding <strong>"${subject || 'Technical Support'}"</strong>.`,
+    ticketNumber,
+    priority: finalPriority,
+    category: finalCategory,
+    subject: subject || 'Technical Support Request',
+    customerName: name,
+    customerEmail: email,
+    customerPhone: phone,
+    message,
+    assignedEngineerName: assignedEngineer ? assignedEngineer.name : null,
+    isEngineerNotification: false,
+    ctaText: 'Visit Support Desk',
+    ctaLink: 'https://ncloud.co.ug/contact'
+  });
+
+  await sendMail({
+    to: email,
+    subject: `[Ticket #${ticketNumber}] Support Ticket Logged: ${subject || 'Technical Request'}`,
+    html: custHtml
+  }).catch(e => console.warn('[Mail Warning] Customer admin ticket notice:', e.message));
+
+  res.json({
+    success: true,
+    message: `Support ticket #${ticketNumber} created successfully.`,
+    ticket: newTicket
+  });
+});
+
+// Alias for admin create ticket
+app.post('/api/admin/contacts', (req, res, next) => {
+  return app._router.handle({ ...req, url: '/api/admin/tickets', method: 'POST' }, res, next);
+});
+
+// 4. Assign Support Ticket to an Engineer (with Email Notification - NO BILLING DETAILS)
+const handleTicketAssignment = async (req, res) => {
   const { id } = req.params;
-  const { response, cc, attachment } = req.body; // attachment expects { filename, content }
+  const { engineer_id, note, notify_engineer = true, notify_customer = true } = req.body;
+
+  if (!engineer_id) {
+    return res.status(400).json({ error: 'Engineer ID is required for ticket assignment.' });
+  }
+
+  const engineer = (memoryStore.users || []).find(u => String(u.id) === String(engineer_id));
+  if (!engineer) {
+    return res.status(404).json({ error: 'Assigned staff engineer was not found.' });
+  }
+
+  const ticketIdx = (memoryStore.contacts || []).findIndex(
+    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
+  );
+  if (ticketIdx === -1) {
+    return res.status(404).json({ error: 'Ticket not found.' });
+  }
+
+  const ticket = memoryStore.contacts[ticketIdx];
+  const nowIso = new Date().toISOString();
+
+  ticket.assigned_to_id = engineer.id;
+  ticket.assigned_to_name = engineer.name;
+  ticket.assigned_to_email = engineer.email;
+  ticket.assigned_at = nowIso;
+  if (ticket.status === 'open' || ticket.status === 'new') {
+    ticket.status = 'in_progress';
+  }
+
+  if (!Array.isArray(ticket.timeline)) ticket.timeline = [];
+  ticket.timeline.push({
+    timestamp: nowIso,
+    action: 'ASSIGNED',
+    actor: req.body.assigned_by || 'Administrator',
+    note: `Assigned to Engineer ${engineer.name} (${engineer.position || 'Specialist'}). ${note || ''}`.trim()
+  });
+
+  await query(
+    `UPDATE contacts 
+     SET assigned_to_id = ?, assigned_to_name = ?, assigned_to_email = ?, assigned_at = ?, status = ?
+     WHERE id = ? OR ticket_number = ?`,
+    [engineer.id, engineer.name, engineer.email, new Date(nowIso), ticket.status, id, id]
+  ).catch(e => console.warn('[DB Note] Updating ticket assignment:', e.message));
+
+  savePersistentStore();
+
+  // Send assignment email notification to Engineer (EXPLICITLY NO BILLING DETAILS)
+  if (notify_engineer && engineer.email) {
+    const engineerHtml = generateTicketEmailHtml({
+      title: `Ticket Assigned: ${ticket.ticket_number}`,
+      badgeText: `ASSIGNMENT: ${String(ticket.priority || 'MEDIUM').toUpperCase()}`,
+      recipientName: engineer.name,
+      introText: `You have been assigned to customer support ticket <strong>${ticket.ticket_number}</strong> (${String(ticket.priority || 'medium').toUpperCase()} priority). ${note ? `<br/><br/><em>Assignment Note: "${note}"</em>` : ''}`,
+      ticketNumber: ticket.ticket_number,
+      priority: ticket.priority,
+      category: ticket.category,
+      subject: ticket.subject,
+      customerName: ticket.name,
+      customerEmail: ticket.email,
+      customerPhone: ticket.phone,
+      message: ticket.message,
+      assignedEngineerName: engineer.name,
+      isEngineerNotification: true,
+      ctaText: 'Open Ticket in Admin Desk',
+      ctaLink: 'https://ncloud.co.ug/admin'
+    });
+
+    await sendMail({
+      to: engineer.email,
+      subject: `[TICKET ASSIGNED] ${ticket.ticket_number}: ${ticket.subject} (${String(ticket.priority || 'MEDIUM').toUpperCase()})`,
+      html: engineerHtml
+    }).catch(e => console.warn('[Mail Warning] Assigned engineer notice:', e.message));
+  }
+
+  // Send update to customer notifying them an engineer has been assigned (NO BILLING DETAILS)
+  if (notify_customer && ticket.email) {
+    const custHtml = generateTicketEmailHtml({
+      title: `Engineer Assigned: ${ticket.ticket_number}`,
+      badgeText: `ENGINEER ASSIGNED`,
+      recipientName: ticket.name,
+      introText: `Our engineering specialist <strong>${engineer.name}</strong> from Nova Cloud Edges Technical Team has been assigned to work on your support ticket <strong>${ticket.ticket_number}</strong>.`,
+      ticketNumber: ticket.ticket_number,
+      priority: ticket.priority,
+      category: ticket.category,
+      subject: ticket.subject,
+      customerName: ticket.name,
+      customerEmail: ticket.email,
+      customerPhone: ticket.phone,
+      message: ticket.message,
+      assignedEngineerName: engineer.name,
+      isEngineerNotification: false,
+      ctaText: 'Visit Support Desk',
+      ctaLink: 'https://ncloud.co.ug/contact'
+    });
+
+    await sendMail({
+      to: ticket.email,
+      subject: `[Update] Ticket #${ticket.ticket_number} assigned to Engineer ${engineer.name}`,
+      html: custHtml
+    }).catch(e => console.warn('[Mail Warning] Customer engineer assigned notice:', e.message));
+  }
+
+  res.json({
+    success: true,
+    message: `Ticket #${ticket.ticket_number} successfully assigned to ${engineer.name}.`,
+    ticket
+  });
+};
+
+app.put('/api/admin/tickets/:id/assign', handleTicketAssignment);
+app.put('/api/admin/contacts/:id/assign', handleTicketAssignment);
+
+// 5. Update Ticket Status (Open, In Progress, Resolved, Closed)
+const handleTicketStatusUpdate = async (req, res) => {
+  const { id } = req.params;
+  const { status, note, closed_by } = req.body;
+
+  const validStatuses = ['open', 'in_progress', 'resolved', 'closed', 'complete', 'replied'];
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Valid ticket status (open, in_progress, resolved, closed) is required.' });
+  }
+
+  const normalizedStatus = (status === 'complete') ? 'resolved' : (status === 'replied' ? 'in_progress' : status);
+
+  const ticketIdx = (memoryStore.contacts || []).findIndex(
+    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
+  );
+  if (ticketIdx === -1) {
+    return res.status(404).json({ error: 'Ticket not found.' });
+  }
+
+  const ticket = memoryStore.contacts[ticketIdx];
+  const nowIso = new Date().toISOString();
+  ticket.status = normalizedStatus;
+
+  if (normalizedStatus === 'closed' || normalizedStatus === 'resolved') {
+    ticket.closed_at = nowIso;
+    ticket.closed_by = closed_by || req.body.updated_by || 'Administrator';
+  } else {
+    ticket.closed_at = null;
+    ticket.closed_by = null;
+  }
+
+  if (!Array.isArray(ticket.timeline)) ticket.timeline = [];
+  ticket.timeline.push({
+    timestamp: nowIso,
+    action: normalizedStatus === 'closed' ? 'CLOSED' : 'STATUS_UPDATE',
+    actor: closed_by || req.body.updated_by || 'Administrator',
+    note: `Ticket marked as ${normalizedStatus.toUpperCase()}.${note ? ` Note: ${note}` : ''}`
+  });
+
+  await query(
+    `UPDATE contacts SET status = ?, closed_at = ?, closed_by = ? WHERE id = ? OR ticket_number = ?`,
+    [normalizedStatus, ticket.closed_at ? new Date(ticket.closed_at) : null, ticket.closed_by, id, id]
+  ).catch(e => console.warn('[DB Note] Updating ticket status:', e.message));
+
+  savePersistentStore();
+
+  // If closed or resolved, dispatch friendly closure confirmation to customer (NO BILLING DETAILS)
+  if (normalizedStatus === 'closed' && ticket.email) {
+    const closedHtml = generateTicketEmailHtml({
+      title: `Ticket Resolved & Closed: ${ticket.ticket_number}`,
+      badgeText: `TICKET CLOSED`,
+      recipientName: ticket.name,
+      introText: `Your support ticket <strong>${ticket.ticket_number}</strong> regarding <strong>"${ticket.subject}"</strong> has been successfully addressed and marked as closed by our technical operations desk. If you require further assistance, please reply to this email to reopen or submit a new inquiry.`,
+      ticketNumber: ticket.ticket_number,
+      priority: ticket.priority,
+      category: ticket.category,
+      subject: ticket.subject,
+      customerName: ticket.name,
+      customerEmail: ticket.email,
+      customerPhone: ticket.phone,
+      message: ticket.message,
+      assignedEngineerName: ticket.assigned_to_name,
+      isEngineerNotification: false,
+      ctaText: 'Visit Support Desk',
+      ctaLink: 'https://ncloud.co.ug/contact'
+    });
+
+    await sendMail({
+      to: ticket.email,
+      subject: `[Resolved] Ticket #${ticket.ticket_number}: ${ticket.subject}`,
+      html: closedHtml
+    }).catch(e => console.warn('[Mail Warning] Ticket closure notice:', e.message));
+  }
+
+  res.json({
+    success: true,
+    message: `Ticket #${ticket.ticket_number} marked as ${normalizedStatus}.`,
+    ticket
+  });
+};
+
+app.put('/api/admin/tickets/:id/status', handleTicketStatusUpdate);
+app.put('/api/admin/contacts/:id/status', handleTicketStatusUpdate);
+
+// 6. Update Ticket Priority Level (Low, Medium, High, Urgent)
+const handleTicketPriorityUpdate = async (req, res) => {
+  const { id } = req.params;
+  const { priority, updated_by } = req.body;
+
+  const validPriorities = ['low', 'medium', 'high', 'urgent'];
+  if (!priority || !validPriorities.includes(String(priority).toLowerCase())) {
+    return res.status(400).json({ error: 'Valid priority (low, medium, high, urgent) is required.' });
+  }
+
+  const finalPriority = String(priority).toLowerCase();
+  const ticketIdx = (memoryStore.contacts || []).findIndex(
+    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
+  );
+  if (ticketIdx === -1) {
+    return res.status(404).json({ error: 'Ticket not found.' });
+  }
+
+  const ticket = memoryStore.contacts[ticketIdx];
+  const nowIso = new Date().toISOString();
+  ticket.priority = finalPriority;
+
+  if (!Array.isArray(ticket.timeline)) ticket.timeline = [];
+  ticket.timeline.push({
+    timestamp: nowIso,
+    action: 'PRIORITY_UPDATE',
+    actor: updated_by || 'Administrator',
+    note: `Priority changed to ${finalPriority.toUpperCase()}`
+  });
+
+  await query('UPDATE contacts SET priority = ? WHERE id = ? OR ticket_number = ?', [finalPriority, id, id]).catch(() => {});
+  savePersistentStore();
+
+  res.json({
+    success: true,
+    message: `Ticket #${ticket.ticket_number} priority changed to ${finalPriority.toUpperCase()}.`,
+    ticket
+  });
+};
+
+app.put('/api/admin/tickets/:id/priority', handleTicketPriorityUpdate);
+app.put('/api/admin/contacts/:id/priority', handleTicketPriorityUpdate);
+
+// 7. Reply to Ticket (Dispatches Customer Email with Ticket Reference - NO BILLING DETAILS)
+const handleTicketReply = async (req, res) => {
+  const { id } = req.params;
+  const { response, cc, attachment, replied_by } = req.body;
   
-  if (!response) {
+  if (!response || !response.trim()) {
     return res.status(400).json({ error: 'Response message is required.' });
   }
 
-  const contactIdx = memoryStore.contacts.findIndex(c => String(c.id) === String(id));
-  if (contactIdx === -1) {
-    return res.status(404).json({ error: 'Contact inquiry not found.' });
+  const ticketIdx = (memoryStore.contacts || []).findIndex(
+    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
+  );
+  if (ticketIdx === -1) {
+    return res.status(404).json({ error: 'Ticket inquiry not found.' });
   }
 
-  const contact = memoryStore.contacts[contactIdx];
+  const ticket = memoryStore.contacts[ticketIdx];
   const repliedAt = new Date().toISOString();
 
-  // Send email to customer
-  const customerHtml = generateCorporateEmailHtml({
-    title: 'Response to Your Inquiry',
-    badgeText: 'Customer Support',
-    recipientName: contact.name,
-    introText: `Thank you for contacting Nova Cloud Edges (U) Limited. Below is the response to your inquiry regarding <strong>"${contact.subject || 'General Inquiry'}"</strong>.`,
-    itemsRows: `<tr><td colspan="3" style="padding: 15px; background: #0f172a; border-radius: 6px; color: #cbd5e1; white-space: pre-wrap;">${response}</td></tr>`,
-    subtotalText: '-',
-    vatText: '-',
-    totalAmountText: '-',
-    shareLink: 'https://ncloud.co.ug',
-    ctaText: 'Visit Our Website',
-    ctaLink: 'https://ncloud.co.ug',
-    footerNote: 'Nova Cloud Edges (U) Limited • Lugga Zone, Ndejje, Wakiso, Uganda'
+  // Send email to customer with Ticket Number in Subject & NO BILLING DETAILS
+  const customerHtml = generateTicketEmailHtml({
+    title: `Support Update: ${ticket.ticket_number}`,
+    badgeText: `TICKET UPDATE [${ticket.ticket_number}]`,
+    recipientName: ticket.name,
+    introText: `Nova Cloud Edges Support Desk has responded to your ticket regarding <strong>"${ticket.subject || 'Technical Support'}"</strong>:`,
+    ticketNumber: ticket.ticket_number,
+    priority: ticket.priority,
+    category: ticket.category,
+    subject: ticket.subject,
+    customerName: ticket.name,
+    customerEmail: ticket.email,
+    customerPhone: ticket.phone,
+    message: `${response}\n\n--- Original Inquiry ---\n${ticket.message}`,
+    assignedEngineerName: ticket.assigned_to_name,
+    isEngineerNotification: false,
+    ctaText: 'Visit Support Desk',
+    ctaLink: 'https://ncloud.co.ug/contact'
   });
 
   const emailAttachments = attachment ? [{
@@ -4987,46 +5670,44 @@ app.post('/api/admin/contacts/:id/reply', async (req, res) => {
   }] : undefined;
 
   await sendMail({
-    to: contact.email,
+    to: ticket.email,
     cc: cc || undefined,
-    subject: `Re: ${contact.subject || 'General Inquiry'}`,
+    subject: `[Ticket #${ticket.ticket_number}] Re: ${ticket.subject || 'Support Inquiry'}`,
     html: customerHtml,
     attachments: emailAttachments
-  });
+  }).catch(e => console.warn('[Mail Warning] Ticket reply dispatch:', e.message));
 
   // Update DB and Memory Store
-  contact.status = 'replied';
-  contact.response = response;
-  contact.replied_at = repliedAt;
-  
-  await query('UPDATE contacts SET status = ?, response = ?, replied_at = ? WHERE id = ?', ['replied', response, repliedAt, id]);
-  await saveStore();
+  ticket.status = (ticket.status === 'open' || ticket.status === 'new') ? 'in_progress' : ticket.status;
+  ticket.response = response;
+  ticket.replied_at = repliedAt;
 
-  res.json({ success: true, message: 'Response sent successfully and recorded.', contact });
-});
+  if (!Array.isArray(ticket.timeline)) ticket.timeline = [];
+  ticket.timeline.push({
+    timestamp: repliedAt,
+    action: 'REPLIED',
+    actor: replied_by || 'Support Staff',
+    note: `Support reply emailed to ${ticket.email}`
+  });
 
-// Admin Update Contact Status (Complete or Closed)
-app.put('/api/admin/contacts/:id/status', async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+  await query(
+    'UPDATE contacts SET status = ?, response = ?, replied_at = ? WHERE id = ? OR ticket_number = ?',
+    [ticket.status, response, new Date(repliedAt), id, id]
+  ).catch(e => console.warn('[DB Note] Updating ticket reply:', e.message));
 
-  if (!status || !['replied', 'complete', 'closed'].includes(status)) {
-    return res.status(400).json({ error: 'Valid status is required.' });
-  }
+  savePersistentStore();
 
-  const contactIdx = memoryStore.contacts.findIndex(c => String(c.id) === String(id));
-  if (contactIdx === -1) {
-    return res.status(404).json({ error: 'Contact inquiry not found.' });
-  }
+  res.json({
+    success: true,
+    message: 'Response sent successfully to customer and logged to ticket.',
+    ticket,
+    contact: ticket
+  });
+};
 
-  const contact = memoryStore.contacts[contactIdx];
-  contact.status = status;
+app.post('/api/admin/tickets/:id/reply', handleTicketReply);
+app.post('/api/admin/contacts/:id/reply', handleTicketReply);
 
-  await query('UPDATE contacts SET status = ? WHERE id = ?', [status, id]);
-  await saveStore();
-
-  res.json({ success: true, message: `Ticket marked as ${status}.`, contact });
-});
 
 app.get('/api/admin/overview', async (req, res) => {
   const contactsDb = await query('SELECT * FROM contacts ORDER BY id DESC');
@@ -5035,7 +5716,67 @@ app.get('/api/admin/overview', async (req, res) => {
   const productsDb = await query('SELECT * FROM products ORDER BY id ASC');
   const servicesDb = await query('SELECT * FROM services ORDER BY id ASC');
 
-  const contacts = (contactsDb.success && !contactsDb.isFallback) ? contactsDb.data : memoryStore.contacts;
+  const sourceContacts = (contactsDb.success && !contactsDb.isFallback && Array.isArray(contactsDb.data) && contactsDb.data.length > 0)
+    ? contactsDb.data
+    : (memoryStore.contacts || []);
+
+  const normalizedContacts = sourceContacts.map((c, idx) => {
+    let timeline = [];
+    if (typeof c.timeline === 'string') {
+      try { timeline = JSON.parse(c.timeline); } catch {}
+    } else if (Array.isArray(c.timeline)) {
+      timeline = c.timeline;
+    } else if (typeof c.history === 'string') {
+      try { timeline = JSON.parse(c.history); } catch {}
+    } else if (Array.isArray(c.history)) {
+      timeline = c.history;
+    }
+
+    if (timeline.length === 0) {
+      timeline = [{
+        timestamp: c.created_at || new Date().toISOString(),
+        action: 'CREATED',
+        actor: c.name || 'Customer',
+        note: `Ticket submitted via ${c.source === 'admin_created' ? 'Staff Desk' : 'Website Form'}`
+      }];
+      if (c.assigned_to_name) {
+        timeline.push({
+          timestamp: c.assigned_at || c.created_at || new Date().toISOString(),
+          action: 'ASSIGNED',
+          actor: 'System / Admin',
+          note: `Assigned to ${c.assigned_to_name}`
+        });
+      }
+      if (c.response) {
+        timeline.push({
+          timestamp: c.replied_at || c.created_at || new Date().toISOString(),
+          action: 'REPLIED',
+          actor: 'Technical Support',
+          note: 'Resolution response dispatched'
+        });
+      }
+      if (c.status === 'closed' || c.status === 'complete' || c.status === 'resolved') {
+        timeline.push({
+          timestamp: c.closed_at || c.replied_at || new Date().toISOString(),
+          action: 'CLOSED',
+          actor: c.closed_by || 'Support Staff',
+          note: 'Ticket marked resolved/closed'
+        });
+      }
+    }
+
+    const tNum = c.ticket_number || `TKT-2026-${String(c.id || (idx + 1)).padStart(4, '0')}`;
+
+    return {
+      ...c,
+      ticket_number: tNum,
+      category: c.category || 'General Technical Support',
+      priority: (c.priority || 'medium').toLowerCase(),
+      status: (!c.status || c.status === 'new') ? 'open' : (c.status === 'complete' ? 'resolved' : c.status),
+      timeline
+    };
+  });
+
   const applications = (applicationsDb.success && !applicationsDb.isFallback) ? applicationsDb.data : memoryStore.applications;
   const subscriptions = (subscriptionsDb.success && !subscriptionsDb.isFallback) ? subscriptionsDb.data : memoryStore.subscriptions;
   const products = (() => {
@@ -5054,7 +5795,8 @@ app.get('/api/admin/overview', async (req, res) => {
   const cMail = (req.userEmail || '').toLowerCase();
   
   res.json({
-    totalContacts: contacts.length,
+    totalContacts: normalizedContacts.length,
+    totalTickets: normalizedContacts.length,
     totalApplications: applications.length,
     totalSubscriptions: subscriptions.length,
     totalProducts: products.length,
@@ -5069,7 +5811,8 @@ app.get('/api/admin/overview', async (req, res) => {
     totalStaffInvoices: memoryStore.staff_invoices.length,
     totalPartners: (memoryStore.partners || []).length,
     totalNews: (memoryStore.news || []).length,
-    contacts: isCust ? [] : contacts,
+    contacts: isCust ? [] : normalizedContacts,
+    tickets: isCust ? [] : normalizedContacts,
     applications: isCust ? [] : applications,
     subscriptions: isCust ? subscriptions.filter(s => (s.client_email || '').toLowerCase() === cMail) : subscriptions,
     products,

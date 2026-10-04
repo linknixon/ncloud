@@ -2,7 +2,7 @@ import SEO from "../components/SEO";
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle2 } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle2, Copy, Check, Ticket, AlertCircle } from 'lucide-react';
 
 export default function ContactPage() {
   const { showToast } = useApp();
@@ -11,11 +11,17 @@ export default function ContactPage() {
     name: '',
     email: '',
     phone: '',
+    category: 'General Technical Support',
+    priority: 'medium',
     subject: '',
     message: ''
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ticketNumber, setTicketNumber] = useState('');
+  const [copiedTicket, setCopiedTicket] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
+
 
   const turnstileRef = React.useRef(null);
   const [siteKey, setSiteKey] = useState(() => {
@@ -143,16 +149,28 @@ export default function ContactPage() {
 
       if (!res.ok) throw new Error(data.error || 'Failed to send message');
 
+      const generatedNum = data.ticket_number || data.contact?.ticket_number || '';
+      setTicketNumber(generatedNum);
+      setSubmittedEmail(formData.email);
       setSubmitted(true);
-      showToast('Thank you! Your message has been sent to Nova Cloud Edges.', 'success');
+      showToast(generatedNum ? `Support Ticket #${generatedNum} created!` : 'Support request logged successfully!', 'success');
       clearDraft();
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        category: 'General Technical Support',
+        priority: 'medium',
+        subject: '',
+        message: ''
+      });
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '3rem', paddingBottom: '5rem' }}>
@@ -270,30 +288,98 @@ export default function ContactPage() {
 
           {/* Contact Form */}
           <div className="glass-card">
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Send Us a Message</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Support Desk & Inquiries</h2>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', background: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', padding: '0.25rem 0.65rem', borderRadius: '12px', border: '1px solid rgba(2, 132, 199, 0.3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Auto-Ticketing Enabled
+              </span>
+            </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              Fill out the form below. Messages are logged directly into our secure support queue.
+              Fill out the form below. Messages generate an official support ticket and notify our engineering team immediately.
             </p>
 
             {submitted ? (
               <div style={{
-                background: 'rgba(16, 185, 129, 0.1)',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(2, 132, 199, 0.08) 100%)',
                 border: '1px solid var(--accent-emerald)',
-                padding: '2rem',
-                borderRadius: '12px',
+                padding: '2.5rem 1.75rem',
+                borderRadius: '16px',
                 textAlign: 'center'
               }}>
-                <CheckCircle2 size={40} color="var(--accent-emerald)" style={{ marginBottom: '0.75rem' }} />
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.4rem' }}>Message Sent!</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                  We have received your inquiry and our support engineers will respond shortly.
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                  <CheckCircle2 size={32} color="var(--accent-emerald)" />
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+                  Support Ticket Generated!
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: '480px', margin: '0 auto 1.25rem' }}>
+                  We have logged your request into our engineering queue. A formal ticket reference has been generated for your inquiry.
                 </p>
-                <button
-                  onClick={() => setSubmitted(false)}
-                  className="btn-secondary"
-                >
-                  Send Another Message
-                </button>
+
+                {ticketNumber && (
+                  <div style={{
+                    background: 'var(--card-bg, #0f172a)',
+                    border: '1px solid var(--border-color, #334155)',
+                    borderRadius: '12px',
+                    padding: '1rem 1.25rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    marginBottom: '1.5rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: '700' }}>
+                        Your Ticket Number
+                      </div>
+                      <div style={{ fontFamily: 'monospace', fontSize: '1.3rem', fontWeight: '800', color: '#0284c7', letterSpacing: '0.5px' }}>
+                        {ticketNumber}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(ticketNumber);
+                        setCopiedTicket(true);
+                        setTimeout(() => setCopiedTicket(false), 2500);
+                        showToast('Ticket number copied to clipboard!', 'success');
+                      }}
+                      style={{
+                        background: copiedTicket ? '#10b981' : 'rgba(2, 132, 199, 0.2)',
+                        color: copiedTicket ? '#ffffff' : '#38bdf8',
+                        border: '1px solid rgba(2, 132, 199, 0.4)',
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {copiedTicket ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedTicket ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6', maxWidth: '460px', margin: '0 auto 1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  A confirmation email has been dispatched to <strong>{submittedEmail || 'your email'}</strong>. Our assigned Technical Support Engineers will review and contact you shortly.
+                </div>
+
+                <div>
+                  <button
+                    onClick={() => {
+                      setSubmitted(false);
+                      setTicketNumber('');
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.9rem' }}
+                  >
+                    Submit Another Ticket
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
@@ -309,47 +395,85 @@ export default function ContactPage() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Email Address *</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    placeholder="e.g. samuel@company.co.ug"
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Email Address *</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      placeholder="e.g. samuel@company.co.ug"
+                      value={formData.email}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Phone Number *</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      placeholder="e.g. 0790001631"
+                      value={formData.phone}
+                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Service Category</label>
+                    <select
+                      className="form-input"
+                      value={formData.category}
+                      onChange={e => setFormData({ ...formData, category: e.target.value })}
+                      style={{ background: 'var(--card-bg)' }}
+                    >
+                      <option value="General Technical Support">General Technical Support</option>
+                      <option value="Broadband & Fiber Connectivity">Broadband & Fiber Connectivity</option>
+                      <option value="Cloud Colocation & Server Hosting">Cloud Colocation & Server Hosting</option>
+                      <option value="Corporate Email (Zimbra) & Domains">Corporate Email (Zimbra) & Domains</option>
+                      <option value="UniFi WiFi & Enterprise Networking">UniFi WiFi & Enterprise Networking</option>
+                      <option value="Hardware Repair & Maintenance">Hardware Repair & Maintenance</option>
+                      <option value="Service Inquiry / Quote Request">Service Inquiry / Quote Request</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Urgency Level</label>
+                    <select
+                      className="form-input"
+                      value={formData.priority}
+                      onChange={e => setFormData({ ...formData, priority: e.target.value })}
+                      style={{ background: 'var(--card-bg)' }}
+                    >
+                      <option value="low">Low (General Inquiry / Non-urgent)</option>
+                      <option value="medium">Medium (Standard Request)</option>
+                      <option value="high">High (Service Disruption)</option>
+                      <option value="urgent">Urgent (Critical Outage / Emergency)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Phone Number *</label>
-                  <input
-                    type="tel"
-                    className="form-input"
-                    placeholder="e.g. 0790001631"
-                    value={formData.phone}
-                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Subject</label>
+                  <label>Subject / Issue Summary *</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Technical Inquiry / Service Support"
+                    placeholder="e.g. Internet connectivity intermittent at Kampala branch"
                     value={formData.subject}
                     onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Your Message *</label>
+                  <label>Issue Description & Technical Details *</label>
                   <textarea
                     className="form-input"
                     rows="4"
-                    placeholder="Write your message or technical request here..."
+                    placeholder="Describe your issue, affected systems, location, and any error messages..."
                     value={formData.message}
                     onChange={e => setFormData({ ...formData, message: e.target.value })}
                     required
@@ -371,10 +495,10 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem' }}
+                  style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', marginTop: '0.5rem', fontWeight: '700' }}
                   disabled={loading}
                 >
-                  {loading ? 'Sending Message...' : 'Submit Message'} <Send size={18} />
+                  {loading ? 'Logging Support Ticket...' : 'Submit Support Ticket'} <Send size={18} />
                 </button>
               </form>
             )}

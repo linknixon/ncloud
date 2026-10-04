@@ -109,7 +109,11 @@ import {
   Shield,
   Trash2,
   Truck,
-  X
+  X,
+  LifeBuoy,
+  Ticket,
+  Headphones,
+  MessageSquare
 } from 'lucide-react';
 import { validatePasswordStrength } from '../utils/securityValidators';
 
@@ -518,6 +522,7 @@ export default function AdminDashboard({ setActivePage }) {
         reports: { create: false, read: true, update: false, delete: false, approve: false, share: true }
       },
       staff: {
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         work_orders: { create: false, read: true, update: true, delete: false, approve: false, share: false },
         expenses: { create: true, read: true, update: false, delete: false, approve: false, share: false },
         hr: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -1158,6 +1163,31 @@ const normalizeTabName = (rawTab) => {
   const CONTACTS_PER_PAGE = 10;
   const [replyCc, setReplyCc] = useState('');
   const [replyAttachment, setReplyAttachment] = useState(null);
+
+  // Helpdesk & Support Tickets State
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
+  const [ticketPriorityFilter, setTicketPriorityFilter] = useState('all');
+  const [ticketAssigneeFilter, setTicketAssigneeFilter] = useState('all');
+  const [ticketCategoryFilter, setTicketCategoryFilter] = useState('all');
+  const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedTicketForAssign, setSelectedTicketForAssign] = useState(null);
+  const [assignEngineerId, setAssignEngineerId] = useState('');
+  const [assignNote, setAssignNote] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [expandedTimelineId, setExpandedTimelineId] = useState(null);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [newTicketForm, setNewTicketForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    subject: '',
+    message: '',
+    category: 'General Technical Support',
+    priority: 'medium',
+    assigned_to_id: ''
+  });
+
 
   // Payments & Settings Modals State
   const [paymentsTab, setPaymentsTab] = useState('customer');
@@ -4830,10 +4860,15 @@ const normalizeTabName = (rawTab) => {
         };
       }
 
-      const res = await fetch(`/api/admin/contacts/${contactId}/reply`, {
+      const res = await fetch(`/api/admin/tickets/${contactId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ response: replyMessage, cc: replyCc, attachment: attachmentPayload })
+        body: JSON.stringify({
+          response: replyMessage,
+          cc: replyCc,
+          attachment: attachmentPayload,
+          replied_by: user?.name || 'Administrator'
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send reply');
@@ -4842,7 +4877,7 @@ const normalizeTabName = (rawTab) => {
       setReplyMessage('');
       setReplyCc('');
       setReplyAttachment(null);
-      fetchData(); // Refresh list
+      fetchDashboardData(true);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -4852,15 +4887,99 @@ const normalizeTabName = (rawTab) => {
 
   const handleUpdateContactStatus = async (contactId, status) => {
     try {
-      const res = await fetch(`/api/admin/contacts/${contactId}/status`, {
+      const res = await fetch(`/api/admin/tickets/${contactId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, closed_by: user?.name || 'Administrator' })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update ticket status');
-      showToast(`Ticket marked as ${status}.`, 'success');
-      fetchData();
+      showToast(data.message || `Ticket marked as ${status}.`, 'success');
+      fetchDashboardData(true);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleAssignTicket = async (e) => {
+    e && e.preventDefault();
+    if (!selectedTicketForAssign || !assignEngineerId) {
+      return showToast('Please select a technical staff engineer to assign this ticket to.', 'error');
+    }
+    setIsAssigning(true);
+    try {
+      const res = await fetch(`/api/admin/tickets/${selectedTicketForAssign.id}/assign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({
+          engineer_id: assignEngineerId,
+          note: assignNote,
+          assigned_by: user?.name || 'Administrator'
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to assign engineer');
+      showToast(resData.message || 'Ticket assigned successfully. Email notifications dispatched.', 'success');
+      setShowAssignModal(false);
+      setSelectedTicketForAssign(null);
+      setAssignEngineerId('');
+      setAssignNote('');
+      fetchDashboardData(true);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleCreateTicket = async (e) => {
+    e.preventDefault();
+    if (!newTicketForm.name.trim() || !newTicketForm.email.trim() || !newTicketForm.message.trim()) {
+      return showToast('Customer Name, Email, and Message are required.', 'error');
+    }
+    setIsCreatingTicket(true);
+    try {
+      const res = await fetch('/api/admin/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({
+          ...newTicketForm,
+          created_by: user?.name || 'Administrator'
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to create ticket');
+      showToast(resData.message || 'Support ticket created successfully!', 'success');
+      setShowCreateTicketModal(false);
+      setNewTicketForm({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: '',
+        category: 'General Technical Support',
+        priority: 'medium',
+        assigned_to_id: ''
+      });
+      fetchDashboardData(true);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsCreatingTicket(false);
+    }
+  };
+
+  const handleUpdateTicketPriority = async (ticketId, priority) => {
+    try {
+      const res = await fetch(`/api/admin/tickets/${ticketId}/priority`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({ priority, updated_by: user?.name || 'Administrator' })
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to update priority');
+      showToast(resData.message || `Priority set to ${priority.toUpperCase()}`, 'success');
+      fetchDashboardData(true);
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -5045,12 +5164,12 @@ const normalizeTabName = (rawTab) => {
     },
     {
       id: 'contacts',
-      title: 'Messages',
-      desc: 'Read and respond to incoming customer support tickets, contact form inquiries, and corporate leads.',
-      icon: Mail,
-      color: '#f59e0b',
-      btnText: 'Open Messages',
-      show: canRead('contacts') || isWebAdmin || isSuperAdmin
+      title: 'Helpdesk & Tickets',
+      desc: 'Customer support tickets, contact inquiries, engineer task assignment, priority triage, and issue resolution.',
+      icon: LifeBuoy,
+      color: '#0284c7',
+      btnText: 'Manage Helpdesk',
+      show: canRead('contacts') || isWebAdmin || isSuperAdmin || isStaff || user?.role === 'staff'
     },
     {
       id: 'reports',
@@ -11834,13 +11953,54 @@ const normalizeTabName = (rawTab) => {
             {/* MESSAGES MODULE */}
             {activeTab === 'contacts' && (() => {
               const allContacts = (data?.contacts || []);
-              const filteredContacts = allContacts.filter(c =>
-                !contactSearch ||
-                (c.name || '').toLowerCase().includes(contactSearch.toLowerCase()) ||
-                (c.email || '').toLowerCase().includes(contactSearch.toLowerCase()) ||
-                (c.subject || '').toLowerCase().includes(contactSearch.toLowerCase()) ||
-                (c.message || '').toLowerCase().includes(contactSearch.toLowerCase())
-              );
+              const eligibleEngineers = (data?.users || []).filter(u => ['staff', 'admin', 'super_admin'].includes(u.role) && u.status !== 'Suspended');
+
+              // KPI counts
+              const totalTicketsCount = allContacts.length;
+              const openTicketsCount = allContacts.filter(c => !c.status || c.status === 'open').length;
+              const inProgressCount = allContacts.filter(c => c.status === 'in_progress').length;
+              const urgentCount = allContacts.filter(c => (c.priority || '').toLowerCase() === 'urgent').length;
+              const resolvedCount = allContacts.filter(c => ['complete', 'resolved', 'closed', 'replied'].includes(c.status)).length;
+
+              const filteredContacts = allContacts.filter(c => {
+                // Search query
+                if (contactSearch) {
+                  const q = contactSearch.toLowerCase();
+                  const matchesSearch = 
+                    (c.ticket_number || '').toLowerCase().includes(q) ||
+                    (c.name || '').toLowerCase().includes(q) ||
+                    (c.email || '').toLowerCase().includes(q) ||
+                    (c.phone || '').toLowerCase().includes(q) ||
+                    (c.subject || '').toLowerCase().includes(q) ||
+                    (c.message || '').toLowerCase().includes(q) ||
+                    (c.assigned_to_name || '').toLowerCase().includes(q) ||
+                    (c.category || '').toLowerCase().includes(q);
+                  if (!matchesSearch) return false;
+                }
+
+                // Status filter
+                if (ticketStatusFilter !== 'all') {
+                  if (ticketStatusFilter === 'open' && (c.status && c.status !== 'open')) return false;
+                  if (ticketStatusFilter === 'in_progress' && c.status !== 'in_progress') return false;
+                  if (ticketStatusFilter === 'resolved' && !['complete', 'resolved', 'replied'].includes(c.status)) return false;
+                  if (ticketStatusFilter === 'closed' && c.status !== 'closed') return false;
+                }
+
+                // Priority filter
+                if (ticketPriorityFilter !== 'all') {
+                  const p = (c.priority || 'medium').toLowerCase();
+                  if (p !== ticketPriorityFilter) return false;
+                }
+
+                // Assignee filter
+                if (ticketAssigneeFilter === 'unassigned' && c.assigned_to_id) return false;
+                if (ticketAssigneeFilter === 'assigned' && !c.assigned_to_id) return false;
+
+                // Category filter
+                if (ticketCategoryFilter !== 'all' && c.category !== ticketCategoryFilter) return false;
+
+                return true;
+              });
 
               const totalContactsPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE) || 1;
               const paginatedContacts = filteredContacts.slice(
@@ -11848,144 +12008,525 @@ const normalizeTabName = (rawTab) => {
                 contactsPage * CONTACTS_PER_PAGE
               );
 
+              const categoriesList = Array.from(new Set(allContacts.map(c => c.category).filter(Boolean)));
+
               return (
                 <div>
+                  {/* Top Header & New Ticket Button */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }}>Ticketing & Messages</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Customer contact form submissions, enterprise support tickets, and service inquiries.</p>
-                    </div>
-                  </div>
-
-                  {/* Search Bar */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
-                      <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Search tickets by sender name, email, subject, or contents..."
-                        value={contactSearch}
-                        onChange={e => { setContactSearch(e.target.value); setContactsPage(1); }}
-                        style={{ paddingLeft: '2.5rem', width: '100%' }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                      Showing {paginatedContacts.length} of {filteredContacts.length} Customer Tickets
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {paginatedContacts.map(c => (
-                      <div key={c.id} className="glass-card" style={{ padding: '1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                          <h4 style={{ fontSize: '1.1rem' }}>{c.name} ({c.email})</h4>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            {new Date(c.created_at || Date.now()).toLocaleDateString()}
-                          </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(2, 132, 199, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
+                          <LifeBuoy size={22} />
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--primary)' }}>
-                            Subject: {c.subject}
-                          </div>
-                          <div>
-                            <span style={{
-                              padding: '0.2rem 0.6rem',
-                              borderRadius: '12px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              background: c.status === 'replied' ? 'rgba(16, 185, 129, 0.15)' : c.status === 'complete' ? 'rgba(59, 130, 246, 0.15)' : c.status === 'closed' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                              color: c.status === 'replied' ? '#10b981' : c.status === 'complete' ? '#3b82f6' : c.status === 'closed' ? '#94a3b8' : '#f59e0b'
-                            }}>
-                              {c.status === 'replied' ? 'Replied' : c.status === 'complete' ? 'Complete' : c.status === 'closed' ? 'Closed' : 'Open'}
-                            </span>
-                          </div>
+                        <div>
+                          <h3 style={{ fontSize: '1.4rem', fontWeight: '800', margin: 0 }}>Helpdesk & Engineering Tickets</h3>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                            Customer support tickets, engineer assignment, priority triage, timeline audit logs, and customer resolution dispatch.
+                          </p>
                         </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: '1.6', marginBottom: '1rem' }}>
-                          "{c.message}"
-                        </p>
-                        
-                        {['replied', 'complete', 'closed'].includes(c.status) && c.response && (
-                          <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem', marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Admin Response ({new Date(c.replied_at).toLocaleDateString()}):</div>
-                            <p style={{ fontSize: '0.875rem', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>{c.response}</p>
-                          </div>
-                        )}
-                        
-                        {c.status !== 'closed' && c.status !== 'complete' && replyingToId !== c.id && canUpdate('contacts') && (
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                            <button 
-                              className="btn-primary" 
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                              onClick={() => { setReplyingToId(c.id); setReplyMessage(''); setReplyCc(''); setReplyAttachment(null); }}
-                            >
-                              Reply to Ticket
-                            </button>
-                            <button 
-                              className="btn-secondary" 
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-                              onClick={() => handleUpdateContactStatus(c.id, 'complete')}
-                            >
-                              <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Complete
-                            </button>
-                            <button 
-                              className="btn-secondary" 
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(100, 116, 139, 0.1)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)' }}
-                              onClick={() => handleUpdateContactStatus(c.id, 'closed')}
-                            >
-                              <XCircle size={14} style={{ marginRight: '4px' }} /> Mark Closed
-                            </button>
-                          </div>
-                        )}
-                        
-                        {replyingToId === c.id && (
-                          <form onSubmit={(e) => handleReplyContact(e, c.id)} style={{ marginTop: '1rem', padding: '1rem', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Response Message (will be emailed to {c.email})</label>
-                            <textarea
-                              className="form-input"
-                              rows="4"
-                              placeholder="Type your response here..."
-                              value={replyMessage}
-                              onChange={(e) => setReplyMessage(e.target.value)}
-                              required
-                              style={{ width: '100%', marginBottom: '1rem', padding: '0.75rem' }}
-                            ></textarea>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>CC (comma separated emails, optional)</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              placeholder="e.g. manager@example.com, support@ncloud.co.ug"
-                              value={replyCc}
-                              onChange={(e) => setReplyCc(e.target.value)}
-                              style={{ width: '100%', marginBottom: '1rem', padding: '0.75rem' }}
-                            />
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Attachment (optional)</label>
-                            <input
-                              type="file"
-                              className="form-input"
-                              onChange={(e) => setReplyAttachment(e.target.files[0])}
-                              style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }}
-                            />
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                              <button type="submit" className="btn-primary" disabled={isReplying}>
-                                {isReplying ? 'Sending...' : 'Send Reply'}
-                              </button>
-                              <button type="button" className="btn-secondary" onClick={() => setReplyingToId(null)} disabled={isReplying}>
-                                Cancel
-                              </button>
-                            </div>
-                          </form>
-                        )}
                       </div>
-                    ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setShowCreateTicketModal(true)}
+                        className="btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.6rem 1.1rem', fontSize: '0.875rem', fontWeight: '700' }}
+                      >
+                        <UserPlus size={16} /> Log New Ticket
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI Cards Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #0284c7', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('all'); setTicketPriorityFilter('all'); setTicketAssigneeFilter('all'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Tickets</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', marginTop: '0.25rem' }}>{totalTicketsCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.25rem' }}>All logged inquiries</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #f59e0b', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('open'); setTicketPriorityFilter('all'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Open Tickets</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#f59e0b', marginTop: '0.25rem' }}>{openTicketsCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Awaiting initial triage</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #3b82f6', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('in_progress'); setTicketPriorityFilter('all'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>In Progress</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#3b82f6', marginTop: '0.25rem' }}>{inProgressCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Assigned & in development</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #ef4444', cursor: 'pointer' }} onClick={() => { setTicketPriorityFilter('urgent'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Urgent Outages</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ef4444', marginTop: '0.25rem' }}>{urgentCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem' }}>Critical SLA priority</div>
+                    </div>
+
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #10b981', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('resolved'); setTicketPriorityFilter('all'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Resolved / Closed</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981', marginTop: '0.25rem' }}>{resolvedCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Completed solutions</div>
+                    </div>
+                  </div>
+
+                  {/* Search and Filters Bar */}
+                  <div className="glass-card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', alignItems: 'center' }}>
+                      {/* Search */}
+                      <div style={{ position: 'relative', gridColumn: 'span 2' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Search tickets by # (TKT-...), customer name, email, engineer, or issue..."
+                          value={contactSearch}
+                          onChange={e => { setContactSearch(e.target.value); setContactsPage(1); }}
+                          style={{ paddingLeft: '2.5rem', width: '100%' }}
+                        />
+                      </div>
+
+                      {/* Status Filter */}
+                      <div>
+                        <select
+                          className="form-input"
+                          value={ticketStatusFilter}
+                          onChange={e => { setTicketStatusFilter(e.target.value); setContactsPage(1); }}
+                          style={{ width: '100%', background: 'var(--card-bg)' }}
+                        >
+                          <option value="all">All Statuses</option>
+                          <option value="open">Open (Awaiting Action)</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved / Replied</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+
+                      {/* Priority Filter */}
+                      <div>
+                        <select
+                          className="form-input"
+                          value={ticketPriorityFilter}
+                          onChange={e => { setTicketPriorityFilter(e.target.value); setContactsPage(1); }}
+                          style={{ width: '100%', background: 'var(--card-bg)' }}
+                        >
+                          <option value="all">All Priorities</option>
+                          <option value="urgent">🔴 Urgent</option>
+                          <option value="high">🟠 High</option>
+                          <option value="medium">🔵 Medium</option>
+                          <option value="low">⚪ Low</option>
+                        </select>
+                      </div>
+
+                      {/* Assignment Filter */}
+                      <div>
+                        <select
+                          className="form-input"
+                          value={ticketAssigneeFilter}
+                          onChange={e => { setTicketAssigneeFilter(e.target.value); setContactsPage(1); }}
+                          style={{ width: '100%', background: 'var(--card-bg)' }}
+                        >
+                          <option value="all">All Assignments</option>
+                          <option value="unassigned">⚠️ Unassigned Tickets</option>
+                          <option value="assigned">👨‍💻 Assigned to Engineers</option>
+                        </select>
+                      </div>
+
+                      {/* Category Filter */}
+                      {categoriesList.length > 0 && (
+                        <div>
+                          <select
+                            className="form-input"
+                            value={ticketCategoryFilter}
+                            onChange={e => { setTicketCategoryFilter(e.target.value); setContactsPage(1); }}
+                            style={{ width: '100%', background: 'var(--card-bg)' }}
+                          >
+                            <option value="all">All Categories</option>
+                            {categoriesList.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Filter summary and reset */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <span>
+                        Showing <strong>{paginatedContacts.length}</strong> of <strong>{filteredContacts.length}</strong> filtered tickets ({totalTicketsCount} total)
+                      </span>
+                      {(contactSearch || ticketStatusFilter !== 'all' || ticketPriorityFilter !== 'all' || ticketAssigneeFilter !== 'all' || ticketCategoryFilter !== 'all') && (
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            setContactSearch('');
+                            setTicketStatusFilter('all');
+                            setTicketPriorityFilter('all');
+                            setTicketAssigneeFilter('all');
+                            setTicketCategoryFilter('all');
+                            setContactsPage(1);
+                          }}
+                          style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tickets List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {paginatedContacts.map(c => {
+                      const priority = (c.priority || 'medium').toLowerCase();
+                      const priorityColor = priority === 'urgent' ? '#ef4444' : priority === 'high' ? '#f97316' : priority === 'medium' ? '#0284c7' : '#64748b';
+                      const isAssigned = !!c.assigned_to_id;
+                      const hasTimeline = Array.isArray(c.timeline) && c.timeline.length > 0;
+                      const isTimelineExpanded = expandedTimelineId === c.id;
+
+                      return (
+                        <div key={c.id} className="glass-card" style={{ padding: '1.5rem', borderLeft: `5px solid ${priorityColor}` }}>
+                          {/* Card Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                              {/* Ticket Number Pill */}
+                              <span style={{
+                                fontFamily: 'monospace',
+                                fontWeight: '800',
+                                fontSize: '0.9rem',
+                                background: 'rgba(2, 132, 199, 0.15)',
+                                color: '#38bdf8',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(2, 132, 199, 0.3)',
+                                letterSpacing: '0.5px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <Ticket size={14} />
+                                {c.ticket_number || `TKT-${String(c.id).padStart(4, '0')}`}
+                              </span>
+
+                              {/* Priority Badge */}
+                              <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '12px',
+                                background: `${priorityColor}22`,
+                                color: priorityColor,
+                                border: `1px solid ${priorityColor}55`,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                {priority === 'urgent' ? '🔥 URGENT' : `${priority.toUpperCase()} PRIORITY`}
+                              </span>
+
+                              {/* Status Badge */}
+                              <span style={{
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                background: c.status === 'replied' ? 'rgba(16, 185, 129, 0.15)' : c.status === 'complete' ? 'rgba(59, 130, 246, 0.15)' : c.status === 'in_progress' ? 'rgba(147, 51, 234, 0.15)' : c.status === 'closed' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                color: c.status === 'replied' ? '#10b981' : c.status === 'complete' ? '#3b82f6' : c.status === 'in_progress' ? '#a855f7' : c.status === 'closed' ? '#94a3b8' : '#f59e0b',
+                                border: `1px solid ${c.status === 'replied' ? '#10b98144' : c.status === 'complete' ? '#3b82f644' : c.status === 'in_progress' ? '#a855f744' : c.status === 'closed' ? '#94a3b844' : '#f59e0b44'}`
+                              }}>
+                                {c.status === 'replied' ? 'Replied' : c.status === 'complete' ? 'Complete' : c.status === 'in_progress' ? 'In Progress' : c.status === 'closed' ? 'Closed' : 'Open'}
+                              </span>
+
+                              {/* Category Badge */}
+                              {c.category && (
+                                <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.5rem', borderRadius: '6px', color: 'var(--text-muted)' }}>
+                                  {c.category}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Timestamp & Source */}
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                              <div>Logged: {new Date(c.created_at || Date.now()).toLocaleString()}</div>
+                              {c.source && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Via: {c.source === 'admin_manual' ? 'Staff Manual' : 'Website Form'}</span>}
+                            </div>
+                          </div>
+
+                          {/* Customer Requester Profile */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap', background: 'rgba(255,255,255,0.02)', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                              {c.name}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                              <Mail size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                              <a href={`mailto:${c.email}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{c.email}</a>
+                            </div>
+                            {c.phone && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                <Phone size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }} />
+                                <a href={`tel:${c.phone}`} style={{ color: 'var(--text-main)', textDecoration: 'none' }}>{c.phone}</a>
+                              </div>
+                            )}
+
+                            {/* Assigned Engineer Display */}
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {isAssigned ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.78rem', background: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '12px', border: '1px solid rgba(2, 132, 199, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <UserCheck size={13} /> Assigned: <strong>{c.assigned_to_name}</strong>
+                                  </span>
+                                  {canUpdate('contacts') && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedTicketForAssign(c);
+                                        setAssignEngineerId(c.assigned_to_id || '');
+                                        setAssignNote('');
+                                        setShowAssignModal(true);
+                                      }}
+                                      className="btn-secondary"
+                                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
+                                    >
+                                      Reassign
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.75rem', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '0.2rem 0.55rem', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                                    ⚠️ Unassigned
+                                  </span>
+                                  {canUpdate('contacts') && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedTicketForAssign(c);
+                                        setAssignEngineerId('');
+                                        setAssignNote('');
+                                        setShowAssignModal(true);
+                                      }}
+                                      className="btn-primary"
+                                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      <UserPlus size={13} /> Assign Engineer
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Subject & Message Content */}
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                              {c.subject || 'Support Inquiry'}
+                            </div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', background: 'rgba(15, 23, 42, 0.3)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', whiteSpace: 'pre-wrap' }}>
+                              {c.message}
+                            </div>
+                          </div>
+
+                          {/* Existing Admin Response / Resolution */}
+                          {c.response && (
+                            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.85rem 1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span><strong>Customer Resolution Reply</strong> (Emailed via Support Desk)</span>
+                                <span>{c.replied_at ? new Date(c.replied_at).toLocaleString() : ''}</span>
+                              </div>
+                              <p style={{ fontSize: '0.875rem', color: '#e2e8f0', whiteSpace: 'pre-wrap', margin: 0 }}>{c.response}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons Toolbar */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {/* Reply to Ticket */}
+                              {canUpdate('contacts') && replyingToId !== c.id && (
+                                <button 
+                                  className="btn-primary" 
+                                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                  onClick={() => { setReplyingToId(c.id); setReplyMessage(''); setReplyCc(''); setReplyAttachment(null); }}
+                                >
+                                  <MessageSquare size={14} /> Reply to Customer
+                                </button>
+                              )}
+
+                              {/* Priority Quick Change Dropdown */}
+                              {canUpdate('contacts') && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Priority:</span>
+                                  <select
+                                    value={priority}
+                                    onChange={(e) => handleUpdateTicketPriority(c.id, e.target.value)}
+                                    style={{ background: 'var(--card-bg)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.75rem', padding: '0.3rem 0.5rem', cursor: 'pointer' }}
+                                  >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* Mark In Progress */}
+                              {canUpdate('contacts') && c.status === 'open' && (
+                                <button 
+                                  className="btn-secondary" 
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'in_progress')}
+                                >
+                                  Mark In Progress
+                                </button>
+                              )}
+
+                              {/* Mark Complete */}
+                              {canUpdate('contacts') && c.status !== 'complete' && c.status !== 'closed' && (
+                                <button 
+                                  className="btn-secondary" 
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'complete')}
+                                >
+                                  <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Resolved
+                                </button>
+                              )}
+
+                              {/* Mark Closed */}
+                              {canUpdate('contacts') && c.status !== 'closed' && (
+                                <button 
+                                  className="btn-secondary" 
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(100, 116, 139, 0.1)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)' }}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'closed')}
+                                >
+                                  <XCircle size={14} style={{ marginRight: '4px' }} /> Close Ticket
+                                </button>
+                              )}
+
+                              {/* Reopen Closed */}
+                              {canUpdate('contacts') && c.status === 'closed' && (
+                                <button 
+                                  className="btn-secondary" 
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'open')}
+                                >
+                                  <RotateCcw size={14} style={{ marginRight: '4px' }} /> Reopen Ticket
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Timeline Toggle */}
+                            {hasTimeline && (
+                              <button
+                                onClick={() => setExpandedTimelineId(isTimelineExpanded ? null : c.id)}
+                                className="btn-secondary"
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Clock size={13} /> {isTimelineExpanded ? 'Hide History' : `History (${c.timeline.length})`}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Expanded Audit Timeline */}
+                          {isTimelineExpanded && hasTimeline && (
+                            <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
+                              <div style={{ fontWeight: '700', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.72rem' }}>
+                                Ticket Audit Trail & Activity Log
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                {c.timeline.map((event, idx) => (
+                                  <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', color: 'var(--text-muted)' }}>
+                                    <span style={{ fontFamily: 'monospace', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                      {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <div>
+                                      <strong style={{ color: 'var(--text-main)' }}>{event.actor || 'System'}</strong>: {event.note}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Inline Reply Form */}
+                          {replyingToId === c.id && (
+                            <form onSubmit={(e) => handleReplyContact(e, c.id)} style={{ marginTop: '1rem', padding: '1.25rem', background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--primary)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary)' }}>
+                                  Dispatch Support Resolution Email to {c.name} ({c.email})
+                                </label>
+                                <span style={{ fontSize: '0.72rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                                  Ticket #{c.ticket_number} Ref Attached
+                                </span>
+                              </div>
+                              <textarea
+                                className="form-input"
+                                rows="4"
+                                placeholder={`Hi ${c.name},\n\nRegarding your ticket #${c.ticket_number || c.id}, our technical team has investigated the issue...`}
+                                value={replyMessage}
+                                onChange={(e) => setReplyMessage(e.target.value)}
+                                required
+                                style={{ width: '100%', marginBottom: '1rem', padding: '0.75rem' }}
+                              ></textarea>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>CC (comma separated emails, optional)</label>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="e.g. noc@ncloud.co.ug, tech@company.co.ug"
+                                    value={replyCc}
+                                    onChange={(e) => setReplyCc(e.target.value)}
+                                    style={{ width: '100%', padding: '0.6rem 0.75rem' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Attachment (diagnostics / report, optional)</label>
+                                  <input
+                                    type="file"
+                                    className="form-input"
+                                    onChange={(e) => setReplyAttachment(e.target.files[0])}
+                                    style={{ width: '100%', padding: '0.45rem 0.5rem' }}
+                                  />
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button type="submit" className="btn-primary" disabled={isReplying} style={{ padding: '0.55rem 1.25rem' }}>
+                                  {isReplying ? 'Dispatching Email...' : 'Send Resolution Email'}
+                                </button>
+                                <button type="button" className="btn-secondary" onClick={() => setReplyingToId(null)} disabled={isReplying}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
+                      );
+                    })}
+
                     {filteredContacts.length === 0 && (
-                      <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-                        <Mail size={48} style={{ color: 'var(--text-muted)', opacity: 0.5, margin: '0 auto 1rem' }} />
-                        <h3 style={{ color: 'var(--text-muted)' }}>No tickets found matching your criteria.</h3>
+                      <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
+                        <LifeBuoy size={48} style={{ color: 'var(--text-muted)', opacity: 0.4, margin: '0 auto 1rem' }} />
+                        <h3 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>No support tickets match your filters</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto 1rem' }}>
+                          Try clearing your search terms, changing priority filters, or click "Log New Ticket" to create a support ticket directly.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setContactSearch('');
+                            setTicketStatusFilter('all');
+                            setTicketPriorityFilter('all');
+                            setTicketAssigneeFilter('all');
+                            setTicketCategoryFilter('all');
+                          }}
+                          className="btn-secondary"
+                        >
+                          Reset Filters
+                        </button>
                       </div>
                     )}
                   </div>
 
+                  {/* Pagination */}
                   {totalContactsPages > 1 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -12008,6 +12549,255 @@ const normalizeTabName = (rawTab) => {
                         >
                           Next
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assign Engineer Modal */}
+                  {showAssignModal && selectedTicketForAssign && (
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+                      <div className="glass-card" style={{ maxWidth: '500px', width: '100%', padding: '1.75rem', background: 'var(--card-bg, #0f172a)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <UserCheck size={20} color="#0284c7" /> Assign Support Ticket
+                          </h3>
+                          <button
+                            onClick={() => { setShowAssignModal(false); setSelectedTicketForAssign(null); }}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+
+                        <div style={{ background: 'rgba(2, 132, 199, 0.1)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
+                          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#38bdf8', fontWeight: '700' }}>
+                            Ticket #{selectedTicketForAssign.ticket_number || selectedTicketForAssign.id}
+                          </div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '2px' }}>
+                            {selectedTicketForAssign.subject}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Client: {selectedTicketForAssign.name} ({selectedTicketForAssign.email})
+                          </div>
+                        </div>
+
+                        <form onSubmit={handleAssignTicket}>
+                          <div className="form-group" style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                              Assign to Staff Engineer *
+                            </label>
+                            <select
+                              className="form-input"
+                              value={assignEngineerId}
+                              onChange={e => setAssignEngineerId(e.target.value)}
+                              required
+                              style={{ width: '100%', background: 'var(--card-bg)' }}
+                            >
+                              <option value="">-- Select Technical Engineer --</option>
+                              {eligibleEngineers.map(eng => (
+                                <option key={eng.id} value={eng.id}>
+                                  {eng.name} — {eng.position || (eng.role === 'super_admin' ? 'Super Administrator' : eng.role === 'staff' ? 'Technical Staff' : 'System Admin')} ({eng.email})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                              Assignment Instructions / Notes (Optional)
+                            </label>
+                            <textarea
+                              className="form-input"
+                              rows="3"
+                              placeholder="e.g. Please verify optical power levels at client router and contact customer..."
+                              value={assignNote}
+                              onChange={e => setAssignNote(e.target.value)}
+                              style={{ width: '100%' }}
+                            />
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                              Email alert will be dispatched to the selected engineer immediately.
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => { setShowAssignModal(false); setSelectedTicketForAssign(null); }}
+                              disabled={isAssigning}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="btn-primary"
+                              disabled={isAssigning}
+                              style={{ padding: '0.6rem 1.25rem' }}
+                            >
+                              {isAssigning ? 'Assigning...' : 'Confirm Assignment'}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Create Ticket Modal */}
+                  {showCreateTicketModal && (
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+                      <div className="glass-card" style={{ maxWidth: '620px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', background: 'var(--card-bg, #0f172a)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                          <div>
+                            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <UserPlus size={20} color="#0284c7" /> Log Technical Support Ticket
+                            </h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                              Create an enterprise ticket directly in the engineering queue.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowCreateTicketModal(false)}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+
+                        <form onSubmit={handleCreateTicket}>
+                          <div className="form-group" style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Customer / Company Name *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. Apex Financial Ltd / Ronald Kato"
+                              value={newTicketForm.name}
+                              onChange={e => setNewTicketForm({ ...newTicketForm, name: e.target.value })}
+                              required
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Customer Email *</label>
+                              <input
+                                type="email"
+                                className="form-input"
+                                placeholder="e.g. ronald@apexfi.ug"
+                                value={newTicketForm.email}
+                                onChange={e => setNewTicketForm({ ...newTicketForm, email: e.target.value })}
+                                required
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Phone Number</label>
+                              <input
+                                type="tel"
+                                className="form-input"
+                                placeholder="e.g. 0790001631"
+                                value={newTicketForm.phone}
+                                onChange={e => setNewTicketForm({ ...newTicketForm, phone: e.target.value })}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Category</label>
+                              <select
+                                className="form-input"
+                                value={newTicketForm.category}
+                                onChange={e => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
+                                style={{ width: '100%', background: 'var(--card-bg)' }}
+                              >
+                                <option value="General Technical Support">General Technical Support</option>
+                                <option value="Broadband & Fiber Connectivity">Broadband & Fiber Connectivity</option>
+                                <option value="Cloud Colocation & Server Hosting">Cloud Colocation & Server Hosting</option>
+                                <option value="Corporate Email (Zimbra) & Domains">Corporate Email (Zimbra) & Domains</option>
+                                <option value="UniFi WiFi & Enterprise Networking">UniFi WiFi & Enterprise Networking</option>
+                                <option value="Hardware Repair & Maintenance">Hardware Repair & Maintenance</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Priority</label>
+                              <select
+                                className="form-input"
+                                value={newTicketForm.priority}
+                                onChange={e => setNewTicketForm({ ...newTicketForm, priority: e.target.value })}
+                                style={{ width: '100%', background: 'var(--card-bg)' }}
+                              >
+                                <option value="low">Low (Non-urgent)</option>
+                                <option value="medium">Medium (Standard)</option>
+                                <option value="high">High (Service Degradation)</option>
+                                <option value="urgent">Urgent (Outage / Emergency)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Assign Directly to Engineer (Optional)</label>
+                            <select
+                              className="form-input"
+                              value={newTicketForm.assigned_to_id}
+                              onChange={e => setNewTicketForm({ ...newTicketForm, assigned_to_id: e.target.value })}
+                              style={{ width: '100%', background: 'var(--card-bg)' }}
+                            >
+                              <option value="">-- Leave Unassigned for Triage --</option>
+                              {eligibleEngineers.map(eng => (
+                                <option key={eng.id} value={eng.id}>
+                                  {eng.name} ({eng.email})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Subject / Incident Title *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="e.g. Core switch offline in Server Room B"
+                              value={newTicketForm.subject}
+                              onChange={e => setNewTicketForm({ ...newTicketForm, subject: e.target.value })}
+                              required
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Issue Description & Notes *</label>
+                            <textarea
+                              className="form-input"
+                              rows="4"
+                              placeholder="Detailed description of the customer issue, symptoms, troubleshooting performed..."
+                              value={newTicketForm.message}
+                              onChange={e => setNewTicketForm({ ...newTicketForm, message: e.target.value })}
+                              required
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => setShowCreateTicketModal(false)}
+                              disabled={isCreatingTicket}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="btn-primary"
+                              disabled={isCreatingTicket}
+                              style={{ padding: '0.65rem 1.4rem', fontWeight: '700' }}
+                            >
+                              {isCreatingTicket ? 'Logging Ticket...' : 'Create Support Ticket'}
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     </div>
                   )}
