@@ -361,5 +361,23 @@
       })();
     </script>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Nova Cloud AI Chat (Jotform Agent) - Desktop Website Only (No Mobile/Other Devices, No WhatsApp Widget) -->
+    <script>
+      (function() {
+        try {
+          var isMobileOrSmall = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(navigator.userAgent) || 
+                                (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) || 
+                                (window.innerWidth < 768);
+          if (!isMobileOrSmall) {
+            var jfScript = document.createElement('script');
+            jfScript.src = 'https://cdn.jotfor.ms/agent/embedjs/01a0dc5a0068700083680e6359e60e41beb2/embed.js';
+            jfScript.async = true;
+            document.body.appendChild(jfScript);
+          }
+        } catch (e) {
+          console.warn('Jotform AI Chat init note:', e);
+        }
+      })();
+    </script>
   </body>
 </html>

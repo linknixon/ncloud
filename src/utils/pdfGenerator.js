@@ -33,14 +33,37 @@ export const BRAND = {
   }
 };
 
-// Safe In-Browser PDF Renderer (Protected Server URL, No Forced Download, No Blob URL)
-const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf') => {
+// Safe In-Browser PDF Renderer (Opens verification URL with security token, No Forced Download, No Blob URL)
+export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf', docNumber = '', secKey = '') => {
   try {
-    // 1. Generate clean base64 data string from jsPDF
+    // 1. Detect if this document has a verification reference number (INV-..., QTN-..., WO-..., EXP-..., DN-..., TXN-...)
+    let detectedDoc = docNumber;
+    if (!detectedDoc && fileName) {
+      const match = fileName.match(/(INV-[A-Za-z0-9-]+|QTN-[A-Za-z0-9-]+|WO-[A-Za-z0-9-]+|EXP-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+|DN-[A-Za-z0-9-]+)/i);
+      if (match) detectedDoc = match[1];
+    }
+
+    if (detectedDoc) {
+      let effectiveSec = secKey;
+      if (!effectiveSec) {
+        try {
+          const secRes = await fetch(`/api/documents/sec-key/${encodeURIComponent(detectedDoc)}`);
+          if (secRes.ok) {
+            const secData = await secRes.json();
+            if (secData && secData.security_key) effectiveSec = secData.security_key;
+          }
+        } catch (e) {}
+      }
+
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://ncloud.co.ug';
+      const targetUrl = `${origin}/verify?doc=${encodeURIComponent(detectedDoc)}${effectiveSec ? `&sec=${encodeURIComponent(effectiveSec)}` : ''}`;
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 2. Request protected server preview session for reports without individual verification numbers (e.g. Balance Sheet, P&L)
     const fullDataUri = pdfDoc.output('datauristring');
     const base64Content = fullDataUri.split(',')[1];
-
-    // 2. Request a short-lived protected preview URL from the backend server
     const res = await fetch('/api/documents/preview-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,13 +73,12 @@ const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document
     if (res.ok) {
       const data = await res.json();
       if (data && data.viewUrl) {
-        // Open the protected URL directly in a new browser tab for native inline PDF rendering
         window.open(data.viewUrl, '_blank', 'noopener,noreferrer');
         return;
       }
     }
 
-    // 3. Robust offline fallback: Render in browser tab via protected viewer frame (avoid forced download)
+    // 3. Fallback inline viewer frame
     const viewerWindow = window.open('', '_blank');
     if (viewerWindow) {
       viewerWindow.document.write(`
@@ -706,7 +728,7 @@ export async function generateInvoicePDF(inv, options = {}) {
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
-  openPdfInBrowser(doc, `Invoice_${invoiceNum}.pdf`);
+  openPdfInBrowser(doc, `Invoice_${invoiceNum}.pdf`, invoiceNum, inv?.security_key);
   return doc;
 }
 
@@ -1016,7 +1038,7 @@ export async function generateQuotationPDF(quote, options = {}) {
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
-  openPdfInBrowser(doc, `Quotation_${quoteNum}.pdf`);
+  openPdfInBrowser(doc, `Quotation_${quoteNum}.pdf`, quoteNum, quote?.security_key);
   return doc;
 }
 
@@ -2615,7 +2637,7 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
 
   // 8. Output
   if (options.download !== false) {
-    openPdfInBrowser(doc, `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`);
+    openPdfInBrowser(doc, `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`, receiptNum, receipt?.security_key);
   }
   
   return doc;
@@ -2871,7 +2893,7 @@ export async function generateWorkOrderPOSReceiptPDF(workOrder, options = {}) {
   y += 3.2;
   doc.text('Nova Cloud Edges (U) Limited • ncloud.co.ug', 40, y, { align: 'center' });
 
-  openPdfInBrowser(doc, `Work_Order_${orderNum}.pdf`);
+  openPdfInBrowser(doc, `Work_Order_${orderNum}.pdf`, orderNum, order?.security_key);
   return doc;
 }
 

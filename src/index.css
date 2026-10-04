@@ -845,3 +845,17 @@ select option {
   0% { transform: translateX(0); }
   100% { transform: translateX(calc(-50% - 0.875rem)); }
 }
+
+/* Ensure AI Chat (Jotform) only appears on desktop website and never on other devices / mobile screens */
+@media (max-width: 768px) {
+  iframe[src*="jotfor.ms"],
+  iframe[src*="jotform.com"],
+  [class*="jfAgent"],
+  #jotform-agent-widget,
+  .jfAgent-launcher {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+  }
+}

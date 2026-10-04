@@ -7591,30 +7591,42 @@ export function generateDocSecurityKey(docNum) {
 }
 
 export function maskCustomerName(name) {
-  return name || 'Valued Client';
+  if (!name) return 'Valued Client';
+  const parts = String(name).trim().split(/\s+/);
+  return parts.map(p => {
+    if (p.length <= 2) return p.charAt(0) + '*';
+    return p.charAt(0) + '*'.repeat(Math.min(4, p.length - 2)) + p.charAt(p.length - 1);
+  }).join(' ');
 }
 
 export function maskCustomerEmail(email) {
-  return email || '';
+  if (!email || !email.includes('@')) return 'Protected Client Email';
+  const [user, domain] = email.split('@');
+  const maskedUser = user.length > 2 ? user.slice(0, 2) + '***' : user.slice(0, 1) + '**';
+  return `${maskedUser}@${domain}`;
 }
 
 export function maskCustomerPhone(phone) {
-  return phone || '';
+  if (!phone) return 'Protected Phone';
+  const clean = String(phone).trim();
+  if (clean.length < 6) return '****';
+  return clean.slice(0, 4) + '****' + clean.slice(-2);
 }
 
 export function maskCustomerAddress(addr) {
-  return addr || '';
+  if (!addr) return '';
+  return 'Protected Client Location, Uganda';
 }
 
 /**
  * Check if request has authorization to view full, unmasked document details.
  * Authorized if:
- * 1. Request query or header contains valid HMAC security key
+ * 1. Request query or header contains valid HMAC security key (&sec=... or &key=...)
  * 2. Request user is authenticated Admin / Staff / Finance
  * 3. Request user is the authenticated owner (matching email or phone)
  */
 export function checkDocAuthorization(req, docRecord, docNumber) {
-  const reqKey = String(req.query?.key || req.headers['x-doc-key'] || '').trim().toLowerCase();
+  const reqKey = String(req.query?.sec || req.query?.key || req.query?.token || req.headers['x-doc-key'] || '').trim().toLowerCase();
   const expectedKey = generateDocSecurityKey(docNumber).toLowerCase();
 
   // 1. Direct valid security key (from QR code, email link, or dashboard button)
@@ -7628,7 +7640,7 @@ export function checkDocAuthorization(req, docRecord, docNumber) {
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : (req.cookies?.nova_session || '');
     if (token) {
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (['admin', 'superadmin', 'finance', 'staff', 'billing', 'manager', 'lead_dev'].includes(decoded.role)) {
+      if (['admin', 'super_admin', 'superadmin', 'finance', 'staff', 'billing', 'manager', 'lead_dev'].includes(decoded.role)) {
         return { authorized: true, reason: 'admin', key: expectedKey };
       }
       if (docRecord) {
@@ -7645,6 +7657,13 @@ export function checkDocAuthorization(req, docRecord, docNumber) {
 
   return { authorized: false, reason: 'unauthorized', key: expectedKey };
 }
+
+// Security Key Retrieval Endpoint for authorized apps
+app.get('/api/documents/sec-key/:docNumber', (req, res) => {
+  const { docNumber } = req.params;
+  const key = generateDocSecurityKey(docNumber);
+  res.json({ docNumber, security_key: key });
+});
 
 // ----------------------------------------------------
 // Public Unified Document Verification Endpoint
@@ -7689,16 +7708,16 @@ app.get([
       verified: true,
       document_type: 'Official Tax Invoice',
       document_number: inv.invoice_number,
-      is_masked: false,
-      requires_unlock: false,
-      authenticated: true,
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
       security_key: isAuth ? secKey : undefined,
-      pdf_url: `/api/invoices/pdf/${encodeURIComponent(inv.invoice_number)}${isAuth ? `?key=${secKey}` : ''}`,
-      customer_name: inv.customer_name || 'Valued Client',
-      customer_email: inv.customer_email || '',
-      customer_phone: inv.customer_phone || '',
-      customer_address: inv.customer_address || '',
-      company: inv.company || '',
+      pdf_url: isAuth ? `/api/invoices/pdf/${encodeURIComponent(inv.invoice_number)}?key=${secKey}` : undefined,
+      customer_name: isAuth ? (inv.customer_name || 'Valued Client') : maskCustomerName(inv.customer_name),
+      customer_email: isAuth ? (inv.customer_email || '') : maskCustomerEmail(inv.customer_email),
+      customer_phone: isAuth ? (inv.customer_phone || '') : maskCustomerPhone(inv.customer_phone),
+      customer_address: isAuth ? (inv.customer_address || '') : maskCustomerAddress(inv.customer_address),
+      company: isAuth ? (inv.company || '') : (inv.company ? maskCustomerName(inv.company) : ''),
       item_name: inv.item_name || inv.plan_name || (inv.items && inv.items[0] && inv.items[0].name) || 'Cloud Service Subscription',
       items: inv.items || [],
       include_vat: inv.include_vat,
@@ -7710,7 +7729,13 @@ app.get([
       due_date: inv.due_date,
       issued_date: inv.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      invoice: isAuth ? { ...inv, security_key: secKey } : inv,
+      invoice: isAuth ? { ...inv, security_key: secKey } : {
+        ...inv,
+        customer_name: maskCustomerName(inv.customer_name),
+        customer_email: maskCustomerEmail(inv.customer_email),
+        customer_phone: maskCustomerPhone(inv.customer_phone),
+        customer_address: maskCustomerAddress(inv.customer_address)
+      },
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -7732,14 +7757,14 @@ app.get([
       verified: true,
       document_type: 'Official Field Service Work Order',
       document_number: wo.order_number,
-      is_masked: false,
-      requires_unlock: false,
-      authenticated: true,
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
       security_key: isAuth ? secKey : undefined,
-      pdf_url: `/api/admin/work-orders/${encodeURIComponent(wo.order_number)}/pdf${isAuth ? `?key=${secKey}` : ''}`,
-      customer_name: wo.assigned_staff_name || 'Field Support Specialist',
-      customer_email: wo.assigned_staff_email || '',
-      customer_phone: wo.customer_phone || '',
+      pdf_url: isAuth ? `/api/admin/work-orders/${encodeURIComponent(wo.order_number)}/pdf?key=${secKey}` : undefined,
+      customer_name: isAuth ? (wo.assigned_staff_name || 'Field Support Specialist') : maskCustomerName(wo.assigned_staff_name),
+      customer_email: isAuth ? (wo.assigned_staff_email || '') : maskCustomerEmail(wo.assigned_staff_email),
+      customer_phone: isAuth ? (wo.customer_phone || '') : maskCustomerPhone(wo.customer_phone),
       client_site: wo.client_site || 'Nova Protected Client Site',
       task_title: wo.task_title || 'Field Operations Technical Deployment',
       description: wo.service_description || wo.description || '',
@@ -7772,15 +7797,15 @@ app.get([
       verified: true,
       document_type: 'Official Commercial Quotation',
       document_number: q.quote_number,
-      is_masked: false,
-      requires_unlock: false,
-      authenticated: true,
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
       security_key: isAuth ? secKey : undefined,
-      pdf_url: `/api/quotations/pdf/${encodeURIComponent(q.quote_number)}${isAuth ? `?key=${secKey}` : ''}`,
-      customer_name: q.customer_name || 'Valued Client',
-      customer_email: q.customer_email || '',
-      customer_phone: q.customer_phone || '',
-      company: q.company || '',
+      pdf_url: isAuth ? `/api/quotations/pdf/${encodeURIComponent(q.quote_number)}?key=${secKey}` : undefined,
+      customer_name: isAuth ? (q.customer_name || 'Valued Client') : maskCustomerName(q.customer_name),
+      customer_email: isAuth ? (q.customer_email || '') : maskCustomerEmail(q.customer_email),
+      customer_phone: isAuth ? (q.customer_phone || '') : maskCustomerPhone(q.customer_phone),
+      company: isAuth ? (q.company || '') : (q.company ? maskCustomerName(q.company) : ''),
       items: q.items || [],
       total_amount: Number(q.total_amount),
       currency: 'UGX',
@@ -7808,12 +7833,12 @@ app.get([
       verified: true,
       document_type: 'Official Expenditure Payment Voucher',
       document_number: exp.receipt_ref || `EXP-${exp.id}`,
-      is_masked: false,
-      requires_unlock: false,
-      authenticated: true,
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
       security_key: isAuth ? secKey : undefined,
-      customer_name: exp.staff_name || 'Staff Member',
-      customer_email: exp.staff_email || '',
+      customer_name: isAuth ? (exp.staff_name || 'Staff Member') : maskCustomerName(exp.staff_name),
+      customer_email: isAuth ? (exp.staff_email || '') : maskCustomerEmail(exp.staff_email),
       category: exp.category || 'Company Expense',
       description: exp.description || exp.purpose || '',
       total_amount: Number(exp.amount),
@@ -7841,16 +7866,16 @@ app.get([
       verified: true,
       document_type: 'Official Goods Delivery Note',
       document_number: dn.dn_number,
-      is_masked: false,
-      requires_unlock: false,
-      authenticated: true,
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
       security_key: isAuth ? secKey : undefined,
-      pdf_url: `/api/delivery-notes/pdf/${encodeURIComponent(dn.dn_number)}${isAuth ? `?key=${secKey}` : ''}`,
-      customer_name: dn.customer_name || 'Valued Client',
-      customer_email: dn.customer_email || '',
-      customer_phone: dn.customer_phone || '',
-      delivery_address: dn.delivery_address || 'Customer Premises, Uganda',
-      company: dn.company || '',
+      pdf_url: isAuth ? `/api/delivery-notes/pdf/${encodeURIComponent(dn.dn_number)}?key=${secKey}` : undefined,
+      customer_name: isAuth ? (dn.customer_name || 'Valued Client') : maskCustomerName(dn.customer_name),
+      customer_email: isAuth ? (dn.customer_email || '') : maskCustomerEmail(dn.customer_email),
+      customer_phone: isAuth ? (dn.customer_phone || '') : maskCustomerPhone(dn.customer_phone),
+      delivery_address: isAuth ? (dn.delivery_address || 'Customer Premises, Uganda') : maskCustomerAddress(dn.delivery_address),
+      company: isAuth ? (dn.company || '') : (dn.company ? maskCustomerName(dn.company) : ''),
       items: dn.items || [],
       carrier: dn.carrier || 'Direct Handover',
       tracking_code: dn.tracking_code || 'N/A',

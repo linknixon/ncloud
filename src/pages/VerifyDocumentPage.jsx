@@ -32,22 +32,24 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
 
-  // Auto-verify if query parameter is in URL (e.g. ?doc=INV-2026-0041 or ?type=invoice&ref=INV-2026-0041)
+  // Auto-verify if query parameter is in URL (e.g. ?doc=INV-2026-0041&sec=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const docParam = params.get('ref') || params.get('doc') || params.get('verify') || params.get('invoice') || params.get('payment') || params.get('quote');
     const viewType = params.get('view') || params.get('type') || (params.get('quote') ? 'quote' : params.get('payment') ? 'payment' : 'invoice');
+    const secParam = params.get('sec') || params.get('key') || params.get('token') || '';
     
     if (docParam) {
       setDocQuery(docParam);
-      performVerification(viewType, docParam);
+      performVerification(viewType, docParam, secParam);
     }
   }, []);
 
   // Generate 2D QR Code when document is verified
   useEffect(() => {
     if (verifyResult && verifyResult.document_number) {
-      const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(verifyResult.document_number)}`;
+      const secKey = verifyResult.security_key || new URLSearchParams(window.location.search).get('sec') || '';
+      const verifyUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(verifyResult.document_number)}${secKey ? `&sec=${encodeURIComponent(secKey)}` : ''}`;
       QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
         .then(url => setDocQrImg(url))
         .catch(err => console.warn('Document QR generation failed:', err));
@@ -56,7 +58,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
     }
   }, [verifyResult]);
 
-  const performVerification = async (type = 'document', refId) => {
+  const performVerification = async (type = 'document', refId, secKey = '') => {
     if (!refId) return;
     setLoading(true);
     setError(null);
@@ -79,7 +81,9 @@ export default function VerifyDocumentPage({ setActivePage }) {
         inferredType = 'invoice';
       }
 
-      const res = await fetch(`/api/public/verify/${inferredType}/${encodeURIComponent(cleanRef)}`);
+      const effectiveSec = secKey || new URLSearchParams(window.location.search).get('sec') || '';
+      const secQuery = effectiveSec ? `?sec=${encodeURIComponent(effectiveSec)}` : '';
+      const res = await fetch(`/api/public/verify/${inferredType}/${encodeURIComponent(cleanRef)}${secQuery}`);
       let data = null;
       try {
         data = await res.json();
@@ -105,11 +109,13 @@ export default function VerifyDocumentPage({ setActivePage }) {
       showToast('Please enter an Invoice, Quotation, or Clearance reference number', 'warning');
       return;
     }
-    performVerification('invoice', docQuery.trim());
+    const sec = new URLSearchParams(window.location.search).get('sec') || '';
+    performVerification('invoice', docQuery.trim(), sec);
   };
 
   const handleCopyLink = () => {
-    const url = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(verifyResult?.document_number || docQuery)}`;
+    const secKey = verifyResult?.security_key || new URLSearchParams(window.location.search).get('sec') || '';
+    const url = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(verifyResult?.document_number || docQuery)}${secKey ? `&sec=${encodeURIComponent(secKey)}` : ''}`;
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     showToast('Official clearance certificate URL copied to clipboard!', 'success');
@@ -309,21 +315,13 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
               <button
                 onClick={() => {
-                  const dataToGenerate = verifyResult.invoice || verifyResult.quotation || verifyResult;
-                  if (isQuotation) {
-                    generateQuotationPDF(dataToGenerate, { bankAccounts });
-                  } else if (isWorkOrder) {
-                    window.open(`/api/admin/work-orders/${encodeURIComponent(verifyResult.document_number)}/pdf`, '_blank');
-                  } else if (isDeliveryNote) {
-                    window.open(`/api/delivery-notes/pdf/${encodeURIComponent(verifyResult.document_number)}`, '_blank');
-                  } else {
-                    generateInvoicePDF(dataToGenerate, { bankAccounts });
-                  }
+                  window.print();
                 }}
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
+                title="Print or Save official PDF in your browser"
               >
-                <Download size={15} /> Download
+                <Printer size={15} /> Print / Save PDF
               </button>
 
               {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (
@@ -507,6 +505,27 @@ export default function VerifyDocumentPage({ setActivePage }) {
                   </div>
                 </div>
               </div>
+
+              {/* Privacy Protection Shield Notice (When accessed without security key) */}
+              {verifyResult.is_masked && (
+                <div className="no-print" style={{
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '10px',
+                  padding: '0.85rem 1.15rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  fontSize: '0.825rem',
+                  color: '#1e40af'
+                }}>
+                  <Lock size={18} style={{ flexShrink: 0, color: '#2563eb' }} />
+                  <div style={{ flex: 1, lineHeight: '1.45' }}>
+                    <strong style={{ color: '#1e3a8a' }}>Privacy Protection Shield Active:</strong> Sensitive customer contact details have been automatically masked to avoid privacy violations. Authorized recipients with a security link (<code>&amp;sec=...</code>) or authenticated staff have full unmasked access.
+                  </div>
+                </div>
+              )}
 
               {/* Dual Metadata Executive Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem' }}>
