@@ -694,6 +694,22 @@ export async function syncStoreToMysql(store) {
         );
       }
     }
+
+    // 14. Universal System Settings (Including api_integrations, smtp, topbar, security)
+    const systemSettingsKeys = [
+      'api_integrations', 'smtp_settings', 'topbar_settings', 
+      'security_settings', 'notification_emails', 'paid_stamp', 
+      'announcement', 'banner_settings'
+    ];
+    for (const key of systemSettingsKeys) {
+      if (store[key] !== undefined && store[key] !== null) {
+        await pool.query(
+          `INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+          [key, safeJson(store[key])]
+        );
+      }
+    }
   } catch (err) {
     console.error('[MySQL Store] Error synchronizing store to MySQL:', err.message);
   }

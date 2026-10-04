@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import { NOVA_LOGO_BASE64 } from '../src/utils/logoBase64.js';
 import cors from 'cors';
@@ -19,6 +19,13 @@ import { generateTOTPSecret, verifyTOTPToken, generateTOTPSetupData } from './to
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const persistentStorePath = path.join(__dirname, 'database', 'persistentStore.json');
+
+// Guarantee .env is loaded regardless of execution working directory
+dotenv.config();
+try {
+  dotenv.config({ path: path.join(__dirname, '.env') });
+  dotenv.config({ path: path.join(__dirname, '../.env') });
+} catch (e) {}
 
 const app = express();
 app.set('trust proxy', true);
@@ -810,15 +817,97 @@ const memoryStore = {
   }
 };
 
+// Helper to ensure API Integrations are never wiped on git pull or server restart
+function ensureIntegrationsWithEnvFallback(integrations = []) {
+  const result = Array.isArray(integrations) ? [...integrations] : [];
+
+  // 1. UniFi Network Controller fallback from environment
+  const envUnifiKey = process.env.UNIFI_API_KEY || process.env.UBIQUITI_API_KEY;
+  const envUnifiHost = process.env.UNIFI_HOST_URL || process.env.UNIFI_BASE_URL || process.env.UBIQUITI_HOST || 'https://unifi.ncloud.co.ug';
+  const envUnifiSite = process.env.UNIFI_SITE_ID || 'default';
+
+  if (envUnifiKey) {
+    let unifi = result.find(a => 
+      a.id === 'unifi_api' || a.id === 'unifi_controller' || 
+      (a.provider && a.provider.toLowerCase().includes('ubiquiti')) ||
+      (a.name && a.name.toLowerCase().includes('unifi')) ||
+      a.type === 'network'
+    );
+    if (!unifi) {
+      unifi = {
+        id: 'unifi_api',
+        name: 'UniFi OS Network Integration',
+        provider: 'Ubiquiti',
+        type: 'network',
+        status: 'active',
+        client_id: envUnifiSite,
+        client_secret: envUnifiKey,
+        api_key: envUnifiKey,
+        host_url: envUnifiHost,
+        site_id: envUnifiSite,
+        last_updated: new Date().toISOString()
+      };
+      result.push(unifi);
+    } else {
+      if (!unifi.client_secret && !unifi.api_key) {
+        unifi.client_secret = envUnifiKey;
+        unifi.api_key = envUnifiKey;
+      }
+      if (!unifi.host_url) unifi.host_url = envUnifiHost;
+      if (!unifi.site_id) unifi.site_id = envUnifiSite;
+    }
+  }
+
+  // 2. ioTec Pay Payment Gateway fallback from environment
+  const envIotecClientId = process.env.IOTEC_CLIENT_ID || process.env.IOTEC_PAY_CLIENT_ID;
+  const envIotecClientSecret = process.env.IOTEC_CLIENT_SECRET || process.env.IOTEC_PAY_CLIENT_SECRET;
+  const envIotecWalletId = process.env.IOTEC_WALLET_ID || process.env.IOTEC_PAY_WALLET_ID || '';
+
+  if (envIotecClientId && envIotecClientSecret) {
+    let iotec = result.find(a => 
+      a.id === 'iotec_pay' || 
+      (a.provider && a.provider.toLowerCase().includes('iotec')) ||
+      (a.name && a.name.toLowerCase().includes('iotec'))
+    );
+    if (!iotec) {
+      iotec = {
+        id: 'iotec_pay',
+        name: 'ioTec Payment Gateway',
+        provider: 'ioTec Pay',
+        type: 'payment',
+        status: 'active',
+        client_id: envIotecClientId,
+        client_secret: envIotecClientSecret,
+        wallet_id: envIotecWalletId,
+        last_updated: new Date().toISOString()
+      };
+      result.push(iotec);
+    } else {
+      if (!iotec.client_id) iotec.client_id = envIotecClientId;
+      if (!iotec.client_secret) iotec.client_secret = envIotecClientSecret;
+      if (!iotec.wallet_id && envIotecWalletId) iotec.wallet_id = envIotecWalletId;
+    }
+  }
+
+  return result;
+}
+
 // ----------------------------------------------------
 // Restore Persistent Data Store on Server Startup
 // ----------------------------------------------------
+const loadedDiskStore = loadPersistentStore();
+
 try {
   const mysqlStore = await loadFullStoreFromMysql();
   if (mysqlStore && mysqlStore.users && mysqlStore.users.length > 0) {
     Object.keys(mysqlStore).forEach(key => {
       if (Array.isArray(mysqlStore[key])) {
-        memoryStore[key] = mysqlStore[key];
+        // If MySQL returned an empty array for api_integrations, preserve existing disk/env configs!
+        if (key === 'api_integrations' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.api_integrations?.length > 0) {
+          memoryStore[key] = loadedDiskStore.api_integrations;
+        } else {
+          memoryStore[key] = mysqlStore[key];
+        }
       } else if (typeof mysqlStore[key] === 'object' && mysqlStore[key] !== null) {
         memoryStore[key] = { ...memoryStore[key], ...mysqlStore[key] };
       } else {
@@ -831,7 +920,6 @@ try {
   }
 } catch (mysqlErr) {
   console.warn(`[Database Persistence] MySQL hydration note (${mysqlErr.message}). Falling back to persistentStore.json snapshot.`);
-  const loadedDiskStore = loadPersistentStore();
   if (loadedDiskStore) {
     Object.keys(loadedDiskStore).forEach(key => {
       if (Array.isArray(loadedDiskStore[key])) {
@@ -845,6 +933,23 @@ try {
     console.log(`[Database Persistence] Restored ${memoryStore.users?.length || 0} total system users from persistent disk store.`);
   }
 }
+
+// Merge disk items if MySQL had missing integrations
+if (loadedDiskStore && Array.isArray(loadedDiskStore.api_integrations)) {
+  for (const diskItem of loadedDiskStore.api_integrations) {
+    const existing = (memoryStore.api_integrations || []).find(a => a.id === diskItem.id);
+    if (!existing) {
+      if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+      memoryStore.api_integrations.push(diskItem);
+    } else if ((!existing.client_secret && !existing.api_key) && (diskItem.client_secret || diskItem.api_key)) {
+      existing.client_secret = diskItem.client_secret;
+      existing.api_key = diskItem.api_key || diskItem.client_secret;
+    }
+  }
+}
+
+// Apply environment variable backup/overrides so git pull never wipes keys
+memoryStore.api_integrations = ensureIntegrationsWithEnvFallback(memoryStore.api_integrations);
 
 if (!memoryStore.site_logo) {
   memoryStore.site_logo = '/nova_logo_official.png';
@@ -6783,29 +6888,50 @@ app.get('/api/admin/work-orders/:id/pdf', async (req, res) => {
 // ----------------------------------------------------
 
 function getActiveUniFiIntegration() {
-  const integration = (memoryStore.api_integrations || []).find(a => 
+  let integration = (memoryStore.api_integrations || []).find(a => 
     a.id === 'unifi_api' || a.id === 'unifi_controller' || 
     (a.provider && a.provider.toLowerCase().includes('ubiquiti')) || 
     (a.name && a.name.toLowerCase().includes('unifi')) ||
     a.type === 'network'
   );
-  
+
+  const envKey = process.env.UNIFI_API_KEY || process.env.UBIQUITI_API_KEY;
+  const envHost = process.env.UNIFI_HOST_URL || process.env.UNIFI_BASE_URL || process.env.UBIQUITI_HOST;
+  const envSite = process.env.UNIFI_SITE_ID;
+
   if (!integration) {
-    throw new Error('UniFi API integration has been deleted or is not configured. Please add it under Settings > API & Integrations.');
+    if (envKey) {
+      integration = {
+        id: 'unifi_api',
+        name: 'UniFi OS Network Integration',
+        provider: 'Ubiquiti',
+        type: 'network',
+        status: 'active',
+        client_secret: envKey,
+        api_key: envKey,
+        host_url: envHost || 'https://unifi.ncloud.co.ug',
+        site_id: envSite || 'default',
+        last_updated: new Date().toISOString()
+      };
+      if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+      memoryStore.api_integrations.push(integration);
+    } else {
+      throw new Error('UniFi API integration has been deleted or is not configured. Please add it under Settings > API & Integrations or specify UNIFI_API_KEY in .env.');
+    }
   }
   
   if (integration.status !== 'active') {
     throw new Error(`UniFi API integration is currently ${integration.status.toUpperCase()}. Live voucher synchronization and generation are halted while suspended.`);
   }
 
-  const apiKey = integration.client_secret || integration.api_key || integration.client_id || '';
-  const siteId = integration.site_id || 'default';
-  const rawHost = integration.host_url || 'https://unifi.ncloud.co.ug';
+  const apiKey = integration.client_secret || integration.api_key || envKey || '';
+  const siteId = integration.site_id || envSite || 'default';
+  const rawHost = integration.host_url || envHost || 'https://unifi.ncloud.co.ug';
   const cleanHost = rawHost.replace(/\/+$/, '');
   const baseUrl = `${cleanHost}/proxy/network/integration/v1/sites/${siteId}`;
 
   if (!apiKey) {
-    throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API & Integrations.');
+    throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API & Integrations or in .env as UNIFI_API_KEY.');
   }
 
   return { integration, apiKey, siteId, hostUrl: cleanHost, baseUrl };
@@ -12802,21 +12928,53 @@ let iotecAccessToken = null;
 let iotecTokenExpiry = 0;
 
 function getActiveIotecIntegration() {
-  const iotecConfig = (memoryStore.api_integrations || []).find(a => 
+  let iotecConfig = (memoryStore.api_integrations || []).find(a => 
     a.id === 'iotec_pay' || 
     (a.provider && a.provider.toLowerCase().includes('iotec')) ||
     (a.name && a.name.toLowerCase().includes('iotec'))
   );
+
+  const envClientId = process.env.IOTEC_CLIENT_ID || process.env.IOTEC_PAY_CLIENT_ID;
+  const envClientSecret = process.env.IOTEC_CLIENT_SECRET || process.env.IOTEC_PAY_CLIENT_SECRET;
+  const envWalletId = process.env.IOTEC_WALLET_ID || process.env.IOTEC_PAY_WALLET_ID;
+
   if (!iotecConfig) {
-    throw new Error('ioTec Pay integration has been deleted or is not configured under Settings > API & Integrations.');
+    if (envClientId && envClientSecret) {
+      iotecConfig = {
+        id: 'iotec_pay',
+        name: 'ioTec Payment Gateway',
+        provider: 'ioTec Pay',
+        type: 'payment',
+        status: 'active',
+        client_id: envClientId,
+        client_secret: envClientSecret,
+        wallet_id: envWalletId || '',
+        last_updated: new Date().toISOString()
+      };
+      if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+      memoryStore.api_integrations.push(iotecConfig);
+    } else {
+      throw new Error('ioTec Pay integration has been deleted or is not configured under Settings > API & Integrations or in .env.');
+    }
   }
+
   if (iotecConfig.status !== 'active') {
     throw new Error(`ioTec Pay gateway is currently ${iotecConfig.status.toUpperCase()}. Live payment transactions are halted while suspended.`);
   }
-  if (!iotecConfig.client_id || !iotecConfig.client_secret) {
-    throw new Error('ioTec Pay credentials (Client ID or Secret) are missing. Please configure them in Settings > API & Integrations.');
+
+  const clientId = iotecConfig.client_id || envClientId;
+  const clientSecret = iotecConfig.client_secret || envClientSecret;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('ioTec Pay credentials (Client ID or Secret) are missing. Please configure them in Settings > API & Integrations or in .env.');
   }
-  return iotecConfig;
+
+  return {
+    ...iotecConfig,
+    client_id: clientId,
+    client_secret: clientSecret,
+    wallet_id: iotecConfig.wallet_id || envWalletId || ''
+  };
 }
 
 async function getIotecToken() {
