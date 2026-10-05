@@ -12,7 +12,9 @@ import {
   LayoutDashboard,
   LogOut,
   ChevronDown,
-  Edit3
+  Edit3,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 
 export default function Navbar({ activePage, setActivePage }) {
@@ -803,6 +805,40 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           )}
 
+          {/* Mobile Top Auth Buttons (Placed on top on mobile, highly visible & touch-friendly) */}
+          {!user ? (
+            <div className="mobile-auth-top-bar">
+              <button
+                type="button"
+                onClick={() => openAuthModal('login')}
+                className="mobile-auth-btn mobile-login-btn"
+                title="Sign in to your account"
+              >
+                <LogIn size={13} />
+                <span>Login</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuthModal('register')}
+                className="mobile-auth-btn mobile-register-btn"
+                title="Register a new account"
+              >
+                <UserPlus size={13} />
+                <span>Register</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="mobile-auth-top-bar mobile-portal-btn"
+              onClick={() => setActivePage('admin')}
+              title="Open Client Portal Dashboard"
+            >
+              <LayoutDashboard size={14} />
+              <span>Portal</span>
+            </button>
+          )}
+
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -815,6 +851,7 @@ export default function Navbar({ activePage, setActivePage }) {
               display: 'none'
             }}
             className="mobile-toggle"
+            aria-label="Toggle navigation menu"
           >
             {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -830,7 +867,77 @@ export default function Navbar({ activePage, setActivePage }) {
           borderBottomLeftRadius: '20px', borderBottomRightRadius: '20px',
           maxHeight: 'calc(100vh - 75px)', overflowY: 'auto'
         }}>
-          {user && (
+          {/* Top Auth Banner in Mobile Drawer */}
+          {!user ? (
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '0.85rem',
+              marginBottom: '0.6rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Client Portal
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: '800' }}>
+                  24/7 Sovereign Access
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    openAuthModal('login');
+                  }}
+                  style={{
+                    padding: '0.65rem 0.5rem',
+                    borderRadius: '8px',
+                    background: 'rgba(2, 132, 199, 0.1)',
+                    color: 'var(--primary)',
+                    border: '1px solid rgba(2, 132, 199, 0.35)',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <LogIn size={15} /> Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    openAuthModal('register');
+                  }}
+                  style={{
+                    padding: '0.65rem 0.5rem',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
+                  }}
+                >
+                  <UserPlus size={15} /> Register
+                </button>
+              </div>
+            </div>
+          ) : (
             <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => { setActivePage('admin'); setMobileOpen(false); }}
@@ -991,32 +1098,6 @@ export default function Navbar({ activePage, setActivePage }) {
               {item.label}
             </a>
           ))}
-          
-          {!user && (
-            <>
-              {/* Section Divider */}
-              <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0 1rem 0' }} />
-              <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 0.75rem', marginBottom: '0.5rem' }}>
-                Account & Portal
-              </div>
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  openAuthModal('login');
-                }}
-                style={{
-                  textAlign: 'left',
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  background: 'rgba(124, 58, 237, 0.1)',
-                  color: 'var(--primary)',
-                  fontWeight: '700'
-                }}
-              >
-                Client Login / Register
-              </button>
-            </>
-          )}
         </div>
       )}
     </header>

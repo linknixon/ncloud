@@ -524,6 +524,11 @@ select option {
 /* ====================================================
    Mobile & Tablet Responsive Adjustments
    ==================================================== */
+/* Mobile Auth Top Bar in Navbar Header */
+.mobile-auth-top-bar {
+  display: none;
+}
+
 @media (max-width: 992px) {
   .desktop-nav {
     display: none !important;
@@ -534,8 +539,79 @@ select option {
   .mobile-toggle {
     display: flex !important;
   }
+  .mobile-auth-top-bar {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .mobile-auth-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 36px;
+    padding: 0 0.7rem;
+    border-radius: 9px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-login-btn {
+    background: rgba(2, 132, 199, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(2, 132, 199, 0.35);
+  }
+  .mobile-login-btn:active {
+    background: rgba(2, 132, 199, 0.22);
+    transform: scale(0.97);
+  }
+  .mobile-register-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    color: #ffffff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.32);
+  }
+  .mobile-register-btn:active {
+    opacity: 0.92;
+    transform: scale(0.97);
+  }
+  .mobile-portal-btn {
+    background: rgba(124, 58, 237, 0.12);
+    color: var(--primary);
+    border: 1px solid rgba(124, 58, 237, 0.35);
+    height: 36px;
+    padding: 0 0.75rem;
+    border-radius: 9px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+  }
   .responsive-2col {
     grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-auth-btn {
+    padding: 0 0.52rem !important;
+    font-size: 0.75rem !important;
+    gap: 3px !important;
+    height: 34px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-auth-btn {
+    padding: 0 0.42rem !important;
+    font-size: 0.72rem !important;
+    height: 32px !important;
   }
 }
 
