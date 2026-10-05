@@ -171,14 +171,15 @@ export default function EventsPage() {
   // Poll payment status if in progress
   useEffect(() => {
     let interval = null;
+    let timer = null;
     const currentTicketId = registrationResult?.ticket_id;
     if (pollingPayment && currentTicketId) {
-      interval = setInterval(async () => {
+      const checkTicketPayment = async () => {
         try {
           const res = await fetch(`/api/events/tickets/${currentTicketId}/status${paymentTxnId ? `?transactionId=${paymentTxnId}` : ''}`);
           const data = await res.json();
           if (data.status === 'Success' || (data.ticket && data.ticket.payment_status === 'paid')) {
-            clearInterval(interval);
+            if (interval) clearInterval(interval);
             setPollingPayment(false);
             setRegistrationResult(prev => ({
               ...prev,
@@ -193,9 +194,14 @@ export default function EventsPage() {
         } catch (err) {
           console.warn('Error polling payment status:', err);
         }
-      }, 3500);
+      };
+
+      // Fast initial check after 1.2s
+      timer = setTimeout(checkTicketPayment, 1200);
+      interval = setInterval(checkTicketPayment, 1800);
     }
     return () => {
+      if (timer) clearTimeout(timer);
       if (interval) clearInterval(interval);
     };
   }, [pollingPayment, registrationResult, paymentTxnId]);

@@ -1800,16 +1800,9 @@ const normalizeTabName = (rawTab) => {
 
   const pollInvoicePaymentStatus = async (transactionId) => {
     let attempts = 0;
-    const maxAttempts = 30; // Poll for about 2 minutes
-    const pollInterval = setInterval(async () => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        clearInterval(pollInterval);
-        setPaymentStatus('Payment request timed out. Please check your messages.');
-        setTimeout(() => setPaymentPolling(false), 5000);
-        return;
-      }
-      
+    const maxAttempts = 40; // Responsive polling ~1.5 minutes
+
+    const checkAdminPayment = async () => {
       try {
         const res = await fetch(`/api/payments/status/${transactionId}`, {
           headers: { 'x-user-role': currentRole }
@@ -1817,22 +1810,40 @@ const normalizeTabName = (rawTab) => {
         const data = await res.json();
         
         if (data.status === 'Success') {
-          clearInterval(pollInterval);
+          if (pollInterval) clearInterval(pollInterval);
           setPaymentStatus('Payment Successful! Thank you.');
-          setTimeout(() => {
-            setPaymentPolling(false);
-            setShowInvoicePaymentModal(false);
-            fetchInvoices(true); // refresh invoices
-          }, 3000);
+          setPaymentPolling(false);
+          setShowInvoicePaymentModal(false);
+          showToast('Payment confirmed successfully!', 'success');
+          fetchInvoices(true); // refresh invoices
+          return true;
         } else if (data.status === 'Failed') {
-          clearInterval(pollInterval);
+          if (pollInterval) clearInterval(pollInterval);
           setPaymentStatus('Payment Failed or Cancelled.');
-          setTimeout(() => setPaymentPolling(false), 4000);
+          setTimeout(() => setPaymentPolling(false), 3000);
+          return true;
         }
       } catch (err) {
         console.error('Polling error', err);
       }
-    }, 4000);
+      return false;
+    };
+
+    // Fast initial check after 1.2s
+    setTimeout(checkAdminPayment, 1200);
+
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your phone.');
+        setTimeout(() => setPaymentPolling(false), 4000);
+        return;
+      }
+      
+      const finished = await checkAdminPayment();
+      if (finished) clearInterval(pollInterval);
+    }, 1800);
   };
 
   // Update role and set default appropriate card view (Restricted to Super Admin)

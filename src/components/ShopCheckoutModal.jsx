@@ -336,25 +336,18 @@ export default function ShopCheckoutModal() {
 
   const pollPaymentStatus = async (transactionId) => {
     let attempts = 0;
-    const maxAttempts = 30; // Poll for about 2 minutes
-    const pollInterval = setInterval(async () => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        clearInterval(pollInterval);
-        setPaymentStatus('Payment request timed out. Please check your messages.');
-        setTimeout(() => setPaymentPolling(false), 5000);
-        return;
-      }
-      
+    const maxAttempts = 40; // Responsive polling ~1.5 minutes
+
+    const checkStatus = async () => {
       try {
         const res = await fetch(`/api/payments/status/${transactionId}`);
         const data = await res.json();
         
         if (data.status === 'Success') {
-          clearInterval(pollInterval);
+          if (pollInterval) clearInterval(pollInterval);
           setPaymentStatus('Payment Successful! Thank you.');
           setPaymentPolling(false);
-          // Show React Payment Celebration Popup Modal
+          // Show React Payment Celebration Popup Modal immediately
           if (openPaymentSuccessModal) {
             openPaymentSuccessModal({
               reference: successData?.reference || 'NV-SUB-8812',
@@ -367,15 +360,34 @@ export default function ShopCheckoutModal() {
               wifi_voucher_token: data.voucher_token || successData?.invoice?.wifi_voucher_token || ''
             });
           }
+          return true;
         } else if (data.status === 'Failed') {
-          clearInterval(pollInterval);
+          if (pollInterval) clearInterval(pollInterval);
           setPaymentStatus('Payment Failed or Cancelled.');
-          setTimeout(() => setPaymentPolling(false), 4000);
+          setTimeout(() => setPaymentPolling(false), 3000);
+          return true;
         }
       } catch (err) {
         console.error('Polling error', err);
       }
-    }, 4000);
+      return false;
+    };
+
+    // Fast initial check after 1.2 seconds
+    setTimeout(checkStatus, 1200);
+
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval);
+        setPaymentStatus('Payment request timed out. Please check your messages.');
+        setTimeout(() => setPaymentPolling(false), 4000);
+        return;
+      }
+      
+      const finished = await checkStatus();
+      if (finished) clearInterval(pollInterval);
+    }, 1800);
   };
 
   const handleCloseModal = () => {

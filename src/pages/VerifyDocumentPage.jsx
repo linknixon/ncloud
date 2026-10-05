@@ -126,6 +126,28 @@ export default function VerifyDocumentPage({ setActivePage }) {
     window.print();
   };
 
+  const handleDownloadOrPrint = async () => {
+    const isMobile = typeof navigator !== 'undefined' && (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth <= 768)
+    );
+
+    if (isMobile) {
+      showToast('Downloading official PDF to phone...', 'info');
+      try {
+        if (isQuotation) {
+          await generateQuotationPDF(verifyResult.quotation || verifyResult, { siteLogo, forceDownload: true });
+        } else {
+          await generateInvoicePDF(verifyResult.invoice || verifyResult, { siteLogo, forceDownload: true });
+        }
+      } catch (e) {
+        window.print();
+      }
+    } else {
+      window.print();
+    }
+  };
+
   const initiatePayment = async () => {
     setPaymentPolling(true);
     setPaymentStatus('Initiating payment...');
@@ -177,13 +199,30 @@ export default function VerifyDocumentPage({ setActivePage }) {
 
   const pollPaymentStatus = async (transactionId) => {
     let attempts = 0;
-    const maxAttempts = 30; // 2 minutes
+    const maxAttempts = 40; // ~1.5 minutes with responsive polling
+    
+    // Quick initial check after 1.2s
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/payments/status/${transactionId}`);
+        const data = await res.json();
+        if (data.status === 'Success') {
+          setPaymentStatus('Payment Successful! Thank you.');
+          setPaymentPolling(false);
+          setShowPaymentModal(false);
+          showToast('Payment confirmed successfully!', 'success');
+          performVerification('invoice', verifyResult.document_number);
+          return;
+        }
+      } catch (e) {}
+    }, 1200);
+
     const pollInterval = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
         clearInterval(pollInterval);
-        setPaymentStatus('Payment request timed out. Please check your messages.');
-        setTimeout(() => setPaymentPolling(false), 5000);
+        setPaymentStatus('Payment request timed out. Please check your phone.');
+        setTimeout(() => setPaymentPolling(false), 4000);
         return;
       }
       
@@ -194,18 +233,17 @@ export default function VerifyDocumentPage({ setActivePage }) {
         if (data.status === 'Success') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Successful! Thank you.');
-          setTimeout(() => {
-            setPaymentPolling(false);
-            setShowPaymentModal(false);
-            performVerification('invoice', verifyResult.document_number);
-          }, 3000);
+          setPaymentPolling(false);
+          setShowPaymentModal(false);
+          showToast('Payment confirmed successfully!', 'success');
+          performVerification('invoice', verifyResult.document_number);
         } else if (data.status === 'Failed') {
           clearInterval(pollInterval);
           setPaymentStatus('Payment Failed or Cancelled.');
-          setTimeout(() => setPaymentPolling(false), 4000);
+          setTimeout(() => setPaymentPolling(false), 3000);
         }
       } catch (err) {}
-    }, 4000);
+    }, 1800);
   };
 
   // Derive itemized rows
@@ -317,14 +355,12 @@ export default function VerifyDocumentPage({ setActivePage }) {
               </button>
 
               <button
-                onClick={() => {
-                  window.print();
-                }}
+                onClick={handleDownloadOrPrint}
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
-                title="Print or Save official PDF in your browser"
+                title="Download PDF directly on phone or print/save on PC"
               >
-                <Printer size={15} /> Print / Save PDF
+                <Download size={15} /> Download / Print PDF
               </button>
 
               {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (

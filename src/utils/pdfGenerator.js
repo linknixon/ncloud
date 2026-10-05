@@ -33,10 +33,23 @@ export const BRAND = {
   }
 };
 
-// Safe In-Browser PDF Renderer (Opens verification URL with security token, No Forced Download, No Blob URL)
-export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf', docNumber = '', secKey = '') => {
+// Safe In-Browser PDF Renderer (Phone: direct download file; PC: loads in browser via secure URL without blob)
+export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf', docNumber = '', secKey = '', forceDownload = false) => {
   try {
-    // 1. Detect if this document has a verification reference number (INV-..., QTN-..., WO-..., EXP-..., DN-..., TXN-...)
+    const isMobile = typeof navigator !== 'undefined' && (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth <= 768)
+    );
+
+    // On phone / mobile device or if forceDownload requested: download the actual PDF file directly
+    if (isMobile || forceDownload) {
+      if (pdfDoc && typeof pdfDoc.save === 'function') {
+        pdfDoc.save(fileName);
+        return;
+      }
+    }
+
+    // On PC: Open directly in the browser via clean secure URL (no blob URL used!)
     let detectedDoc = docNumber;
     if (!detectedDoc && fileName) {
       const match = fileName.match(/(INV-[A-Za-z0-9-]+|QTN-[A-Za-z0-9-]+|WO-[A-Za-z0-9-]+|EXP-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+|DN-[A-Za-z0-9-]+)/i);
@@ -204,7 +217,7 @@ function drawA4ExecutiveHeader(doc, {
   // Header Right: Document Title & Reference
   doc.setFont('TrebuchetMS', 'bold');
   const titleStr = (title || 'OFFICIAL DOCUMENT').toUpperCase();
-  const isTaxInvoiceDoc = titleStr.includes('TAX INVOICE') || Boolean(opts?.isTaxInvoice);
+  const isTaxInvoiceDoc = (titleStr.includes('TAX INVOICE') || Boolean(opts?.isTaxInvoice)) && !opts?.is_proforma && !opts?.is_quotation;
   doc.text(isTaxInvoiceDoc ? `${BRAND.address} • ${BRAND.tin}` : BRAND.address, textX, 27.5);
   doc.text(BRAND.contact, textX, 32);
 
@@ -503,11 +516,10 @@ export async function generateInvoicePDF(inv, options = {}) {
   doc.text('Nova Cloud Edges (U) Limited', 18, cardY + 11);
 
   doc.setFont('TrebuchetMS', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
-  doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
+  const isTaxInv = (opts.documentTitle ? String(opts.documentTitle).toUpperCase().includes('TAX INVOICE') : true) && !opts.is_proforma && !opts.is_quotation;
+  doc.text(`Web: www.ncloud.co.ug${isTaxInv ? '  •  TIN: 1014892019' : ''}`, 18, cardY + 24.5);
 
   // Bank Remittance (strictly what is configured in database)
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {

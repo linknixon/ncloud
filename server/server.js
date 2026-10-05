@@ -9804,7 +9804,8 @@ export async function generateServerInvoicePDFBuffer(inv, options = {}) {
   doc.setTextColor(51, 65, 85);
   doc.text('Lugga Zone, Ndejje, Wakiso, Uganda', 18, cardY + 15.5);
   doc.text('Tel: (+256) 790 001631 / 33  •  support@ncloud.co.ug', 18, cardY + 20);
-  doc.text('Web: www.ncloud.co.ug  •  TIN: 1014892019', 18, cardY + 24.5);
+  const isTaxInv = (!options.documentTitle || String(options.documentTitle).toUpperCase().includes('TAX INVOICE')) && !options.is_proforma && !options.is_quotation;
+  doc.text(`Web: www.ncloud.co.ug${isTaxInv ? '  •  TIN: 1014892019' : ''}`, 18, cardY + 24.5);
 
   if (Array.isArray(storedBanks) && storedBanks.length > 0) {
     const primaryBank = storedBanks.find(b => b.is_primary) || storedBanks[0];
@@ -13943,10 +13944,11 @@ app.post('/api/admin/settings/slider', (req, res) => {
 });
 
 // ----------------------------------------------------
-// SEO Sitemap & RSS Feed Endpoints
+// SEO Sitemap & RSS Feed Endpoints (Accessible directly on browser & scrapers)
 // ----------------------------------------------------
-app.get('/sitemap.xml', (req, res) => {
-  res.header('Content-Type', 'application/xml');
+app.get(['/sitemap.xml', '/sitemap'], (req, res) => {
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://ncloud.co.ug/</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>daily</changefreq><priority>1.00</priority></url>
@@ -13954,15 +13956,18 @@ app.get('/sitemap.xml', (req, res) => {
   <url><loc>https://ncloud.co.ug/shop</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>daily</changefreq><priority>0.90</priority></url>
   <url><loc>https://ncloud.co.ug/about</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>monthly</changefreq><priority>0.80</priority></url>
   <url><loc>https://ncloud.co.ug/jobs</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.80</priority></url>
+  <url><loc>https://ncloud.co.ug/events</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
   <url><loc>https://ncloud.co.ug/subscription</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://ncloud.co.ug/verify</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>daily</changefreq><priority>0.85</priority></url>
   <url><loc>https://ncloud.co.ug/contact</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>monthly</changefreq><priority>0.75</priority></url>
   <url><loc>https://ncloud.co.ug/terms</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>yearly</changefreq><priority>0.60</priority></url>
   <url><loc>https://ncloud.co.ug/privacy</loc><lastmod>${new Date().toISOString().split('T')[0]}</lastmod><changefreq>yearly</changefreq><priority>0.60</priority></url>
 </urlset>`);
 });
 
-app.get(['/rss.xml', '/api/rss'], (req, res) => {
-  res.header('Content-Type', 'application/rss+xml');
+app.get(['/rss.xml', '/rss', '/api/rss'], (req, res) => {
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -14428,7 +14433,10 @@ app.get('/api/payments/status/:id', async (req, res) => {
     const data = await iotecRes.json();
     
     if (data.status === 'Success' && data.externalId) {
-       await processSuccessfulPayment(data.externalId, data.amount || 0, id, 'Mobile Money');
+       // Process capture, ticket confirmation & receipt emails asynchronously in background so client receives instant response
+       processSuccessfulPayment(data.externalId, data.amount || 0, id, 'Mobile Money').catch(err => {
+         console.error('[Payment Capture Background Warning]', err.message);
+       });
     }
     
     return res.json({ status: data.status, externalId: data.externalId });

@@ -46,6 +46,15 @@ const resolvePageFromLocation = () => {
   }
   if (!path || path === '') path = '/';
 
+  if (path === '/sitemap' || path === '/sitemap.xml') {
+    if (typeof window !== 'undefined') window.location.replace('/sitemap.xml');
+    return 'home';
+  }
+  if (path === '/rss' || path === '/rss.xml') {
+    if (typeof window !== 'undefined') window.location.replace('/rss.xml');
+    return 'home';
+  }
+
   if (path === '/verify-email' || path.includes('verify-email') || params.get('token')) {
     return 'verify-email';
   }
