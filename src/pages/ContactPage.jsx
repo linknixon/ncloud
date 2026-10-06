@@ -318,8 +318,8 @@ export default function ContactPage() {
 
                 {ticketNumber && (
                   <div style={{
-                    background: 'var(--card-bg, #0f172a)',
-                    border: '1px solid var(--border-color, #334155)',
+                    background: 'var(--card-bg, var(--bg-card, #ffffff))',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '12px',
                     padding: '1rem 1.25rem',
                     display: 'inline-flex',

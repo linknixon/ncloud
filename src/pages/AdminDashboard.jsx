@@ -98,6 +98,7 @@ import {
   Check,
   AlertTriangle,
   Zap,
+  Globe,
   Repeat,
   ShieldAlert,
   Smartphone,
@@ -459,6 +460,8 @@ export default function AdminDashboard({ setActivePage }) {
   // If the admin uses the Role Switcher to simulate a non-admin role, we MUST revoke isSuperAdmin for the UI evaluation
   const isSuperAdmin = (currentRole === 'super_admin' || currentRole === 'admin') && 
                        (user?.role === 'super_admin' || user?.role === 'admin');
+  // Strictly Super Administrator only: active simulated role MUST be 'super_admin' or 'admin' and user account MUST be 'super_admin' or 'admin'
+  const isSuperAdminOnly = (currentRole === 'super_admin' || currentRole === 'admin') && (!user?.role || user?.role === 'super_admin' || user?.role === 'admin');
   const isCustomer = currentRole === 'customer';
 
   // Granular CRUDAS matrix permissions resolver
@@ -466,24 +469,43 @@ export default function AdminDashboard({ setActivePage }) {
     if (isSuperAdmin) return true;
 
     const modKey = (moduleKey === 'products' || moduleKey === 'catalog') ? 'store' 
-      : (moduleKey === 'expenditures' ? 'expenses' : moduleKey);
+      : (moduleKey === 'expenditures' ? 'expenses' 
+      : (moduleKey === 'helpdesk' || moduleKey === 'tickets' || moduleKey === 'contact_manager' ? 'contacts' : moduleKey));
 
     // 1. Check user-specific custom overrides
-    if (user?.custom_permissions && (user.custom_permissions[modKey] || user.custom_permissions[moduleKey])) {
-      const p = user.custom_permissions[modKey] || user.custom_permissions[moduleKey];
+    if (user?.custom_permissions) {
+      const p = user.custom_permissions[modKey] || user.custom_permissions[moduleKey] || (modKey === 'contacts' ? user.custom_permissions.helpdesk : null);
       if (p && p[action] !== undefined) return Boolean(p[action]);
     }
 
     // 2. Check role definition from availableRoles (custom roles or edited default roles)
     const cleanRole = String(currentRole || '').toLowerCase().trim();
     const roleDef = availableRoles.find(r => r.code === cleanRole || (r.name && r.name.toLowerCase() === cleanRole));
-    if (roleDef && roleDef.permissions && (roleDef.permissions[modKey] || roleDef.permissions[moduleKey])) {
-      const p = roleDef.permissions[modKey] || roleDef.permissions[moduleKey];
+    if (roleDef && roleDef.permissions) {
+      const p = roleDef.permissions[modKey] || roleDef.permissions[moduleKey] || (modKey === 'contacts' ? roleDef.permissions.helpdesk : null);
       if (p && p[action] !== undefined) return Boolean(p[action]);
     }
 
     // 3. Fallback matrix for standard roles
     const standardMatrices = {
+      super_admin: {
+        invoices: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        quotations: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        payments: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        expenses: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        work_orders: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        contacts: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        unifi: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        store: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        subscriptions: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        schedules: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        reports: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        users: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        roles: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        events: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        services: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        settings: { create: true, read: true, update: true, delete: true, approve: true, share: true }
+      },
       sales_admin: {
         invoices: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         quotations: { create: true, read: true, update: true, delete: false, approve: false, share: true },
@@ -491,6 +513,8 @@ export default function AdminDashboard({ setActivePage }) {
         unifi: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         store: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         subscriptions: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
+        services: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         users: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -502,11 +526,14 @@ export default function AdminDashboard({ setActivePage }) {
         jobs: { create: true, read: true, update: true, delete: true, approve: false, share: true },
         careers: { create: true, read: true, update: true, delete: true, approve: false, share: true },
         news: { create: true, read: true, update: true, delete: true, approve: false, share: true },
+        events: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        services: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         partners: { create: true, read: true, update: true, delete: true, approve: false, share: true },
         team_mgmt: { create: true, read: true, update: true, delete: true, approve: false, share: true },
         settings: { create: true, read: true, update: true, delete: false, approve: false, share: false },
         schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        contacts: { create: true, read: true, update: true, delete: true, approve: false, share: true },
         applications: { create: false, read: true, update: true, delete: false, approve: true, share: false }
       },
       hr_manager: {
@@ -518,6 +545,7 @@ export default function AdminDashboard({ setActivePage }) {
         jobs: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         applications: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         careers: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         schedules: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         reports: { create: false, read: true, update: false, delete: false, approve: false, share: true }
       },
@@ -535,6 +563,7 @@ export default function AdminDashboard({ setActivePage }) {
         payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         expenses: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         hr: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        contacts: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         forensics: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         reports: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         store: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -547,6 +576,7 @@ export default function AdminDashboard({ setActivePage }) {
         payments: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         subscriptions: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         store: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        contacts: { create: true, read: false, update: false, delete: false, approve: false, share: false },
         unifi: { create: false, read: false, update: false, delete: false, approve: false, share: false }
       }
     };
@@ -567,10 +597,21 @@ export default function AdminDashboard({ setActivePage }) {
   const canApprove = useCallback((mod) => hasPermission(mod, 'approve'), [hasPermission]);
   const canShare = useCallback((mod) => hasPermission(mod, 'share'), [hasPermission]);
 
-  const isSalesAdmin = false;
-  const isWebAdmin = false;
-  const isHrManager = false;
-  const isStaff = false;
+  const isSalesAdmin = currentRole === 'sales_admin';
+  const isWebAdmin = currentRole === 'web_admin';
+  const isHrManager = currentRole === 'hr_manager';
+  const isStaff = currentRole === 'staff';
+
+  // Comprehensive Export Permission Resolver: allows super_admin, admin, sales_admin, web_admin, hr_manager or users with module share/read permissions
+  const canExportData = useCallback((moduleKey = null) => {
+    if (currentRole === 'customer' || user?.role === 'customer') return false;
+    const adminRoles = ['super_admin', 'admin', 'sales_admin', 'web_admin', 'hr_manager', 'manager'];
+    if (adminRoles.includes(currentRole) || adminRoles.includes(user?.role) || isSuperAdmin) return true;
+    if (moduleKey) {
+      return hasPermission(moduleKey, 'share') || hasPermission(moduleKey, 'read') || hasPermission(moduleKey, 'create');
+    }
+    return true;
+  }, [isSuperAdmin, user?.role, currentRole, hasPermission]);
   // Grant delete access to actual super_admin accounts even when simulating another role via the role switcher
   const canDeleteSystemRecords = (user?.role === 'super_admin' || user?.role === 'admin') ||
     isSuperAdmin ||
@@ -627,6 +668,7 @@ export default function AdminDashboard({ setActivePage }) {
 const normalizeTabName = (rawTab) => {
   if (!rawTab) return null;
   const t = rawTab.toLowerCase().trim();
+  if (['contacts', 'contact', 'contact_manager', 'helpdesk', 'tickets', 'ticket', 'messages', 'message', 'inquiries', 'inquiry', 'support'].includes(t)) return 'contacts';
   if (['forensics', 'forensic', 'forencis', 'audit', 'audits', 'audit_trail', 'security'].includes(t)) return 'forensics';
   if (['subscriptions', 'subscription', 'sub', 'subs'].includes(t)) return 'subscriptions';
   if (['invoices', 'invoice', 'inv', 'billing'].includes(t)) return 'invoices';
@@ -637,6 +679,7 @@ const normalizeTabName = (rawTab) => {
   if (['bank_accounts', 'bank_account', 'banks', 'bank'].includes(t)) return 'bank_accounts';
   if (['schedules', 'schedule', 'timers', 'cron'].includes(t)) return 'schedules';
   if (['services', 'service', 'solutions'].includes(t)) return 'services';
+  if (['events', 'event', 'webinars', 'summits'].includes(t)) return 'events';
   if (['careers', 'career', 'jobs', 'vacancies'].includes(t)) return 'hr';
   if (['applications', 'application', 'candidate_applications', 'candidates', 'hiring'].includes(t)) return 'hr';
   if (['contracts', 'contract', 'engagement_contract', 'dispatch_contract'].includes(t)) return 'hr';
@@ -1198,6 +1241,63 @@ const normalizeTabName = (rawTab) => {
     assigned_to_id: ''
   });
 
+  // Comprehensive Eligible Staff for Ticket Assignment (supports all staff roles, NOC, Admin, and Company Team members)
+  const eligibleEngineers = useMemo(() => {
+    const list = [];
+    const seenIds = new Set();
+    const seenEmails = new Set();
+
+    (data?.users || []).forEach(u => {
+      if (!u || u.role === 'customer' || u.status === 'Suspended') return;
+      const idKey = String(u.id);
+      const emailKey = (u.email || '').toLowerCase().trim();
+      if (seenIds.has(idKey) || (emailKey && seenEmails.has(emailKey))) return;
+      seenIds.add(idKey);
+      if (emailKey) seenEmails.add(emailKey);
+      list.push({
+        id: u.id,
+        name: u.name || u.email,
+        email: u.email || '',
+        role: u.role || 'staff',
+        position: u.position || (u.role === 'super_admin' ? 'Super Administrator' : u.role === 'sales_admin' ? 'Sales Administrator' : u.role === 'wifi_noc' ? 'WiFi / NOC Engineer' : u.role === 'web_admin' ? 'Web Systems Admin' : u.role === 'staff' ? 'Technical Support Staff' : 'System Specialist')
+      });
+    });
+
+    (data?.staffUsers || []).forEach(u => {
+      if (!u || u.status === 'Suspended') return;
+      const idKey = String(u.id);
+      const emailKey = (u.email || '').toLowerCase().trim();
+      if (seenIds.has(idKey) || (emailKey && seenEmails.has(emailKey))) return;
+      seenIds.add(idKey);
+      if (emailKey) seenEmails.add(emailKey);
+      list.push({
+        id: u.id,
+        name: u.name || u.email,
+        email: u.email || '',
+        role: u.role || 'staff',
+        position: u.position || 'Staff Specialist'
+      });
+    });
+
+    (data?.team || []).forEach((t, idx) => {
+      if (!t) return;
+      const emailKey = (t.email || `${t.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@ncedges.com`).toLowerCase().trim();
+      const idKey = String(t.id || `team_${idx + 1}`);
+      if (seenIds.has(idKey) || (emailKey && seenEmails.has(emailKey))) return;
+      seenIds.add(idKey);
+      if (emailKey) seenEmails.add(emailKey);
+      list.push({
+        id: t.id || `team_${idx + 1}`,
+        name: t.name,
+        email: emailKey,
+        role: 'staff',
+        position: t.role || t.position || 'Operations / Technical Specialist'
+      });
+    });
+
+    return list;
+  }, [data?.users, data?.staffUsers, data?.team]);
+
 
   // Payments & Settings Modals State
   const [paymentsTab, setPaymentsTab] = useState('customer');
@@ -1299,7 +1399,11 @@ const normalizeTabName = (rawTab) => {
     status: 'Active'
   });
 
-  // Extend Term Form Data
+  // Extend Term & Subscription Edit Form State
+  const [selectedSubForExtend, setSelectedSubForExtend] = useState(null);
+  const [showEditSubModal, setShowEditSubModal] = useState(false);
+  const [editSubForm, setEditSubForm] = useState(null);
+  const [savingSubEdit, setSavingSubEdit] = useState(false);
   const [extendForm, setExtendForm] = useState({
     duration: '1 Year',
     start_date: '',
@@ -1623,9 +1727,9 @@ const normalizeTabName = (rawTab) => {
         .then(nw => { if (Array.isArray(nw) && nw.length > 0) setNewsList(nw); })
         .catch(() => {});
 
-      fetch('/api/events')
+      fetch('/api/admin/events')
         .then(r => r.json())
-        .then(ev => { if (Array.isArray(ev) && ev.length > 0) setEventsList(ev); })
+        .then(ev => { if (Array.isArray(ev)) setEventsList(ev); })
         .catch(() => {});
 
       fetchContracts();
@@ -2547,16 +2651,29 @@ const normalizeTabName = (rawTab) => {
     return `"${str}"`;
   };
 
-  const downloadCsvBlob = (csvString, filename) => {
+  const downloadCsvBlob = (csvString, filename, moduleKey = null) => {
+    if (currentRole === 'customer' || user?.role === 'customer') {
+      showToast('Access Denied: Customers are not permitted to export CSV records.', 'error');
+      return;
+    }
+    if (!filename.includes('Template') && !canExportData(moduleKey)) {
+      showToast('Access Denied: Administrative permissions required to export CSV records.', 'error');
+      return;
+    }
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      try {
+        if (link.parentNode) link.parentNode.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (e) {}
+    }, 1500);
   };
 
   const parseCSVText = (text) => {
@@ -2593,8 +2710,12 @@ const normalizeTabName = (rawTab) => {
     return lines;
   };
 
-  // 1. Export All Users CSV
+  // 1. Export All Users CSV (Administrative Access)
   const handleDownloadUsersCSV = (users) => {
+    if (!canExportData('users')) {
+      showToast('Access Denied: Exporting Users CSV requires administrative permission.', 'error');
+      return;
+    }
     const list = Array.isArray(users) && users.length > 0 ? users : (data?.users || []);
     if (list.length === 0) {
       showToast('No user records available to export.', 'warning');
@@ -2622,12 +2743,16 @@ const normalizeTabName = (rawTab) => {
       ].join(','));
     });
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadCsvBlob(rows.join('\n'), `Nova_System_Users_${dateStr}.csv`);
+    downloadCsvBlob(rows.join('\n'), `Nova_System_Users_${dateStr}.csv`, 'users');
     showToast(`Exported ${list.length} user record(s) to CSV!`, 'success');
   };
 
-  // 2. Export All Expenditures CSV
+  // 2. Export All Expenditures CSV (Administrative Access)
   const handleDownloadExpensesCSV = (expenses) => {
+    if (!canExportData('expenses')) {
+      showToast('Access Denied: Exporting Expenditures CSV requires administrative permission.', 'error');
+      return;
+    }
     const list = Array.isArray(expenses) && expenses.length > 0 
       ? expenses 
       : (Array.isArray(companyExpensesList) && companyExpensesList.length > 0 ? companyExpensesList : (data?.staffExpenses || []));
@@ -2661,12 +2786,16 @@ const normalizeTabName = (rawTab) => {
     rows.push('');
     rows.push(`"TOTAL EXPENDITURES",,,,,,"UGX ${totalAmt.toLocaleString()}",,,,`);
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadCsvBlob(rows.join('\n'), `Nova_Expenditures_${dateStr}.csv`);
+    downloadCsvBlob(rows.join('\n'), `Nova_Expenditures_${dateStr}.csv`, 'expenses');
     showToast(`Exported ${list.length} expenditure record(s) to CSV!`, 'success');
   };
 
-  // 3. Export All Work Orders CSV
+  // 3. Export All Work Orders CSV (Administrative Access)
   const handleDownloadWorkOrdersCSV = (orders) => {
+    if (!canExportData('work_orders')) {
+      showToast('Access Denied: Exporting Work Orders CSV requires administrative permission.', 'error');
+      return;
+    }
     const list = Array.isArray(orders) && orders.length > 0
       ? orders
       : (Array.isArray(workOrdersList) && workOrdersList.length > 0 ? workOrdersList : (data?.work_orders || []));
@@ -2702,12 +2831,16 @@ const normalizeTabName = (rawTab) => {
     rows.push('');
     rows.push(`"TOTAL WORK ORDER LABOR",,,,,,, "UGX ${totalLabor.toLocaleString()}",,,,`);
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadCsvBlob(rows.join('\n'), `Nova_Work_Orders_${dateStr}.csv`);
+    downloadCsvBlob(rows.join('\n'), `Nova_Work_Orders_${dateStr}.csv`, 'work_orders');
     showToast(`Exported ${list.length} work order(s) to CSV!`, 'success');
   };
 
-  // 4. Export All Quotations CSV
+  // 4. Export All Quotations CSV (Administrative Access)
   const handleDownloadQuotationsCSV = (quotes) => {
+    if (!canExportData('quotations')) {
+      showToast('Access Denied: Exporting Quotations CSV requires administrative permission.', 'error');
+      return;
+    }
     const list = Array.isArray(quotes) && quotes.length > 0
       ? quotes
       : (Array.isArray(quotationsList) && quotationsList.length > 0 ? quotationsList : (data?.quotations || []));
@@ -2748,8 +2881,217 @@ const normalizeTabName = (rawTab) => {
     rows.push('');
     rows.push(`"TOTAL QUOTATION VALUE",,,,,,,,,,"UGX ${totalQuotesSum.toLocaleString()}",,,`);
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadCsvBlob(rows.join('\n'), `Nova_Quotations_${dateStr}.csv`);
+    downloadCsvBlob(rows.join('\n'), `Nova_Quotations_${dateStr}.csv`, 'quotations');
     showToast(`Exported ${list.length} quotation(s) to CSV!`, 'success');
+  };
+
+  // 5. Export All Invoices CSV (Administrative Access)
+  const handleDownloadInvoicesCSV = (invoices) => {
+    if (!canExportData('invoices')) {
+      showToast('Access Denied: Exporting Invoices CSV requires administrative permission.', 'error');
+      return;
+    }
+    const list = Array.isArray(invoices) && invoices.length > 0 ? invoices : (data?.invoices || []);
+    if (list.length === 0) {
+      showToast('No invoice records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Invoice Number', 'Customer Name', 'Customer Email', 'Phone', 'Company / TIN',
+      'Issue Date', 'Due Date', 'Item / Package', 'Subtotal (UGX)', 'Tax (UGX)', 'Discount (UGX)',
+      'Total Amount (UGX)', 'Amount Paid (UGX)', 'Balance Due (UGX)', 'Status'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalInvSum = 0;
+    let totalPaidSum = 0;
+    list.forEach(inv => {
+      const tot = Number(inv.total || inv.amount || 0);
+      const paid = Number(inv.amount_paid || (inv.status === 'Paid' ? tot : 0));
+      const bal = Number(inv.balance_due || (tot - paid));
+      totalInvSum += tot;
+      totalPaidSum += paid;
+      rows.push([
+        formatCsvCell(inv.invoice_number || inv.id || ''),
+        formatCsvCell(inv.customer_name || ''),
+        formatCsvCell(inv.customer_email || ''),
+        formatCsvCell(inv.customer_phone || ''),
+        formatCsvCell(inv.tin_number || ''),
+        formatCsvCell(inv.issue_date || (inv.created_at ? inv.created_at.split('T')[0] : '')),
+        formatCsvCell(inv.due_date || ''),
+        formatCsvCell(inv.item_name || (inv.items && inv.items[0]?.name) || ''),
+        formatCsvCell(Number(inv.subtotal || 0)),
+        formatCsvCell(Number(inv.tax || 0)),
+        formatCsvCell(Number(inv.discount || 0)),
+        formatCsvCell(tot),
+        formatCsvCell(paid),
+        formatCsvCell(bal),
+        formatCsvCell(inv.status || 'Unpaid')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL SUMMARY",,,,,,,,"UGX ${totalInvSum.toLocaleString()}",,,"UGX ${totalInvSum.toLocaleString()}","UGX ${totalPaidSum.toLocaleString()}","UGX ${(totalInvSum - totalPaidSum).toLocaleString()}",`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Invoices_${dateStr}.csv`, 'invoices');
+    showToast(`Exported ${list.length} invoice record(s) to CSV!`, 'success');
+  };
+
+  // 6. Export All Payments CSV (Administrative Access)
+  const handleDownloadPaymentsCSV = (payments) => {
+    if (!canExportData('payments')) {
+      showToast('Access Denied: Exporting Payments CSV requires administrative permission.', 'error');
+      return;
+    }
+    const list = Array.isArray(payments) && payments.length > 0 ? payments : (data?.payments || []);
+    if (list.length === 0) {
+      showToast('No payment records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Transaction Ref', 'Invoice Number', 'Party / Customer Name', 'Party Email',
+      'Payment Method', 'Amount Paid (UGX)', 'Date', 'Status', 'Notes'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalPmtSum = 0;
+    list.forEach(p => {
+      const amt = Number(p.amount || p.amount_paid || 0);
+      totalPmtSum += amt;
+      rows.push([
+        formatCsvCell(p.reference || p.transaction_id || p.id || ''),
+        formatCsvCell(p.invoice_number || ''),
+        formatCsvCell(p.party_name || p.customer_name || ''),
+        formatCsvCell(p.party_email || p.customer_email || ''),
+        formatCsvCell(p.method || p.payment_method || 'Mobile Money / Bank'),
+        formatCsvCell(amt),
+        formatCsvCell(p.date || p.created_at || ''),
+        formatCsvCell(p.status || 'Success'),
+        formatCsvCell(p.notes || '')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL PAYMENTS COLLECTED",,,,, "UGX ${totalPmtSum.toLocaleString()}",,,`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Payments_${dateStr}.csv`, 'payments');
+    showToast(`Exported ${list.length} payment record(s) to CSV!`, 'success');
+  };
+
+  // 7. Export All Helpdesk Tickets CSV (Administrative Access)
+  const handleDownloadTicketsCSV = (tickets) => {
+    if (!canExportData('contacts')) {
+      showToast('Access Denied: Exporting Support Tickets CSV requires administrative permission.', 'error');
+      return;
+    }
+    const list = Array.isArray(tickets) && tickets.length > 0 ? tickets : (contactsList || data?.contacts || []);
+    if (list.length === 0) {
+      showToast('No support ticket records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Ticket No', 'Subject / Incident', 'Customer Name', 'Customer Email', 'Phone',
+      'Category', 'Priority', 'Status', 'Assigned Engineer', 'Created Date'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    list.forEach(t => {
+      rows.push([
+        formatCsvCell(t.ticket_number || t.id || ''),
+        formatCsvCell(t.subject || ''),
+        formatCsvCell(t.name || ''),
+        formatCsvCell(t.email || ''),
+        formatCsvCell(t.phone || ''),
+        formatCsvCell(t.category || 'General Support'),
+        formatCsvCell(t.priority || 'medium'),
+        formatCsvCell(t.status || 'open'),
+        formatCsvCell(t.assigned_to_name || t.assigned_engineer_name || 'Unassigned'),
+        formatCsvCell(t.created_at || '')
+      ].join(','));
+    });
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Support_Tickets_${dateStr}.csv`, 'contacts');
+    showToast(`Exported ${list.length} ticket record(s) to CSV!`, 'success');
+  };
+
+  // 8. Export All HR Payroll CSV (Administrative Access)
+  const handleDownloadPayrollCSV = (payroll) => {
+    if (!canExportData('hr')) {
+      showToast('Access Denied: Exporting Payroll CSV requires administrative permission.', 'error');
+      return;
+    }
+    const list = Array.isArray(payroll) && payroll.length > 0 ? payroll : (data?.payroll || []);
+    if (list.length === 0) {
+      showToast('No payroll records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'Staff Name', 'Email', 'Position', 'Department', 'Pay Period',
+      'Base Salary (UGX)', 'Allowances (UGX)', 'Deductions (UGX)', 'Net Pay (UGX)', 'Status'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalNet = 0;
+    list.forEach(p => {
+      const base = Number(p.base_salary || 0);
+      const allow = Number(p.allowances || 0);
+      const ded = Number(p.deductions || 0);
+      const net = Number(p.net_pay || (base + allow - ded));
+      totalNet += net;
+      rows.push([
+        formatCsvCell(p.staff_name || ''),
+        formatCsvCell(p.email || ''),
+        formatCsvCell(p.position || ''),
+        formatCsvCell(p.department || ''),
+        formatCsvCell(p.pay_period || ''),
+        formatCsvCell(base),
+        formatCsvCell(allow),
+        formatCsvCell(ded),
+        formatCsvCell(net),
+        formatCsvCell(p.status || 'Approved')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL PAYROLL DISBURSEMENT",,,,,,,, "UGX ${totalNet.toLocaleString()}",`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Payroll_${dateStr}.csv`, 'hr');
+    showToast(`Exported ${list.length} payroll record(s) to CSV!`, 'success');
+  };
+
+  // 9. Export All Service Subscriptions CSV (Administrative Access)
+  const handleDownloadSubscriptionsCSV = (subscriptions) => {
+    if (!canExportData('subscriptions')) {
+      showToast('Access Denied: Exporting Subscriptions CSV requires administrative permission.', 'error');
+      return;
+    }
+    const list = Array.isArray(subscriptions) && subscriptions.length > 0 ? subscriptions : (data?.subscriptions || []);
+    if (list.length === 0) {
+      showToast('No subscription records available to export.', 'warning');
+      return;
+    }
+    const headers = [
+      'License Ref', 'Service / Plan', 'Customer Name', 'Customer Email', 'Customer Phone',
+      'Address', 'Fee (UGX)', 'Duration', 'Start Date', 'Expiry Date', 'Status', 'Attached Invoice #'
+    ];
+    const rows = [headers.map(formatCsvCell).join(',')];
+    let totalFee = 0;
+    list.forEach(s => {
+      const fee = Number(s.amount || 0);
+      totalFee += fee;
+      rows.push([
+        formatCsvCell(s.reference || s.id || ''),
+        formatCsvCell(s.plan_name || ''),
+        formatCsvCell(s.customer_name || ''),
+        formatCsvCell(s.customer_email || ''),
+        formatCsvCell(s.customer_phone || ''),
+        formatCsvCell(s.customer_address || ''),
+        formatCsvCell(fee),
+        formatCsvCell(s.duration || 'Monthly'),
+        formatCsvCell(s.start_date || ''),
+        formatCsvCell(s.expiry_date || ''),
+        formatCsvCell(s.status || 'Active'),
+        formatCsvCell(s.invoice_number || '')
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"TOTAL ACTIVE SUBSCRIPTIONS",,,,,, "UGX ${totalFee.toLocaleString()}",,,,,`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsvBlob(rows.join('\n'), `Nova_Subscriptions_${dateStr}.csv`, 'subscriptions');
+    showToast(`Exported ${list.length} subscription record(s) to CSV!`, 'success');
   };
 
   // 5. Download Products Catalog CSV Template based on current product variables & categories
@@ -3115,6 +3457,9 @@ const normalizeTabName = (rawTab) => {
   };
 
   const exportAttendeesToCSV = (event) => {
+    if (!canExportData('events')) {
+      return showToast('Access Denied: Exporting Attendee CSV requires administrative permission.', 'error');
+    }
     if (!event || !event.registrations || event.registrations.length === 0) {
       return showToast('No attendees to export for this event.', 'error');
     }
@@ -3816,6 +4161,10 @@ const normalizeTabName = (rawTab) => {
   };
 
   const handleExportForensicsSelectedPDF = (selectedLogs) => {
+    if (!canExportData('forensics')) {
+      showToast('Access Denied: Exporting Forensic Audit Certificates requires administrative permission.', 'error');
+      return;
+    }
     if (!selectedLogs || selectedLogs.length === 0) {
       showToast('Please select at least one audit log to export.', 'warning');
       return;
@@ -3833,9 +4182,60 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const openEditSubscription = (s) => {
+    setEditSubForm({
+      id: s.id,
+      plan_name: s.plan_name || '',
+      customer_name: s.customer_name || '',
+      customer_email: s.customer_email || '',
+      customer_phone: s.customer_phone || '',
+      customer_address: s.customer_address || '',
+      amount: s.amount !== undefined ? s.amount : '',
+      duration: s.duration || '1 Year',
+      start_date: (s.start_date || '').split('T')[0],
+      expiry_date: (s.expiry_date || '').split('T')[0],
+      status: s.status || 'Active',
+      reference: s.reference || '',
+      invoice_number: s.invoice_number || '',
+      notes: s.notes || ''
+    });
+    setShowEditSubModal(true);
+  };
+
+  const handleSaveSubscriptionEdit = async (e) => {
+    e.preventDefault();
+    if (!editSubForm) return;
+    if (!canUpdate('subscriptions') || currentRole === 'customer' || user?.role === 'customer') {
+      showToast('Access denied: You do not have permission to modify subscriptions.', 'error');
+      return;
+    }
+    setSavingSubEdit(true);
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${editSubForm.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify(editSubForm)
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to update subscription');
+      showToast(resData.message || 'Subscription updated successfully!', 'success');
+      setShowEditSubModal(false);
+      setEditSubForm(null);
+      fetchDashboardData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSavingSubEdit(false);
+    }
+  };
+
   const handleUpdateSubscriptionStatus = async (subId, newStatus, duration = null, expiryDate = null) => {
     if (!canUpdate('subscriptions') || currentRole === 'customer' || user?.role === 'customer') {
       showToast('Access denied: You do not have permission to modify active subscriptions.', 'error');
+      return;
+    }
+    const actionVerb = newStatus === 'Suspended' ? 'suspend' : (newStatus === 'Ended' || newStatus === 'Terminated' ? 'terminate' : 're-activate');
+    if (!window.confirm(`Are you sure you want to ${actionVerb} this subscription? This will dispatch formal notification emails to support@ncloud.co.ug and the client with the Domain Names policy note.`)) {
       return;
     }
     try {
@@ -3845,8 +4245,8 @@ const normalizeTabName = (rawTab) => {
         body: JSON.stringify({ status: newStatus, duration, expiry_date: expiryDate })
       });
       const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
-      showToast(resData.message, 'success');
+      if (!res.ok) throw new Error(resData.error || `Failed to ${actionVerb} subscription`);
+      showToast(resData.message || `Subscription ${newStatus.toLowerCase()} successfully`, 'success');
       fetchDashboardData();
     } catch (err) {
       showToast(err.message, 'error');
@@ -3975,6 +4375,17 @@ const normalizeTabName = (rawTab) => {
       urgencyLabel = `${daysRemaining} days left`;
     }
 
+    const formatDisplayDate = (dStr) => {
+      if (!dStr) return 'N/A';
+      try {
+        const d = parseDate(dStr);
+        if (!d || isNaN(d.getTime())) return String(dStr).split('T')[0] || String(dStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      } catch (e) {
+        return String(dStr).split('T')[0] || String(dStr);
+      }
+    };
+
     return (
       <div style={{
         marginTop: isCompact ? '0.45rem' : '0.65rem',
@@ -4022,10 +4433,35 @@ const normalizeTabName = (rawTab) => {
         </div>
 
         {/* Start / Expiry Timestamps */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.45rem', fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-          <span>Start: <strong style={{ color: 'var(--text-main)' }}>{startDateStr || 'N/A'}</strong></span>
-          <span style={{ fontWeight: '600' }}>{percentElapsed}% elapsed</span>
-          <span>Expiry: <strong style={{ color: statusColor }}>{expiryDateStr}</strong></span>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr auto 1fr', 
+          alignItems: 'center', 
+          gap: '0.5rem',
+          marginTop: '0.55rem', 
+          fontSize: '0.75rem', 
+          color: 'var(--text-muted)' 
+        }}>
+          <div>
+            <span style={{ fontSize: '0.675rem', textTransform: 'uppercase', display: 'block', opacity: 0.8, letterSpacing: '0.02em' }}>Started</span>
+            <strong style={{ color: 'var(--text-main)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{formatDisplayDate(startDateStr)}</strong>
+          </div>
+          <div style={{ 
+            textAlign: 'center', 
+            background: 'rgba(148, 163, 184, 0.14)', 
+            padding: '2px 8px', 
+            borderRadius: '999px',
+            fontSize: '0.7rem',
+            fontWeight: '800',
+            whiteSpace: 'nowrap',
+            color: 'var(--text-main)'
+          }}>
+            {percentElapsed}% elapsed
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ fontSize: '0.675rem', textTransform: 'uppercase', display: 'block', opacity: 0.8, letterSpacing: '0.02em' }}>Expires</span>
+            <strong style={{ color: statusColor, fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{formatDisplayDate(expiryDateStr)}</strong>
+          </div>
         </div>
 
         {/* Reminder dispatch badges */}
@@ -4735,10 +5171,13 @@ const normalizeTabName = (rawTab) => {
   const handleExtendSubscription = async (e) => {
     e.preventDefault();
     if (!selectedSubForExtend) return;
+    if (!window.confirm(`Extend subscription term for "${selectedSubForExtend.plan_name}" (${selectedSubForExtend.customer_name})? This will update the validity expiry date and notify support@ncloud.co.ug and ${selectedSubForExtend.customer_email || 'the customer'} (with Domain Names policy note).`)) {
+      return;
+    }
     try {
       const res = await fetch(`/api/admin/subscriptions/${selectedSubForExtend.id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
         body: JSON.stringify({
           duration: extendForm.duration,
           start_date: extendForm.start_date || selectedSubForExtend.start_date,
@@ -4746,8 +5185,8 @@ const normalizeTabName = (rawTab) => {
         })
       });
       const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error);
-      showToast(resData.message, 'success');
+      if (!res.ok) throw new Error(resData.error || 'Failed to extend subscription');
+      showToast(resData.message || 'Subscription extended successfully!', 'success');
       setShowExtendModal(false);
       setSelectedSubForExtend(null);
       fetchDashboardData();
@@ -5003,11 +5442,17 @@ const normalizeTabName = (rawTab) => {
     }
     setIsAssigning(true);
     try {
-      const res = await fetch(`/api/admin/tickets/${selectedTicketForAssign.id}/assign`, {
+      const ticketIdentifier = selectedTicketForAssign.id || selectedTicketForAssign.ticket_number;
+      const chosenEng = (eligibleEngineers || []).find(eng => String(eng.id) === String(assignEngineerId));
+
+      const res = await fetch(`/api/admin/tickets/${ticketIdentifier}/assign`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
         body: JSON.stringify({
           engineer_id: assignEngineerId,
+          engineer_name: chosenEng?.name,
+          engineer_email: chosenEng?.email,
+          engineer_position: chosenEng?.position,
           note: assignNote,
           assigned_by: user?.name || 'Administrator'
         })
@@ -5128,7 +5573,7 @@ const normalizeTabName = (rawTab) => {
 
 
 
-  // Nova Cloud Portal Management Modules Definition (16 modules)
+  // Nova Cloud Portal Management Modules Definition
   const allModulesList = [
     {
       id: 'roles',
@@ -5147,6 +5592,15 @@ const normalizeTabName = (rawTab) => {
       color: '#6366f1',
       btnText: 'Manage System Users',
       show: isSuperAdmin || canRead('users') || isHrManager
+    },
+    {
+      id: 'contacts',
+      title: 'Contact Manager & Helpdesk',
+      desc: 'Messages from contact page, customer support tickets, contact inquiries, engineer task assignment, priority triage, and issue resolution.',
+      icon: LifeBuoy,
+      color: '#0284c7',
+      btnText: 'Open Contact Manager',
+      show: canRead('contacts') || isWebAdmin || isSuperAdmin || isStaff || user?.role === 'staff'
     },
     {
       id: 'forensics',
@@ -5211,7 +5665,6 @@ const normalizeTabName = (rawTab) => {
       btnText: 'View Subscriptions',
       show: canRead('subscriptions') || isSalesAdmin || isSuperAdmin || (isCustomer && data?.subscriptions?.length > 0)
     },
-
     {
       id: 'team_mgmt',
       title: 'Executive Team',
@@ -5256,15 +5709,6 @@ const normalizeTabName = (rawTab) => {
       color: '#f97316',
       btnText: 'Manage HR & Recruitment',
       show: canRead('hr') || canRead('jobs') || canRead('careers') || canRead('applications') || isHrManager || isStaff || isSuperAdmin
-    },
-    {
-      id: 'contacts',
-      title: 'Helpdesk & Tickets',
-      desc: 'Customer support tickets, contact inquiries, engineer task assignment, priority triage, and issue resolution.',
-      icon: LifeBuoy,
-      color: '#0284c7',
-      btnText: 'Manage Helpdesk',
-      show: canRead('contacts') || isWebAdmin || isSuperAdmin || isStaff || user?.role === 'staff'
     },
     {
       id: 'reports',
@@ -5349,14 +5793,14 @@ const normalizeTabName = (rawTab) => {
     }
   ];
 
-  const visibleModules = allModulesList.filter(m => m.show && m.id !== 'customer_portal');
+  const visibleModules = allModulesList.filter(m => m.show && (!isCustomer ? m.id !== 'customer_portal' : true));
   const filteredModules = visibleModules.filter(m => 
     !moduleSearch || 
     m.title.toLowerCase().includes(moduleSearch.toLowerCase()) || 
     m.desc.toLowerCase().includes(moduleSearch.toLowerCase()) ||
     m.id.toLowerCase().includes(moduleSearch.toLowerCase())
   );
-  const MODULES_PER_PAGE = 12;
+  const MODULES_PER_PAGE = 24;
   const totalModulePages = Math.ceil(filteredModules.length / MODULES_PER_PAGE) || 1;
   const paginatedModules = filteredModules.slice((modulePage - 1) * MODULES_PER_PAGE, modulePage * MODULES_PER_PAGE);
 
@@ -5805,6 +6249,39 @@ const normalizeTabName = (rawTab) => {
             </button>
           )}
 
+          {(isWebAdmin || isSuperAdmin || isStaff || user?.role === 'staff' || canRead('contacts')) && (
+            <button
+              onClick={() => updateActiveTab('contacts')}
+              className="btn-secondary"
+              style={{
+                padding: '0.55rem 1.1rem',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                background: activeTab === 'contacts' ? '#0284c7' : 'transparent',
+                color: activeTab === 'contacts' ? '#fff' : 'var(--text-main)',
+                border: activeTab === 'contacts' ? 'none' : '1px solid var(--border-color)',
+                borderRadius: '10px',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <LifeBuoy size={15} /> Contact Manager {data?.contacts?.length > 0 && (
+                <span style={{ 
+                  background: activeTab === 'contacts' ? '#fff' : '#0284c7', 
+                  color: activeTab === 'contacts' ? '#0284c7' : '#fff', 
+                  fontSize: '0.7rem', 
+                  padding: '1px 6px', 
+                  borderRadius: '999px', 
+                  fontWeight: '800' 
+                }}>
+                  {data.contacts.length}
+                </span>
+              )}
+            </button>
+          )}
+
 
           {(isHrManager || isStaff || isSuperAdmin || isWebAdmin || canRead('hr') || canRead('jobs') || canRead('careers') || canRead('applications')) && (
             <button
@@ -6028,23 +6505,32 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     )}
 
-                    {(canRead('store') || isSuperAdmin) && (
-                      <div className="glass-card" style={{
-                        padding: '1rem 1.25rem',
-                        border: '1.5px solid rgba(6, 182, 212, 0.4)',
-                        background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(14, 165, 233, 0.04) 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.85rem'
-                      }}>
+                    {(canRead('contacts') || canRead('store') || isSuperAdmin || isStaff || isWebAdmin) && (
+                      <div 
+                        onClick={() => updateActiveTab('contacts')}
+                        className="glass-card" 
+                        style={{
+                          padding: '1rem 1.25rem',
+                          border: '1.5px solid rgba(6, 182, 212, 0.4)',
+                          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(14, 165, 233, 0.04) 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.85rem',
+                          cursor: 'pointer'
+                        }}
+                        title="Click to open Contact Manager & Helpdesk"
+                      >
                         <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(6, 182, 212, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Mail size={20} color="#06b6d4" />
+                          <LifeBuoy size={20} color="#06b6d4" />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: '700' }}>Contact Inquiries</div>
+                          <div style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: '700' }}>Contact Inquiries & Tickets</div>
                           <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0284c7', lineHeight: '1.2' }}>
-                            {data ? data.totalContacts : 0}
+                            {data ? (data.contacts?.length ?? data.totalContacts ?? 0) : 0}
                           </div>
+                        </div>
+                        <div style={{ fontSize: '0.725rem', color: '#0284c7', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                          Open <ChevronRight size={12} />
                         </div>
                       </div>
                     )}
@@ -6079,7 +6565,7 @@ const normalizeTabName = (rawTab) => {
                       Nova Cloud Portal — {getRoleBadgeStyle(currentRole).label} Modules
                     </h2>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Showing management modules and live corporate news updates.
+                      Showing centralized management modules, live operations, and service tools.
                     </p>
                   </div>
 
@@ -6104,212 +6590,6 @@ const normalizeTabName = (rawTab) => {
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Featured Row: Latest Corporate News & Headlines Card + Customer Portal Card (Only for Customer Role) */}
-                <div style={{ margin: '0.5rem 0 1.25rem 0' }}>
-                  {isCustomer || currentRole === 'customer' ? (
-                    <div className="responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr', gap: '1.25rem' }}>
-                      {/* Card 1: Customer Portal Module Card */}
-                      <div
-                        onClick={() => updateActiveTab('customer_portal')}
-                        className="glass-card"
-                        style={{
-                          padding: '1.4rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justify: 'space-between',
-                          borderRadius: '18px',
-                          border: '1.5px solid #3b82f644',
-                          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, var(--bg-card) 100%)',
-                          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.04)',
-                          minHeight: '220px'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.22)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <User size={22} />
-                              </div>
-                              <div>
-                                <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: '900', margin: 0, letterSpacing: '-0.01em' }}>Customer Portal</h3>
-                                <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Customer Module</span>
-                              </div>
-                            </div>
-                          </div>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.55', marginBottom: '1.25rem', fontWeight: '500' }}>
-                            View active subscriptions, process quick renewals, and download tax invoices.
-                          </p>
-                        </div>
-
-                        <div style={{ borderTop: '1px solid rgba(59, 130, 246, 0.25)', paddingTop: '0.85rem', marginTop: 'auto' }}>
-                          <div
-                            style={{
-                              width: '100%',
-                              padding: '0.55rem 1rem',
-                              borderRadius: '10px',
-                              background: '#3b82f6',
-                              color: '#ffffff',
-                              fontWeight: '800',
-                              fontSize: '0.825rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justify: 'center',
-                              gap: '6px',
-                              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                            }}
-                          >
-                            <span>Open Customer Portal</span>
-                            <ChevronRight size={15} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card 2: Latest Corporate News & Headlines */}
-                      <div className="glass-card" style={{ padding: '1.25rem 1.4rem', borderRadius: '18px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1.5px solid rgba(245, 158, 11, 0.35)', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-card) 100%)', minHeight: '220px' }}>
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Newspaper size={20} color="#f59e0b" />
-                              </div>
-                              <div>
-                                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
-                                  Latest Corporate News & Headlines
-                                </h3>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Official Announcements & Subtitles</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => updateActiveTab('news')}
-                              className="btn-secondary"
-                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: '800', gap: '4px', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
-                            >
-                              View All <ChevronRight size={13} />
-                            </button>
-                          </div>
-
-                          {(() => {
-                            const rawNews = (data?.news && data.news.length > 0) ? data.news : [
-                              { id: 1, title: 'Nova Cloud Launches Next-Gen AMD EPYC Edge Instances in Kampala Datacenter', summary: 'High-speed cloud compute nodes now live with 10Gbps redundant uplink fiber connectivity across East Africa.', category: 'Product Release', date: '2026-08-25' },
-                              { id: 2, title: 'Annual Security & EFRIS Compliance Verification Clearance Completed', summary: 'All customer cloud edge workloads and billing tax invoices fully cleared under URA statutory standards.', category: 'Compliance', date: '2026-08-22' },
-                              { id: 3, title: 'Nova Edge Multi-Region Auto-Failover Backup Service Enabled', summary: 'Real-time multi-region snapshot replication is now standard for all enterprise managed hosting subscriptions.', category: 'Infrastructure', date: '2026-08-18' }
-                            ];
-
-                            const top3Headlines = rawNews.slice(0, 3);
-
-                            return (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {top3Headlines.map((newsItem, idx) => (
-                                  <div
-                                    key={newsItem.id || idx}
-                                    style={{
-                                      padding: '0.6rem 0.8rem',
-                                      background: 'var(--bg-main)',
-                                      borderRadius: '10px',
-                                      border: '1px solid var(--border-color)'
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                                      <span className="badge-tag" style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', fontSize: '0.65rem', fontWeight: '800' }}>
-                                        {newsItem.category || 'Announcement'}
-                                      </span>
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                        {newsItem.date || newsItem.created_at || 'Aug 2026'}
-                                      </span>
-                                    </div>
-
-                                    <h4 style={{ fontSize: '0.825rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.2rem 0', lineHeight: '1.3' }}>
-                                      {newsItem.title}
-                                    </h4>
-
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.35' }}>
-                                      {newsItem.summary || newsItem.subtitle || (newsItem.content ? newsItem.content.substring(0, 95) + '...' : '')}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Admin / Staff Roles: Full Width Latest Corporate News Card (Customer Portal Card is Hidden) */
-                    <div className="glass-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '18px', border: '1.5px solid rgba(245, 158, 11, 0.35)', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-card) 100%)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Newspaper size={20} color="#f59e0b" />
-                          </div>
-                          <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
-                              Latest Corporate News & Headlines
-                            </h3>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Official Nova Cloud Edges Announcements & Product Updates</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => updateActiveTab('news')}
-                          className="btn-secondary"
-                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', fontWeight: '800', gap: '4px', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
-                        >
-                          View All Corporate News <ChevronRight size={14} />
-                        </button>
-                      </div>
-
-                      {(() => {
-                        const rawNews = (data?.news && data.news.length > 0) ? data.news : [
-                          { id: 1, title: 'Nova Cloud Launches Next-Gen AMD EPYC Edge Instances in Kampala Datacenter', summary: 'High-speed cloud compute nodes now live with 10Gbps redundant uplink fiber connectivity across East Africa.', category: 'Product Release', date: '2026-08-25' },
-                          { id: 2, title: 'Annual Security & EFRIS Compliance Verification Clearance Completed', summary: 'All customer cloud edge workloads and billing tax invoices fully cleared under URA statutory standards.', category: 'Compliance', date: '2026-08-22' },
-                          { id: 3, title: 'Nova Edge Multi-Region Auto-Failover Backup Service Enabled', summary: 'Real-time multi-region snapshot replication is now standard for all enterprise managed hosting subscriptions.', category: 'Infrastructure', date: '2026-08-18' }
-                        ];
-
-                        const top3Headlines = rawNews.slice(0, 3);
-
-                        return (
-                          <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-                            {top3Headlines.map((newsItem, idx) => (
-                              <div
-                                key={newsItem.id || idx}
-                                style={{
-                                  padding: '0.95rem 1.1rem',
-                                  background: 'var(--bg-main)',
-                                  borderRadius: '12px',
-                                  border: '1px solid var(--border-color)',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  justify: 'space-between',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-                                }}
-                              >
-                                <div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                                    <span className="badge-tag" style={{ background: 'rgba(2, 132, 199, 0.12)', color: '#0284c7', fontSize: '0.675rem', fontWeight: '800' }}>
-                                      {newsItem.category || 'Announcement'}
-                                    </span>
-                                    <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                                      {newsItem.date || newsItem.created_at || 'Aug 2026'}
-                                    </span>
-                                  </div>
-
-                                  <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 0.35rem 0', lineHeight: '1.35' }}>
-                                    {newsItem.title}
-                                  </h4>
-
-                                  <p style={{ fontSize: '0.79rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.45' }}>
-                                    {newsItem.summary || newsItem.subtitle || (newsItem.content ? newsItem.content.substring(0, 110) + '...' : '')}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
                 </div>
 
                 {isStaff && !isSuperAdmin && !isHrManager && !isSalesAdmin && (
@@ -6847,13 +7127,13 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                      {(isSuperAdmin || canShare('users')) && (
+                      {canExportData('users') && (
                         <button
                           type="button"
                           onClick={() => handleDownloadUsersCSV(usersList)}
                           className="btn-secondary"
                           style={{ padding: '0.55rem 0.9rem', fontSize: '0.825rem', gap: '0.4rem' }}
-                          title="Download CSV export of all system users"
+                          title="Download CSV export of all system users (Super Admins only)"
                         >
                           <Download size={15} /> Export Users CSV
                         </button>
@@ -7643,35 +7923,39 @@ const normalizeTabName = (rawTab) => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => {
-                          const targetLogs = logs.filter(l => selectedForensicsLogs.includes(l.id));
-                          handleExportForensicsSelectedPDF(targetLogs.length > 0 ? targetLogs : paginatedLogs);
-                        }}
-                        className="btn-primary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', background: '#ef4444', borderColor: '#ef4444' }}
-                        title="Generate official PDF report of selected forensic audit records"
-                      >
-                        <Printer size={15} /> Export Selected ({selectedForensicsLogs.length > 0 ? selectedForensicsLogs.length : paginatedLogs.length}) PDF
-                      </button>
+                      {isSuperAdminOnly && (
+                        <>
+                          <button
+                            onClick={() => {
+                              const targetLogs = logs.filter(l => selectedForensicsLogs.includes(l.id));
+                              handleExportForensicsSelectedPDF(targetLogs.length > 0 ? targetLogs : paginatedLogs);
+                            }}
+                            className="btn-primary"
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', background: '#ef4444', borderColor: '#ef4444' }}
+                            title="Generate official PDF report of selected forensic audit records"
+                          >
+                            <Printer size={15} /> Export Selected ({selectedForensicsLogs.length > 0 ? selectedForensicsLogs.length : paginatedLogs.length}) PDF
+                          </button>
 
-                      <button
-                        onClick={() => handleExportForensicsSelectedPDF(filteredLogs)}
-                        className="btn-secondary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px' }}
-                        title="Export all currently filtered audit records to PDF"
-                      >
-                        <Download size={15} /> Export Filtered ({filteredLogs.length})
-                      </button>
+                          <button
+                            onClick={() => handleExportForensicsSelectedPDF(filteredLogs)}
+                            className="btn-secondary"
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px' }}
+                            title="Export all currently filtered audit records to PDF"
+                          >
+                            <Download size={15} /> Export Filtered ({filteredLogs.length})
+                          </button>
 
-                      <button
-                        onClick={() => handleExportForensicsSelectedPDF(logs)}
-                        className="btn-secondary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
-                        title="Export all audit logs across the entire system database"
-                      >
-                        <ShieldAlert size={15} /> Export All in System ({logs.length})
-                      </button>
+                          <button
+                            onClick={() => handleExportForensicsSelectedPDF(logs)}
+                            className="btn-secondary"
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', gap: '5px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                            title="Export all audit logs across the entire system database"
+                          >
+                            <ShieldAlert size={15} /> Export All in System ({logs.length})
+                          </button>
+                        </>
+                      )}
 
                       {selectedForensicsLogs.length > 0 && (
                         <button
@@ -7806,18 +8090,20 @@ const normalizeTabName = (rawTab) => {
                               </td>
                               <td style={{ padding: '0.85rem 0.9rem', textAlign: 'center', whiteSpace: 'nowrap', width: '130px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleExportForensicsSelectedPDF([log]);
-                                    }}
-                                    title="Export Official PDF Audit Certificate for this event"
-                                    className="btn-secondary"
-                                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
-                                  >
-                                    <Download size={12} /> PDF
-                                  </button>
+                                  {isSuperAdminOnly && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleExportForensicsSelectedPDF([log]);
+                                      }}
+                                      title="Export Official PDF Audit Certificate for this event"
+                                      className="btn-secondary"
+                                      style={{ padding: '0.3rem 0.5rem', fontSize: '0.72rem', gap: '3px' }}
+                                    >
+                                      <Download size={12} /> PDF
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.preventDefault();
@@ -8464,13 +8750,13 @@ const normalizeTabName = (rawTab) => {
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {(canShare('expenses') || canRead('expenses')) && (
+                    {canExportData('expenses') && (
                       <button
                         type="button"
                         onClick={() => handleDownloadExpensesCSV(companyExpensesList)}
                         className="btn-secondary"
                         style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                        title="Download CSV export of all company expenditures"
+                        title="Download CSV export of all company expenditures (Super Admins only)"
                       >
                         <Download size={15} /> Export Expenses CSV
                       </button>
@@ -9408,7 +9694,7 @@ const normalizeTabName = (rawTab) => {
 
                         {s.features && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
-                            {(Array.isArray(s.features) ? s.features : (typeof s.features === 'string' ? JSON.parse(s.features || '[]') : [])).slice(0, 4).map((f, i) => (
+                            {(Array.isArray(s.features) ? s.features : (typeof s.features === 'string' ? (() => { try { const p = JSON.parse(s.features); return Array.isArray(p) ? p : [s.features]; } catch(e) { return s.features.split('\n').map(x => x.trim()).filter(Boolean); } })() : [])).slice(0, 4).map((f, i) => (
                               <span key={i} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                 ✓ {f}
                               </span>
@@ -9426,7 +9712,7 @@ const normalizeTabName = (rawTab) => {
                             <button
                               onClick={() => {
                                 setEditingService(s);
-                                const featText = Array.isArray(s.features) ? s.features.join('\n') : (typeof s.features === 'string' ? JSON.parse(s.features || '[]').join('\n') : '');
+                                const featText = Array.isArray(s.features) ? s.features.join('\n') : (typeof s.features === 'string' ? (() => { try { const p = JSON.parse(s.features); return Array.isArray(p) ? p.join('\n') : s.features; } catch(e) { return s.features; } })() : '');
                                 setServiceForm({
                                   title: s.title,
                                   summary: s.summary || '',
@@ -9470,11 +9756,24 @@ const normalizeTabName = (rawTab) => {
                       Track official customer invoice payments, stacked transaction logs, PDF receipts, and verification share links.
                     </p>
                   </div>
-                  {canCreate('payments') && (
-                    <button onClick={() => setShowPaymentModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}>
-                      <Plus size={16} /> Record New Payment
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {canExportData('payments') && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadPaymentsCSV(data?.payments || [])}
+                        className="btn-secondary"
+                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                        title="Download CSV export of payments (Super Admins only)"
+                      >
+                        <Download size={15} /> Export Payments CSV
+                      </button>
+                    )}
+                    {canCreate('payments') && (
+                      <button onClick={() => setShowPaymentModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem' }}>
+                        <Plus size={16} /> Record New Payment
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sub-Nav Toggle & Search Filter */}
@@ -9648,18 +9947,30 @@ const normalizeTabName = (rawTab) => {
                         .sort((a, b) => new Date(a.date || a.created_at || a.payment_date || 0) - new Date(b.date || b.created_at || b.payment_date || 0));
 
                       const totalBilled = Number(inv.amount || 0);
-                      const isPaid = inv.status === 'Paid' || inv.status === '100% Paid';
+                      const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
 
                       let totalPaid = 0;
                       if (matchingPmts.length > 0) {
                         totalPaid = matchingPmts.reduce((sum, p) => sum + Number(p.amount_paid || p.amount || 0), 0);
                       } else {
-                        totalPaid = inv.paid_amount !== undefined ? inv.paid_amount : (isPaid ? inv.amount : 0);
+                        totalPaid = inv.paid_amount !== undefined ? Number(inv.paid_amount) : (isPaid ? totalBilled : 0);
                       }
 
-                      const balanceDue = Math.max(0, totalBilled - totalPaid);
-                      const isFinalPaid = isPaid || (totalPaid >= totalBilled && totalBilled > 0);
-                      const overallStatus = isFinalPaid ? '100% Paid' : (totalPaid > 0 ? 'Partially Paid' : 'Pending Clearance');
+                      let balanceDue = 0;
+                      let overallStatus = 'Pending Clearance';
+
+                      if (isPaid || (totalPaid >= totalBilled && totalBilled > 0)) {
+                        totalPaid = Math.max(totalBilled, totalPaid);
+                        balanceDue = 0;
+                        overallStatus = '100% Paid';
+                      } else if (totalPaid > 0) {
+                        balanceDue = Math.max(0, totalBilled - totalPaid);
+                        const pct = Math.round((totalPaid / (totalBilled || 1)) * 100);
+                        overallStatus = `Partially Paid (${pct}%)`;
+                      } else {
+                        balanceDue = totalBilled;
+                        overallStatus = 'Pending Clearance';
+                      }
 
                       const rawLines = (matchingPmts.length > 1) 
                         ? matchingPmts 
@@ -9856,9 +10167,50 @@ const normalizeTabName = (rawTab) => {
                                     }}
                                     className="btn-secondary"
                                     style={{ flex: 1, padding: '0.35rem 0.55rem', fontSize: '0.725rem', gap: '3px', justifyContent: 'center' }}
-                                    title="Print payment receipt with complete payment history"
+                                    title="Print 80mm thermal receipt"
                                   >
-                                    <Printer size={12} color="var(--primary)" /> Receipt
+                                    <Printer size={12} color="var(--primary)" /> Print
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const rawInv = card.rawInvoice || {};
+                                      const receiptItems = (rawInv.items && Array.isArray(rawInv.items) && rawInv.items.length > 0)
+                                        ? rawInv.items.map(it => ({
+                                            name: it.name || it.item_name || it.description || 'Service Line',
+                                            quantity: Number(it.quantity || it.qty || 1),
+                                            unit_price: Number(it.unit_price || it.price || 0),
+                                            amount: Number(it.amount || (Number(it.unit_price || it.price || 0) * Number(it.quantity || 1)) || 0)
+                                          }))
+                                        : [{
+                                            name: rawInv.item_name || rawInv.plan_name || 'Service / Product',
+                                            quantity: 1,
+                                            unit_price: card.totalBilled,
+                                            amount: card.totalBilled
+                                          }];
+                                      generatePaymentReceipt80mmPDF({
+                                        invoice_number: card.invoice_number,
+                                        customer_name: card.party_name,
+                                        customer_email: card.party_email,
+                                        amount: card.totalBilled,
+                                        amount_paid: card.totalPaid,
+                                        paid_amount: card.totalPaid,
+                                        balance: card.balanceDue,
+                                        status: card.status,
+                                        items: receiptItems,
+                                        wifi_voucher_token: rawInv.wifi_voucher_token || null
+                                      }, {
+                                        action: 'download',
+                                        siteLogo: logoInput || siteLogo,
+                                        userName: user?.name,
+                                        userRole: getRoleBadgeStyle(currentRole).label
+                                      });
+                                    }}
+                                    className="btn-secondary"
+                                    style={{ flex: 1, padding: '0.35rem 0.55rem', fontSize: '0.725rem', gap: '3px', justifyContent: 'center' }}
+                                    title="Download official payment receipt PDF file"
+                                  >
+                                    <Download size={12} color="#0284c7" /> Download
                                   </button>
 
                                   {(canShare('payments') || isCustomerUser) && (
@@ -10163,6 +10515,17 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {canExportData('invoices') && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadInvoicesCSV(filteredInvoices)}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
+                          title="Download CSV export of invoices (Super Admins only)"
+                        >
+                          <Download size={15} /> Export Invoices CSV
+                        </button>
+                      )}
                       <button
                         onClick={handleTriggerDemandNotices}
                         className="btn-secondary"
@@ -10295,10 +10658,11 @@ const normalizeTabName = (rawTab) => {
                       const isLockedFromEdit = isPaid || isCancelled;
                       const excessAmount = Number(inv.excess_amount || 0);
                       const totalInvAmt = Number(inv.amount || 0);
-                      const paidToDate = isPaid
-                        ? Number(inv.paid_amount || inv.amount_paid || totalInvAmt)
+                      const isFullySettled = isPaid || (Number(inv.paid_amount || 0) >= totalInvAmt && totalInvAmt > 0);
+                      const paidToDate = isFullySettled
+                        ? Math.max(totalInvAmt, Number(inv.paid_amount || inv.amount_paid || totalInvAmt))
                         : Number(inv.paid_amount || inv.amount_paid || 0);
-                      const balanceDue = Math.max(0, totalInvAmt - paidToDate);
+                      const balanceDue = isFullySettled ? 0 : Math.max(0, totalInvAmt - paidToDate);
 
                       return (
                         <div
@@ -10752,13 +11116,13 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {(canShare('quotations') || canRead('quotations')) && (
+                      {canExportData('quotations') && (
                         <button
                           type="button"
                           onClick={() => handleDownloadQuotationsCSV(rawQuotes)}
                           className="btn-secondary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                          title="Download CSV export of quotations"
+                          title="Download CSV export of quotations (Super Admins only)"
                         >
                           <Download size={15} /> Export Quotations CSV
                         </button>
@@ -11011,13 +11375,13 @@ const normalizeTabName = (rawTab) => {
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {(canShare('work_orders') || canRead('work_orders')) && (
+                      {canExportData('work_orders') && (
                         <button
                           type="button"
                           onClick={() => handleDownloadWorkOrdersCSV(rawOrders)}
                           className="btn-secondary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--border-color)' }}
-                          title="Download CSV export of work orders"
+                          title="Download CSV export of work orders (Super Admins only)"
                         >
                           <Download size={15} /> Export Work Orders CSV
                         </button>
@@ -11922,6 +12286,17 @@ const normalizeTabName = (rawTab) => {
                           <Mail size={15} /> {triggeringReminders ? 'Checking Expirations...' : 'Check & Trigger Expiry Emails'}
                         </button>
                       )}
+                      {canExportData('subscriptions') && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadSubscriptionsCSV(filteredSubs)}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          title="Download CSV export of service subscriptions"
+                        >
+                          <Download size={15} /> Export Subscriptions CSV
+                        </button>
+                      )}
                       {canCreate('subscriptions') && (
                         <button onClick={() => setShowSubscriptionModal(true)} className="btn-primary" style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>
                           <Plus size={16} /> Log New Subscription Renewal
@@ -12079,16 +12454,28 @@ const normalizeTabName = (rawTab) => {
 
                         {/* Mid-Term Action Controls — Staff Access */}
                         {(currentRole !== 'customer' && user?.role !== 'customer') && (
-                          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', gap: '0.45rem', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button
                               type="button"
                               onClick={() => handleSendSingleSubscriptionReminder(s.id, s.plan_name, s.customer_email)}
                               className="btn-secondary"
-                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#0284c7', borderColor: '#0284c7', justifyContent: 'center' }}
-                              title="Send formal expiry / renewal advisory email to client immediately"
+                              style={{ flex: 1, minWidth: '95px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', color: '#0284c7', borderColor: '#0284c7', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                              title="Send formal expiry / renewal notice to customer & support@ncloud.co.ug"
                             >
-                              <Mail size={12} /> Send Notice
+                              <Mail size={12} /> Notice
                             </button>
+
+                            {canUpdate('subscriptions') && (
+                              <button
+                                type="button"
+                                onClick={() => openEditSubscription(s)}
+                                className="btn-secondary"
+                                style={{ flex: 1, minWidth: '80px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', color: 'var(--primary)', borderColor: 'var(--primary)', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                title="Edit and update subscription specifications"
+                              >
+                                <Edit2 size={12} /> Edit
+                              </button>
+                            )}
 
                             {canUpdate('subscriptions') && (
                               <>
@@ -12097,16 +12484,16 @@ const normalizeTabName = (rawTab) => {
                                     <button
                                       onClick={() => handleUpdateSubscriptionStatus(s.id, 'Suspended')}
                                       className="btn-secondary"
-                                      style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#f59e0b', borderColor: '#f59e0b', justifyContent: 'center' }}
-                                      title="Suspend subscription"
+                                      style={{ flex: 1, minWidth: '85px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', color: '#f59e0b', borderColor: '#f59e0b', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                      title="Suspend subscription (sends notification email with Domain note)"
                                     >
                                       Suspend
                                     </button>
                                     <button
                                       onClick={() => handleUpdateSubscriptionStatus(s.id, 'Ended')}
                                       className="btn-secondary"
-                                      style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
-                                      title="Terminate subscription"
+                                      style={{ flex: 1, minWidth: '90px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                      title="Terminate subscription (sends notification email with Domain note)"
                                     >
                                       Terminate
                                     </button>
@@ -12115,7 +12502,7 @@ const normalizeTabName = (rawTab) => {
                                   <button
                                     onClick={() => handleUpdateSubscriptionStatus(s.id, 'Active')}
                                     className="btn-primary"
-                                    style={{ flex: 1, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
+                                    style={{ flex: 1, minWidth: '95px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center', whiteSpace: 'nowrap' }}
                                     title="Re-activate subscription"
                                   >
                                     Re-Activate
@@ -12133,10 +12520,10 @@ const normalizeTabName = (rawTab) => {
                                     setShowExtendModal(true);
                                   }}
                                   className="btn-primary"
-                                  style={{ flex: 1.2, padding: '0.35rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center' }}
-                                  title="Extend subscription term"
+                                  style={{ flex: 1, minWidth: '85px', padding: '0.4rem 0.5rem', fontSize: '0.725rem', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                                  title="Extend subscription term (sends notification email with Domain note)"
                                 >
-                                  Extend Term
+                                  Extend
                                 </button>
                               </>
                             )}
@@ -12146,7 +12533,7 @@ const normalizeTabName = (rawTab) => {
                                 type="button"
                                 onClick={() => handleDeleteSubscription(s.id, s.plan_name, s.customer_name)}
                                 className="btn-secondary"
-                                style={{ padding: '0.35rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center' }}
+                                style={{ padding: '0.4rem 0.5rem', fontSize: '0.725rem', color: '#ef4444', borderColor: '#ef4444', justifyContent: 'center', minWidth: '34px' }}
                                 title="Delete subscription record"
                               >
                                 <Trash size={12} />
@@ -12165,7 +12552,6 @@ const normalizeTabName = (rawTab) => {
             {/* MESSAGES MODULE */}
             {activeTab === 'contacts' && (() => {
               const allContacts = (data?.contacts || []);
-              const eligibleEngineers = (data?.users || []).filter(u => ['staff', 'admin', 'super_admin'].includes(u.role) && u.status !== 'Suspended');
 
               // KPI counts
               const totalTicketsCount = allContacts.length;
@@ -12241,6 +12627,17 @@ const normalizeTabName = (rawTab) => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {canExportData('contacts') && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTicketsCSV(filteredContacts)}
+                          className="btn-secondary"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                          title="Download CSV export of helpdesk tickets (Super Admins only)"
+                        >
+                          <Download size={15} /> Export Tickets CSV
+                        </button>
+                      )}
                       <button
                         onClick={() => setShowCreateTicketModal(true)}
                         className="btn-primary"
@@ -12534,24 +12931,24 @@ const normalizeTabName = (rawTab) => {
                             <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.4rem' }}>
                               {c.subject || 'Support Inquiry'}
                             </div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', background: 'rgba(15, 23, 42, 0.3)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', whiteSpace: 'pre-wrap' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', background: 'var(--bg-main)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', whiteSpace: 'pre-wrap' }}>
                               {c.message}
                             </div>
                           </div>
 
                           {/* Existing Admin Response / Resolution */}
                           {c.response && (
-                            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '0.85rem 1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+                            <div style={{ background: 'var(--bg-card-hover)', padding: '0.85rem 1rem', borderRadius: '8px', borderLeft: '3px solid var(--primary)', marginTop: '0.5rem', marginBottom: '0.75rem', border: '1px solid var(--border-color)' }}>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
                                 <span><strong>Customer Resolution Reply</strong> (Emailed via Support Desk)</span>
                                 <span>{c.replied_at ? new Date(c.replied_at).toLocaleString() : ''}</span>
                               </div>
-                              <p style={{ fontSize: '0.875rem', color: '#e2e8f0', whiteSpace: 'pre-wrap', margin: 0 }}>{c.response}</p>
+                              <p style={{ fontSize: '0.875rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', margin: 0 }}>{c.response}</p>
                             </div>
                           )}
 
                           {/* Action Buttons Toolbar */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                               {/* Reply to Ticket */}
                               {canUpdate('contacts') && replyingToId !== c.id && (
@@ -12767,10 +13164,10 @@ const normalizeTabName = (rawTab) => {
 
                   {/* Assign Engineer Modal */}
                   {showAssignModal && selectedTicketForAssign && (
-                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
-                      <div className="glass-card" style={{ maxWidth: '500px', width: '100%', padding: '1.75rem', background: 'var(--card-bg, #0f172a)', border: '1px solid var(--border-color)' }}>
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+                      <div className="glass-card" style={{ maxWidth: '500px', width: '100%', padding: '1.75rem', background: 'var(--card-bg, var(--bg-card, #ffffff))', color: 'var(--text-main)', border: '1px solid var(--border-color)', boxShadow: '0 25px 60px rgba(0,0,0,0.35)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                             <UserCheck size={20} color="#0284c7" /> Assign Support Ticket
                           </h3>
                           <button
@@ -12781,21 +13178,21 @@ const normalizeTabName = (rawTab) => {
                           </button>
                         </div>
 
-                        <div style={{ background: 'rgba(2, 132, 199, 0.1)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
-                          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#38bdf8', fontWeight: '700' }}>
+                        <div style={{ background: 'rgba(2, 132, 199, 0.08)', padding: '0.85rem 1.1rem', borderRadius: '10px', marginBottom: '1.25rem', border: '1px solid rgba(2, 132, 199, 0.25)' }}>
+                          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--primary)', fontWeight: '800', letterSpacing: '0.5px' }}>
                             Ticket #{selectedTicketForAssign.ticket_number || selectedTicketForAssign.id}
                           </div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--text-main)', marginTop: '2px' }}>
                             {selectedTicketForAssign.subject}
                           </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '3px' }}>
                             Client: {selectedTicketForAssign.name} ({selectedTicketForAssign.email})
                           </div>
                         </div>
 
                         <form onSubmit={handleAssignTicket}>
                           <div className="form-group" style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
                               Assign to Staff Engineer *
                             </label>
                             <select
@@ -12803,7 +13200,7 @@ const normalizeTabName = (rawTab) => {
                               value={assignEngineerId}
                               onChange={e => setAssignEngineerId(e.target.value)}
                               required
-                              style={{ width: '100%', background: 'var(--card-bg)' }}
+                              style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                             >
                               <option value="">-- Select Technical Engineer --</option>
                               {eligibleEngineers.map(eng => (
@@ -12815,7 +13212,7 @@ const normalizeTabName = (rawTab) => {
                           </div>
 
                           <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-main)' }}>
                               Assignment Instructions / Notes (Optional)
                             </label>
                             <textarea
@@ -12824,7 +13221,7 @@ const normalizeTabName = (rawTab) => {
                               placeholder="e.g. Please verify optical power levels at client router and contact customer..."
                               value={assignNote}
                               onChange={e => setAssignNote(e.target.value)}
-                              style={{ width: '100%' }}
+                              style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                             />
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
                               Email alert will be dispatched to the selected engineer immediately.
@@ -12856,11 +13253,11 @@ const normalizeTabName = (rawTab) => {
 
                   {/* Create Ticket Modal */}
                   {showCreateTicketModal && (
-                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
-                      <div className="glass-card" style={{ maxWidth: '620px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', background: 'var(--card-bg, #0f172a)', border: '1px solid var(--border-color)' }}>
+                    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}>
+                      <div className="glass-card" style={{ maxWidth: '620px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', background: 'var(--card-bg, var(--bg-card, #ffffff))', color: 'var(--text-main)', border: '1px solid var(--border-color)', boxShadow: '0 25px 60px rgba(0,0,0,0.35)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                           <div>
-                            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                               <UserPlus size={20} color="#0284c7" /> Log Technical Support Ticket
                             </h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
@@ -12877,7 +13274,7 @@ const normalizeTabName = (rawTab) => {
 
                         <form onSubmit={handleCreateTicket}>
                           <div className="form-group" style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Customer / Company Name *</label>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Customer / Company Name *</label>
                             <input
                               type="text"
                               className="form-input"
@@ -12885,13 +13282,13 @@ const normalizeTabName = (rawTab) => {
                               value={newTicketForm.name}
                               onChange={e => setNewTicketForm({ ...newTicketForm, name: e.target.value })}
                               required
-                              style={{ width: '100%' }}
+                              style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                             />
                           </div>
 
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div className="form-group">
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Customer Email *</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Customer Email *</label>
                               <input
                                 type="email"
                                 className="form-input"
@@ -12899,30 +13296,30 @@ const normalizeTabName = (rawTab) => {
                                 value={newTicketForm.email}
                                 onChange={e => setNewTicketForm({ ...newTicketForm, email: e.target.value })}
                                 required
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                               />
                             </div>
                             <div className="form-group">
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Phone Number</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Phone Number</label>
                               <input
                                 type="tel"
                                 className="form-input"
                                 placeholder="e.g. 0790001631"
                                 value={newTicketForm.phone}
                                 onChange={e => setNewTicketForm({ ...newTicketForm, phone: e.target.value })}
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                               />
                             </div>
                           </div>
 
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                             <div className="form-group">
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Category</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Category</label>
                               <select
                                 className="form-input"
                                 value={newTicketForm.category}
                                 onChange={e => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
-                                style={{ width: '100%', background: 'var(--card-bg)' }}
+                                style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                               >
                                 <option value="General Technical Support">General Technical Support</option>
                                 <option value="Broadband & Fiber Connectivity">Broadband & Fiber Connectivity</option>
@@ -12933,12 +13330,12 @@ const normalizeTabName = (rawTab) => {
                               </select>
                             </div>
                             <div className="form-group">
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Priority</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Priority</label>
                               <select
                                 className="form-input"
                                 value={newTicketForm.priority}
                                 onChange={e => setNewTicketForm({ ...newTicketForm, priority: e.target.value })}
-                                style={{ width: '100%', background: 'var(--card-bg)' }}
+                                style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                               >
                                 <option value="low">Low (Non-urgent)</option>
                                 <option value="medium">Medium (Standard)</option>
@@ -12949,12 +13346,12 @@ const normalizeTabName = (rawTab) => {
                           </div>
 
                           <div className="form-group" style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem' }}>Assign Directly to Engineer (Optional)</label>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Assign Directly to Engineer (Optional)</label>
                             <select
                               className="form-input"
                               value={newTicketForm.assigned_to_id}
                               onChange={e => setNewTicketForm({ ...newTicketForm, assigned_to_id: e.target.value })}
-                              style={{ width: '100%', background: 'var(--card-bg)' }}
+                              style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
                             >
                               <option value="">-- Leave Unassigned for Triage --</option>
                               {eligibleEngineers.map(eng => (
@@ -13405,8 +13802,10 @@ const normalizeTabName = (rawTab) => {
                             client_id: 'default',
                             client_secret: '',
                             wallet_id: '',
-                            host_url: 'https://unifi.ncloud.co.ug',
-                            site_id: 'default'
+                            host_url: '',
+                            site_id: 'default',
+                            gateway_url: '',
+                            api_path: ''
                           });
                           setShowAddIntegrationModal(true);
                         }} 
@@ -15127,9 +15526,22 @@ const normalizeTabName = (rawTab) => {
                             style={{ paddingLeft: '2.5rem', width: '100%' }}
                           />
                         </div>
-                        <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
-                          Showing {filteredPayrolls.length} of {allPayrolls.length} Payroll Records
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+                            Showing {filteredPayrolls.length} of {allPayrolls.length} Payroll Records
+                          </span>
+                          {canExportData('hr') && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPayrollCSV(filteredPayrolls.length > 0 ? filteredPayrolls : allPayrolls)}
+                              className="btn-secondary"
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+                              title="Download CSV export of payroll disbursement roll (Super Admins only)"
+                            >
+                              <Download size={14} /> Export Payroll CSV
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                   {/* Payroll Summary Cards */}
@@ -16184,13 +16596,23 @@ const normalizeTabName = (rawTab) => {
                             {/* Header: Logo, Company Name & Burgundy Pill */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#881337', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem' }}>
-                                  NC
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: '900', fontSize: '0.95rem', color: '#881337', lineHeight: '1.1' }}>NOVA CLOUD</div>
-                                  <div style={{ fontWeight: '900', fontSize: '0.85rem', color: '#881337', lineHeight: '1.1' }}>EDGES (U) LTD</div>
-                                </div>
+                                {siteLogo ? (
+                                  <img 
+                                    src={siteLogo} 
+                                    alt="Nova Cloud Edges Logo" 
+                                    style={{ maxHeight: '38px', maxWidth: '170px', objectFit: 'contain' }} 
+                                  />
+                                ) : (
+                                  <>
+                                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#881337', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem' }}>
+                                      NC
+                                    </div>
+                                    <div>
+                                      <div style={{ fontWeight: '900', fontSize: '0.95rem', color: '#881337', lineHeight: '1.1' }}>NOVA CLOUD</div>
+                                      <div style={{ fontWeight: '900', fontSize: '0.85rem', color: '#881337', lineHeight: '1.1' }}>EDGES (U) LTD</div>
+                                    </div>
+                                  </>
+                                )}
                               </div>
 
                               <div style={{ textAlign: 'right' }}>
@@ -16574,41 +16996,43 @@ const normalizeTabName = (rawTab) => {
                   </div>
 
                   {/* 4 One-Click PDF Export Actions */}
-                  <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%)', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#8b5cf6', textTransform: 'uppercase', marginBottom: '0.6rem', letterSpacing: '0.04em' }}>
-                      Instant Financial Statement & Audit PDF Exports:
+                  {isSuperAdminOnly && (
+                    <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%)', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#8b5cf6', textTransform: 'uppercase', marginBottom: '0.6rem', letterSpacing: '0.04em' }}>
+                        Instant Financial Statement & Audit PDF Exports (Super Admin Only):
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+                        <button
+                          onClick={() => generateBalanceSheetPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#0284c7', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Download size={14} /> Balance Sheet (PDF)
+                        </button>
+                        <button
+                          onClick={() => generateProfitLossPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#8b5cf6', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Download size={14} /> Profit & Loss Statement (PDF)
+                        </button>
+                        <button
+                          onClick={() => generateExpenseReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#ef4444', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Download size={14} /> Expense Audit Report (PDF)
+                        </button>
+                        <button
+                          onClick={() => generateSalesReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#10b981', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Download size={14} /> Sales Velocity Report (PDF)
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
-                      <button
-                        onClick={() => generateBalanceSheetPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
-                        className="btn-primary"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#0284c7', justifyContent: 'center', gap: '6px' }}
-                      >
-                        <Download size={14} /> Balance Sheet (PDF)
-                      </button>
-                      <button
-                        onClick={() => generateProfitLossPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
-                        className="btn-primary"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#8b5cf6', justifyContent: 'center', gap: '6px' }}
-                      >
-                        <Download size={14} /> Profit & Loss Statement (PDF)
-                      </button>
-                      <button
-                        onClick={() => generateExpenseReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
-                        className="btn-primary"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#ef4444', justifyContent: 'center', gap: '6px' }}
-                      >
-                        <Download size={14} /> Expense Audit Report (PDF)
-                      </button>
-                      <button
-                        onClick={() => generateSalesReportPDF(activeAnalyticsPayload, { siteLogo: logoInput || siteLogo, userName: user?.name })}
-                        className="btn-primary"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#10b981', justifyContent: 'center', gap: '6px' }}
-                      >
-                        <Download size={14} /> Sales Velocity Report (PDF)
-                      </button>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Executive KPI Metric Cards */}
                   <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -16786,8 +17210,9 @@ const normalizeTabName = (rawTab) => {
                         ...rawInvoices.map(inv => {
                           const invAmt = Number(inv.amount || 0);
                           const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled';
-                          const paidAmt = isPaid ? Number(inv.paid_amount || inv.amount_paid || invAmt) : Number(inv.paid_amount || inv.amount_paid || 0);
-                          const balDue = Math.max(0, invAmt - paidAmt);
+                          const isFullySettled = isPaid || (Number(inv.paid_amount || 0) >= invAmt && invAmt > 0);
+                          const paidAmt = isFullySettled ? Math.max(invAmt, Number(inv.paid_amount || inv.amount_paid || invAmt)) : Number(inv.paid_amount || inv.amount_paid || 0);
+                          const balDue = isFullySettled ? 0 : Math.max(0, invAmt - paidAmt);
                           return {
                             id: inv.invoice_number || `INV-${inv.id}`,
                             type: 'CUSTOMER INVOICE',
@@ -16892,6 +17317,10 @@ const normalizeTabName = (rawTab) => {
                         .reduce((sum, r) => sum + Number(r.balanceDue || 0), 0);
 
                       const handleDownloadLedgerCSV = () => {
+                        if (!isSuperAdminOnly) {
+                          showToast('Access Denied: Exporting Financial Audit Ledger CSV is exclusively reserved for Super Administrators.', 'error');
+                          return;
+                        }
                         const headers = ['Ref / ID', 'Type', 'Party / Description', 'Item Details', 'Date', 'Cash Flow Direction', 'Amount (UGX)', 'Balance Due (UGX)', 'Status'];
                         const csvRows = [headers.join(',')];
 
@@ -17033,13 +17462,15 @@ const normalizeTabName = (rawTab) => {
                                   <option value="WORK ORDER">Work Orders</option>
                                 </select>
 
-                                <button
-                                  onClick={handleDownloadLedgerCSV}
-                                  className="btn-primary"
-                                  style={{ padding: '0.45rem 0.95rem', fontSize: '0.8rem', fontWeight: '800', gap: '6px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
-                                >
-                                  <Download size={15} /> Export Audit Ledger CSV
-                                </button>
+                                {canExportData('reports') && (
+                                  <button
+                                    onClick={handleDownloadLedgerCSV}
+                                    className="btn-primary"
+                                    style={{ padding: '0.45rem 0.95rem', fontSize: '0.8rem', fontWeight: '800', gap: '6px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
+                                  >
+                                    <Download size={15} /> Export Audit Ledger CSV
+                                  </button>
+                                )}
                               </div>
                             </div>
 
@@ -18058,7 +18489,9 @@ const normalizeTabName = (rawTab) => {
                         client_secret: selectedApiConfig.client_secret,
                         wallet_id: selectedApiConfig.wallet_id,
                         host_url: selectedApiConfig.host_url,
-                        site_id: selectedApiConfig.site_id
+                        site_id: selectedApiConfig.site_id,
+                        gateway_url: selectedApiConfig.gateway_url,
+                        api_path: selectedApiConfig.api_path
                       })
                     });
                     if (res.ok) {
@@ -18125,7 +18558,7 @@ const normalizeTabName = (rawTab) => {
                             className="form-input"
                             value={selectedApiConfig.host_url || ''}
                             onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
-                            placeholder="https://unifi.ncloud.co.ug"
+                            placeholder="e.g. https://unifi.yourcompany.com:8443"
                           />
                         </div>
                         <div className="form-group">
@@ -18142,6 +18575,20 @@ const normalizeTabName = (rawTab) => {
                             placeholder="default"
                           />
                         </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Custom Gateway Base URL or Proxy (Optional)</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={selectedApiConfig.gateway_url || ''}
+                          onChange={e => setSelectedApiConfig({...selectedApiConfig, gateway_url: e.target.value})}
+                          placeholder="e.g. https://gateway.domain.com/proxy/network/integration/v1/sites/default"
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                          Leave blank to construct automatically from Host URL + Site ID.
+                        </small>
                       </div>
                     </>
                   ) : (
@@ -18366,7 +18813,7 @@ const normalizeTabName = (rawTab) => {
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="https://unifi.ncloud.co.ug"
+                            placeholder="e.g. https://unifi.yourcompany.com:8443"
                             value={newIntegrationForm.host_url}
                             onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
                             required
@@ -18386,6 +18833,20 @@ const normalizeTabName = (rawTab) => {
                             })}
                           />
                         </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Custom Gateway Base URL or Proxy (Optional)</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="e.g. https://gateway.domain.com/proxy/network/integration/v1/sites/default"
+                          value={newIntegrationForm.gateway_url || ''}
+                          onChange={e => setNewIntegrationForm({...newIntegrationForm, gateway_url: e.target.value})}
+                        />
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                          Leave blank to construct automatically from Host URL + Site ID.
+                        </small>
                       </div>
                     </>
                   ) : (
@@ -20811,6 +21272,218 @@ const normalizeTabName = (rawTab) => {
             </div>
           </div>
         ); })()}
+
+        {/* EDIT SERVICE SUBSCRIPTION MODAL */}
+        {showEditSubModal && editSubForm && (
+          <div className="modal-overlay" onClick={() => setShowEditSubModal(false)}>
+            <div 
+              className="modal-content" 
+              onClick={e => e.stopPropagation()} 
+              style={{ 
+                maxWidth: '640px', 
+                width: '95%', 
+                maxHeight: '90vh', 
+                overflowY: 'auto',
+                padding: '1.75rem',
+                borderRadius: '16px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Edit2 size={18} color="var(--primary)" /> Edit Service Subscription
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                    Update plan configuration, client contact credentials, dates, pricing, and license reference.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditSubModal(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveSubscriptionEdit}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Service / Plan Name *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editSubForm.plan_name}
+                      onChange={e => setEditSubForm({ ...editSubForm, plan_name: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Status *</label>
+                    <select
+                      className="form-input"
+                      value={editSubForm.status}
+                      onChange={e => setEditSubForm({ ...editSubForm, status: e.target.value })}
+                      required
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Suspended">Suspended</option>
+                      <option value="Expired">Expired</option>
+                      <option value="Ended">Ended / Terminated</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Customer / Company Name *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editSubForm.customer_name}
+                      onChange={e => setEditSubForm({ ...editSubForm, customer_name: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Customer Email *</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={editSubForm.customer_email}
+                      onChange={e => setEditSubForm({ ...editSubForm, customer_email: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Customer Phone</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={editSubForm.customer_phone}
+                      onChange={e => setEditSubForm({ ...editSubForm, customer_phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Customer Physical Address</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editSubForm.customer_address}
+                      onChange={e => setEditSubForm({ ...editSubForm, customer_address: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Rate / Term Amount (UGX) *</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editSubForm.amount}
+                      onChange={e => setEditSubForm({ ...editSubForm, amount: e.target.value })}
+                      required
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Duration Term *</label>
+                    <select
+                      className="form-input"
+                      value={editSubForm.duration}
+                      onChange={e => setEditSubForm({ ...editSubForm, duration: e.target.value })}
+                      required
+                    >
+                      <option value="1 Month">1 Month (Monthly Term)</option>
+                      <option value="3 Months">3 Months (Quarterly Term)</option>
+                      <option value="6 Months">6 Months Term</option>
+                      <option value="1 Year">1 Year (Annual License)</option>
+                      <option value="2 Years">2 Years License</option>
+                      <option value="3 Years">3 Years License</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Term Start Date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editSubForm.start_date}
+                      onChange={e => setEditSubForm({ ...editSubForm, start_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Term Expiry Date (Override)</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editSubForm.expiry_date}
+                      onChange={e => setEditSubForm({ ...editSubForm, expiry_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>License Reference Code</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editSubForm.reference}
+                      onChange={e => setEditSubForm({ ...editSubForm, reference: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Attached Invoice Number</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. INV-2026-0041"
+                      value={editSubForm.invoice_number}
+                      onChange={e => setEditSubForm({ ...editSubForm, invoice_number: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Administrative Notes / Domain Policy Notice</label>
+                  <textarea
+                    rows="2"
+                    className="form-input"
+                    placeholder="Internal technical notes or license provisions..."
+                    value={editSubForm.notes}
+                    onChange={e => setEditSubForm({ ...editSubForm, notes: e.target.value })}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#b45309', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '6px', padding: '0.4rem 0.6rem', marginTop: '0.4rem' }}>
+                    Note: Domain Names will not be extended unless direct renewal payment is completed.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditSubModal(false)}
+                    className="btn-secondary"
+                    disabled={savingSubEdit}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={savingSubEdit}
+                    style={{ minWidth: '130px', justifyContent: 'center' }}
+                  >
+                    {savingSubEdit ? 'Saving Changes...' : 'Save & Update Subscription'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* EXTEND / CHANGE TERM MODAL */}
         {showExtendModal && selectedSubForExtend && (
@@ -24364,14 +25037,17 @@ const normalizeTabName = (rawTab) => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => exportAttendeesToCSV(selectedEventForAttendees)}
-                    className="btn-secondary"
-                    style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Download size={13} /> Export CSV
-                  </button>
+                  {isSuperAdminOnly && (
+                    <button
+                      type="button"
+                      onClick={() => exportAttendeesToCSV(selectedEventForAttendees)}
+                      className="btn-secondary"
+                      style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      title="Download attendee list CSV (Super Admins only)"
+                    >
+                      <Download size={13} /> Export CSV
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowAttendeesModal(false)}
@@ -24896,7 +25572,7 @@ const normalizeTabName = (rawTab) => {
                         const allPerms = {};
                         [
                           'invoices', 'quotations', 'work_orders', 'payments', 'expenses', 'hr', 'unifi', 'schedules',
-                          'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
+                          'contacts', 'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
                         ].forEach(k => {
                           allPerms[k] = { create: true, read: true, update: true, delete: true, approve: true, share: true };
                         });
@@ -24917,6 +25593,7 @@ const normalizeTabName = (rawTab) => {
                         { key: 'payments', label: 'Payments & Collections' },
                         { key: 'expenses', label: 'Company Expenditures' },
                         { key: 'work_orders', label: 'Work Orders & Field Tasks' },
+                        { key: 'contacts', label: 'Helpdesk & Support Tickets' },
                         { key: 'hr', label: 'HR & Personnel Payroll' },
                         { key: 'unifi', label: 'UniFi WiFi Tokens' },
                         { key: 'subscriptions', label: 'Hosting' },
@@ -25013,7 +25690,7 @@ const normalizeTabName = (rawTab) => {
                     const allPerms = {};
                     [
                       'invoices', 'quotations', 'work_orders', 'payments', 'expenses', 'hr', 'unifi', 'schedules',
-                      'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
+                      'contacts', 'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
                     ].forEach(modKey => {
                       allPerms[modKey] = { create: true, read: true, update: true, delete: true, approve: true, share: true };
                     });
@@ -25030,7 +25707,7 @@ const normalizeTabName = (rawTab) => {
                     const readPerms = {};
                     [
                       'invoices', 'quotations', 'work_orders', 'payments', 'expenses', 'hr', 'unifi', 'schedules',
-                      'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
+                      'contacts', 'forensics', 'reports', 'users', 'roles', 'store', 'subscriptions', 'settings', 'jobs', 'news', 'partners', 'sliders'
                     ].forEach(modKey => {
                       readPerms[modKey] = { create: false, read: true, update: false, delete: false, approve: false, share: true };
                     });
@@ -25075,6 +25752,7 @@ const normalizeTabName = (rawTab) => {
                       { key: 'expenses', label: 'Company Expenditures', category: 'Finance' },
                       { key: 'reports', label: 'Financial Reports & Analytics', category: 'Finance' },
                       { key: 'work_orders', label: 'Work Orders & Field Ops', category: 'Operations' },
+                      { key: 'contacts', label: 'Helpdesk & Support Tickets', category: 'Operations' },
                       { key: 'unifi', label: 'UniFi WiFi Hotspot Vouchers', category: 'Operations' },
                       { key: 'schedules', label: 'Preventive Maintenance Schedules', category: 'Operations' },
                       { key: 'hr', label: 'HR, Staff Roll & Payroll', category: 'Human Resources' },
@@ -25210,6 +25888,7 @@ const normalizeTabName = (rawTab) => {
                       { key: 'expenses', label: 'Company Expenditures', category: 'Finance' },
                       { key: 'reports', label: 'Financial Reports & Analytics', category: 'Finance' },
                       { key: 'work_orders', label: 'Work Orders & Field Ops', category: 'Operations' },
+                      { key: 'contacts', label: 'Helpdesk & Support Tickets', category: 'Operations' },
                       { key: 'unifi', label: 'UniFi WiFi Hotspot Vouchers', category: 'Operations' },
                       { key: 'schedules', label: 'Preventive Maintenance Schedules', category: 'Operations' },
                       { key: 'hr', label: 'HR, Staff Roll & Payroll', category: 'Human Resources' },

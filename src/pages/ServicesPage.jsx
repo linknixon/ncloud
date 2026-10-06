@@ -114,7 +114,14 @@ export default function ServicesPage({ setActivePage }) {
                 const IconComponent = getIcon(srv.icon);
                 const features = Array.isArray(srv.features) 
                   ? srv.features 
-                  : (typeof srv.features === 'string' ? JSON.parse(srv.features) : []);
+                  : (typeof srv.features === 'string' ? (() => {
+                      try {
+                        const parsed = JSON.parse(srv.features);
+                        return Array.isArray(parsed) ? parsed : [srv.features];
+                      } catch (e) {
+                        return srv.features.split('\n').map(f => f.trim()).filter(Boolean);
+                      }
+                    })() : []);
 
                 return (
                   <div

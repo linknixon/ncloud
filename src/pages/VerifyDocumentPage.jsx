@@ -264,9 +264,17 @@ export default function VerifyDocumentPage({ setActivePage }) {
     ? Number(verifyResult.subtotal || verifyResult.invoice.subtotal) 
     : (isVatExempt ? totalAmount : Math.round(totalAmount / 1.18));
   const vatAmount = isVatExempt ? 0 : (verifyResult?.vat_amount !== undefined ? Number(verifyResult.vat_amount) : totalAmount - subtotal);
-  const isPaid = (verifyResult?.status === 'Paid' || verifyResult?.status === '100% Paid' || verifyResult?.status === 'Paid & Settled');
-  const paidAmount = isPaid ? totalAmount : Number(verifyResult?.paid_amount || verifyResult?.invoice?.paid_amount || 0);
-  const balanceDue = Math.max(0, totalAmount - paidAmount);
+  const isPaid = Boolean(
+    verifyResult?.status === 'Paid' || 
+    verifyResult?.status === '100% Paid' || 
+    verifyResult?.status === 'Paid & Settled' ||
+    String(verifyResult?.status || '').toLowerCase().includes('paid') ||
+    String(verifyResult?.status || '').toLowerCase().includes('cleared') ||
+    (Number(verifyResult?.paid_amount || 0) >= totalAmount && totalAmount > 0)
+  );
+  const rawPaidAmount = Number(verifyResult?.paid_amount || verifyResult?.invoice?.paid_amount || 0);
+  const paidAmount = isPaid ? Math.max(totalAmount, rawPaidAmount || totalAmount) : rawPaidAmount;
+  const balanceDue = isPaid ? 0 : Math.max(0, totalAmount - paidAmount);
 
   // Bank remittance accounts - strictly what is in database
   const bankAccounts = (Array.isArray(verifyResult?.bank_remittance) && verifyResult.bank_remittance.length > 0)
@@ -280,7 +288,7 @@ export default function VerifyDocumentPage({ setActivePage }) {
   const isWorkOrder = docTypeStr.includes('work order') || docNumStr.startsWith('WO');
   const isExpense = docTypeStr.includes('expense') || docTypeStr.includes('voucher') || docNumStr.startsWith('EXP');
   const isDeliveryNote = docTypeStr.includes('delivery') || docNumStr.startsWith('DN');
-  const isReceipt = docTypeStr.includes('receipt') || docNumStr.startsWith('REC');
+  const isReceipt = docTypeStr.includes('receipt') || docNumStr.startsWith('REC') || docNumStr.startsWith('TXN') || docTypeStr.includes('clearance');
   const isContract = docTypeStr.includes('contract') || docNumStr.startsWith('CNT') || docNumStr.startsWith('CON');
   const isTaxInvoice = !isQuotation && !isWorkOrder && !isExpense && !isDeliveryNote && !isReceipt && !isContract && (docTypeStr.includes('tax') || docTypeStr.includes('invoice') || docNumStr.startsWith('INV'));
 

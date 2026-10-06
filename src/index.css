@@ -6,13 +6,14 @@
   /* Light Theme Palette */
   --bg-main: #f8fafc;
   --bg-card: #ffffff;
+  --card-bg: #ffffff;
   --bg-card-hover: #f1f5f9;
-  --bg-glass: rgba(255, 255, 255, 0.65);
+  --bg-glass: rgba(255, 255, 255, 0.8);
   --text-main: #0f172a;
   --text-muted: #475569;
   --border-color: #cbd5e1;
 
-  /* Primary Brand: Dark Blue Theme */
+  /* Primary Brand */
   --primary: #1e3a8a;
   --primary-hover: #1e40af;
   --secondary: #0284c7;
@@ -29,19 +30,21 @@
 }
 
 [data-theme='dark'] {
-  --bg-main: #050a14;
-  --bg-card: #0c1527;
-  --bg-card-hover: #13223f;
-  --bg-glass: rgba(5, 10, 20, 0.65);
+  /* Modern Neutral Dark Slate Theme (gentle on eyes, eliminates harsh dark-blue tint) */
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --card-bg: #1e293b;
+  --bg-card-hover: #334155;
+  --bg-glass: rgba(30, 41, 59, 0.8);
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --border-color: #1e2e4a;
-  --primary: #2563eb;
-  --primary-hover: #3b82f6;
+  --border-color: #334155;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
   --accent-blue: #38bdf8;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
 
 * {

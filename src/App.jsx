@@ -67,8 +67,14 @@ const resolvePageFromLocation = () => {
   if (path === '/subscription') {
     return 'subscription';
   }
+  if (path === '/services') {
+    return 'services';
+  }
+  if (path === '/events') {
+    return 'events';
+  }
 
-  if (params.get('product') || params.get('item')) {
+  if (params.get('product') || (params.get('item') && path !== '/services')) {
     return 'shop';
   }
 

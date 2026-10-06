@@ -41,8 +41,9 @@ export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_D
       (typeof window !== 'undefined' && window.innerWidth <= 768)
     );
 
-    // On phone / mobile device or if forceDownload requested: download the actual PDF file directly
-    if (isMobile || forceDownload) {
+    // On phone / mobile device, forceDownload requested, or any receipt document: download / print directly (never hijack receipts to web verify!)
+    const isReceiptDoc = Boolean(fileName && (fileName.toLowerCase().includes('receipt') || fileName.toLowerCase().includes('pos_')));
+    if (isMobile || forceDownload || isReceiptDoc) {
       if (pdfDoc && typeof pdfDoc.save === 'function') {
         pdfDoc.save(fileName);
         return;
@@ -51,7 +52,7 @@ export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_D
 
     // On PC: Open directly in the browser via clean secure URL (no blob URL used!)
     let detectedDoc = docNumber;
-    if (!detectedDoc && fileName) {
+    if (!detectedDoc && fileName && !isReceiptDoc) {
       const match = fileName.match(/(INV-[A-Za-z0-9-]+|QTN-[A-Za-z0-9-]+|WO-[A-Za-z0-9-]+|EXP-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+|DN-[A-Za-z0-9-]+)/i);
       if (match) detectedDoc = match[1];
     }
@@ -2500,7 +2501,23 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   const dateStr = paymentData?.payment_date || paymentData?.created_at ? new Date(paymentData?.payment_date || paymentData?.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const customerName = sanitizePdfText(paymentData?.customer_name || paymentData?.party_name || paymentData?.party || 'Valued Customer');
   const methodStr = sanitizePdfText(paymentData?.payment_method || 'Electronic Transfer');
-  const isPaid = paymentData?.status === '100% Paid' || paymentData?.status === 'Paid & Settled' || paymentData?.status === 'Paid' || paymentData?.status === 'PAID';
+  const totalAmount = Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || paymentData?.amountPaid || paymentData?.totalPaid || 0);
+  const rawReceived = Number(
+    paymentData?.amount_paid || 
+    paymentData?.amountPaid || 
+    paymentData?.paid_amount || 
+    paymentData?.totalPaid || 
+    paymentData?.amount || 
+    0
+  );
+  const isPaid = paymentData?.status === '100% Paid' || 
+    paymentData?.status === 'Paid & Settled' || 
+    paymentData?.status === 'Paid' || 
+    paymentData?.status === 'PAID' || 
+    (rawReceived >= totalAmount && totalAmount > 0);
+
+  const amountReceived = isPaid ? Math.max(totalAmount, rawReceived || totalAmount) : rawReceived;
+  const balanceOutstanding = isPaid ? 0 : Math.max(0, totalAmount - amountReceived);
 
   const printMeta = (label, val) => {
     doc.setFont('TrebuchetMS', 'bold');
@@ -2567,38 +2584,36 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
   cursorY += 12;
 
-  // 6. Totals
-  const totalAmount = Number(paymentData?.amount || paymentData?.totalBilled || paymentData?.amount_due || paymentData?.amount_paid || paymentData?.amountPaid || paymentData?.totalPaid || 0);
-  const amountReceived = Number(
-    paymentData?.amount_paid || 
-    paymentData?.amountPaid || 
-    paymentData?.paid_amount || 
-    paymentData?.totalPaid || 
-    paymentData?.amount || 
-    totalAmount || 
-    0
-  );
+  // 6. Totals - Clean balance calculations (100% cleared = 0 balance)
 
   doc.setFontSize(8);
   doc.setFont('TrebuchetMS', 'bold');
   doc.setTextColor(71, 85, 105);
   doc.text("Total Document Amount:", margin, cursorY);
   doc.text(totalAmount.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 13;
+  cursorY += 12;
 
   doc.setTextColor(22, 163, 74); 
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
   doc.setFont('TrebuchetMS', 'bold');
   doc.text("Amount Received:", margin, cursorY);
   doc.text(amountReceived.toLocaleString() + ' UGX', receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 15;
+  cursorY += 12;
+
+  doc.setFontSize(8);
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setTextColor(balanceOutstanding > 0 ? 220 : 71, balanceOutstanding > 0 ? 38 : 85, balanceOutstanding > 0 ? 38 : 105);
+  doc.text("Balance Outstanding:", margin, cursorY);
+  doc.text(balanceOutstanding > 0 ? `${balanceOutstanding.toLocaleString()} UGX` : "0 UGX (Cleared)", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 13;
 
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(8);
+  doc.setFont('TrebuchetMS', 'bold');
   doc.text("Settlement Status:", margin, cursorY);
   doc.setTextColor(isPaid ? 22 : 217, isPaid ? 163 : 119, isPaid ? 74 : 6);
-  doc.text(isPaid ? "✓ 100% PAID" : "PARTIAL PAYMENT", receiptWidth - margin, cursorY, { align: 'right' });
-  cursorY += 16;
+  doc.text(isPaid ? "✓ 100% FULLY CLEARED" : "PARTIAL PAYMENT", receiptWidth - margin, cursorY, { align: 'right' });
+  cursorY += 15;
 
   doc.line(margin, cursorY, receiptWidth - margin, cursorY);
   cursorY += 14;
@@ -2647,9 +2662,32 @@ export async function generatePaymentReceipt80mmPDF(paymentData, options = {}) {
   doc.setFont('TrebuchetMS', 'normal');
   doc.text("Thank you for choosing Nova Cloud Edges!", center, cursorY, { align: 'center' });
 
-  // 8. Output
-  if (options.download !== false) {
-    openPdfInBrowser(doc, `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`, receiptNum, receipt?.security_key);
+  // 8. Output - Print or Download with 100% reliability
+  const receiptFileName = `Payment_Receipt_${receiptNum.replace(/\s+/g, '_')}.pdf`;
+  if (options.action === 'print' || options.forcePrint) {
+    if (typeof window !== 'undefined') {
+      try {
+        const blob = doc.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+        const printWindow = window.open(blobUrl, '_blank');
+        if (printWindow) {
+          printWindow.focus();
+          setTimeout(() => {
+            try { printWindow.print(); } catch (e) {}
+          }, 800);
+        } else {
+          doc.save(receiptFileName);
+        }
+      } catch (e) {
+        doc.save(receiptFileName);
+      }
+    }
+  } else if (options.download !== false) {
+    if (typeof doc.save === 'function') {
+      doc.save(receiptFileName);
+    } else {
+      openPdfInBrowser(doc, receiptFileName, '', '', true);
+    }
   }
   
   return doc;

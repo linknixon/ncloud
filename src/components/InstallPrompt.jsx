@@ -70,22 +70,60 @@ export default function InstallPrompt() {
     localStorage.setItem('pwa_prompt_dismissed_time', String(Date.now()));
   };
 
-  if (!showPrompt) return null;
+  const isAdminPath = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/admin') || 
+    window.location.search.includes('tab=') ||
+    window.location.hash.includes('admin')
+  );
+
+  if (isAdminPath || !showPrompt) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[9999] p-4 animate-slide-up pb-safe">
-      <div className="bg-slate-900 border border-slate-700/50 shadow-2xl rounded-2xl p-4 flex items-center justify-between gap-4 max-w-md mx-auto relative overflow-hidden backdrop-blur-xl bg-opacity-95">
-        
-        {/* Shine effect */}
-        <div className="absolute inset-0 w-full h-full bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none" />
-
-        <div className="flex items-center gap-4 z-10 flex-1">
-          <div className="bg-gradient-to-br from-cyan-500 to-blue-600 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
-            <Download size={24} className="text-white" />
+    <div style={{
+      position: 'fixed',
+      bottom: '18px',
+      left: '16px',
+      right: '16px',
+      zIndex: 99999,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      pointerEvents: 'none'
+    }}>
+      <div style={{
+        background: 'rgba(15, 23, 42, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        borderRadius: '16px',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        maxWidth: '440px',
+        width: '100%',
+        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        pointerEvents: 'auto',
+        color: '#ffffff'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)',
+            width: '42px',
+            height: '42px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(6, 182, 212, 0.35)'
+          }}>
+            <Download size={22} color="#ffffff" />
           </div>
-          <div>
-            <h3 className="text-white font-semibold text-sm m-0">Install Nova Cloud</h3>
-            <p className="text-slate-400 text-xs mt-0.5 leading-tight pr-2">
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: '800', margin: 0, color: '#ffffff' }}>Install Nova Cloud</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '2px 0 0 0', lineHeight: '1.3' }}>
               {isIOS 
                 ? 'Tap Share below, then "Add to Home Screen"' 
                 : 'Install for a faster, app-like experience'}
@@ -93,18 +131,39 @@ export default function InstallPrompt() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 z-10 shrink-0">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {!isIOS && (
             <button
               onClick={handleInstallClick}
-              className="bg-white hover:bg-slate-100 text-slate-900 text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
+              style={{
+                background: '#ffffff',
+                color: '#0f172a',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+              }}
             >
               Install
             </button>
           )}
           <button
             onClick={handleDismiss}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 transition-colors shrink-0"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              color: '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
             aria-label="Dismiss"
           >
             <X size={16} />
@@ -112,10 +171,10 @@ export default function InstallPrompt() {
         </div>
       </div>
       
-      {/* iOS Pointer if needed */}
+      {/* iOS Pointer */}
       {isIOS && (
-        <div className="flex justify-center mt-2 animate-bounce">
-          <Share size={20} className="text-white/50" />
+        <div style={{ marginTop: '6px', opacity: 0.7, pointerEvents: 'auto' }}>
+          <Share size={20} color="#ffffff" />
         </div>
       )}
     </div>

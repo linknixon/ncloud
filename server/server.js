@@ -566,6 +566,7 @@ const memoryStore = {
         invoices: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         quotations: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         work_orders: { create: true, read: true, update: true, delete: true, approve: true, share: true },
+        contacts: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         payments: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         expenses: { create: true, read: true, update: true, delete: true, approve: true, share: true },
         hr: { create: true, read: true, update: true, delete: true, approve: true, share: true },
@@ -591,6 +592,7 @@ const memoryStore = {
         invoices: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         quotations: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         payments: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         expenses: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         hr: { create: false, read: false, update: false, delete: false, approve: false, share: false },
@@ -616,6 +618,7 @@ const memoryStore = {
         invoices: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         quotations: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         work_orders: { create: true, read: true, update: true, delete: false, approve: true, share: true },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         payments: { create: true, read: true, update: true, delete: false, approve: true, share: true },
         expenses: { create: true, read: true, update: true, delete: false, approve: true, share: true },
         hr: { create: true, read: true, update: true, delete: true, approve: true, share: true },
@@ -641,6 +644,7 @@ const memoryStore = {
         invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: true },
+        contacts: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         expenses: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         hr: { create: false, read: true, update: false, delete: false, approve: false, share: true },
@@ -666,6 +670,7 @@ const memoryStore = {
         invoices: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         quotations: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         work_orders: { create: false, read: true, update: true, delete: false, approve: false, share: false },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         payments: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         expenses: { create: true, read: true, update: false, delete: false, approve: false, share: false },
         hr: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -691,6 +696,7 @@ const memoryStore = {
         invoices: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         quotations: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         work_orders: { create: false, read: false, update: false, delete: false, approve: false, share: false },
+        contacts: { create: true, read: false, update: false, delete: false, approve: false, share: false },
         payments: { create: false, read: true, update: false, delete: false, approve: false, share: true },
         expenses: { create: false, read: false, update: false, delete: false, approve: false, share: false },
         hr: { create: false, read: false, update: false, delete: false, approve: false, share: false },
@@ -716,6 +722,7 @@ const memoryStore = {
         invoices: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         quotations: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         work_orders: { create: false, read: true, update: false, delete: false, approve: false, share: false },
+        contacts: { create: true, read: true, update: true, delete: false, approve: false, share: true },
         payments: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         expenses: { create: false, read: true, update: false, delete: false, approve: false, share: false },
         hr: { create: false, read: true, update: false, delete: false, approve: false, share: false },
@@ -823,10 +830,12 @@ function ensureIntegrationsWithEnvFallback(integrations = []) {
 
   // 1. UniFi Network Controller fallback from environment
   const envUnifiKey = process.env.UNIFI_API_KEY || process.env.UBIQUITI_API_KEY;
-  const envUnifiHost = process.env.UNIFI_HOST_URL || process.env.UNIFI_BASE_URL || process.env.UBIQUITI_HOST || 'https://unifi.ncloud.co.ug';
+  const envUnifiHost = process.env.UNIFI_HOST_URL || process.env.UNIFI_BASE_URL || process.env.UBIQUITI_HOST || '';
   const envUnifiSite = process.env.UNIFI_SITE_ID || 'default';
+  const envUnifiGateway = process.env.UNIFI_GATEWAY_URL || process.env.UNIFI_CONTROLLER_URL || '';
+  const envUnifiApiPath = process.env.UNIFI_API_PATH || '';
 
-  if (envUnifiKey) {
+  if (envUnifiKey || envUnifiHost || envUnifiGateway) {
     let unifi = result.find(a => 
       a.id === 'unifi_api' || a.id === 'unifi_controller' || 
       (a.provider && a.provider.toLowerCase().includes('ubiquiti')) ||
@@ -841,20 +850,24 @@ function ensureIntegrationsWithEnvFallback(integrations = []) {
         type: 'network',
         status: 'active',
         client_id: envUnifiSite,
-        client_secret: envUnifiKey,
-        api_key: envUnifiKey,
+        client_secret: envUnifiKey || '',
+        api_key: envUnifiKey || '',
         host_url: envUnifiHost,
         site_id: envUnifiSite,
+        gateway_url: envUnifiGateway,
+        api_path: envUnifiApiPath,
         last_updated: new Date().toISOString()
       };
       result.push(unifi);
     } else {
-      if (!unifi.client_secret && !unifi.api_key) {
+      if (!unifi.client_secret && !unifi.api_key && envUnifiKey) {
         unifi.client_secret = envUnifiKey;
         unifi.api_key = envUnifiKey;
       }
-      if (!unifi.host_url) unifi.host_url = envUnifiHost;
+      if (!unifi.host_url && envUnifiHost) unifi.host_url = envUnifiHost;
       if (!unifi.site_id) unifi.site_id = envUnifiSite;
+      if (!unifi.gateway_url && envUnifiGateway) unifi.gateway_url = envUnifiGateway;
+      if (!unifi.api_path && envUnifiApiPath) unifi.api_path = envUnifiApiPath;
     }
   }
 
@@ -2936,6 +2949,7 @@ function requireCRUDAS(req, res, next) {
   else if (path.includes('/roles') || path.includes('/users')) module = 'roles';
   else if (path.includes('/store') || path.includes('/product-categories')) module = 'store';
   else if (path.includes('/subscriptions') || path.includes('/customer-credits')) module = 'subscriptions';
+  else if (path.includes('/tickets') || path.includes('/contacts')) module = 'contacts';
   else if (path.includes('settings') || path.includes('security') || path.includes('/overview') || path.includes('/forensics') || path.includes('/sliders') || path.includes('/banner-settings') || path.includes('/notification-emails') || path.includes('/smtp-settings') || path.includes('/partners') || path.includes('/reports/analytics')) module = 'settings';
   
   if (!module) return res.status(403).json({ error: 'Module access restricted.' });
@@ -2945,7 +2959,8 @@ function requireCRUDAS(req, res, next) {
   if (req.method === 'PUT' || req.method === 'PATCH') action = 'update';
   if (req.method === 'DELETE') action = 'delete';
 
-  if (role.permissions[module] && role.permissions[module][action]) {
+  const modPerms = role.permissions[module] || (module === 'contacts' ? role.permissions['helpdesk'] : null);
+  if (modPerms && modPerms[action]) {
     return next();
   }
 
@@ -4222,6 +4237,7 @@ app.get('/api/admin/contracts', (req, res) => {
 });
 
 app.post('/api/admin/contracts/dispatch', async (req, res) => {
+  const payload = req.body.contractData || req.body || {};
   const {
     ref,
     appointee_name,
@@ -4231,15 +4247,21 @@ app.post('/api/admin/contracts/dispatch', async (req, res) => {
     effective_date,
     expiry_date,
     remuneration,
+    base_retainer,
     scope_of_work,
+    primary_platforms,
     mode_of_operation,
     core_duties,
     remuneration_details,
     tenure_details,
     notes
-  } = req.body;
+  } = payload;
 
-  if (!appointee_name || !designation) {
+  const appointee = appointee_name || payload.applicant_name;
+  const desig = designation || payload.position;
+  const recipientEmail = req.body.recipient_email || email || payload.recipient_email || '';
+
+  if (!appointee || !desig) {
     return res.status(400).json({ error: 'Appointee name and designation are required.' });
   }
 
@@ -4247,14 +4269,18 @@ app.post('/api/admin/contracts/dispatch', async (req, res) => {
   const newContract = {
     id: Date.now(),
     ref: contractRef,
-    appointee_name,
-    telephone: telephone || '',
-    email: email || '',
-    designation,
+    contract_ref: contractRef,
+    appointee_name: appointee,
+    telephone: telephone || payload.phone || '',
+    email: recipientEmail,
+    recipient_email: recipientEmail,
+    designation: desig,
     effective_date: effective_date || new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
     expiry_date: expiry_date || '3 Months (Renewable)',
-    remuneration: remuneration || 'UGX 100,000 / Month',
-    scope_of_work: scope_of_work || '',
+    remuneration: remuneration || base_retainer || 'UGX 100,000 / Month',
+    base_retainer: remuneration || base_retainer || 'UGX 100,000 / Month',
+    scope_of_work: scope_of_work || primary_platforms || '',
+    primary_platforms: scope_of_work || primary_platforms || '',
     mode_of_operation: mode_of_operation || '',
     core_duties: core_duties || '',
     remuneration_details: remuneration_details || '',
@@ -4262,6 +4288,7 @@ app.post('/api/admin/contracts/dispatch', async (req, res) => {
     notes: notes || '',
     status: 'Dispatched & Active',
     created_at: new Date().toISOString(),
+    dispatched_at: new Date().toISOString(),
     dispatched_by: req.headers['x-user-email'] || 'HR Department'
   };
 
@@ -5184,14 +5211,16 @@ async function sendManualSubscriptionReminder(sub) {
     : `Subscription Expiry Notice (${daysRemaining > 0 ? daysRemaining + ' Days Left' : 'Due Today'})`;
   const badgeText = isExpired ? 'EXPIRED SUBSCRIPTION' : (daysRemaining <= 3 ? 'URGENT RENEWAL' : 'RENEWAL ADVISORY');
 
+    const domainPolicyNote = `<div style="margin-top: 15px; padding: 12px 16px; background-color: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; font-size: 13px; color: #92400e; line-height: 1.5;"><strong>Important Notice on Domain Names:</strong> Please note that Domain Names will not be extended in this case unless renewal payment is made.</div>`;
+
   const emailHtml = generateCorporateEmailHtml({
     title,
     preheader: `Ref #${sub.reference || sub.id} • Expiry Date: ${sub.expiry_date}`,
     recipientName: sub.customer_name || 'Valued Customer',
     badgeText,
-    introText: isExpired
+    introText: (isExpired
       ? `This is a formal advisory regarding your subscription for <strong>${sub.plan_name}</strong> which expired on <strong>${sub.expiry_date}</strong>.<br/><br/>Please process your renewal order to reactivate full enterprise service.`
-      : `This is an official advance reminder regarding your subscription for <strong>${sub.plan_name}</strong> which is scheduled to expire on <strong>${sub.expiry_date}</strong> (<strong>${daysRemaining} days remaining</strong>).<br/><br/>To ensure continuous, uninterrupted uptime, please review and settle your renewal package.`,
+      : `This is an official advance reminder regarding your subscription for <strong>${sub.plan_name}</strong> which is scheduled to expire on <strong>${sub.expiry_date}</strong> (<strong>${daysRemaining} days remaining</strong>).<br/><br/>To ensure continuous, uninterrupted uptime, please review and settle your renewal package.`) + `<br/>${domainPolicyNote}`,
     itemsRows: `
       <tr>
         <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
@@ -5208,8 +5237,10 @@ async function sendManualSubscriptionReminder(sub) {
     hidePaymentMethods: false
   });
 
+  const sendRecipients = [recipientEmail, 'support@ncloud.co.ug'].filter(Boolean).join(', ');
+
   await sendMail({
-    to: recipientEmail,
+    to: sendRecipients,
     subject: `${badgeText}: ${sub.plan_name} Expiry Notification (${sub.expiry_date})`,
     html: emailHtml
   });
@@ -5218,7 +5249,7 @@ async function sendManualSubscriptionReminder(sub) {
   sub.reminders_sent['manual_' + Date.now()] = new Date().toISOString();
   savePersistentStore();
 
-  return { success: true, recipient: recipientEmail, daysRemaining };
+  return { success: true, recipient: sendRecipients, daysRemaining };
 }
 
 // Run lifecycle check at boot (after 5 seconds) and every 2 hours
@@ -5767,23 +5798,81 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
   });
 });
 
+// Helper to resolve support ticket from memoryStore or MySQL database
+const resolveTicketById = async (id) => {
+  if (!id) return { ticket: null, ticketIdx: -1 };
+  let ticketIdx = (memoryStore.contacts || []).findIndex(
+    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
+  );
+  if (ticketIdx !== -1) {
+    return { ticket: memoryStore.contacts[ticketIdx], ticketIdx };
+  }
+  // Try querying MySQL database
+  const contactDb = await query('SELECT * FROM contacts WHERE id = ? OR ticket_number = ?', [id, id]).catch(() => null);
+  if (contactDb && contactDb.success && contactDb.data && contactDb.data.length > 0) {
+    const rawTicket = contactDb.data[0];
+    let timeline = [];
+    if (typeof rawTicket.timeline === 'string') {
+      try { timeline = JSON.parse(rawTicket.timeline); } catch {}
+    } else if (Array.isArray(rawTicket.timeline)) {
+      timeline = rawTicket.timeline;
+    } else if (typeof rawTicket.history === 'string') {
+      try { timeline = JSON.parse(rawTicket.history); } catch {}
+    } else if (Array.isArray(rawTicket.history)) {
+      timeline = rawTicket.history;
+    }
+    const hydratedTicket = {
+      ...rawTicket,
+      timeline
+    };
+    if (!Array.isArray(memoryStore.contacts)) memoryStore.contacts = [];
+    memoryStore.contacts.unshift(hydratedTicket);
+    return { ticket: hydratedTicket, ticketIdx: 0 };
+  }
+  return { ticket: null, ticketIdx: -1 };
+};
+
 // 2. Eligible Staff Engineers for Assignment
 app.get('/api/admin/tickets/engineers', (req, res) => {
-  const eligible = (memoryStore.users || []).filter(u => 
-    u.role === 'staff' || 
-    u.role === 'super_admin' || 
-    u.role === 'admin' || 
-    u.role === 'sales_admin' ||
-    (u.position && /engineer|technician|specialist|support|operations|infrastructure/i.test(u.position))
-  ).map(u => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    position: u.position || (u.role === 'staff' ? 'Engineering Staff Specialist' : 'Technical Specialist'),
-    phone: u.phone || ''
-  }));
-  res.json(eligible);
+  const list = [];
+  const seenIds = new Set();
+  const seenEmails = new Set();
+
+  (memoryStore.users || []).forEach(u => {
+    if (!u || u.role === 'customer' || u.status === 'Suspended') return;
+    const idKey = String(u.id);
+    const emailKey = (u.email || '').toLowerCase().trim();
+    if (seenIds.has(idKey) || (emailKey && seenEmails.has(emailKey))) return;
+    seenIds.add(idKey);
+    if (emailKey) seenEmails.add(emailKey);
+    list.push({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      position: u.position || (u.role === 'super_admin' ? 'Super Administrator' : u.role === 'sales_admin' ? 'Sales Administrator' : u.role === 'wifi_noc' ? 'WiFi / NOC Engineer' : u.role === 'web_admin' ? 'Web Systems Admin' : u.role === 'staff' ? 'Engineering Staff Specialist' : 'Technical Specialist'),
+      phone: u.phone || ''
+    });
+  });
+
+  (memoryStore.team || []).forEach((t, idx) => {
+    if (!t) return;
+    const emailKey = (t.email || `${t.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@ncedges.com`).toLowerCase().trim();
+    const idKey = String(t.id || `team_${idx + 1}`);
+    if (seenIds.has(idKey) || (emailKey && seenEmails.has(emailKey))) return;
+    seenIds.add(idKey);
+    if (emailKey) seenEmails.add(emailKey);
+    list.push({
+      id: t.id || `team_${idx + 1}`,
+      name: t.name,
+      email: emailKey,
+      role: 'staff',
+      position: t.role || t.position || 'Operations / Technical Specialist',
+      phone: t.phone || ''
+    });
+  });
+
+  res.json(list);
 });
 
 // 3. Admin / Staff Create Support Ticket Directly Inside System
@@ -5803,6 +5892,12 @@ app.post('/api/admin/tickets', async (req, res) => {
   let assignedEngineer = null;
   if (assigned_to_id) {
     assignedEngineer = (memoryStore.users || []).find(u => String(u.id) === String(assigned_to_id));
+    if (!assignedEngineer) {
+      const tm = (memoryStore.team || []).find(t => String(t.id) === String(assigned_to_id));
+      if (tm) {
+        assignedEngineer = { id: tm.id, name: tm.name, email: tm.email || 'support@ncloud.co.ug', position: tm.role || 'Specialist' };
+      }
+    }
   }
 
   const nowIso = new Date().toISOString();
@@ -5838,14 +5933,20 @@ app.post('/api/admin/tickets', async (req, res) => {
   if (!Array.isArray(memoryStore.contacts)) memoryStore.contacts = [];
   memoryStore.contacts.unshift(newTicket);
 
+  await query('ALTER TABLE contacts MODIFY COLUMN assigned_to_id BIGINT NULL').catch(() => {});
+
   await query(
-    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, assigned_to_id, assigned_to_name, assigned_to_email, assigned_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin_created', ?, ?, ?, ?, ?)`,
+    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, assigned_to_id, assigned_to_name, assigned_to_email, assigned_at, history, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin_created', ?, ?, ?, ?, ?, ?)`,
     [
       ticketNumber, name, email, phone || '', subject || 'Technical Support Request',
       message, finalCategory, finalPriority, finalStatus,
-      newTicket.assigned_to_id, newTicket.assigned_to_name, newTicket.assigned_to_email,
-      newTicket.assigned_at ? new Date(newTicket.assigned_at) : null, new Date(nowIso)
+      (typeof newTicket.assigned_to_id === 'number' || /^\d+$/.test(newTicket.assigned_to_id)) ? newTicket.assigned_to_id : null,
+      newTicket.assigned_to_name,
+      newTicket.assigned_to_email,
+      newTicket.assigned_at ? new Date(newTicket.assigned_at) : null,
+      JSON.stringify(newTicket.timeline),
+      new Date(nowIso)
     ]
   ).catch(e => console.warn('[DB Note] Inserting admin ticket:', e.message));
 
@@ -5920,27 +6021,55 @@ app.post('/api/admin/contacts', (req, res, next) => {
 // 4. Assign Support Ticket to an Engineer (with Email Notification - NO BILLING DETAILS)
 const handleTicketAssignment = async (req, res) => {
   const { id } = req.params;
-  const { engineer_id, note, notify_engineer = true, notify_customer = true } = req.body;
+  const { engineer_id, engineer_name, engineer_email, engineer_position, note, notify_engineer = true, notify_customer = true } = req.body;
 
   if (!engineer_id) {
     return res.status(400).json({ error: 'Engineer ID is required for ticket assignment.' });
   }
 
-  const engineer = (memoryStore.users || []).find(u => String(u.id) === String(engineer_id));
+  // 1. Resolve Engineer: Look in memoryStore.users, memoryStore.team, MySQL users, or client metadata
+  let engineer = (memoryStore.users || []).find(u => String(u.id) === String(engineer_id));
   if (!engineer) {
-    return res.status(404).json({ error: 'Assigned staff engineer was not found.' });
+    const tm = (memoryStore.team || []).find(t => String(t.id) === String(engineer_id) || (t.name && engineer_name && t.name.toLowerCase() === engineer_name.toLowerCase()));
+    if (tm) {
+      engineer = {
+        id: tm.id,
+        name: tm.name,
+        email: tm.email || engineer_email || 'support@ncloud.co.ug',
+        role: 'staff',
+        position: tm.role || tm.position || 'Operations / Technical Specialist'
+      };
+    }
   }
 
-  const ticketIdx = (memoryStore.contacts || []).findIndex(
-    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
-  );
-  if (ticketIdx === -1) {
+  if (!engineer) {
+    const userDb = await query('SELECT * FROM users WHERE id = ? OR email = ?', [engineer_id, engineer_email || '']).catch(() => null);
+    if (userDb && userDb.success && userDb.data && userDb.data.length > 0) {
+      engineer = userDb.data[0];
+    }
+  }
+
+  if (!engineer && engineer_name) {
+    engineer = {
+      id: engineer_id,
+      name: engineer_name,
+      email: engineer_email || 'support@ncloud.co.ug',
+      role: 'staff',
+      position: engineer_position || 'Technical Specialist'
+    };
+  }
+
+  if (!engineer) {
+    return res.status(404).json({ error: 'Assigned staff engineer was not found in registered accounts.' });
+  }
+
+  // 2. Resolve Ticket
+  const { ticket } = await resolveTicketById(id);
+  if (!ticket) {
     return res.status(404).json({ error: 'Ticket not found.' });
   }
 
-  const ticket = memoryStore.contacts[ticketIdx];
   const nowIso = new Date().toISOString();
-
   ticket.assigned_to_id = engineer.id;
   ticket.assigned_to_name = engineer.name;
   ticket.assigned_to_email = engineer.email;
@@ -5949,19 +6078,37 @@ const handleTicketAssignment = async (req, res) => {
     ticket.status = 'in_progress';
   }
 
-  if (!Array.isArray(ticket.timeline)) ticket.timeline = [];
+  if (!Array.isArray(ticket.timeline)) {
+    if (typeof ticket.history === 'string') {
+      try { ticket.timeline = JSON.parse(ticket.history); } catch { ticket.timeline = []; }
+    } else {
+      ticket.timeline = [];
+    }
+  }
   ticket.timeline.push({
     timestamp: nowIso,
     action: 'ASSIGNED',
     actor: req.body.assigned_by || 'Administrator',
-    note: `Assigned to Engineer ${engineer.name} (${engineer.position || 'Specialist'}). ${note || ''}`.trim()
+    note: `Assigned to ${engineer.name} (${engineer.position || 'Specialist'}). ${note || ''}`.trim()
   });
+
+  // Ensure assigned_to_id can handle bigint/large timestamp IDs
+  await query('ALTER TABLE contacts MODIFY COLUMN assigned_to_id BIGINT NULL').catch(() => {});
 
   await query(
     `UPDATE contacts 
-     SET assigned_to_id = ?, assigned_to_name = ?, assigned_to_email = ?, assigned_at = ?, status = ?
+     SET assigned_to_id = ?, assigned_to_name = ?, assigned_to_email = ?, assigned_at = ?, status = ?, history = ?
      WHERE id = ? OR ticket_number = ?`,
-    [engineer.id, engineer.name, engineer.email, new Date(nowIso), ticket.status, id, id]
+    [
+      (typeof engineer.id === 'number' || /^\d+$/.test(engineer.id)) ? engineer.id : null,
+      engineer.name,
+      engineer.email,
+      new Date(nowIso),
+      ticket.status,
+      JSON.stringify(ticket.timeline),
+      id,
+      id
+    ]
   ).catch(e => console.warn('[DB Note] Updating ticket assignment:', e.message));
 
   savePersistentStore();
@@ -6043,15 +6190,11 @@ const handleTicketStatusUpdate = async (req, res) => {
   }
 
   const normalizedStatus = (status === 'complete') ? 'resolved' : (status === 'replied' ? 'in_progress' : status);
-
-  const ticketIdx = (memoryStore.contacts || []).findIndex(
-    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
-  );
-  if (ticketIdx === -1) {
+  const { ticket } = await resolveTicketById(id);
+  if (!ticket) {
     return res.status(404).json({ error: 'Ticket not found.' });
   }
 
-  const ticket = memoryStore.contacts[ticketIdx];
   const nowIso = new Date().toISOString();
   ticket.status = normalizedStatus;
 
@@ -6072,8 +6215,8 @@ const handleTicketStatusUpdate = async (req, res) => {
   });
 
   await query(
-    `UPDATE contacts SET status = ?, closed_at = ?, closed_by = ? WHERE id = ? OR ticket_number = ?`,
-    [normalizedStatus, ticket.closed_at ? new Date(ticket.closed_at) : null, ticket.closed_by, id, id]
+    `UPDATE contacts SET status = ?, closed_at = ?, closed_by = ?, history = ? WHERE id = ? OR ticket_number = ?`,
+    [normalizedStatus, ticket.closed_at ? new Date(ticket.closed_at) : null, ticket.closed_by, JSON.stringify(ticket.timeline), id, id]
   ).catch(e => console.warn('[DB Note] Updating ticket status:', e.message));
 
   savePersistentStore();
@@ -6127,14 +6270,11 @@ const handleTicketPriorityUpdate = async (req, res) => {
   }
 
   const finalPriority = String(priority).toLowerCase();
-  const ticketIdx = (memoryStore.contacts || []).findIndex(
-    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
-  );
-  if (ticketIdx === -1) {
+  const { ticket } = await resolveTicketById(id);
+  if (!ticket) {
     return res.status(404).json({ error: 'Ticket not found.' });
   }
 
-  const ticket = memoryStore.contacts[ticketIdx];
   const nowIso = new Date().toISOString();
   ticket.priority = finalPriority;
 
@@ -6146,7 +6286,7 @@ const handleTicketPriorityUpdate = async (req, res) => {
     note: `Priority changed to ${finalPriority.toUpperCase()}`
   });
 
-  await query('UPDATE contacts SET priority = ? WHERE id = ? OR ticket_number = ?', [finalPriority, id, id]).catch(() => {});
+  await query('UPDATE contacts SET priority = ?, history = ? WHERE id = ? OR ticket_number = ?', [finalPriority, JSON.stringify(ticket.timeline), id, id]).catch(() => {});
   savePersistentStore();
 
   res.json({
@@ -6168,14 +6308,11 @@ const handleTicketReply = async (req, res) => {
     return res.status(400).json({ error: 'Response message is required.' });
   }
 
-  const ticketIdx = (memoryStore.contacts || []).findIndex(
-    c => String(c.id) === String(id) || String(c.ticket_number) === String(id)
-  );
-  if (ticketIdx === -1) {
+  const { ticket } = await resolveTicketById(id);
+  if (!ticket) {
     return res.status(404).json({ error: 'Ticket inquiry not found.' });
   }
 
-  const ticket = memoryStore.contacts[ticketIdx];
   const repliedAt = new Date().toISOString();
 
   // Send email to customer with Ticket Number in Subject & NO BILLING DETAILS
@@ -6226,8 +6363,8 @@ const handleTicketReply = async (req, res) => {
   });
 
   await query(
-    'UPDATE contacts SET status = ?, response = ?, replied_at = ? WHERE id = ? OR ticket_number = ?',
-    [ticket.status, response, new Date(repliedAt), id, id]
+    'UPDATE contacts SET status = ?, response = ?, replied_at = ?, history = ? WHERE id = ? OR ticket_number = ?',
+    [ticket.status, response, new Date(repliedAt), JSON.stringify(ticket.timeline), id, id]
   ).catch(e => console.warn('[DB Note] Updating ticket reply:', e.message));
 
   savePersistentStore();
@@ -6354,6 +6491,7 @@ app.get('/api/admin/overview', async (req, res) => {
     services,
     partners: memoryStore.partners || [],
     news: memoryStore.news || [],
+    events: memoryStore.events || [],
     team: memoryStore.team,
     jobs: allJobs,
     users: isCust ? memoryStore.users.filter(u => (u.email || '').toLowerCase() === cMail) : memoryStore.users,
@@ -8176,25 +8314,29 @@ function getActiveUniFiIntegration() {
   const envKey = process.env.UNIFI_API_KEY || process.env.UBIQUITI_API_KEY;
   const envHost = process.env.UNIFI_HOST_URL || process.env.UNIFI_BASE_URL || process.env.UBIQUITI_HOST;
   const envSite = process.env.UNIFI_SITE_ID;
+  const envGateway = process.env.UNIFI_GATEWAY_URL || process.env.UNIFI_CONTROLLER_URL;
+  const envApiPath = process.env.UNIFI_API_PATH;
 
   if (!integration) {
-    if (envKey) {
+    if (envKey || envHost || envGateway) {
       integration = {
         id: 'unifi_api',
         name: 'UniFi OS Network Integration',
         provider: 'Ubiquiti',
         type: 'network',
         status: 'active',
-        client_secret: envKey,
-        api_key: envKey,
-        host_url: envHost || 'https://unifi.ncloud.co.ug',
+        client_secret: envKey || '',
+        api_key: envKey || '',
+        host_url: envHost || '',
         site_id: envSite || 'default',
+        gateway_url: envGateway || '',
+        api_path: envApiPath || '',
         last_updated: new Date().toISOString()
       };
       if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
       memoryStore.api_integrations.push(integration);
     } else {
-      throw new Error('UniFi API integration has been deleted or is not configured. Please add it under Settings > API & Integrations or specify UNIFI_API_KEY in .env.');
+      throw new Error('UniFi API integration is not configured. Please add it under Settings > API Integrations or specify UNIFI_HOST_URL and UNIFI_API_KEY in environment variables.');
     }
   }
   
@@ -8204,12 +8346,22 @@ function getActiveUniFiIntegration() {
 
   const apiKey = integration.client_secret || integration.api_key || envKey || '';
   const siteId = integration.site_id || envSite || 'default';
-  const rawHost = integration.host_url || envHost || 'https://unifi.ncloud.co.ug';
+  const rawHost = (integration.host_url || envHost || '').trim();
   const cleanHost = rawHost.replace(/\/+$/, '');
-  const baseUrl = `${cleanHost}/proxy/network/integration/v1/sites/${siteId}`;
+
+  // 100% dynamic gateway base URL resolution without hardcoded endpoints
+  let baseUrl = '';
+  if (integration.gateway_url || envGateway) {
+    baseUrl = (integration.gateway_url || envGateway).replace(/\/+$/, '');
+  } else if (cleanHost) {
+    const customApiPath = (integration.api_path || envApiPath || `/proxy/network/integration/v1/sites/${siteId}`).replace(/^\/+/, '');
+    baseUrl = `${cleanHost}/${customApiPath}`;
+  } else {
+    throw new Error('UniFi Gateway Host URL is not configured. Please set the Host URL or Gateway URL in Admin Dashboard > Settings > API Integrations, or in .env via UNIFI_HOST_URL.');
+  }
 
   if (!apiKey) {
-    throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API & Integrations or in .env as UNIFI_API_KEY.');
+    throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API Integrations or in .env as UNIFI_API_KEY.');
   }
 
   return { integration, apiKey, siteId, hostUrl: cleanHost, baseUrl };
@@ -8571,10 +8723,11 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
   const voucher = memoryStore.unifi_vouchers[vIndex];
   
   try {
-    // Delete from UniFi controller directly using its ID
-    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${voucher.id}`, {
+    // Delete from UniFi controller directly using active integration
+    const unifi = getActiveUniFiIntegration();
+    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers/${voucher.id}`, {
       method: 'DELETE',
-      headers: { 'X-API-KEY': UNIFI_API_KEY }
+      headers: { 'X-API-KEY': unifi.apiKey }
     });
     
     // We ignore 404s from UniFi (it might have already been deleted there)
@@ -8589,7 +8742,7 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
     res.json({ success: true, message: 'Voucher revoked from UniFi and Nova' });
   } catch (err) {
     console.error('Error revoking UniFi voucher:', err);
-    res.status(500).json({ error: 'Failed to revoke voucher: ' + err.message });
+    res.status(400).json({ error: 'Failed to revoke voucher: ' + err.message });
   }
 });
 
@@ -8754,17 +8907,26 @@ app.delete('/api/admin/wifi/vouchers/:id', async (req, res) => {
   const idx = (memoryStore.unifi_vouchers || []).findIndex(item => item.id == id);
   if (idx === -1) return res.status(404).json({ error: 'Voucher not found' });
 
-  // Delete from UniFi first
+  // Delete from UniFi first if active
   try {
-    const response = await fetch(`${UNIFI_BASE_URL}/hotspot/vouchers/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'X-API-KEY': UNIFI_API_KEY,
-        'Content-Type': 'application/json'
+    let unifi = null;
+    try {
+      unifi = getActiveUniFiIntegration();
+    } catch (e) {
+      console.warn(`[UniFi] Integration suspended or inactive (${e.message}). Skipping remote UniFi deletion.`);
+    }
+
+    if (unifi && unifi.baseUrl && unifi.apiKey) {
+      const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-API-KEY': unifi.apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${await response.text()}`);
       }
-    });
-    if (!response.ok) {
-      console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${await response.text()}`);
     }
   } catch (e) {
     console.error('[UniFi] Error communicating with UniFi API for deletion:', e.message);
@@ -8982,6 +9144,12 @@ app.get([
     const secKey = generateDocSecurityKey(inv.invoice_number || inv.id);
     const isAuth = authStatus.authorized;
 
+    const isPaid = (inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled');
+    const totalAmt = Number(inv.amount || 0);
+    const rawPaid = Number(inv.paid_amount || 0);
+    const paidAmt = isPaid ? Math.max(totalAmt, rawPaid || totalAmt) : rawPaid;
+    const balanceDue = isPaid ? 0 : Math.max(0, totalAmt - paidAmt);
+
     return res.json({
       verified: true,
       document_type: 'Official Tax Invoice',
@@ -9001,19 +9169,63 @@ app.get([
       include_vat: inv.include_vat,
       vat_exempt: inv.vat_exempt,
       vat_amount: inv.vat_amount,
-      total_amount: Number(inv.amount),
+      total_amount: totalAmt,
+      paid_amount: paidAmt,
+      balance_due: balanceDue,
       currency: 'UGX',
-      status: inv.status,
+      status: isPaid ? '100% Paid' : (inv.status || 'Pending Clearance'),
       due_date: inv.due_date,
       issued_date: inv.created_at,
       issuer: 'Nova Cloud Edges (U) Limited',
-      invoice: isAuth ? { ...inv, security_key: secKey } : {
+      invoice: isAuth ? { ...inv, security_key: secKey, paid_amount: paidAmt, balance_due: balanceDue } : {
         ...inv,
+        paid_amount: paidAmt,
+        balance_due: balanceDue,
         customer_name: maskCustomerName(inv.customer_name),
         customer_email: maskCustomerEmail(inv.customer_email),
         customer_phone: maskCustomerPhone(inv.customer_phone),
         customer_address: maskCustomerAddress(inv.customer_address)
       },
+      bank_remittance: memoryStore.bank_accounts || []
+    });
+  }
+
+  // 1b. Search Payments & Payment Receipts
+  const allPayments = [...(memoryStore.payments || []), ...(memoryStore.client_payments || [])];
+  const pmt = allPayments.find(p =>
+    String(p.id).toLowerCase() === searchRef ||
+    (p.reference || '').trim().toLowerCase() === searchRef ||
+    (p.receipt_ref || '').trim().toLowerCase() === searchRef ||
+    (p.transaction_id || '').trim().toLowerCase() === searchRef
+  );
+  if (pmt) {
+    const pmtRef = pmt.reference || pmt.receipt_ref || `REC-${pmt.id}`;
+    const authStatus = checkDocAuthorization(req, pmt, pmtRef);
+    const secKey = generateDocSecurityKey(pmtRef);
+    const isAuth = authStatus.authorized;
+    const pmtAmount = Number(pmt.amount_paid || pmt.amount || pmt.paid_amount || 0);
+
+    return res.json({
+      verified: true,
+      document_type: 'Official Payment Clearance Receipt',
+      document_number: pmtRef,
+      invoice_number: pmt.invoice_number || 'N/A',
+      is_masked: !isAuth,
+      requires_unlock: !isAuth,
+      authenticated: isAuth,
+      security_key: isAuth ? secKey : undefined,
+      customer_name: isAuth ? (pmt.customer_name || pmt.party_name || pmt.party || 'Valued Client') : maskCustomerName(pmt.customer_name || pmt.party_name),
+      customer_email: isAuth ? (pmt.customer_email || pmt.party_email || '') : maskCustomerEmail(pmt.customer_email || pmt.party_email),
+      customer_phone: isAuth ? (pmt.customer_phone || '') : maskCustomerPhone(pmt.customer_phone),
+      total_amount: pmtAmount,
+      paid_amount: pmtAmount,
+      balance_due: 0,
+      currency: 'UGX',
+      status: '100% Paid & Cleared',
+      payment_method: pmt.payment_method || 'Electronic Transfer',
+      issued_date: pmt.payment_date || pmt.date || pmt.created_at || new Date().toISOString(),
+      issuer: 'Nova Cloud Edges (U) Limited',
+      payment: isAuth ? { ...pmt, security_key: secKey } : pmt,
       bank_remittance: memoryStore.bank_accounts || []
     });
   }
@@ -11398,6 +11610,7 @@ function generateCorporateEmailHtml({
   badgeText,
   introText,
   itemsRows,
+  customHtml,
   subtotalText,
   discountRowHtml,
   vatText,
@@ -11432,67 +11645,74 @@ function generateCorporateEmailHtml({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body, table, td, a { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
-    body { background-color: #f1f5f9; color: #3c4043; margin: 0; padding: 40px 15px; }
-    .email-container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; }
+    body { background-color: #f1f5f9; color: #3c4043; margin: 0; padding: 24px 12px; }
+    .email-container { max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; box-sizing: border-box; }
     
     /* Header */
-    .email-header { background-color: #ffffff; padding: 32px 40px 20px 40px; text-align: left; border-bottom: 1px solid #dadce0; }
-    .email-logo-img { max-height: 55px; max-width: 220px; object-fit: contain; }
-    .company-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
+    .email-header { background-color: #ffffff; padding: 28px 32px 18px 32px; text-align: left; border-bottom: 1px solid #dadce0; }
+    .email-logo-img { max-height: 48px; max-width: 200px; object-fit: contain; }
+    .company-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 0; }
     .company-title span { color: #0ea5e9; }
     
     /* Body */
-    .email-body { padding: 10px 40px 40px 40px; }
-    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; border: 1px solid #bae6fd; }
-    .doc-title { font-size: 22px; font-weight: 400; color: #202124; margin: 0 0 24px 0; line-height: 1.3; }
-    .salutation { font-size: 16px; color: #3c4043; margin-bottom: 16px; font-weight: 400; }
-    .intro-paragraph { font-size: 15px; line-height: 1.7; color: #475569; margin-bottom: 30px; }
+    .email-body { padding: 16px 32px 32px 32px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; border: 1px solid #bae6fd; }
+    .doc-title { font-size: 20px; font-weight: 700; color: #202124; margin: 0 0 20px 0; line-height: 1.35; }
+    .salutation { font-size: 15px; color: #3c4043; margin-bottom: 14px; font-weight: 600; }
+    .intro-paragraph { font-size: 14.5px; line-height: 1.65; color: #475569; margin-bottom: 24px; }
     
     /* Attachments */
-    .attachment-card { background: #ffffff; border: 1px solid #dadce0; border-radius: 8px; padding: 16px 20px; margin: 24px 0; display: flex; align-items: center; }
-    .attachment-title { font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 6px; letter-spacing: 0.3px; }
-    .attachment-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
+    .attachment-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 20px 0; }
+    .attachment-title { font-weight: 700; font-size: 13.5px; color: #0f172a; margin-bottom: 4px; }
+    .attachment-desc { font-size: 12.5px; color: #64748b; line-height: 1.5; }
     
     /* Tables */
-    .table-container { border-radius: 8px; border: 1px solid #dadce0; overflow: hidden; margin-bottom: 30px; background: #ffffff; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .data-table th { background: #f8fafc; text-align: left; padding: 16px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-    .data-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .table-container { border-radius: 8px; border: 1px solid #dadce0; overflow-x: auto; margin-bottom: 24px; background: #ffffff; width: 100%; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; table-layout: auto; }
+    .data-table th { background: #f8fafc; text-align: left; padding: 12px 14px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+    .data-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; word-break: break-word; }
     .total-row { background: #f8fafc; }
-    .total-row td { font-size: 16px; font-weight: 800; color: #202124; border-top: 1px solid #dadce0; }
-    .total-amount { color: #202124 !important; font-size: 20px !important; }
+    .total-row td { font-size: 15px; font-weight: 800; color: #202124; border-top: 1px solid #dadce0; }
+    .total-amount { color: #202124 !important; font-size: 18px !important; }
     
     /* Buttons */
-    .btn-container { text-align: center; margin: 40px 0 30px 0; }
-    .primary-btn { display: inline-block; background-color: #1a73e8; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-weight: 500; font-size: 14px; letter-spacing: 0.25px; }
+    .btn-container { text-align: center; margin: 30px 0 24px 0; }
+    .primary-btn { display: inline-block; background-color: #0284c7; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 700; font-size: 14px; letter-spacing: 0.2px; }
     
     /* Footer */
-    .email-footer { background: #ffffff; padding: 30px 40px; text-align: center; font-size: 12px; color: #5f6368; line-height: 1.5; border-top: 1px solid #dadce0; }
+    .email-footer { background: #ffffff; padding: 24px 32px; text-align: center; font-size: 12px; color: #5f6368; line-height: 1.5; border-top: 1px solid #dadce0; }
     .footer-highlight { color: #475569; font-weight: 600; }
 
     @media screen and (max-width: 600px) {
-      body { padding: 0 !important; }
-      .email-container { max-width: 100% !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
-      .email-header { padding: 30px 20px !important; }
-      .company-title { font-size: 22px !important; }
-      .email-body { padding: 30px 20px !important; }
-      .doc-title { font-size: 22px !important; }
-      .data-table th, .data-table td { padding: 12px 10px !important; font-size: 13px !important; }
-      .data-table { word-wrap: break-word; table-layout: fixed; }
-      .total-row td { font-size: 15px !important; }
-      .total-amount { font-size: 18px !important; }
-      .primary-btn { padding: 16px 24px !important; font-size: 14px !important; width: 100% !important; box-sizing: border-box; }
+      body { padding: 6px !important; margin: 0 !important; }
+      .email-container { max-width: 100% !important; width: 100% !important; border-radius: 6px !important; border-left: 1px solid #e2e8f0 !important; border-right: 1px solid #e2e8f0 !important; }
+      .email-header { padding: 20px 16px 14px 16px !important; }
+      .email-logo-img { max-height: 40px !important; max-width: 180px !important; }
+      .company-title { font-size: 20px !important; }
+      .email-body { padding: 18px 14px 28px 14px !important; }
+      .doc-title { font-size: 18px !important; line-height: 1.35 !important; margin-bottom: 16px !important; }
+      .salutation { font-size: 14px !important; margin-bottom: 10px !important; }
+      .intro-paragraph { font-size: 13.5px !important; line-height: 1.55 !important; margin-bottom: 18px !important; }
+      .table-container { margin-bottom: 20px !important; border-radius: 6px !important; }
+      .data-table { width: 100% !important; table-layout: auto !important; }
+      .data-table th, .data-table td { padding: 10px 8px !important; font-size: 12px !important; word-break: break-word !important; overflow-wrap: anywhere !important; }
+      .total-row td { font-size: 14px !important; }
+      .total-amount { font-size: 16px !important; }
+      .btn-container { margin: 24px 0 20px 0 !important; }
+      .primary-btn { padding: 14px 18px !important; font-size: 13.5px !important; width: 100% !important; display: block !important; box-sizing: border-box !important; text-align: center !important; }
+      .email-footer { padding: 20px 14px !important; font-size: 11px !important; }
     }
   </style>
 </head>
-<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 40px 15px; color: #3c4043;">
-  <div class="email-container">
-    <div class="email-header">
-      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" />` : '<div class="company-title">NOVA <span>CLOUD EDGES</span></div>'}
+<body style="font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px 12px; color: #3c4043;">
+  <div class="email-container" style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; box-sizing: border-box;">
+    <div class="email-header" style="background-color: #ffffff; padding: 28px 32px 18px 32px; text-align: left; border-bottom: 1px solid #dadce0;">
+      ${siteLogo ? `<img src="${siteLogo}" alt="Nova Cloud Edges Logo" class="email-logo-img" style="max-height: 48px; max-width: 200px; object-fit: contain;" />` : '<div class="company-title" style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0;">NOVA <span style="color: #0ea5e9;">CLOUD EDGES</span></div>'}
       <div class="company-subtitle"></div>
     </div>
     
     <div class="email-body">
+      ${badgeText ? `<div style="display: inline-block; padding: 5px 12px; border-radius: 20px; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; border: 1px solid #bae6fd;">${badgeText}</div>` : ''}
       <h2 class="doc-title">${title || 'Official Corporate Notification'}</h2>
       <p class="salutation">Dear ${finalRecipient},</p>
       <div class="intro-paragraph">${finalIntro}</div>
@@ -11505,7 +11725,7 @@ function generateCorporateEmailHtml({
       </div>
       ` : ''}
 
-      ${itemsRows ? `
+      ${customHtml ? customHtml : (itemsRows ? `
       <div class="table-container">
         <table class="data-table">
           ${isInvoice ? `
@@ -11537,7 +11757,7 @@ function generateCorporateEmailHtml({
           </tbody>
         </table>
       </div>
-      ` : ''}
+      ` : '')}
 
       ${(isInvoice && !hidePaymentMethods) ? renderConfiguredBankAccountsHtml() : ''}
 
@@ -13428,15 +13648,18 @@ app.put('/api/admin/banner-settings', (req, res) => {
   res.json({ message: 'Top Announcement Banner settings updated successfully', banner_settings: memoryStore.banner_settings });
 });
 
-app.put('/api/admin/subscriptions/:id/status', (req, res) => {
+app.put('/api/admin/subscriptions/:id/status', async (req, res) => {
   const userRole = req.headers['x-user-role'] || req.body.role;
   if (userRole === 'customer') {
     return res.status(403).json({ error: 'Customers are not permitted to modify active subscription status.' });
   }
   const { id } = req.params;
   const { status, duration, start_date, expiry_date } = req.body;
-  const sub = memoryStore.subscriptions.find(s => s.id == id);
+  const sub = (memoryStore.subscriptions || []).find(s => String(s.id) === String(id) || s.reference === id);
   if (sub) {
+    const oldStatus = sub.status;
+    const oldExpiry = sub.expiry_date;
+
     if (status) sub.status = status;
     if (duration) sub.duration = duration;
     if (start_date) sub.start_date = start_date;
@@ -13447,12 +13670,202 @@ app.put('/api/admin/subscriptions/:id/status', (req, res) => {
       sub.expiry_date = calculateExpiryDate(sub.start_date || new Date().toISOString().split('T')[0], sub.duration || 'Monthly');
     }
 
+    sub.updated_at = new Date().toISOString();
+
+    query(
+      'UPDATE subscriptions SET status = ?, duration = ?, start_date = ?, expiry_date = ? WHERE id = ? OR reference = ?',
+      [sub.status, sub.duration, sub.start_date, sub.expiry_date, id, id]
+    );
+
+    savePersistentStore();
+
+    // Trigger emails to support@ncloud.co.ug and customer with the Domain Names policy note
+    const recipientEmail = (sub.customer_email || sub.user_email || '').trim();
+    const sendRecipients = [recipientEmail, 'support@ncloud.co.ug'].filter(Boolean).join(', ');
+
+    const domainPolicyNote = `<div style="margin-top: 16px; padding: 14px 16px; background-color: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 8px; font-size: 13px; color: #92400e; line-height: 1.5;">
+      <strong>Important Notice on Domain Names:</strong> Please note that Domain Names will not be extended in this case unless renewal payment is made.
+    </div>`;
+
+    if (status === 'Suspended') {
+      const emailHtml = generateCorporateEmailHtml({
+        title: `Service Subscription Suspended: ${sub.plan_name}`,
+        preheader: `Service Suspended • Ref #${sub.reference || sub.id}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'SUBSCRIPTION SUSPENDED',
+        introText: `Please be advised that your subscription service for <strong>${sub.plan_name}</strong> (Ref #${sub.reference || sub.id}) has been temporarily suspended by administrative review.<br/><br/>To reinstate and unblock your active service instance, please contact our support team or settle pending renewal invoices.<br/>${domainPolicyNote}`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #f59e0b;">STATUS: SUSPENDED</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Scheduled Expiry: ${sub.expiry_date || 'N/A'}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 700; color: #f59e0b;">Action Required</td>
+          </tr>
+        `,
+        ctaText: 'Contact Technical Support',
+        ctaLink: 'mailto:support@ncloud.co.ug',
+        hidePaymentMethods: false
+      });
+
+      sendMail({
+        to: sendRecipients,
+        subject: `SUBSCRIPTION SUSPENDED: ${sub.plan_name} (Ref #${sub.reference || sub.id})`,
+        html: emailHtml
+      }).catch(e => console.warn('[Mail Warning] Subscription suspend notice:', e.message));
+    } else if (status === 'Ended' || status === 'Terminated') {
+      const emailHtml = generateCorporateEmailHtml({
+        title: `Service Subscription Terminated: ${sub.plan_name}`,
+        preheader: `Service Terminated • Ref #${sub.reference || sub.id}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'SERVICE TERMINATED',
+        introText: `This is an official notification that your subscription service for <strong>${sub.plan_name}</strong> (Ref #${sub.reference || sub.id}) has been terminated.<br/><br/>Allocated computing, storage, or cloud resources associated with this service license have been decommissioned.<br/>${domainPolicyNote}`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #ef4444;">STATUS: TERMINATED</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="font-size: 13px; color: #64748b;">Termination Recorded: ${new Date().toISOString().split('T')[0]}</td>
+          </tr>
+        `,
+        ctaText: 'Nova Cloud Support Desk',
+        ctaLink: 'mailto:support@ncloud.co.ug',
+        hidePaymentMethods: true
+      });
+
+      sendMail({
+        to: sendRecipients,
+        subject: `SUBSCRIPTION TERMINATED: ${sub.plan_name} (Ref #${sub.reference || sub.id})`,
+        html: emailHtml
+      }).catch(e => console.warn('[Mail Warning] Subscription terminate notice:', e.message));
+    } else if (duration || (expiry_date && expiry_date !== oldExpiry)) {
+      const emailHtml = generateCorporateEmailHtml({
+        title: `Subscription Term Extended: ${sub.plan_name}`,
+        preheader: `Term Extended • New Expiry: ${sub.expiry_date}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'TERM EXTENDED',
+        introText: `We are pleased to inform you that your subscription term for <strong>${sub.plan_name}</strong> (Ref #${sub.reference || sub.id}) has been successfully extended.<br/><br/>Your service license is active with a revised validity expiry date of <strong>${sub.expiry_date}</strong>.<br/>${domainPolicyNote}`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #10b981;">ACTIVE & EXTENDED</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Duration Term: ${sub.duration || 'N/A'}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 700; color: #10b981;">New Expiry: ${sub.expiry_date}</td>
+          </tr>
+        `,
+        ctaText: 'Access Client Portal',
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
+      });
+
+      sendMail({
+        to: sendRecipients,
+        subject: `SUBSCRIPTION TERM EXTENSION: ${sub.plan_name} (Extended to ${sub.expiry_date})`,
+        html: emailHtml
+      }).catch(e => console.warn('[Mail Warning] Subscription extend notice:', e.message));
+    } else if (status === 'Active' && oldStatus !== 'Active') {
+      const emailHtml = generateCorporateEmailHtml({
+        title: `Subscription Re-Activated: ${sub.plan_name}`,
+        preheader: `Service Re-Activated • Ref #${sub.reference || sub.id}`,
+        recipientName: sub.customer_name || 'Valued Customer',
+        badgeText: 'SERVICE RE-ACTIVATED',
+        introText: `Your subscription service for <strong>${sub.plan_name}</strong> (Ref #${sub.reference || sub.id}) has been restored to Active status.<br/><br/>All cloud infrastructure and service configurations are operational.<br/>${domainPolicyNote}`,
+        itemsRows: `
+          <tr>
+            <td><strong>Plan / Service:</strong> ${sub.plan_name}</td>
+            <td style="text-align: center;">Ref #${sub.reference || sub.id}</td>
+            <td style="text-align: right; font-weight: 800; color: #10b981;">STATUS: ACTIVE</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="font-size: 13px; color: #64748b;">Current Validity Expiry: ${sub.expiry_date || 'N/A'}</td>
+            <td style="text-align: right; font-size: 13px; font-weight: 700; color: #10b981;">Online</td>
+          </tr>
+        `,
+        ctaText: 'Access Services',
+        ctaLink: 'https://ncloud.co.ug/customer-portal',
+        hidePaymentMethods: false
+      });
+
+      sendMail({
+        to: sendRecipients,
+        subject: `SUBSCRIPTION RE-ACTIVATED: ${sub.plan_name} (Ref #${sub.reference || sub.id})`,
+        html: emailHtml
+      }).catch(e => console.warn('[Mail Warning] Subscription reactivate notice:', e.message));
+    }
+
     return res.json({
-      message: `Subscription "${sub.plan_name}" updated successfully (Status: ${sub.status}, Expiry Date: ${sub.expiry_date})`,
+      message: `Subscription "${sub.plan_name}" updated successfully (Status: ${sub.status}, Expiry Date: ${sub.expiry_date}). Notice dispatched to ${sendRecipients}.`,
       subscription: sub
     });
   }
   res.status(404).json({ error: 'Subscription record not found' });
+});
+
+// Full Edit/Update Endpoint for Service Subscriptions
+app.put('/api/admin/subscriptions/:id', async (req, res) => {
+  const userRole = req.headers['x-user-role'] || req.body.role;
+  if (userRole === 'customer') {
+    return res.status(403).json({ error: 'Customers are not permitted to modify subscription records.' });
+  }
+  const { id } = req.params;
+  const {
+    plan_name,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    amount,
+    duration,
+    start_date,
+    expiry_date,
+    status,
+    reference,
+    invoice_number,
+    notes
+  } = req.body;
+
+  const sub = (memoryStore.subscriptions || []).find(s => String(s.id) === String(id) || s.reference === id);
+  if (!sub) return res.status(404).json({ error: 'Subscription record not found' });
+
+  if (plan_name) sub.plan_name = plan_name.trim();
+  if (customer_name) sub.customer_name = customer_name.trim();
+  if (customer_email !== undefined) sub.customer_email = customer_email.trim();
+  if (customer_phone !== undefined) sub.customer_phone = customer_phone.trim();
+  if (customer_address !== undefined) sub.customer_address = customer_address.trim();
+  if (amount !== undefined) sub.amount = Number(amount) || 0;
+  if (duration) sub.duration = duration;
+  if (start_date) sub.start_date = start_date;
+  if (status) sub.status = status;
+  if (reference) sub.reference = reference;
+  if (invoice_number !== undefined) sub.invoice_number = invoice_number;
+  if (notes !== undefined) sub.notes = notes;
+
+  if (expiry_date) {
+    sub.expiry_date = expiry_date;
+  } else if (duration || start_date) {
+    sub.expiry_date = calculateExpiryDate(sub.start_date || new Date().toISOString().split('T')[0], sub.duration || 'Monthly');
+  }
+
+  sub.updated_at = new Date().toISOString();
+
+  query(
+    'UPDATE subscriptions SET plan_name = ?, customer_name = ?, customer_email = ?, customer_phone = ?, customer_address = ?, amount = ?, duration = ?, start_date = ?, expiry_date = ?, status = ?, invoice_number = ? WHERE id = ? OR reference = ?',
+    [sub.plan_name, sub.customer_name, sub.customer_email, sub.customer_phone, sub.customer_address, sub.amount, sub.duration, sub.start_date, sub.expiry_date, sub.status, sub.invoice_number, id, id]
+  );
+
+  savePersistentStore();
+
+  res.json({
+    message: `Subscription "${sub.plan_name}" for ${sub.customer_name} updated successfully!`,
+    subscription: sub
+  });
 });
 
 app.post('/api/admin/subscriptions', (req, res) => {
@@ -14028,7 +14441,7 @@ app.get('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
 
 // Create new custom or preset API Integration
 app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
-  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key } = req.body;
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key, gateway_url, api_path } = req.body;
   if (!name || !provider) {
     return res.status(400).json({ error: 'Integration Name and Provider are required.' });
   }
@@ -14050,6 +14463,8 @@ app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
     host_url: host_url || '',
     site_id: site_id || client_id || '',
     api_key: api_key || client_secret || '',
+    gateway_url: gateway_url || '',
+    api_path: api_path || '',
     last_updated: new Date().toISOString()
   };
   
@@ -14076,7 +14491,7 @@ app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
 
 app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key, status } = req.body;
+  const { name, provider, type, client_id, client_secret, wallet_id, host_url, site_id, api_key, gateway_url, api_path, status } = req.body;
   
   if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
   
@@ -14104,6 +14519,8 @@ app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => 
     }
     if (wallet_id !== undefined) api.wallet_id = wallet_id;
     if (host_url !== undefined) api.host_url = host_url;
+    if (gateway_url !== undefined) api.gateway_url = gateway_url;
+    if (api_path !== undefined) api.api_path = api_path;
     if (status !== undefined) api.status = status;
     api.last_updated = new Date().toISOString();
 
@@ -14229,6 +14646,18 @@ app.post('/api/admin/integrations/:id/status', requireSystemsAdmin, async (req, 
   }
 });
 
+// Public Integration Status Check (Active / Suspended)
+app.get('/api/public/integrations/status', (req, res) => {
+  const integrations = (memoryStore.api_integrations || []).map(api => ({
+    id: api.id,
+    name: api.name,
+    provider: api.provider,
+    type: api.type,
+    status: api.status || 'active'
+  }));
+  res.json({ integrations });
+});
+
 // ----------------------------------------------------
 // ioTec Pay Service Logic (Dynamic & Status-Enforced)
 // ----------------------------------------------------
@@ -14286,12 +14715,13 @@ function getActiveIotecIntegration() {
 }
 
 async function getIotecToken() {
+  // Always verify active status before anything else!
+  const iotecConfig = getActiveIotecIntegration();
+
   const now = Date.now();
   if (iotecAccessToken && now < iotecTokenExpiry) {
     return iotecAccessToken;
   }
-
-  const iotecConfig = getActiveIotecIntegration();
 
   const params = new URLSearchParams();
   params.append('client_id', iotecConfig.client_id);
@@ -14323,7 +14753,7 @@ app.post('/api/payments/initiate', async (req, res) => {
     
     const iotecConfig = getActiveIotecIntegration();
     if (!iotecConfig || iotecConfig.status !== 'active') {
-      return res.status(400).json({ error: 'ioTec Pay is currently disabled or not configured.' });
+      return res.status(400).json({ error: 'ioTec Pay gateway is currently SUSPENDED. Live payment transactions are halted until restored.' });
     }
 
     const token = await getIotecToken();
@@ -14411,12 +14841,17 @@ app.post('/api/payments/initiate', async (req, res) => {
     }
   } catch (err) {
     console.error('ioTec Initiate Error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
 app.get('/api/payments/status/:id', async (req, res) => {
   try {
+    const iotecConfig = getActiveIotecIntegration();
+    if (!iotecConfig || iotecConfig.status !== 'active') {
+      return res.status(400).json({ error: 'ioTec Pay gateway is currently SUSPENDED. Live payment status tracking is halted while suspended.' });
+    }
+
     const token = await getIotecToken();
     const { id } = req.params;
     
@@ -14441,7 +14876,7 @@ app.get('/api/payments/status/:id', async (req, res) => {
     
     return res.json({ status: data.status, externalId: data.externalId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -14449,8 +14884,14 @@ app.post('/api/webhooks/iotec', async (req, res) => {
   const { id, status, externalId, amount, currency } = req.body;
   console.log(`[ioTec Webhook] Received status ${status} for transaction ${id}, externalId: ${externalId}`);
   
-  if (status === 'Success' && id) {
-    try {
+  try {
+    const iotecConfig = getActiveIotecIntegration();
+    if (!iotecConfig || iotecConfig.status !== 'active') {
+      console.warn(`[ioTec Webhook Rejected] ioTec Pay gateway is currently suspended. Transaction ${id} ignored.`);
+      return res.status(503).json({ error: 'ioTec Pay gateway is currently suspended. Incoming webhook processing halted.' });
+    }
+
+    if (status === 'Success' && id) {
       const token = await getIotecToken();
       const iotecRes = await fetch(`https://pay.iotec.io/api/collections/status/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -14466,9 +14907,9 @@ app.post('/api/webhooks/iotec', async (req, res) => {
       } else {
         console.error(`[ioTec Webhook] Verification request failed with status: ${iotecRes.status}`);
       }
-    } catch (err) {
-      console.error(`[ioTec Webhook] Verification error:`, err);
     }
+  } catch (err) {
+    console.error(`[ioTec Webhook] Verification error:`, err);
   }
   
   res.status(200).send('OK');
@@ -14592,15 +15033,37 @@ async function processSuccessfulPayment(externalId, amount, transactionId, metho
         recipientName: newPayment.party_name,
         attachmentName: `Payment_Receipt_${newPayment.reference}.pdf`,
         introText: `Nova Cloud Edges Finance Department has received and confirmed your payment of <strong>UGX ${paid.toLocaleString()}</strong> towards Invoice <strong>#${newPayment.invoice_number}</strong> via <strong>${newPayment.payment_method}</strong>. Your digitally certified payment receipt is attached to this email.`,
-        itemsRows: `
-          <tr><td><strong>Transaction Reference</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold;">${newPayment.reference}</td></tr>
-          <tr><td><strong>Payment Method</strong></td><td style="text-align: right; font-weight: bold;">${newPayment.payment_method}</td></tr>
-          <tr><td><strong>Settlement Timestamp</strong></td><td style="text-align: right;">${dateTimeStr}</td></tr>
-          <tr><td><strong>Invoice Clearance Status</strong></td><td style="text-align: right; font-weight: bold; color: ${isFullyCleared ? '#16a34a' : '#d97706'};">${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</td></tr>
+        customHtml: `
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin: 16px 0 24px 0; box-sizing: border-box;">
+            <div style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0; padding: 16px; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #166534; font-weight: 800; letter-spacing: 1px; margin-bottom: 3px;">Payment Confirmed</div>
+              <div style="font-size: 24px; font-weight: 900; color: #15803d; line-height: 1.2;">UGX ${paid.toLocaleString()}</div>
+              <div style="font-size: 12px; color: #166534; margin-top: 4px; font-weight: 700;">Status: ${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</div>
+            </div>
+            <div style="padding: 12px 16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Invoice #</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">#${newPayment.invoice_number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Payment Method</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">${newPayment.payment_method}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Settlement Time</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 12px; text-align: right;">${dateTimeStr}</td>
+                </tr>
+              </table>
+              <div style="margin-top: 12px;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Transaction Reference</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-family: monospace; font-size: 12px; color: #1e293b; font-weight: 700; word-break: break-all; overflow-wrap: anywhere; line-height: 1.45;">${newPayment.reference}</div>
+              </div>
+            </div>
+          </div>
         `,
-        subtotalText: `UGX ${paid.toLocaleString()}`,
-        vatText: 'Clearance Confirmed',
-        totalAmountText: `UGX ${paid.toLocaleString()}`,
+        hideInvoiceHeaders: true,
+        hidePaymentMethods: true,
         shareLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`,
         ctaText: 'Verify Receipt Online',
         ctaLink: `https://ncloud.co.ug/verify?doc=${encodeURIComponent(newPayment.reference)}`
@@ -14626,15 +15089,43 @@ async function processSuccessfulPayment(externalId, amount, transactionId, metho
         badgeText: 'Payment Alert',
         recipientName: 'Sales Team',
         introText: `A new payment of <strong>UGX ${paid.toLocaleString()}</strong> was just received from <strong>${newPayment.party_name}</strong> for Invoice <strong>#${newPayment.invoice_number}</strong> via <strong>${newPayment.payment_method}</strong>.`,
-        itemsRows: `
-          <tr><td><strong>Transaction Reference</strong></td><td style="text-align: right; font-family: monospace; font-weight: bold;">${newPayment.reference}</td></tr>
-          <tr><td><strong>Invoice Status</strong></td><td style="text-align: right; font-weight: bold; color: ${isFullyCleared ? '#16a34a' : '#d97706'};">${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</td></tr>
+        customHtml: `
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin: 16px 0 24px 0; box-sizing: border-box;">
+            <div style="background: #f0fdf4; border-bottom: 1px solid #bbf7d0; padding: 16px; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #166534; font-weight: 800; letter-spacing: 1px; margin-bottom: 3px;">Payment Received</div>
+              <div style="font-size: 24px; font-weight: 900; color: #15803d; line-height: 1.2;">UGX ${paid.toLocaleString()}</div>
+              <div style="font-size: 12px; color: #166534; margin-top: 4px; font-weight: 700;">Status: ${isFullyCleared ? '100% Paid & Settled' : 'Partially Paid'}</div>
+            </div>
+            <div style="padding: 12px 16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Payer Name</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right; word-break: break-word;">${newPayment.party_name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Invoice #</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">#${newPayment.invoice_number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Method</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">${newPayment.payment_method}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 12.5px; font-weight: 600; width: 38%; vertical-align: top;">Time</td>
+                  <td style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 12px; text-align: right;">${dateTimeStr}</td>
+                </tr>
+              </table>
+              <div style="margin-top: 12px;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px;">Transaction Reference</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-family: monospace; font-size: 12px; color: #1e293b; font-weight: 700; word-break: break-all; overflow-wrap: anywhere; line-height: 1.45;">${newPayment.reference}</div>
+              </div>
+            </div>
+          </div>
         `,
-        subtotalText: `UGX ${paid.toLocaleString()}`,
-        vatText: '-',
-        totalAmountText: `UGX ${paid.toLocaleString()}`,
+        hideInvoiceHeaders: true,
+        hidePaymentMethods: true,
         shareLink: `https://ncloud.co.ug/admin`,
-        ctaText: 'View Dashboard',
+        ctaText: 'Open Admin Dashboard',
         ctaLink: `https://ncloud.co.ug/admin`
       });
 

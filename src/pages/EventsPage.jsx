@@ -501,7 +501,7 @@ export default function EventsPage() {
 
                 {/* DIGITAL PASS CARD */}
                 <div style={{
-                  background: 'var(--card-bg, #0f172a)',
+                  background: 'var(--card-bg, var(--bg-card, #ffffff))',
                   border: '2px dashed #0284c7',
                   borderRadius: '14px',
                   padding: '1.5rem',
@@ -829,7 +829,7 @@ export default function EventsPage() {
             </div>
 
             <div style={{
-              background: 'var(--card-bg, #0f172a)',
+              background: 'var(--card-bg, var(--bg-card, #ffffff))',
               border: '2px dashed #0284c7',
               borderRadius: '12px',
               padding: '1.5rem',
