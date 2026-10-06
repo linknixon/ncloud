@@ -533,6 +533,9 @@ select option {
 }
 
 @media (max-width: 992px) {
+  .nav-actions-container {
+    gap: 0.45rem !important;
+  }
   .desktop-nav {
     display: none !important;
   }
@@ -546,50 +549,57 @@ select option {
     display: inline-flex !important;
     align-items: center;
     gap: 0.35rem;
+    flex-shrink: 0;
   }
   .mobile-auth-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 5px;
     height: 36px;
-    padding: 0 0.7rem;
-    border-radius: 9px;
-    font-size: 0.8rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    font-size: 0.825rem;
     font-weight: 800;
     cursor: pointer;
     white-space: nowrap;
     text-decoration: none;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
   .mobile-login-btn {
-    background: rgba(2, 132, 199, 0.1);
+    background: rgba(2, 132, 199, 0.08);
     color: var(--primary);
-    border: 1px solid rgba(2, 132, 199, 0.35);
+    border: 1.5px solid rgba(2, 132, 199, 0.28);
+    padding: 0 0.75rem;
   }
   .mobile-login-btn:active {
-    background: rgba(2, 132, 199, 0.22);
-    transform: scale(0.97);
+    background: rgba(2, 132, 199, 0.2);
+    transform: scale(0.96);
   }
   .mobile-register-btn {
-    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-    color: #ffffff;
-    border: 1px solid transparent;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.32);
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+    color: #ffffff !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 3px 12px rgba(2, 132, 199, 0.42) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.01em;
+    flex-shrink: 0 !important;
   }
   .mobile-register-btn:active {
-    opacity: 0.92;
-    transform: scale(0.97);
+    opacity: 0.9;
+    transform: scale(0.96);
+    box-shadow: 0 1px 6px rgba(2, 132, 199, 0.3) !important;
   }
   .mobile-portal-btn {
     background: rgba(124, 58, 237, 0.12);
     color: var(--primary);
-    border: 1px solid rgba(124, 58, 237, 0.35);
+    border: 1.5px solid rgba(124, 58, 237, 0.35);
     height: 36px;
-    padding: 0 0.75rem;
-    border-radius: 9px;
-    font-size: 0.8rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    font-size: 0.825rem;
     font-weight: 800;
     display: inline-flex;
     align-items: center;
@@ -602,19 +612,36 @@ select option {
 }
 
 @media (max-width: 480px) {
+  .nav-actions-container {
+    gap: 0.3rem !important;
+  }
   .mobile-auth-btn {
-    padding: 0 0.52rem !important;
-    font-size: 0.75rem !important;
-    gap: 3px !important;
     height: 34px !important;
+    font-size: 0.775rem !important;
+  }
+  .mobile-register-btn {
+    padding: 0 0.75rem !important;
+  }
+  .mobile-login-btn {
+    padding: 0 0.58rem !important;
   }
 }
 
-@media (max-width: 360px) {
-  .mobile-auth-btn {
-    padding: 0 0.42rem !important;
-    font-size: 0.72rem !important;
-    height: 32px !important;
+@media (max-width: 380px) {
+  .nav-actions-container {
+    gap: 0.22rem !important;
+  }
+  .mobile-login-label {
+    display: none !important;
+  }
+  .mobile-login-btn {
+    width: 34px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .mobile-register-btn {
+    padding: 0 0.65rem !important;
+    font-size: 0.75rem !important;
   }
 }
 

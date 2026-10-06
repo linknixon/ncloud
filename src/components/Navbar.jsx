@@ -457,7 +457,7 @@ export default function Navbar({ activePage, setActivePage }) {
         </nav>
 
         {/* Actions (Cart, Theme, Auth / Circular Profile) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <div className="nav-actions-container" style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           
           {/* Cart Icon */}
           <button
@@ -814,8 +814,8 @@ export default function Navbar({ activePage, setActivePage }) {
                 className="mobile-auth-btn mobile-login-btn"
                 title="Sign in to your account"
               >
-                <LogIn size={13} />
-                <span>Login</span>
+                <LogIn size={14} />
+                <span className="mobile-login-label">Login</span>
               </button>
               <button
                 type="button"
@@ -823,8 +823,8 @@ export default function Navbar({ activePage, setActivePage }) {
                 className="mobile-auth-btn mobile-register-btn"
                 title="Register a new account"
               >
-                <UserPlus size={13} />
-                <span>Register</span>
+                <UserPlus size={14} />
+                <span className="mobile-register-label">Register</span>
               </button>
             </div>
           ) : (
@@ -895,13 +895,13 @@ export default function Navbar({ activePage, setActivePage }) {
                     openAuthModal('login');
                   }}
                   style={{
-                    padding: '0.65rem 0.5rem',
-                    borderRadius: '8px',
-                    background: 'rgba(2, 132, 199, 0.1)',
+                    padding: '0.75rem 0.5rem',
+                    borderRadius: '12px',
+                    background: 'rgba(2, 132, 199, 0.08)',
                     color: 'var(--primary)',
-                    border: '1px solid rgba(2, 132, 199, 0.35)',
+                    border: '1.5px solid rgba(2, 132, 199, 0.28)',
                     fontWeight: '800',
-                    fontSize: '0.85rem',
+                    fontSize: '0.875rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -909,7 +909,7 @@ export default function Navbar({ activePage, setActivePage }) {
                     cursor: 'pointer'
                   }}
                 >
-                  <LogIn size={15} /> Log In
+                  <LogIn size={16} /> Log In
                 </button>
                 <button
                   type="button"
@@ -918,22 +918,22 @@ export default function Navbar({ activePage, setActivePage }) {
                     openAuthModal('register');
                   }}
                   style={{
-                    padding: '0.65rem 0.5rem',
-                    borderRadius: '8px',
+                    padding: '0.75rem 0.5rem',
+                    borderRadius: '12px',
                     background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
                     color: '#ffffff',
-                    border: 'none',
+                    border: '1.5px solid rgba(255, 255, 255, 0.25)',
                     fontWeight: '800',
-                    fontSize: '0.85rem',
+                    fontSize: '0.875rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.38)'
                   }}
                 >
-                  <UserPlus size={15} /> Register
+                  <UserPlus size={16} /> Register
                 </button>
               </div>
             </div>
