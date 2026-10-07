@@ -19,6 +19,7 @@ import { generateTOTPSecret, verifyTOTPToken, generateTOTPSetupData } from './to
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const persistentStorePath = path.join(__dirname, 'database', 'persistentStore.json');
+const voucherPricesPath = path.join(__dirname, 'database', 'wifi_voucher_prices.json');
 
 // Guarantee .env is loaded regardless of execution working directory
 dotenv.config();
@@ -98,6 +99,9 @@ export function savePersistentStore(immediate = false) {
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(persistentStorePath, JSON.stringify(memoryStore, null, 2), 'utf8');
+        if (memoryStore.wifi_voucher_prices && Object.keys(memoryStore.wifi_voucher_prices).length > 0) {
+          fs.writeFileSync(voucherPricesPath, JSON.stringify(memoryStore.wifi_voucher_prices, null, 2), 'utf8');
+        }
       }
     } catch (err) {
       console.error('[Database Persistence] Warning writing persistentStore:', err.message);
@@ -969,6 +973,17 @@ try {
 }
 
 // Merge disk items if MySQL had missing integrations
+try {
+  if (fs.existsSync(voucherPricesPath)) {
+    const backupPrices = JSON.parse(fs.readFileSync(voucherPricesPath, 'utf8'));
+    if (backupPrices && typeof backupPrices === 'object') {
+      memoryStore.wifi_voucher_prices = { ...(memoryStore.wifi_voucher_prices || {}), ...backupPrices };
+    }
+  }
+} catch (e) {}
+if (loadedDiskStore?.wifi_voucher_prices && typeof loadedDiskStore.wifi_voucher_prices === 'object') {
+  memoryStore.wifi_voucher_prices = { ...(memoryStore.wifi_voucher_prices || {}), ...loadedDiskStore.wifi_voucher_prices };
+}
 if (loadedDiskStore && Array.isArray(loadedDiskStore.api_integrations)) {
   for (const diskItem of loadedDiskStore.api_integrations) {
     const existing = (memoryStore.api_integrations || []).find(a => a.id === diskItem.id);
@@ -8461,10 +8476,16 @@ async function unifiFetch(url, options = {}, apiKey) {
     ...(options.headers || {})
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers
+    });
+  } catch (netErr) {
+    const detail = netErr.cause ? `${netErr.message} (${netErr.cause.code || netErr.cause.message || netErr.cause})` : netErr.message;
+    throw new Error(`UniFi Controller network connection error (${detail}) at ${url}. Please check host URL and connectivity.`);
+  }
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
   const rawText = await response.text();
@@ -9327,7 +9348,8 @@ app.post('/api/admin/wifi/voucher-prices', requireSystemsAdmin, (req, res) => {
   }
   if (!memoryStore.wifi_voucher_prices) memoryStore.wifi_voucher_prices = {};
   memoryStore.wifi_voucher_prices[String(duration_hours)] = Number(price);
-  savePersistentStore();
+  try { fs.writeFileSync(voucherPricesPath, JSON.stringify(memoryStore.wifi_voucher_prices, null, 2), 'utf8'); } catch (e) {}
+  savePersistentStore(true);
   res.json({ message: `Price for ${duration_hours}h vouchers set to UGX ${price}`, prices: memoryStore.wifi_voucher_prices });
 });
 
@@ -12460,10 +12482,83 @@ function isHostingCategoryService(itemOrName, itemsList = []) {
   return checkStr(itemOrName);
 }
 
+
+// ============================================================================
+// INVOICE LIFECYCLE POLICY ENGINE
+// Policy 1: Void unpaid/pending/draft invoices older than 14 days (2 weeks).
+// Policy 2: Archive voided invoices for 3 months (90 days) - DO NOT delete immediately.
+// Policy 3: Permanently purge archived invoices only after 3 months (90 days).
+// ============================================================================
+export function processInvoiceLifecyclePolicy() {
+  if (!memoryStore.invoices || !Array.isArray(memoryStore.invoices)) return { voided: 0, purged: 0 };
+  const now = Date.now();
+  const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+  const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+  let voidedCount = 0;
+  let purgedCount = 0;
+
+  // 1. VOID POLICY: Invoices older than 14 days that remain unpaid
+  memoryStore.invoices.forEach(inv => {
+    const isPaid = inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Paid & Settled' || (inv.balance !== undefined && Number(inv.balance) <= 0);
+    const isAlreadyVoidOrCancelled = inv.status === 'Void' || inv.status === 'Cancelled' || inv.archived === true;
+
+    if (!isPaid && !isAlreadyVoidOrCancelled) {
+      const invDate = new Date(inv.created_at || inv.date || now).getTime();
+      const ageMs = now - invDate;
+      if (ageMs >= twoWeeksMs) {
+        inv.status = 'Void';
+        inv.archived = true;
+        inv.voided_at = new Date().toISOString();
+        inv.archived_at = new Date().toISOString();
+        inv.void_reason = 'Statutory lifecycle policy: Unpaid invoice older than 14 days automatically voided and archived for 3 months.';
+        voidedCount++;
+        console.log(`[Invoice Lifecycle] Voided and archived invoice #${inv.invoice_number} (Age: ${Math.round(ageMs / 86400000)} days)`);
+      }
+    }
+  });
+
+  // 2. PURGE POLICY: Only delete invoices archived/voided for more than 90 days (3 months)
+  const remainingInvoices = [];
+  const purgedNumbers = [];
+
+  memoryStore.invoices.forEach(inv => {
+    const isVoidOrArchived = inv.status === 'Void' || inv.archived === true;
+    if (isVoidOrArchived) {
+      const archiveDate = new Date(inv.archived_at || inv.voided_at || inv.created_at || now).getTime();
+      const archiveAgeMs = now - archiveDate;
+      if (archiveAgeMs >= ninetyDaysMs) {
+        purgedCount++;
+        purgedNumbers.push(inv.invoice_number || inv.id);
+        console.log(`[Invoice Lifecycle] Permanently purged expired archived invoice #${inv.invoice_number} (Archived for: ${Math.round(archiveAgeMs / 86400000)} days)`);
+        return; // Exclude from retention
+      }
+    }
+    remainingInvoices.push(inv);
+  });
+
+  if (voidedCount > 0 || purgedCount > 0) {
+    memoryStore.invoices = remainingInvoices;
+    if (purgedNumbers.length > 0 && typeof query === 'function') {
+      for (const num of purgedNumbers) {
+        query('DELETE FROM invoices WHERE invoice_number = ? OR id = ?', [num, num]).catch(() => {});
+      }
+    }
+    savePersistentStore(true);
+  }
+
+  return { voided: voidedCount, purged: purgedCount };
+}
+
 // Create Invoice with Discounts & Automated Customer + Sales Admin Email Dispatch
 app.post('/api/admin/invoices', async (req, res) => {
-  if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Tax Invoice'});
-  const { customer_name, customer_email, customer_phone, customer_address, item_name, unit_price, quantity, due_date, vat_exempt, is_recurring, recurring_frequency, next_billing_date, wifi_voucher_id, excess_amount, discount_type, discount_value, assigned_staff_id, assigned_staff_name, assigned_staff_email, items } = req.body;
+  try {
+    if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created or generated a new Tax Invoice'});
+    const { customer_name, customer_email, customer_phone, customer_address, item_name, unit_price, quantity, due_date, vat_exempt, is_recurring, recurring_frequency, next_billing_date, wifi_voucher_id, excess_amount, discount_type, discount_value, assigned_staff_id, assigned_staff_name, assigned_staff_email, items } = req.body;
+
+    const count = (memoryStore.invoices || []).length + 45;
+    const invoiceNumber = req.body.invoice_number || `INV-${new Date().getFullYear()}-${String(count).padStart(4, '0')}`;
+    const shareSecret = crypto.createHash('md5').update(`${invoiceNumber}_nova_secure_salt_2026`).digest('hex').slice(0, 16);
+    const shareableUrl = `https://ncloud.co.ug/verify?doc=${encodeURIComponent(invoiceNumber)}&sec=${shareSecret}`;
   
   const qty = Math.max(1, parseInt(quantity) || 1);
   const pricePerUnit = Number(unit_price) || 650000;
@@ -12483,7 +12578,7 @@ app.post('/api/admin/invoices', async (req, res) => {
   
   const isExempt = isWifiVoucher ? true : Boolean(vat_exempt);
   const vatAmount = isExempt ? 0 : Math.round(netSubtotal * 0.18);
-  const totalAmount = netSubtotal + vatAmount;
+  const totalAmount = isExempt ? netSubtotal : (netSubtotal + vatAmount);
 
   const isHosting = isHostingCategoryService(item_name, items);
   const finalIsRecurring = isHosting ? true : Boolean(is_recurring);
@@ -12616,6 +12711,20 @@ app.post('/api/admin/invoices', async (req, res) => {
     message: `Tax Invoice ${newInvoice.invoice_number} created and dispatched with official PDF attached to ${newInvoice.customer_email}!`,
     invoice: newInvoice,
     email_dispatched: true
+  });
+  } catch (err) {
+    console.error('[Create Invoice Error]:', err);
+    res.status(500).json({ error: err.message || 'Failed to create tax invoice' });
+  }
+});
+
+// Endpoint to trigger Invoice Lifecycle Policy manually
+app.post('/api/admin/invoices/apply-lifecycle-policy', (req, res) => {
+  const result = processInvoiceLifecyclePolicy();
+  res.json({
+    success: true,
+    message: `Invoice Lifecycle Policy executed: ${result.voided} unpaid invoices voided & archived (older than 14 days); ${result.purged} archived invoices permanently purged (older than 3 months).`,
+    ...result
   });
 });
 
@@ -13351,12 +13460,20 @@ app.put('/api/admin/invoices/:id', async (req, res) => {
                           (inv.items || []).some(i => isWifiVoucherProduct(i)) || 
                           Boolean(inv.wifi_voucher_id) || Boolean(wifi_voucher_id);
     
-    if (vat_exempt !== undefined) inv.vat_exempt = isWifiVoucher ? true : vat_exempt;
+    if (vat_exempt !== undefined) inv.vat_exempt = isWifiVoucher ? true : Boolean(vat_exempt);
     else if (isWifiVoucher) inv.vat_exempt = true;
     
-    if (amount) inv.amount = Number(amount);
-    if (vat_amount !== undefined) inv.vat_amount = inv.vat_exempt ? 0 : Number(vat_amount);
-    else if (isWifiVoucher) inv.vat_amount = 0;
+    if (inv.vat_exempt) {
+      inv.vat_amount = 0;
+      if (amount) inv.amount = Number(amount);
+      else if (inv.net_subtotal !== undefined) inv.amount = Number(inv.net_subtotal);
+      else if (inv.subtotal !== undefined) inv.amount = Number(inv.subtotal);
+    } else {
+      if (amount) inv.amount = Number(amount);
+      if (vat_amount !== undefined) inv.vat_amount = Number(vat_amount);
+      else if (inv.net_subtotal !== undefined) inv.vat_amount = Math.round(Number(inv.net_subtotal) * 0.18);
+    }
+    inv.balance = Math.max(0, Number(inv.amount || 0) - Number(inv.paid_amount || 0));
     if (is_recurring !== undefined) inv.is_recurring = Boolean(is_recurring);
     if (recurring_frequency) inv.recurring_frequency = recurring_frequency;
     if (next_billing_date) inv.next_billing_date = next_billing_date;

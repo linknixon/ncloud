@@ -34,16 +34,16 @@ export const BRAND = {
 };
 
 // Safe In-Browser PDF Renderer (Phone: direct download file; PC: loads in browser via secure URL without blob)
-export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf', docNumber = '', secKey = '', forceDownload = false) => {
+export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_Document.pdf', docNumber = '', secKey = '', forceDownload = true) => {
   try {
     const isMobile = typeof navigator !== 'undefined' && (
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
       (typeof window !== 'undefined' && window.innerWidth <= 768)
     );
 
-    // On phone / mobile device, forceDownload requested, or any receipt document: download / print directly (never hijack receipts to web verify!)
-    const isReceiptDoc = Boolean(fileName && (fileName.toLowerCase().includes('receipt') || fileName.toLowerCase().includes('pos_')));
-    if (isMobile || forceDownload || isReceiptDoc) {
+    // Always directly download the rendered PDF file in the browser unless explicitly told not to
+    const shouldDownload = forceDownload !== false;
+    if (shouldDownload || isMobile) {
       if (pdfDoc && typeof pdfDoc.save === 'function') {
         pdfDoc.save(fileName);
         return;
@@ -741,7 +741,7 @@ export async function generateInvoicePDF(inv, options = {}) {
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
-  openPdfInBrowser(doc, `Invoice_${invoiceNum}.pdf`, invoiceNum, inv?.security_key);
+  openPdfInBrowser(doc, `Tax_Invoice_${invoiceNum}.pdf`, invoiceNum, inv?.security_key, options.forceDownload !== false);
   return doc;
 }
 
@@ -1051,7 +1051,7 @@ export async function generateQuotationPDF(quote, options = {}) {
     drawInvoiceNinja3ToneBar(doc, 293, 4);
   }
 
-  openPdfInBrowser(doc, `Quotation_${quoteNum}.pdf`, quoteNum, quote?.security_key);
+  openPdfInBrowser(doc, `Quotation_${quoteNum}.pdf`, quoteNum, quote?.security_key, options.forceDownload !== false);
   return doc;
 }
 

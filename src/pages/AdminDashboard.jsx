@@ -10975,6 +10975,8 @@ const normalizeTabName = (rawTab) => {
                                       quantity: loadedItems.reduce((acc, i) => acc + i.quantity, 0),
                                       due_date: inv.due_date || new Date(new Date(inv.created_at || Date.now()).getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                                       vat_exempt: Boolean(inv.vat_exempt),
+                                      discount_type: inv.discount_type || 'percentage',
+                                      discount_value: inv.discount_value || 0,
                                       is_recurring: Boolean(inv.is_recurring),
                                       recurring_frequency: inv.recurring_frequency || 'Monthly',
                                       next_billing_date: inv.next_billing_date || '',
@@ -11744,25 +11746,9 @@ const normalizeTabName = (rawTab) => {
                           onClick={handleSyncUniFiVouchers}
                           className="btn-secondary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                          title="Pull and synchronize active vouchers from UniFi Controller"
                         >
                           <RefreshCw size={16} /> Sync from UniFi
-                        </button>
-                        <button
-                          onClick={handleTestUniFiConnection}
-                          className="btn-secondary"
-                          disabled={isTestingUniFi}
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#0284c7', borderColor: '#0284c7' }}
-                          title="Test live connection to UniFi Controller"
-                        >
-                          <Wifi size={16} /> {isTestingUniFi ? 'Testing...' : 'Test Connection'}
-                        </button>
-                        <button
-                          onClick={handleOpenUniFiSettings}
-                          className="btn-secondary"
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
-                          title="Configure UniFi Host URL, API Key, and Site"
-                        >
-                          <Settings2 size={16} /> UniFi Settings
                         </button>
                         <button
                           onClick={() => setShowUnifiModal(true)}
@@ -13355,6 +13341,36 @@ const normalizeTabName = (rawTab) => {
                         </div>
 
                         <form onSubmit={handleCreateTicket}>
+                          {Array.isArray(data?.users) && data.users.length > 0 && (
+                            <div className="form-group" style={{ marginBottom: '1rem' }}>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>
+                                Auto-fill from Registered Customer (Optional)
+                              </label>
+                              <select
+                                className="form-input"
+                                onChange={(e) => {
+                                  const selectedUser = (data.users || []).find(u => String(u.id) === String(e.target.value));
+                                  if (selectedUser) {
+                                    setNewTicketForm(prev => ({
+                                      ...prev,
+                                      name: selectedUser.name || selectedUser.company || '',
+                                      email: selectedUser.email || '',
+                                      phone: selectedUser.phone || ''
+                                    }));
+                                  }
+                                }}
+                                defaultValue=""
+                                style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--border-color)' }}
+                              >
+                                <option value="">-- Choose Existing Client to Auto-fill --</option>
+                                {data.users.map(u => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.name} {u.company ? `(${u.company})` : ''} - {u.email}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           <div className="form-group" style={{ marginBottom: '1rem' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.3rem', color: 'var(--text-main)' }}>Customer / Company Name *</label>
                             <input
@@ -19601,11 +19617,11 @@ const normalizeTabName = (rawTab) => {
                     className="form-input"
                     value={invoiceForm.vat_exempt ? "exempt" : "standard"}
                     onChange={(e) => setInvoiceForm({ ...invoiceForm, vat_exempt: e.target.value === "exempt" })}
-                    disabled={!isSuperAdmin}
-                    style={{ background: !isSuperAdmin ? '#f8fafc' : '#fff', color: '#0f172a', fontWeight: '600', cursor: !isSuperAdmin ? 'not-allowed' : 'pointer', border: '1px solid #cbd5e1' }}
-                    title={!isSuperAdmin ? "Standard 18% Statutory VAT is mandatory for all official tax invoices and cannot be unselected." : "Super Admins can toggle VAT Exemption"}
+                    disabled={isCustomer}
+                    style={{ background: isCustomer ? '#f8fafc' : '#fff', color: '#0f172a', fontWeight: '600', cursor: isCustomer ? 'not-allowed' : 'pointer', border: '1px solid #cbd5e1' }}
+                    title={isCustomer ? "Customers cannot alter statutory tax classification." : "Administrators can select Standard 18% VAT or VAT Exempt (0%)"}
                   >
-                    <option value="standard">Standard 18% Statutory VAT</option>
+                    <option value="standard">Standard 18% Statutory VAT (18%)</option>
                     <option value="exempt">VAT Exempt (0%)</option>
                   </select>
                 </div>

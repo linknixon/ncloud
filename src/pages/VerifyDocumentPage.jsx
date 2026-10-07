@@ -126,25 +126,22 @@ export default function VerifyDocumentPage({ setActivePage }) {
     window.print();
   };
 
-  const handleDownloadOrPrint = async () => {
-    const isMobile = typeof navigator !== 'undefined' && (
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-      (typeof window !== 'undefined' && window.innerWidth <= 768)
-    );
-
-    if (isMobile) {
-      showToast('Downloading official PDF to phone...', 'info');
-      try {
-        if (isQuotation) {
-          await generateQuotationPDF(verifyResult.quotation || verifyResult, { siteLogo, forceDownload: true });
-        } else {
-          await generateInvoicePDF(verifyResult.invoice || verifyResult, { siteLogo, forceDownload: true });
-        }
-      } catch (e) {
-        window.print();
+  const handleDownloadPDF = async () => {
+    showToast('Rendering official PDF document...', 'info');
+    try {
+      if (isQuotation) {
+        await generateQuotationPDF(verifyResult.quotation || verifyResult, { siteLogo, forceDownload: true });
+      } else {
+        await generateInvoicePDF(verifyResult.invoice || verifyResult, { siteLogo, forceDownload: true });
       }
-    } else {
-      window.print();
+      showToast('Official PDF downloaded successfully!', 'success');
+    } catch (e) {
+      console.warn('Client PDF generation error, downloading from server endpoint:', e);
+      const targetDoc = verifyResult?.document_number || docQuery;
+      const downloadUrl = isQuotation 
+        ? `/api/quotations/pdf/${encodeURIComponent(targetDoc)}` 
+        : `/api/invoices/pdf/${encodeURIComponent(targetDoc)}`;
+      window.open(downloadUrl, '_blank');
     }
   };
 
@@ -363,12 +360,21 @@ export default function VerifyDocumentPage({ setActivePage }) {
               </button>
 
               <button
-                onClick={handleDownloadOrPrint}
+                onClick={handleDownloadPDF}
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 1rem' }}
-                title="Download PDF directly on phone or print/save on PC"
+                title="Download official rendered PDF document directly"
               >
-                <Download size={15} /> Download / Print PDF
+                <Download size={15} /> Download PDF
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', padding: '0.45rem 0.9rem' }}
+                title="Print verification page"
+              >
+                <Printer size={15} /> Print
               </button>
 
               {balanceDue > 0 && !isWorkOrder && !isExpense && !isDeliveryNote && !isQuotation && (

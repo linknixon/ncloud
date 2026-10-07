@@ -541,7 +541,7 @@ export async function loadFullStoreFromMysql() {
       for (const row of settings) {
         const key = row.setting_key;
         let val = row.setting_value;
-        if (['smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails', 'paid_stamp', 'announcement', 'banner_settings'].includes(key)) {
+        if (['smtp_settings', 'topbar_settings', 'security_settings', 'notification_emails', 'paid_stamp', 'announcement', 'banner_settings', 'wifi_voucher_prices'].includes(key)) {
           store[key] = parseJsonSafe(val, {});
         } else if (key === 'api_integrations') {
           store[key] = parseJsonSafe(val, []);
@@ -844,7 +844,7 @@ export async function syncStoreToMysql(store) {
     const systemSettingsKeys = [
       'api_integrations', 'smtp_settings', 'topbar_settings', 
       'security_settings', 'notification_emails', 'paid_stamp', 
-      'announcement', 'banner_settings'
+      'announcement', 'banner_settings', 'wifi_voucher_prices'
     ];
     for (const key of systemSettingsKeys) {
       if (store[key] !== undefined && store[key] !== null) {
