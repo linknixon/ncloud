@@ -837,6 +837,15 @@ const normalizeTabName = (rawTab) => {
 
   const [unifiVouchersList, setUnifiVouchersList] = useState([]);
   const [showUnifiModal, setShowUnifiModal] = useState(false);
+  const [showUniFiConfigModal, setShowUniFiConfigModal] = useState(false);
+  const [unifiConfigForm, setUnifiConfigForm] = useState({
+    host_url: 'https://unifi.ncloud.co.ug',
+    api_key: '',
+    site_id: '',
+    gateway_url: '',
+    showKey: false
+  });
+  const [isTestingUniFi, setIsTestingUniFi] = useState(false);
   const [unifiGenMode, setUnifiGenMode] = useState('auto');
   const [showUnifiPrintModal, setShowUnifiPrintModal] = useState(false);
   const [unifiPrintForm, setUnifiPrintForm] = useState({ duration_hours: 24, quantity: '', status: 'available' });
@@ -4689,6 +4698,62 @@ const normalizeTabName = (rawTab) => {
   // ----------------------------------------------------
   // UniFi WiFi Guest Voucher Generator Handlers
   // ----------------------------------------------------
+  const handleTestUniFiConnection = async () => {
+    setIsTestingUniFi(true);
+    showToast('Testing live connection to UniFi Controller...', 'info');
+    try {
+      const res = await fetch('/api/admin/unifi/test');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message, 'success');
+        fetchUnifiVouchers();
+      } else {
+        showToast(data.error || 'Failed to connect to UniFi Controller', 'error');
+      }
+    } catch (e) {
+      showToast(e.message || 'Network error while testing UniFi', 'error');
+    } finally {
+      setIsTestingUniFi(false);
+    }
+  };
+
+  const handleOpenUniFiSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/unifi/config', { headers: { 'x-user-role': currentRole } });
+      if (res.ok) {
+        const d = await res.json();
+        setUnifiConfigForm({
+          host_url: d.host_url || 'https://unifi.ncloud.co.ug',
+          api_key: d.api_key || '',
+          site_id: d.site_id || '',
+          gateway_url: d.gateway_url || '',
+          showKey: false
+        });
+      }
+    } catch (e) {}
+    setShowUniFiConfigModal(true);
+  };
+
+  const handleSaveUniFiSettings = async (e) => {
+    e.preventDefault();
+    try {
+      showToast('Saving UniFi credentials and verifying live connection...', 'info');
+      const res = await fetch('/api/admin/unifi/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify(unifiConfigForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save UniFi configuration');
+      showToast(data.message, data.warning ? 'info' : 'success');
+      setShowUniFiConfigModal(false);
+      fetchUnifiVouchers();
+      fetchApiIntegrations();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleSyncUniFiVouchers = async () => {
     try {
       showToast('Syncing active vouchers from UniFi Controller...', 'info');
@@ -11683,6 +11748,23 @@ const normalizeTabName = (rawTab) => {
                           <RefreshCw size={16} /> Sync from UniFi
                         </button>
                         <button
+                          onClick={handleTestUniFiConnection}
+                          className="btn-secondary"
+                          disabled={isTestingUniFi}
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#0284c7', borderColor: '#0284c7' }}
+                          title="Test live connection to UniFi Controller"
+                        >
+                          <Wifi size={16} /> {isTestingUniFi ? 'Testing...' : 'Test Connection'}
+                        </button>
+                        <button
+                          onClick={handleOpenUniFiSettings}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                          title="Configure UniFi Host URL, API Key, and Site"
+                        >
+                          <Settings2 size={16} /> UniFi Settings
+                        </button>
+                        <button
                           onClick={() => setShowUnifiModal(true)}
                           className="btn-primary"
                           style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', background: '#0284c7' }}
@@ -13876,6 +13958,16 @@ const normalizeTabName = (rawTab) => {
                           >
                             Configure Keys
                           </button>
+                          {(api.id?.includes('unifi') || api.provider?.toLowerCase().includes('ubiquiti')) && (
+                            <button
+                              onClick={handleTestUniFiConnection}
+                              className="btn-secondary"
+                              style={{ padding: '0.4rem 0.65rem', fontSize: '0.85rem', color: '#0284c7', borderColor: '#0284c7' }}
+                              title="Test live connection to UniFi"
+                            >
+                              <Wifi size={14} /> Test
+                            </button>
+                          )}
                           
                           {api.status === 'active' ? (
                             <button 
@@ -20563,6 +20655,140 @@ const normalizeTabName = (rawTab) => {
                   </button>
                   <button type="submit" className="btn-primary" style={{ flex: 1, background: '#0284c7' }} disabled={isProcessing}>
                     <Printer size={16} /> {isProcessing ? 'Generating...' : 'Generate PDF'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* DEDICATED UNIFI CONTROLLER CONFIG MODAL */}
+        {showUniFiConfigModal && (
+          <div className="modal-overlay" onClick={() => setShowUniFiConfigModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+              <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <Wifi size={20} /> UniFi Controller Connection
+                </h3>
+                <button className="modal-close" onClick={() => setShowUniFiConfigModal(false)}><X size={20} /></button>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                Enter your UniFi OS Console Host and API Key (generated under <strong>Admins &gt; API Keys</strong> in UniFi OS). Nova will automatically auto-discover your site UUID and pull vouchers.
+              </p>
+              
+              <form onSubmit={handleSaveUniFiSettings}>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi Controller Host URL *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="https://unifi.ncloud.co.ug"
+                    value={unifiConfigForm.host_url}
+                    onChange={e => setUnifiConfigForm({ ...unifiConfigForm, host_url: e.target.value })}
+                    required
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                    Standard HTTPS domain or IP of your UniFi OS console (e.g. <code>https://unifi.ncloud.co.ug</code>).
+                  </small>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi API Key (X-API-KEY) *</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={unifiConfigForm.showKey ? 'text' : 'password'}
+                      className="form-input"
+                      style={{ paddingRight: '2.5rem', fontFamily: 'monospace' }}
+                      placeholder="Paste your UniFi API Key here"
+                      value={unifiConfigForm.api_key}
+                      onChange={e => setUnifiConfigForm({ ...unifiConfigForm, api_key: e.target.value })}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setUnifiConfigForm({ ...unifiConfigForm, showKey: !unifiConfigForm.showKey })}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title={unifiConfigForm.showKey ? 'Hide Key' : 'Show Key'}
+                    >
+                      {unifiConfigForm.showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                    Created in UniFi OS Console under Admins &gt; API Keys. Toggle the eye icon to verify what you typed.
+                  </small>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Site ID / UUID (Optional)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Leave blank or enter site UUID"
+                      value={unifiConfigForm.site_id}
+                      onChange={e => setUnifiConfigForm({ ...unifiConfigForm, site_id: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                      onClick={async () => {
+                        try {
+                          showToast('Auto-detecting sites from UniFi...', 'info');
+                          const res = await fetch('/api/admin/unifi/test');
+                          const d = await res.json();
+                          if (d.site_id) {
+                            setUnifiConfigForm(prev => ({ ...prev, site_id: d.site_id }));
+                            showToast(`Detected site UUID: ${d.site_id}`, 'success');
+                          } else {
+                            showToast('Could not auto-detect site. Verify host and key first.', 'error');
+                          }
+                        } catch(e) {
+                          showToast(e.message, 'error');
+                        }
+                      }}
+                    >
+                      Auto-Detect
+                    </button>
+                  </div>
+                  <small style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                    If left blank or set to 'default', Nova will automatically query and discover your site UUID.
+                  </small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ flex: 1, minWidth: '150px', background: '#0284c7' }}
+                  >
+                    Save &amp; Sync Now
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleTestUniFiConnection}
+                    disabled={isTestingUniFi}
+                    style={{ color: '#0284c7', borderColor: '#0284c7' }}
+                  >
+                    <Wifi size={14} /> {isTestingUniFi ? 'Testing...' : 'Test Connection'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowUniFiConfigModal(false)}
+                  >
+                    Cancel
                   </button>
                 </div>
               </form>

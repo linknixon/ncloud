@@ -3,7 +3,6 @@ node_modules
 .pnpm-store
 
 # Production Builds
-dist
 build
 
 # Environment variables

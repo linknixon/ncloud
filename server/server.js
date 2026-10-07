@@ -8689,10 +8689,36 @@ setInterval(() => {
   }
 }, 30 * 1000);
 
-// Endpoint to test UniFi connection and auto-detect sites
-app.get('/api/admin/unifi/test', async (req, res) => {
+// Dedicated UniFi Test Connection Handler (Supports GET and POST)
+const handleUniFiTest = async (req, res) => {
   try {
     const unifi = getActiveUniFiIntegration();
+
+    // If caller provided temporary credentials to test in body, use them directly
+    if (req.body?.api_key || req.body?.host_url || req.body?.site_id) {
+      if (req.body.api_key && req.body.api_key !== '********' && !req.body.api_key.includes('••••')) {
+        unifi.apiKey = req.body.api_key.trim();
+        unifi.integration.api_key = unifi.apiKey;
+        unifi.integration.client_secret = unifi.apiKey;
+      }
+      if (req.body.host_url) {
+        unifi.hostUrl = req.body.host_url.trim();
+        unifi.integration.host_url = unifi.hostUrl;
+      }
+      if (req.body.site_id) {
+        unifi.siteId = req.body.site_id.trim();
+        unifi.integration.site_id = unifi.siteId;
+        unifi.integration.client_id = unifi.siteId;
+      }
+      const endpoints = resolveUniFiEndpoints(unifi.hostUrl, unifi.gatewayUrl, unifi.siteId, unifi.integration.api_path);
+      unifi.baseUrl = endpoints.siteBaseUrl;
+      unifi.siteBaseUrl = endpoints.siteBaseUrl;
+      unifi.sitesListUrl = endpoints.sitesListUrl;
+      unifi.vouchersUrl = endpoints.vouchersUrl;
+    }
+
+    await ensureValidUniFiSite(unifi);
+
     let sites = [];
     try {
       const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi.apiKey);
@@ -8705,10 +8731,11 @@ app.get('/api/admin/unifi/test', async (req, res) => {
     if (syncRes.success) {
       res.json({
         success: true,
-        message: `Successfully connected to UniFi Controller! Active vouchers in UniFi: ${syncRes.count}.`,
+        message: `Successfully connected to UniFi Controller! Active vouchers in UniFi: ${syncRes.count}. Site: ${unifi.siteId}`,
         site_id: unifi.siteId,
         vouchers_endpoint: unifi.vouchersUrl,
         sites_discovered: sites.length,
+        count: syncRes.count,
         sites
       });
     } else {
@@ -8716,11 +8743,128 @@ app.get('/api/admin/unifi/test', async (req, res) => {
         success: false,
         error: syncRes.error,
         endpoint: unifi.vouchersUrl,
-        site_id: unifi.siteId
+        site_id: unifi.siteId,
+        sites
       });
     }
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
+  }
+};
+
+app.get('/api/admin/unifi/test', handleUniFiTest);
+app.post('/api/admin/unifi/test', handleUniFiTest);
+
+// GET active UniFi configuration details
+app.get('/api/admin/unifi/config', requireSystemsAdmin, (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    const rawKey = unifi.apiKey || '';
+    res.json({
+      configured: true,
+      id: unifi.integration.id,
+      name: unifi.integration.name,
+      provider: unifi.integration.provider,
+      status: unifi.integration.status,
+      host_url: unifi.hostUrl || 'https://unifi.ncloud.co.ug',
+      site_id: unifi.siteId,
+      gateway_url: unifi.gatewayUrl || '',
+      api_key_preview: rawKey ? (rawKey.length > 8 ? rawKey.slice(0, 4) + '••••••••' + rawKey.slice(-4) : '••••••••') : '',
+      api_key: rawKey,
+      last_updated: unifi.integration.last_updated
+    });
+  } catch (e) {
+    res.json({
+      configured: false,
+      host_url: process.env.UNIFI_HOST_URL || 'https://unifi.ncloud.co.ug',
+      site_id: process.env.UNIFI_SITE_ID || 'default',
+      api_key: process.env.UNIFI_API_KEY || '',
+      status: 'active'
+    });
+  }
+});
+
+// POST save UniFi configuration directly and sync immediately
+app.post('/api/admin/unifi/config', requireSystemsAdmin, async (req, res) => {
+  try {
+    const { host_url, api_key, site_id, gateway_url } = req.body;
+    if (!host_url) {
+      return res.status(400).json({ error: 'UniFi Controller Host URL is required.' });
+    }
+
+    if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
+    let integration = memoryStore.api_integrations.find(a => 
+      a.id === 'unifi_api' || a.id === 'unifi_controller' || 
+      (a.provider && a.provider.toLowerCase().includes('ubiquiti')) || 
+      (a.name && a.name.toLowerCase().includes('unifi')) ||
+      a.type === 'network'
+    );
+
+    if (!integration) {
+      integration = {
+        id: 'unifi_api',
+        name: 'UniFi OS Network Integration',
+        provider: 'Ubiquiti',
+        type: 'network',
+        status: 'active',
+        client_secret: '',
+        api_key: '',
+        host_url: '',
+        site_id: 'default',
+        client_id: 'default',
+        last_updated: new Date().toISOString()
+      };
+      memoryStore.api_integrations.push(integration);
+    }
+
+    integration.status = 'active';
+    integration.host_url = host_url.trim();
+    if (gateway_url !== undefined) integration.gateway_url = gateway_url.trim();
+
+    if (api_key && api_key !== '********' && !api_key.includes('••••')) {
+      integration.api_key = api_key.trim();
+      integration.client_secret = api_key.trim();
+    }
+
+    if (site_id) {
+      integration.site_id = site_id.trim();
+      integration.client_id = site_id.trim();
+    }
+
+    integration.last_updated = new Date().toISOString();
+
+    // Persist directly to MySQL and disk
+    try {
+      await query(
+        `INSERT INTO system_settings (setting_key, setting_value) VALUES ('api_integrations', ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        [JSON.stringify(memoryStore.api_integrations)]
+      );
+    } catch (e) {
+      console.warn('[MySQL Store] Failed system_settings write:', e.message);
+    }
+    savePersistentStore(true);
+
+    // Auto-discover valid site and run initial sync
+    const syncRes = await syncUniFiVouchers();
+    if (syncRes.success) {
+      res.json({
+        success: true,
+        message: `UniFi configuration saved successfully! Connected and synced ${syncRes.count} active vouchers (Added ${syncRes.added} new).`,
+        site_id: integration.site_id,
+        count: syncRes.count,
+        added: syncRes.added
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `UniFi configuration saved, but voucher sync returned: ${syncRes.error}`,
+        warning: syncRes.error,
+        site_id: integration.site_id
+      });
+    }
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -14728,10 +14872,28 @@ app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => 
   
   if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
   
-  const api = memoryStore.api_integrations.find(a => 
+  let api = memoryStore.api_integrations.find(a => 
     String(a.id).toLowerCase() === String(id).toLowerCase() ||
-    (a.provider && a.provider.toLowerCase() === id.toLowerCase())
+    (a.provider && a.provider.toLowerCase() === id.toLowerCase()) ||
+    (String(id).includes('unifi') && (
+      a.id === 'unifi_api' || 
+      a.id === 'unifi_controller' || 
+      (a.provider && a.provider.toLowerCase().includes('ubiquiti')) || 
+      (a.name && a.name.toLowerCase().includes('unifi'))
+    ))
   );
+
+  if (!api && (String(id).includes('unifi') || String(id).includes('ubiquiti'))) {
+    api = {
+      id: 'unifi_api',
+      name: name || 'UniFi OS Network Integration',
+      provider: provider || 'Ubiquiti',
+      type: 'network',
+      status: 'active',
+      last_updated: new Date().toISOString()
+    };
+    memoryStore.api_integrations.push(api);
+  }
 
   if (api) {
     if (name) api.name = name;
