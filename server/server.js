@@ -8417,7 +8417,18 @@ function getActiveUniFiIntegration() {
     throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API Integrations or in .env as UNIFI_API_KEY.');
   }
 
-  const siteId = integration.site_id || integration.client_id || envSite || 'default';
+  // Resolve siteId: UniFi OS Integration API v1 requires a site UUID (e.g. 88f7af54-...), not the string 'default'.
+  // If integration.client_id has a UUID, prefer it over the placeholder string 'default'.
+  let siteId = integration.site_id;
+  if (!siteId || siteId === 'default') {
+    if (integration.client_id && integration.client_id !== 'default') {
+      siteId = integration.client_id;
+    } else if (envSite && envSite !== 'default') {
+      siteId = envSite;
+    } else {
+      siteId = 'default';
+    }
+  }
   const rawHost = (integration.host_url || envHost || '').trim();
   const rawGateway = (integration.gateway_url || envGateway || '').trim();
 
@@ -8500,23 +8511,24 @@ async function autoDiscoverUniFiSite(unifi) {
     // Match by ID, name, or internalReference
     const currentSite = String(unifi.siteId || '').toLowerCase();
     let matched = sites.find(s => 
-      String(s.id).toLowerCase() === currentSite ||
-      String(s.name || '').toLowerCase() === currentSite ||
-      String(s.internalReference || '').toLowerCase() === currentSite
+      (s.id && String(s.id).toLowerCase() === currentSite) ||
+      (s.name && String(s.name).toLowerCase() === currentSite) ||
+      (s.internalReference && String(s.internalReference).toLowerCase() === currentSite)
     );
 
-    // If no match found but sites exist, pick default or the first one
-    if (!matched) {
-      matched = sites.find(s => String(s.name || '').toLowerCase() === 'default' || String(s.internalReference || '').toLowerCase() === 'default') || sites[0];
+    // If currentSite is 'default' or not matched, find default or first site
+    if (!matched || matched.id === 'default') {
+      matched = sites.find(s => 
+        (s.internalReference && String(s.internalReference).toLowerCase() === 'default') || 
+        (s.name && String(s.name).toLowerCase() === 'default')
+      ) || sites[0];
     }
 
-    if (matched && matched.id) {
-      if (unifi.integration.site_id !== matched.id) {
-        unifi.integration.site_id = matched.id;
-        unifi.integration.client_id = matched.id;
-        unifi.siteId = matched.id;
-        savePersistentStore();
-      }
+    if (matched && matched.id && matched.id !== 'default') {
+      unifi.integration.site_id = matched.id;
+      unifi.integration.client_id = matched.id;
+      unifi.siteId = matched.id;
+      savePersistentStore();
       return matched.id;
     }
   } catch (err) {
@@ -8525,23 +8537,51 @@ async function autoDiscoverUniFiSite(unifi) {
   return null;
 }
 
+// Ensures siteId is a valid UUID and not the placeholder 'default'
+async function ensureValidUniFiSite(unifi) {
+  if (!unifi.siteId || unifi.siteId === 'default') {
+    const discovered = await autoDiscoverUniFiSite(unifi);
+    if (discovered && discovered !== 'default') {
+      const endpoints = resolveUniFiEndpoints(unifi.hostUrl, unifi.gatewayUrl, discovered, unifi.integration.api_path);
+      unifi.baseUrl = endpoints.siteBaseUrl;
+      unifi.siteBaseUrl = endpoints.siteBaseUrl;
+      unifi.vouchersUrl = endpoints.vouchersUrl;
+      unifi.siteId = discovered;
+      return discovered;
+    }
+  }
+  return unifi.siteId;
+}
+
 async function syncUniFiVouchers() {
   try {
     const unifi = getActiveUniFiIntegration();
+    await ensureValidUniFiSite(unifi);
+
     let vouchersUrl = `${unifi.vouchersUrl}?filter=expired.eq(false)&limit=1000`;
     let data = null;
 
     try {
       data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
     } catch (firstErr) {
-      // If 404, HTML, or site error, attempt auto-discovery of sites
-      if (firstErr.status === 404 || firstErr.isHtml || (firstErr.message && firstErr.message.includes('404'))) {
-        console.warn(`[UniFi Sync] Initial voucher fetch failed (${firstErr.message}). Attempting site auto-discovery...`);
+      // If 400 (e.g. 'default' is not a valid siteId), 404, or HTML, attempt site auto-discovery
+      const isSiteError = firstErr.status === 400 || 
+                          firstErr.status === 404 || 
+                          firstErr.isHtml || 
+                          (firstErr.message && (
+                            firstErr.message.toLowerCase().includes('siteid') || 
+                            firstErr.message.includes('400') || 
+                            firstErr.message.includes('404')
+                          ));
+      if (isSiteError) {
+        console.warn(`[UniFi Sync] Initial voucher fetch error (${firstErr.message}). Discovering site ID from controller...`);
         const discoveredSiteId = await autoDiscoverUniFiSite(unifi);
-        if (discoveredSiteId) {
+        if (discoveredSiteId && discoveredSiteId !== 'default') {
           const newEndpoints = resolveUniFiEndpoints(unifi.hostUrl, unifi.gatewayUrl, discoveredSiteId, unifi.integration.api_path);
           unifi.baseUrl = newEndpoints.siteBaseUrl;
+          unifi.siteBaseUrl = newEndpoints.siteBaseUrl;
           unifi.vouchersUrl = newEndpoints.vouchersUrl;
+          unifi.siteId = discoveredSiteId;
           vouchersUrl = `${newEndpoints.vouchersUrl}?filter=expired.eq(false)&limit=1000`;
           data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
         } else {
@@ -8701,6 +8741,7 @@ app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
 app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
   try {
     const unifi = getActiveUniFiIntegration();
+    await ensureValidUniFiSite(unifi);
 
     if (memoryStore.audit_logs) {
       memoryStore.audit_logs.unshift({
