@@ -55,6 +55,23 @@ function loadPersistentStore() {
             }
           });
         }
+
+        // Auto-migrate and ensure UniFi integration credentials are normalized
+        if (data.api_integrations && Array.isArray(data.api_integrations)) {
+          const uApi = data.api_integrations.find(a => 
+            a.id === 'unifi_api' || 
+            a.id === 'unifi_controller' || 
+            (a.provider && a.provider.toLowerCase().includes('ubiquiti')) ||
+            (a.name && a.name.toLowerCase().includes('unifi'))
+          );
+          if (uApi) {
+            if (!uApi.site_id && uApi.client_id) uApi.site_id = uApi.client_id;
+            if (!uApi.client_id && uApi.site_id) uApi.client_id = uApi.site_id;
+            if (!uApi.host_url) uApi.host_url = process.env.UNIFI_HOST_URL || 'https://unifi.ncloud.co.ug';
+            if (!uApi.api_key && uApi.client_secret) uApi.api_key = uApi.client_secret;
+            if (!uApi.client_secret && uApi.api_key) uApi.client_secret = uApi.api_key;
+          }
+        }
         
         return data;
       }
@@ -8300,8 +8317,59 @@ app.get('/api/admin/work-orders/:id/pdf', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// UniFi Controller API Integration (Dynamic & Status-Enforced)
 // ----------------------------------------------------
+// UniFi Controller API Integration (Robust & Multi-Strategy)
+// ----------------------------------------------------
+
+// Allow connections to self-signed UniFi OS controller SSL certificates
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+function resolveUniFiEndpoints(rawHost, rawGateway, siteId, customApiPath) {
+  siteId = (siteId || 'default').trim();
+  let base = (rawGateway || rawHost || '').trim();
+  if (!base) {
+    throw new Error('UniFi Gateway Host URL is not configured. Please set the Host URL or Gateway URL in Admin Dashboard > Settings > API Integrations, or in .env via UNIFI_HOST_URL.');
+  }
+
+  if (!/^https?:\/\//i.test(base)) {
+    base = 'https://' + base;
+  }
+  base = base.replace(/\/+$/, '');
+  base = base.replace(/\/hotspot\/vouchers\/?$/i, '');
+
+  let siteBaseUrl = '';
+  let sitesListUrl = '';
+
+  if (customApiPath) {
+    const cleanPath = customApiPath.replace(/^\/+/, '').replace(/\/+$/, '');
+    const urlObj = new URL(base);
+    siteBaseUrl = `${urlObj.origin}/${cleanPath}`;
+    sitesListUrl = `${urlObj.origin}/proxy/network/integration/v1/sites`;
+  } else if (/\/proxy\/network\/integration\/v1\/sites\/[^\/]+$/i.test(base)) {
+    siteBaseUrl = base;
+    sitesListUrl = base.replace(/\/sites\/[^\/]+$/i, '/sites');
+  } else if (/\/proxy\/network\/integration\/v1\/sites\/?$/i.test(base)) {
+    siteBaseUrl = `${base}/${siteId}`;
+    sitesListUrl = base;
+  } else if (/\/integration\/v1\/sites\/[^\/]+$/i.test(base)) {
+    siteBaseUrl = base;
+    sitesListUrl = base.replace(/\/sites\/[^\/]+$/i, '/sites');
+  } else if (/\/integration\/v1\/sites\/?$/i.test(base)) {
+    siteBaseUrl = `${base}/${siteId}`;
+    sitesListUrl = base;
+  } else {
+    const urlObj = new URL(base);
+    siteBaseUrl = `${urlObj.origin}/proxy/network/integration/v1/sites/${siteId}`;
+    sitesListUrl = `${urlObj.origin}/proxy/network/integration/v1/sites`;
+  }
+
+  return {
+    origin: new URL(siteBaseUrl).origin,
+    siteBaseUrl,
+    sitesListUrl,
+    vouchersUrl: `${siteBaseUrl}/hotspot/vouchers`
+  };
+}
 
 function getActiveUniFiIntegration() {
   let integration = (memoryStore.api_integrations || []).find(a => 
@@ -8345,46 +8413,149 @@ function getActiveUniFiIntegration() {
   }
 
   const apiKey = integration.client_secret || integration.api_key || envKey || '';
-  const siteId = integration.site_id || envSite || 'default';
-  const rawHost = (integration.host_url || envHost || '').trim();
-  const cleanHost = rawHost.replace(/\/+$/, '');
-
-  // 100% dynamic gateway base URL resolution without hardcoded endpoints
-  let baseUrl = '';
-  if (integration.gateway_url || envGateway) {
-    baseUrl = (integration.gateway_url || envGateway).replace(/\/+$/, '');
-  } else if (cleanHost) {
-    const customApiPath = (integration.api_path || envApiPath || `/proxy/network/integration/v1/sites/${siteId}`).replace(/^\/+/, '');
-    baseUrl = `${cleanHost}/${customApiPath}`;
-  } else {
-    throw new Error('UniFi Gateway Host URL is not configured. Please set the Host URL or Gateway URL in Admin Dashboard > Settings > API Integrations, or in .env via UNIFI_HOST_URL.');
-  }
-
   if (!apiKey) {
     throw new Error('UniFi API Key (X-API-KEY) is not configured. Please enter the API Key under Settings > API Integrations or in .env as UNIFI_API_KEY.');
   }
 
-  return { integration, apiKey, siteId, hostUrl: cleanHost, baseUrl };
+  const siteId = integration.site_id || integration.client_id || envSite || 'default';
+  const rawHost = (integration.host_url || envHost || '').trim();
+  const rawGateway = (integration.gateway_url || envGateway || '').trim();
+
+  // Keep in-memory integration object populated
+  if (!integration.site_id && siteId) integration.site_id = siteId;
+  if (!integration.client_id && siteId) integration.client_id = siteId;
+  if (!integration.host_url && rawHost) integration.host_url = rawHost;
+  if (!integration.api_key && apiKey) integration.api_key = apiKey;
+
+  const endpoints = resolveUniFiEndpoints(rawHost, rawGateway, siteId, integration.api_path || envApiPath);
+
+  return {
+    integration,
+    apiKey,
+    siteId,
+    hostUrl: rawHost,
+    gatewayUrl: rawGateway,
+    baseUrl: endpoints.siteBaseUrl,
+    siteBaseUrl: endpoints.siteBaseUrl,
+    sitesListUrl: endpoints.sitesListUrl,
+    vouchersUrl: endpoints.vouchersUrl,
+    origin: endpoints.origin
+  };
+}
+
+async function unifiFetch(url, options = {}, apiKey) {
+  const headers = {
+    'X-API-KEY': apiKey,
+    'Accept': 'application/json',
+    ...(options.headers || {})
+  };
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  const rawText = await response.text();
+
+  if (rawText.trim().startsWith('<') || contentType.includes('text/html')) {
+    const error = new Error(`UniFi Controller returned an HTML page (HTTP ${response.status}) instead of JSON at ${url}. This typically means the URL path points to the web interface or requires authentication.`);
+    error.isHtml = true;
+    error.status = response.status;
+    error.url = url;
+    throw error;
+  }
+
+  let data = null;
+  if (rawText.trim()) {
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      const error = new Error(`Failed to parse UniFi response as JSON: ${parseErr.message}. Response was: ${rawText.slice(0, 200)}`);
+      error.status = response.status;
+      error.url = url;
+      throw error;
+    }
+  }
+
+  if (!response.ok) {
+    const msg = data && (data.message || data.error || data.meta?.msg) ? (data.message || data.error || data.meta?.msg) : rawText.slice(0, 250);
+    const error = new Error(`UniFi API error (HTTP ${response.status} ${response.statusText}): ${msg}`);
+    error.status = response.status;
+    error.data = data;
+    error.url = url;
+    throw error;
+  }
+
+  return data;
+}
+
+// Helper to auto-discover and resolve active UniFi site ID if needed
+async function autoDiscoverUniFiSite(unifi) {
+  try {
+    const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi.apiKey);
+    const sites = Array.isArray(sitesData) ? sitesData : (sitesData?.data || sitesData?.sites || []);
+    if (!Array.isArray(sites) || sites.length === 0) return null;
+
+    // Match by ID, name, or internalReference
+    const currentSite = String(unifi.siteId || '').toLowerCase();
+    let matched = sites.find(s => 
+      String(s.id).toLowerCase() === currentSite ||
+      String(s.name || '').toLowerCase() === currentSite ||
+      String(s.internalReference || '').toLowerCase() === currentSite
+    );
+
+    // If no match found but sites exist, pick default or the first one
+    if (!matched) {
+      matched = sites.find(s => String(s.name || '').toLowerCase() === 'default' || String(s.internalReference || '').toLowerCase() === 'default') || sites[0];
+    }
+
+    if (matched && matched.id) {
+      if (unifi.integration.site_id !== matched.id) {
+        unifi.integration.site_id = matched.id;
+        unifi.integration.client_id = matched.id;
+        unifi.siteId = matched.id;
+        savePersistentStore();
+      }
+      return matched.id;
+    }
+  } catch (err) {
+    console.warn('[UniFi Auto-Discovery] Could not query sites list:', err.message);
+  }
+  return null;
 }
 
 async function syncUniFiVouchers() {
   try {
     const unifi = getActiveUniFiIntegration();
-    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers?filter=expired.eq(false)&limit=1000`, {
-      method: 'GET',
-      headers: {
-        'X-API-KEY': unifi.apiKey,
-        'Accept': 'application/json'
+    let vouchersUrl = `${unifi.vouchersUrl}?filter=expired.eq(false)&limit=1000`;
+    let data = null;
+
+    try {
+      data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
+    } catch (firstErr) {
+      // If 404, HTML, or site error, attempt auto-discovery of sites
+      if (firstErr.status === 404 || firstErr.isHtml || (firstErr.message && firstErr.message.includes('404'))) {
+        console.warn(`[UniFi Sync] Initial voucher fetch failed (${firstErr.message}). Attempting site auto-discovery...`);
+        const discoveredSiteId = await autoDiscoverUniFiSite(unifi);
+        if (discoveredSiteId) {
+          const newEndpoints = resolveUniFiEndpoints(unifi.hostUrl, unifi.gatewayUrl, discoveredSiteId, unifi.integration.api_path);
+          unifi.baseUrl = newEndpoints.siteBaseUrl;
+          unifi.vouchersUrl = newEndpoints.vouchersUrl;
+          vouchersUrl = `${newEndpoints.vouchersUrl}?filter=expired.eq(false)&limit=1000`;
+          data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
+        } else {
+          throw firstErr;
+        }
+      } else {
+        throw firstErr;
       }
-    });
-    if (!response.ok) {
-      throw new Error(`UniFi API responded with status: ${response.status}`);
     }
-    const data = await response.json();
-    const allVouchers = data.data || [];
+
+    const allVouchers = Array.isArray(data) ? data : (data?.data || data?.vouchers || []);
     
     // Only consider vouchers that have NOT been activated yet
-    const activeUnusedVouchers = allVouchers.filter(v => !v.activatedAt);
+    const activeUnusedVouchers = allVouchers.filter(v => !v.activatedAt && !v.used);
 
     if (!memoryStore.unifi_vouchers) memoryStore.unifi_vouchers = [];
     let addedCount = 0;
@@ -8392,10 +8563,11 @@ async function syncUniFiVouchers() {
 
     activeUnusedVouchers.forEach(uv => {
       // Check if voucher code already exists internally (ignoring dashes)
-      const rawUnifiCode = String(uv.code).replace(/-/g, '');
+      const rawUnifiCode = String(uv.code || uv.token || '').replace(/-/g, '');
       const existing = memoryStore.unifi_vouchers.find(v => String(v.token).replace(/-/g, '') === rawUnifiCode);
       
-      const durationHours = parseFloat((uv.timeLimitMinutes / 60).toFixed(4));
+      const timeLimitMin = uv.timeLimitMinutes || uv.duration || (uv.time_limit ? uv.time_limit * 60 : 0);
+      const durationHours = parseFloat((timeLimitMin / 60).toFixed(4));
       const label = durationHours >= 720 ? `${Math.round(durationHours/720)} Month(s)` 
                     : durationHours >= 168 ? `${Math.round(durationHours/168)} Week(s)` 
                     : durationHours >= 24 ? `${Math.round(durationHours/24)} Day(s)` 
@@ -8404,20 +8576,20 @@ async function syncUniFiVouchers() {
 
       if (!existing) {
         // Format code with a dash in the middle (e.g. 1234567890 -> 12345-67890)
-        let formattedCode = String(uv.code);
+        let formattedCode = String(uv.code || uv.token || '');
         if (!formattedCode.includes('-') && formattedCode.length > 4) {
           const mid = Math.ceil(formattedCode.length / 2);
           formattedCode = formattedCode.slice(0, mid) + '-' + formattedCode.slice(mid);
         }
 
         memoryStore.unifi_vouchers.unshift({
-          id: uv.id,
+          id: uv.id || String(Date.now() + Math.random()),
           token: formattedCode,
           duration_hours: durationHours,
           duration_label: label,
           data_limit: uv.dataUsageLimitMBytes ? `${uv.dataUsageLimitMBytes}MB` : 'Unlimited',
           status: 'available',
-          created_at: uv.createdAt,
+          created_at: uv.createdAt || new Date().toISOString(),
           source: 'auto_sync',
           customer_name: null,
           customer_email: null
@@ -8434,11 +8606,10 @@ async function syncUniFiVouchers() {
 
     // 2. Cleanup: If an 'available' voucher in our system is NO LONGER unused in UniFi, remove it completely to match UniFi (it was revoked or used).
     // Note: We deliberately KEEP 'bought' or 'dispatched' vouchers for accountability, even if they disappear from UniFi.
-    const initialCount = memoryStore.unifi_vouchers.length;
     memoryStore.unifi_vouchers = memoryStore.unifi_vouchers.filter(sysVoucher => {
       if (sysVoucher.status === 'available') {
         const rawSysCode = String(sysVoucher.token).replace(/-/g, '');
-        const isStillUnused = activeUnusedVouchers.find(uv => String(uv.code).replace(/-/g, '') === rawSysCode);
+        const isStillUnused = activeUnusedVouchers.find(uv => String(uv.code || uv.token || '').replace(/-/g, '') === rawSysCode);
         if (!isStillUnused) {
           removedCount++;
           return false; // Remove from Nova
@@ -8450,7 +8621,7 @@ async function syncUniFiVouchers() {
     savePersistentStore();
     return { success: true, count: activeUnusedVouchers.length, added: addedCount, removed: removedCount };
   } catch (err) {
-    console.error('Error syncing UniFi vouchers:', err);
+    console.error('[UniFi Sync Error]:', err.message);
     return { success: false, error: err.message };
   }
 }
@@ -8477,6 +8648,41 @@ setInterval(() => {
     }).catch(err => console.error('[Cron] Unifi Sync failed:', err));
   }
 }, 30 * 1000);
+
+// Endpoint to test UniFi connection and auto-detect sites
+app.get('/api/admin/unifi/test', async (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    let sites = [];
+    try {
+      const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi.apiKey);
+      sites = Array.isArray(sitesData) ? sitesData : (sitesData?.data || sitesData?.sites || []);
+    } catch (e) {
+      console.warn('[UniFi Test] Sites list check warning:', e.message);
+    }
+
+    const syncRes = await syncUniFiVouchers();
+    if (syncRes.success) {
+      res.json({
+        success: true,
+        message: `Successfully connected to UniFi Controller! Active vouchers in UniFi: ${syncRes.count}.`,
+        site_id: unifi.siteId,
+        vouchers_endpoint: unifi.vouchersUrl,
+        sites_discovered: sites.length,
+        sites
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: syncRes.error,
+        endpoint: unifi.vouchersUrl,
+        site_id: unifi.siteId
+      });
+    }
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
 
 app.post('/api/admin/unifi/vouchers/sync', async (req, res) => {
   try {
@@ -8534,19 +8740,11 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
       payload.txRateLimitKbps = Number(upload_limit_kbps);
     }
 
-    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers`, {
+    await unifiFetch(unifi.vouchersUrl, {
       method: 'POST',
-      headers: {
-        'X-API-KEY': unifi.apiKey,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`UniFi API error: ${response.status} ${response.statusText} - ${errText}`);
-    }
+    }, unifi.apiKey);
 
     // After creation, immediately run a sync to pull the newly generated codes down
     const syncRes = await syncUniFiVouchers();
@@ -8566,7 +8764,6 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
   }
 });
 
-// GET all vouchers (or filtered for customer)
 app.get('/api/admin/unifi/vouchers', (req, res) => {
   let modified = false;
   (memoryStore.unifi_vouchers || []).forEach((v, index) => {
@@ -8725,14 +8922,12 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
   try {
     // Delete from UniFi controller directly using active integration
     const unifi = getActiveUniFiIntegration();
-    const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers/${voucher.id}`, {
-      method: 'DELETE',
-      headers: { 'X-API-KEY': unifi.apiKey }
-    });
-    
-    // We ignore 404s from UniFi (it might have already been deleted there)
-    if (!response.ok && response.status !== 404) {
-      throw new Error(`UniFi API error: ${response.status} ${response.statusText}`);
+    try {
+      await unifiFetch(`${unifi.vouchersUrl}/${voucher.id}`, { method: 'DELETE' }, unifi.apiKey);
+    } catch (unifiErr) {
+      if (unifiErr.status !== 404) {
+        throw unifiErr;
+      }
     }
 
     // Remove from Nova memory store
@@ -8916,16 +9111,13 @@ app.delete('/api/admin/wifi/vouchers/:id', async (req, res) => {
       console.warn(`[UniFi] Integration suspended or inactive (${e.message}). Skipping remote UniFi deletion.`);
     }
 
-    if (unifi && unifi.baseUrl && unifi.apiKey) {
-      const response = await fetch(`${unifi.baseUrl}/hotspot/vouchers/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'X-API-KEY': unifi.apiKey,
-          'Content-Type': 'application/json'
+    if (unifi && unifi.vouchersUrl && unifi.apiKey) {
+      try {
+        await unifiFetch(`${unifi.vouchersUrl}/${id}`, { method: 'DELETE' }, unifi.apiKey);
+      } catch (err) {
+        if (err.status !== 404) {
+          console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${err.message}`);
         }
-      });
-      if (!response.ok) {
-        console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${await response.text()}`);
       }
     }
   } catch (e) {
@@ -14504,10 +14696,13 @@ app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => 
     if (name) api.name = name;
     if (provider) api.provider = provider;
     if (type) api.type = type;
-    if (client_id !== undefined) api.client_id = client_id;
+    if (client_id !== undefined) {
+      api.client_id = client_id;
+      if (!api.site_id) api.site_id = client_id;
+    }
     if (site_id !== undefined) {
       api.site_id = site_id;
-      if (!api.client_id) api.client_id = site_id;
+      api.client_id = site_id;
     }
     if (client_secret && client_secret !== '********') {
       api.client_secret = client_secret;

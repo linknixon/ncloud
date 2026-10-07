@@ -18485,11 +18485,12 @@ const normalizeTabName = (rawTab) => {
                       body: JSON.stringify({
                         name: selectedApiConfig.name,
                         provider: selectedApiConfig.provider,
-                        client_id: selectedApiConfig.client_id,
-                        client_secret: selectedApiConfig.client_secret,
+                        client_id: selectedApiConfig.client_id || selectedApiConfig.site_id || '',
+                        client_secret: selectedApiConfig.client_secret || selectedApiConfig.api_key || '',
+                        api_key: selectedApiConfig.api_key || selectedApiConfig.client_secret || '',
                         wallet_id: selectedApiConfig.wallet_id,
                         host_url: selectedApiConfig.host_url,
-                        site_id: selectedApiConfig.site_id,
+                        site_id: selectedApiConfig.site_id || selectedApiConfig.client_id || '',
                         gateway_url: selectedApiConfig.gateway_url,
                         api_path: selectedApiConfig.api_path
                       })
@@ -18641,6 +18642,29 @@ const normalizeTabName = (rawTab) => {
                     </>
                   )}
                   <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                    {(selectedApiConfig.id?.includes('unifi') || selectedApiConfig.type === 'network' || (selectedApiConfig.provider && selectedApiConfig.provider.toLowerCase().includes('ubiquiti'))) && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ color: '#0284c7', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                        onClick={async () => {
+                          try {
+                            showToast('Testing connection to UniFi Controller...', 'info');
+                            const testRes = await fetch('/api/admin/unifi/test');
+                            const testData = await testRes.json();
+                            if (testRes.ok && testData.success) {
+                              showToast(testData.message, 'success');
+                            } else {
+                              showToast(testData.error || 'Failed to connect to UniFi Controller', 'error');
+                            }
+                          } catch (err) {
+                            showToast(err.message || 'Network error while testing UniFi', 'error');
+                          }
+                        }}
+                      >
+                        <RefreshCw size={14} /> Test Connection
+                      </button>
+                    )}
                     <button type="submit" className="btn-primary" style={{ flex: 1, minWidth: '130px' }}>Save Credentials</button>
                     <button type="button" className="btn-secondary" onClick={() => setShowConfigModal(false)}>Cancel</button>
                     <button
