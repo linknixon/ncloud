@@ -268,8 +268,8 @@
       ]
     }
     </script>
-    <script type="module" crossorigin src="./assets/index-BuE3CWtR.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Bs4xWNEk.css">
+    <script type="module" crossorigin src="./assets/index-Dnq4n7y0.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-EV8hgVGO.css">
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
     <div id="root"></div>
@@ -362,7 +362,7 @@
         }, false);
       })();
     </script>
-    <!-- Nova Cloud AI Chat (Jotform Agent) - Desktop Website Only (No Mobile/Other Devices, No WhatsApp Widget) -->
+    <!-- Nova Cloud AI Chat (Jotform Agent) - Desktop Website Only, Minimised by Default -->
     <script>
       (function() {
         try {
@@ -370,9 +370,63 @@
                                 (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) || 
                                 (window.innerWidth < 768);
           if (!isMobileOrSmall) {
+            var handlePictureInPictureRequest = async function(event) {
+              if (event.data && event.data.type === 'jf-request-pip-window' && 'documentPictureInPicture' in window) {
+                if (window.documentPictureInPicture.window) return;
+                var url = event.data._url || '';
+                var width = parseInt(event.data._width) || 400;
+                var height = parseInt(event.data._height) || 600;
+                if (!url) return;
+                var pipWindow = await window.documentPictureInPicture.requestWindow({ width: width, height: height, disallowReturnToOpener: true });
+                [...document.styleSheets].forEach(function(s) {
+                  try {
+                    var rules = [...s.cssRules].map(function(r) { return r.cssText; }).join('');
+                    var st = document.createElement('style');
+                    st.textContent = rules;
+                    pipWindow.document.head.appendChild(st);
+                  } catch (err) {}
+                });
+                pipWindow.document.body.innerHTML = '<iframe src="' + url + '" style="width:' + width + 'px;height:' + height + 'px;" allow="microphone *; display-capture *;"></iframe>';
+              }
+            };
+            window.addEventListener('message', handlePictureInPictureRequest);
+
             var jfScript = document.createElement('script');
-            jfScript.src = 'https://cdn.jotfor.ms/agent/embedjs/01a0dc5a0068700083680e6359e60e41beb2/embed.js';
+            jfScript.src = 'https://www.jotform.com/s/umd/c1abff84607/for-embedded-agent.js';
             jfScript.async = true;
+            jfScript.onload = function() {
+              if (window.AgentInitializer && typeof window.AgentInitializer.init === 'function') {
+                window.AgentInitializer.init({
+                  agentRenderURL: "https://www.jotform.com/agent/01a0dc5a0068700083680e6359e60e41beb2",
+                  rootId: "JotformAgent-01a0dc5a0068700083680e6359e60e41beb2",
+                  formID: "01a0dc5a0068700083680e6359e60e41beb2",
+                  contextID: "01a11a6758d8700094bdc28f28397b28577a",
+                  initialContext: "",
+                  queryParams: ["skipWelcome=1", "maximizable=1"],
+                  domain: "https://www.jotform.com",
+                  isDraggable: false,
+                  background: "linear-gradient(180deg, #0F53B4 0%, #0F53B4 100%)",
+                  chatBackgroundColor: "#FFFFFF",
+                  buttonBackgroundColor: "#246506",
+                  buttonIconColor: "#FFFFFF",
+                  inputTextColor: "#06367E",
+                  variant: false,
+                  customizations: {
+                    greeting: "Yes",
+                    greetingMessage: "Hi! How can I assist you?",
+                    openByDefault: "No",
+                    pulse: "Yes",
+                    position: "left",
+                    autoOpenChatIn: "0",
+                    layout: "minimal",
+                    size: "md",
+                    placeholder: "Ask AI"
+                  },
+                  isVoice: false,
+                  isVoiceWebCallEnabled: true
+                });
+              }
+            };
             document.body.appendChild(jfScript);
           }
         } catch (e) {

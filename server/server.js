@@ -990,9 +990,25 @@ if (loadedDiskStore && Array.isArray(loadedDiskStore.api_integrations)) {
     if (!existing) {
       if (!memoryStore.api_integrations) memoryStore.api_integrations = [];
       memoryStore.api_integrations.push(diskItem);
-    } else if ((!existing.client_secret && !existing.api_key) && (diskItem.client_secret || diskItem.api_key)) {
-      existing.client_secret = diskItem.client_secret;
-      existing.api_key = diskItem.api_key || diskItem.client_secret;
+    } else {
+      if ((!existing.client_secret || existing.client_secret === '********') && diskItem.client_secret) {
+        existing.client_secret = diskItem.client_secret;
+      }
+      if ((!existing.api_key || existing.api_key === '********') && diskItem.api_key) {
+        existing.api_key = diskItem.api_key;
+      }
+      if (!existing.host_url && diskItem.host_url) {
+        existing.host_url = diskItem.host_url;
+      }
+      if (!existing.site_id && (diskItem.site_id || diskItem.client_id)) {
+        existing.site_id = diskItem.site_id || diskItem.client_id;
+      }
+      if (!existing.client_id && (diskItem.client_id || diskItem.site_id)) {
+        existing.client_id = diskItem.client_id || diskItem.site_id;
+      }
+      if (!existing.gateway_url && diskItem.gateway_url) {
+        existing.gateway_url = diskItem.gateway_url;
+      }
     }
   }
 }
@@ -5587,11 +5603,26 @@ app.post('/api/subscriptions/checkout', async (req, res) => {
       }
     })().catch(e => console.error('[Background Customer Email Error]:', e));
 
+    const subscriptionData = {
+      ...invoiceRecord,
+      reference,
+      customer_name: finalName,
+      customer_email: finalEmail,
+      customer_phone: finalPhone,
+      customer_address: finalAddress,
+      company: finalCompany,
+      plan_name: plan_name,
+      amount: amount,
+      currency: 'UGX',
+      duration: dur
+    };
+
     return res.json({
       success: true,
       reference,
       message: 'Order Has Been Received!',
       invoice: invoiceRecord,
+      subscription: subscriptionData,
       new_account_created: isNewAccountCreated,
       created_user: createdUser,
       temp_password: tempPassword,
@@ -8351,6 +8382,8 @@ function resolveUniFiEndpoints(rawHost, rawGateway, siteId, customApiPath) {
   }
   base = base.replace(/\/+$/, '');
   base = base.replace(/\/hotspot\/vouchers\/?$/i, '');
+  // Normalize known controllers where 8443 is closed/blocked and standard 443 is open
+  base = base.replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1');
 
   let siteBaseUrl = '';
   let sitesListUrl = '';
@@ -8386,7 +8419,7 @@ function resolveUniFiEndpoints(rawHost, rawGateway, siteId, customApiPath) {
   };
 }
 
-function getActiveUniFiIntegration() {
+export function getActiveUniFiIntegration() {
   let integration = (memoryStore.api_integrations || []).find(a => 
     a.id === 'unifi_api' || a.id === 'unifi_controller' || 
     (a.provider && a.provider.toLowerCase().includes('ubiquiti')) || 
@@ -8433,18 +8466,27 @@ function getActiveUniFiIntegration() {
   }
 
   // Resolve siteId: UniFi OS Integration API v1 requires a site UUID (e.g. 88f7af54-...), not the string 'default'.
-  // If integration.client_id has a UUID, prefer it over the placeholder string 'default'.
-  let siteId = integration.site_id;
+  // If integration.client_id or integration.site_id has a UUID, prefer it over placeholder string 'default'.
+  let siteId = integration.site_id || integration.client_id;
   if (!siteId || siteId === 'default') {
     if (integration.client_id && integration.client_id !== 'default') {
       siteId = integration.client_id;
     } else if (envSite && envSite !== 'default') {
       siteId = envSite;
     } else {
-      siteId = 'default';
+      siteId = '88f7af54-98f8-306a-a1c7-c9349722b1f6';
     }
   }
-  const rawHost = (integration.host_url || envHost || '').trim();
+  let rawHost = (integration.host_url || envHost || '').trim();
+  if (!rawHost) {
+    rawHost = 'https://unifi.ncloud.co.ug';
+    integration.host_url = rawHost;
+  }
+  // Automatically strip :8443 if targeting unifi.ncloud.co.ug
+  if (rawHost.includes('unifi.ncloud.co.ug:8443')) {
+    rawHost = rawHost.replace(/(unifi\.ncloud\.co\.ug):8443/i, '$1');
+    integration.host_url = rawHost;
+  }
   const rawGateway = (integration.gateway_url || envGateway || '').trim();
 
   // Keep in-memory integration object populated
@@ -8476,15 +8518,33 @@ async function unifiFetch(url, options = {}, apiKey) {
     ...(options.headers || {})
   };
 
+  const timeoutMs = options.timeout || 20000;
   let response;
   try {
     response = await fetch(url, {
       ...options,
-      headers
+      headers,
+      signal: AbortSignal.timeout(timeoutMs)
     });
   } catch (netErr) {
-    const detail = netErr.cause ? `${netErr.message} (${netErr.cause.code || netErr.cause.message || netErr.cause})` : netErr.message;
-    throw new Error(`UniFi Controller network connection error (${detail}) at ${url}. Please check host URL and connectivity.`);
+    // If connection timed out or failed on port 8443, automatically retry on standard port 443
+    if (url.includes(':8443')) {
+      const fallbackUrl = url.replace(':8443', '');
+      console.warn(`[UniFi Fetch] Failed on port 8443 (${netErr.message}). Retrying on standard port 443: ${fallbackUrl}`);
+      try {
+        response = await fetch(fallbackUrl, {
+          ...options,
+          headers,
+          signal: AbortSignal.timeout(timeoutMs)
+        });
+      } catch (retryErr) {
+        const detail = retryErr.cause ? `${retryErr.message} (${retryErr.cause.code || retryErr.cause.message || retryErr.cause})` : retryErr.message;
+        throw new Error(`UniFi Controller network connection error (${detail}) at ${fallbackUrl}. Please check host URL and connectivity.`);
+      }
+    } else {
+      const detail = netErr.cause ? `${netErr.message} (${netErr.cause.code || netErr.cause.message || netErr.cause})` : netErr.message;
+      throw new Error(`UniFi Controller network connection error (${detail}) at ${url}. Please check host URL and connectivity.`);
+    }
   }
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -8574,7 +8634,7 @@ async function ensureValidUniFiSite(unifi) {
   return unifi.siteId;
 }
 
-async function syncUniFiVouchers() {
+export async function syncUniFiVouchers() {
   try {
     const unifi = getActiveUniFiIntegration();
     await ensureValidUniFiSite(unifi);
@@ -8839,7 +8899,7 @@ app.post('/api/admin/unifi/config', requireSystemsAdmin, async (req, res) => {
     }
 
     integration.status = 'active';
-    integration.host_url = host_url.trim();
+    integration.host_url = host_url.trim().replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1');
     if (gateway_url !== undefined) integration.gateway_url = gateway_url.trim();
 
     if (api_key && api_key !== '********' && !api_key.includes('••••')) {
@@ -9431,30 +9491,22 @@ export function generateDocSecurityKey(docNum) {
 
 export function maskCustomerName(name) {
   if (!name) return 'Valued Client';
-  const parts = String(name).trim().split(/\s+/);
-  return parts.map(p => {
-    if (p.length <= 2) return p.charAt(0) + '*';
-    return p.charAt(0) + '*'.repeat(Math.min(4, p.length - 2)) + p.charAt(p.length - 1);
-  }).join(' ');
+  return String(name).trim();
 }
 
 export function maskCustomerEmail(email) {
-  if (!email || !email.includes('@')) return 'Protected Client Email';
-  const [user, domain] = email.split('@');
-  const maskedUser = user.length > 2 ? user.slice(0, 2) + '***' : user.slice(0, 1) + '**';
-  return `${maskedUser}@${domain}`;
+  if (!email) return '';
+  return String(email).trim();
 }
 
 export function maskCustomerPhone(phone) {
-  if (!phone) return 'Protected Phone';
-  const clean = String(phone).trim();
-  if (clean.length < 6) return '****';
-  return clean.slice(0, 4) + '****' + clean.slice(-2);
+  if (!phone) return '';
+  return String(phone).trim();
 }
 
 export function maskCustomerAddress(addr) {
   if (!addr) return '';
-  return 'Protected Client Location, Uganda';
+  return String(addr).trim();
 }
 
 /**
@@ -9882,16 +9934,6 @@ app.get(['/api/invoices/pdf/:invoiceNum', '/api/admin/invoices/:invoiceNum/pdf']
 
   const authStatus = checkDocAuthorization(req, inv, inv.invoice_number || invoiceNum);
   let invToRender = inv;
-  if (!authStatus.authorized) {
-    invToRender = {
-      ...inv,
-      customer_name: maskCustomerName(inv.customer_name),
-      customer_email: maskCustomerEmail(inv.customer_email),
-      customer_phone: maskCustomerPhone(inv.customer_phone),
-      customer_address: maskCustomerAddress(inv.customer_address),
-      company: inv.company ? maskCustomerName(inv.company) : ''
-    };
-  }
 
   try {
     const pdfBuffer = await generateServerInvoicePDFBuffer(invToRender, memoryStore.bank_accounts);
@@ -9914,16 +9956,6 @@ app.get(['/api/quotations/pdf/:quoteNum', '/api/admin/quotations/:quoteNum/pdf']
 
   const authStatus = checkDocAuthorization(req, quote, quote.quote_number || quoteNum);
   let quoteToRender = quote;
-  if (!authStatus.authorized) {
-    quoteToRender = {
-      ...quote,
-      customer_name: maskCustomerName(quote.customer_name),
-      customer_email: maskCustomerEmail(quote.customer_email),
-      customer_phone: maskCustomerPhone(quote.customer_phone),
-      customer_address: maskCustomerAddress(quote.customer_address),
-      company: quote.company ? maskCustomerName(quote.company) : ''
-    };
-  }
 
   try {
     const pdfBuffer = await generateServerQuotationPDFBuffer(quoteToRender);
@@ -9946,15 +9978,6 @@ app.get(['/api/delivery-notes/pdf/:dnNum', '/api/admin/delivery-notes/:dnNum/pdf
 
   const authStatus = checkDocAuthorization(req, dn, dn.dn_number || dnNum);
   let dnToRender = dn;
-  if (!authStatus.authorized) {
-    dnToRender = {
-      ...dn,
-      customer_name: maskCustomerName(dn.customer_name),
-      customer_email: maskCustomerEmail(dn.customer_email),
-      customer_phone: maskCustomerPhone(dn.customer_phone),
-      delivery_address: maskCustomerAddress(dn.delivery_address)
-    };
-  }
 
   try {
     const pdfBuffer = await generateServerDeliveryNotePDFBuffer(dnToRender);
@@ -9967,12 +9990,37 @@ app.get(['/api/delivery-notes/pdf/:dnNum', '/api/admin/delivery-notes/:dnNum/pdf
   }
 });
 
-// Unified Document PDF router for any reference (INV, QTN, WO, DN)
+// HTTP Route to serve clean PDF document for Tickets / Helpdesk (public and admin)
+app.get(['/api/tickets/pdf/:ticketNum', '/api/contacts/pdf/:ticketNum'], async (req, res) => {
+  const { ticketNum } = req.params;
+  const t = (memoryStore.contacts || []).find(c => 
+    c.ticket_number === ticketNum || 
+    String(c.id) === String(ticketNum) ||
+    (c.ticket_number && c.ticket_number.toLowerCase() === ticketNum.toLowerCase())
+  );
+  if (!t) {
+    return res.status(404).json({ error: 'Support ticket not found' });
+  }
+
+  try {
+    const pdfBuffer = await generateServerTicketPDFBuffer(t);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Ticket_${t.ticket_number || t.id}_Transcript.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Error generating Ticket PDF stream:', err);
+    res.status(500).json({ error: 'Failed to generate Ticket PDF document' });
+  }
+});
+
+// Unified Document PDF router for any reference (INV, QTN, WO, DN, TKT)
 app.get('/api/documents/pdf/:docNum', async (req, res) => {
   const { docNum } = req.params;
   const upper = String(docNum || '').trim().toUpperCase();
 
-  if (upper.startsWith('QTN') || upper.startsWith('QUO')) {
+  if (upper.startsWith('TKT') || upper.startsWith('TICKET')) {
+    return res.redirect(`/api/tickets/pdf/${encodeURIComponent(docNum)}`);
+  } else if (upper.startsWith('QTN') || upper.startsWith('QUO')) {
     return res.redirect(`/api/quotations/pdf/${encodeURIComponent(docNum)}${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
   } else if (upper.startsWith('DN') || upper.startsWith('DEL')) {
     return res.redirect(`/api/delivery-notes/pdf/${encodeURIComponent(docNum)}${req.query.key ? `?key=${encodeURIComponent(req.query.key)}` : ''}`);
@@ -11964,6 +12012,393 @@ export async function generateServerDeliveryNotePDFBuffer(dn, options = {}) {
     doc.setTextColor(148, 163, 184);
     doc.text(`Official Delivery Note issued by Nova Cloud Edges (U) Limited  |  Lugga Zone, Ndejje, Wakiso, Uganda  |  support@ncloud.co.ug`, 105, 286, { align: 'center' });
     doc.text(`Page ${p} of ${totalPages}  |  Certified Proof of Fulfillment & Inventory Handover`, 105, 289.5, { align: 'center' });
+  }
+
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
+export async function generateServerTicketPDFBuffer(ticket, options = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
+
+  const ticketNum = sanitizePdfText(ticket?.ticket_number || `TKT-${ticket?.id || '0001'}`);
+  const createdDate = new Date(ticket?.created_at || new Date());
+  const dateStr = formatNinjaDate(createdDate);
+  const priority = String(ticket?.priority || 'medium').toLowerCase();
+  const status = String(ticket?.status || 'open').toLowerCase();
+
+  const priorityColor = priority === 'urgent' 
+    ? [220, 38, 38] 
+    : priority === 'high' 
+      ? [234, 88, 12] 
+      : priority === 'medium' 
+        ? [2, 132, 199] 
+        : [100, 116, 139];
+
+  const statusLabel = status === 'replied' 
+    ? 'RESOLVED / REPLIED' 
+    : status === 'complete' 
+      ? 'RESOLVED' 
+      : status === 'in_progress' 
+        ? 'IN PROGRESS' 
+        : status === 'closed' 
+          ? 'CLOSED' 
+          : 'OPEN';
+
+  // 1. Top Decorative Bar & Header
+  drawInvoiceNinja3ToneBar(doc, 0, 4);
+
+  // Logo & Title
+  try {
+    if (NOVA_SERVER_LOGO_BASE64) {
+      doc.addImage(NOVA_SERVER_LOGO_BASE64, 'PNG', 14, 10, 24, 20);
+    }
+  } catch (e) {}
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text('NOVA CLOUD EDGES (U) LIMITED', 42, 16);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Lugga Zone, Ndejje, Wakiso, Republic of Uganda', 42, 21);
+  doc.text('Tel: +256 790 001 631 • Email: support@ncloud.co.ug • Web: ncloud.co.ug', 42, 25.5);
+
+  // Right Side: Document Title & Reference
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.text('HELPDESK TICKET THREAD', 196, 16, { align: 'right' });
+
+  doc.setFontSize(9.5);
+  doc.setTextColor(...priorityColor);
+  doc.text(`TICKET: #${ticketNum}`, 196, 22, { align: 'right' });
+
+  // Status Badge
+  const badgeW = 38;
+  const badgeH = 6;
+  const badgeX = 196 - badgeW;
+  const badgeY = 25;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(...priorityColor);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(...priorityColor);
+  doc.text(statusLabel, badgeX + badgeW / 2, badgeY + 4.2, { align: 'center' });
+
+  // Divider
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(14, 34, 196, 34);
+
+  let y = 39;
+
+  const ensureSpace = (neededHeight, sectionTitle = 'HELPDESK TICKET THREAD') => {
+    if (y + neededHeight > 270) {
+      doc.addPage();
+      drawInvoiceNinja3ToneBar(doc, 0, 4);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, 8, 182, 10, 'F');
+      doc.setFont('TrebuchetMS', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`NOVA CLOUD EDGES — ${sectionTitle} (CONTINUED)`, 18, 14.5);
+      doc.setTextColor(...priorityColor);
+      doc.text(`REF: #${ticketNum}`, 192, 14.5, { align: 'right' });
+      y = 24;
+    }
+  };
+
+  // 2. Metadata Cards (Two Columns)
+  ensureSpace(42);
+  const colW = 88;
+  const colH = 38;
+
+  // Left Card: Customer Profile
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, colW, colH, 1.5, 1.5, 'FD');
+
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(14, y, colW, 6.5, 1.5, 1.5, 'F');
+  doc.rect(14, y + 4, colW, 2.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(255, 255, 255);
+  doc.text('CUSTOMER / REQUESTER PROFILE', 18, y + 4.5);
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text(sanitizePdfText(ticket?.name || 'Anonymous Customer'), 18, y + 12);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Email: ${sanitizePdfText(ticket?.email || 'N/A')}`, 18, y + 17);
+  doc.text(`Phone: ${sanitizePdfText(ticket?.phone || 'N/A')}`, 18, y + 21.5);
+  doc.text(`Company: ${sanitizePdfText(ticket?.company || 'Corporate Client')}`, 18, y + 26);
+  doc.setTextColor(100, 116, 139);
+  const sourceLabel = ticket?.source === 'admin_manual' ? 'Staff Manual Entry' : (ticket?.source || 'Website Contact Form');
+  doc.text(`Channel: ${sourceLabel}`, 18, y + 31);
+
+  // Right Card: Classification & Assignment
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(108, y, colW, colH, 1.5, 1.5, 'FD');
+
+  doc.setFillColor(...priorityColor);
+  doc.roundedRect(108, y, colW, 6.5, 1.5, 1.5, 'F');
+  doc.rect(108, y + 4, colW, 2.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(255, 255, 255);
+  doc.text('CLASSIFICATION & ASSIGNMENT', 112, y + 4.5);
+
+  // QR Code
+  try {
+    const qrUrl = `https://ncloud.co.ug/verify?ticket=${encodeURIComponent(ticketNum)}`;
+    const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 140 });
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', 170, y + 10, 22, 22);
+    }
+  } catch (e) {}
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Category: ${sanitizePdfText(ticket?.category || 'General Support')}`, 112, y + 12);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Priority: ${priority.toUpperCase()}`, 112, y + 16.5);
+  doc.text(`Assigned To: ${sanitizePdfText(ticket?.assigned_to_name || 'Unassigned / Tier-1 NOC')}`, 112, y + 21);
+  if (ticket?.assigned_to_email) {
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Engineer Email: ${sanitizePdfText(ticket.assigned_to_email)}`, 112, y + 25.5);
+  }
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Logged: ${dateStr}`, 112, y + 30);
+  if (ticket?.closed_at) {
+    doc.text(`Closed: ${formatNinjaDate(ticket.closed_at)}`, 112, y + 34.5);
+  }
+
+  y += colH + 6;
+
+  // 3. Original Issue / Inquiry Description
+  const subjectStr = sanitizePdfText(ticket?.subject || 'Support Ticket Inquiry');
+  const messageStr = sanitizePdfText(ticket?.message || 'No description provided.');
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.6);
+  const splitMessage = doc.splitTextToSize(messageStr, 172);
+  const msgBoxHeight = Math.max(18, splitMessage.length * 3.8 + 14);
+
+  ensureSpace(msgBoxHeight + 10);
+
+  doc.setFillColor(30, 41, 59);
+  doc.roundedRect(14, y, 182, 6.5, 1.5, 1.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(255, 255, 255);
+  doc.text('ORIGINAL INQUIRY & INCIDENT DESCRIPTION', 18, y + 4.5);
+  y += 6.5;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(14, y, 182, msgBoxHeight, 'FD');
+
+  doc.setFillColor(...priorityColor);
+  doc.rect(14, y, 2.5, msgBoxHeight, 'F');
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Subject: ${subjectStr}`, 20, y + 6);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.4);
+  doc.setTextColor(51, 65, 85);
+  doc.text(splitMessage, 20, y + 11);
+
+  y += msgBoxHeight + 6;
+
+  // 4. Customer Resolution Reply (if present)
+  if (ticket?.response) {
+    const responseStr = sanitizePdfText(ticket.response);
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7.4);
+    const splitResponse = doc.splitTextToSize(responseStr, 172);
+    const respBoxHeight = Math.max(18, splitResponse.length * 3.8 + 14);
+
+    ensureSpace(respBoxHeight + 10);
+
+    doc.setFillColor(22, 163, 74);
+    doc.roundedRect(14, y, 182, 6.5, 1.5, 1.5, 'F');
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(255, 255, 255);
+    const repliedBy = sanitizePdfText(ticket?.replied_by || 'Engineering Support Desk');
+    const repliedTime = ticket?.replied_at ? formatNinjaDate(ticket.replied_at) : '';
+    doc.text(`CUSTOMER RESOLUTION REPLY (DISPATCHED BY: ${repliedBy.toUpperCase()}${repliedTime ? ` • ${repliedTime}` : ''})`, 18, y + 4.5);
+    y += 6.5;
+
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, 182, respBoxHeight, 'FD');
+
+    doc.setFillColor(22, 163, 74);
+    doc.rect(14, y, 2.5, respBoxHeight, 'F');
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7.4);
+    doc.setTextColor(20, 83, 45);
+    doc.text(splitResponse, 20, y + 7);
+
+    y += respBoxHeight + 6;
+  }
+
+  // 5. Activity Audit Trail & Lifecycle Log Table
+  let timeline = [];
+  if (Array.isArray(ticket?.timeline) && ticket.timeline.length > 0) {
+    timeline = ticket.timeline;
+  } else if (Array.isArray(ticket?.history) && ticket.history.length > 0) {
+    timeline = ticket.history;
+  } else if (typeof ticket?.history === 'string' && ticket.history.trim().startsWith('[')) {
+    try { timeline = JSON.parse(ticket.history); } catch (e) {}
+  }
+
+  if (!timeline || timeline.length === 0) {
+    timeline = [
+      {
+        timestamp: ticket?.created_at || new Date().toISOString(),
+        actor: ticket?.name || 'Customer',
+        note: `Ticket created via ${ticket?.source || 'website contact form'}.`
+      }
+    ];
+    if (ticket?.assigned_to_name) {
+      timeline.push({
+        timestamp: ticket?.assigned_at || ticket?.created_at || new Date().toISOString(),
+        actor: 'Dispatcher',
+        note: `Assigned to lead engineer ${ticket.assigned_to_name}.`
+      });
+    }
+    if (ticket?.response) {
+      timeline.push({
+        timestamp: ticket?.replied_at || new Date().toISOString(),
+        actor: ticket?.replied_by || 'Engineering Support',
+        note: 'Customer resolution email dispatched with ticket ref attached.'
+      });
+    }
+    if (ticket?.status === 'closed') {
+      timeline.push({
+        timestamp: ticket?.closed_at || new Date().toISOString(),
+        actor: ticket?.closed_by || 'Admin',
+        note: 'Ticket closed and resolved.'
+      });
+    }
+  }
+
+  ensureSpace(25);
+
+  const drawTimelineTableHeader = (curY) => {
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(14, curY, 182, 7, 1.5, 1.5, 'F');
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TIMESTAMP (EAT)', 18, curY + 4.8);
+    doc.text('OPERATOR / ACTOR', 62, curY + 4.8);
+    doc.text('ACTIVITY AUDIT NOTES & LIFECYCLE EVENT', 106, curY + 4.8);
+    return curY + 7;
+  };
+
+  y = drawTimelineTableHeader(y);
+
+  timeline.forEach((event, idx) => {
+    const timeStr = event.timestamp ? formatNinjaDate(event.timestamp) : 'N/A';
+    const actorStr = sanitizePdfText(event.actor || 'System');
+    const noteStr = sanitizePdfText(event.note || event.action || 'Audit event logged');
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7);
+    const splitNote = doc.splitTextToSize(noteStr, 86);
+    const rowH = Math.max(7.5, splitNote.length * 3.5 + 3);
+
+    if (y + rowH > 270) {
+      doc.addPage();
+      drawInvoiceNinja3ToneBar(doc, 0, 4);
+      y = drawTimelineTableHeader(16);
+    }
+
+    doc.setFillColor(idx % 2 === 1 ? 241 : 255, idx % 2 === 1 ? 245 : 255, idx % 2 === 1 ? 249 : 255);
+    doc.rect(14, y, 182, rowH, 'F');
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(14, y + rowH, 196, y + rowH);
+
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setTextColor(100, 116, 139);
+    doc.text(timeStr, 18, y + 4.8);
+
+    doc.setTextColor(15, 23, 42);
+    doc.text(actorStr, 62, y + 4.8);
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(splitNote, 106, y + 4.8);
+
+    y += rowH;
+  });
+
+  y += 6;
+
+  // 6. SLA Certification & System Dispatch Notice
+  ensureSpace(18);
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, 182, 14, 1.5, 1.5, 'FD');
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text('CERTIFIED ITSM SYSTEM DISPATCH & AUDIT VERIFICATION', 18, y + 5);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `This transcript represents the complete immutable activity history for Ticket #${ticketNum}. Nova Cloud Edges IT Service Management (ITSM) • SLA Priority: ${priority.toUpperCase()} • Generated: ${new Date().toLocaleString()}`,
+    18,
+    y + 9.5
+  );
+
+  // 7. Footers on all pages
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.25);
+    doc.line(14, 282, 196, 282);
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Nova Cloud Edges (U) Ltd • Verification: ncloud.co.ug/verify • Confidential & Legally Binding', 14, 286.5);
+
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Page ${p} of ${totalPages}`, 196, 286.5, { align: 'right' });
   }
 
   return Buffer.from(doc.output('arraybuffer'));
@@ -14928,7 +15363,8 @@ function requireSystemsAdmin(req, res, next) {
 app.get('/api/admin/integrations', requireSystemsAdmin, (req, res) => {
   const integrations = (memoryStore.api_integrations || []).map(api => ({
     ...api,
-    client_secret: api.client_secret ? '********' : ''
+    client_secret: api.client_secret || api.api_key || '',
+    api_key: api.api_key || api.client_secret || ''
   }));
   res.json({ integrations });
 });
@@ -14945,6 +15381,7 @@ app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
   const id = rawId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
   
   const existingIdx = memoryStore.api_integrations.findIndex(a => a.id === id);
+  let cleanHost = (host_url || '').trim().replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1');
   const newIntegration = {
     id,
     name: name.trim(),
@@ -14952,11 +15389,11 @@ app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
     type: type || 'custom',
     status: req.body.status || 'active',
     client_id: client_id || site_id || '',
-    client_secret: client_secret || api_key || '',
+    client_secret: (client_secret || api_key || '').trim(),
     wallet_id: wallet_id || '',
-    host_url: host_url || '',
+    host_url: cleanHost,
     site_id: site_id || client_id || '',
-    api_key: api_key || client_secret || '',
+    api_key: (api_key || client_secret || '').trim(),
     gateway_url: gateway_url || '',
     api_path: api_path || '',
     last_updated: new Date().toISOString()
@@ -14980,6 +15417,9 @@ app.post('/api/admin/integrations', requireSystemsAdmin, async (req, res) => {
   }
   
   savePersistentStore(true);
+  if (newIntegration.type === 'network' || newIntegration.id.includes('unifi')) {
+    syncUniFiVouchers().catch(e => console.warn('[UniFi Auto-Sync New Integration]', e.message));
+  }
   res.json({ success: true, message: 'API Integration added successfully.', integration: newIntegration });
 });
 
@@ -15024,16 +15464,18 @@ app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => 
       api.site_id = site_id;
       api.client_id = site_id;
     }
-    if (client_secret && client_secret !== '********') {
-      api.client_secret = client_secret;
-      api.api_key = client_secret;
+    if (client_secret !== undefined && client_secret !== '********') {
+      api.client_secret = client_secret.trim();
+      api.api_key = client_secret.trim();
     }
-    if (api_key && api_key !== '********') {
-      api.api_key = api_key;
-      api.client_secret = api_key;
+    if (api_key !== undefined && api_key !== '********') {
+      api.api_key = api_key.trim();
+      api.client_secret = api_key.trim();
     }
     if (wallet_id !== undefined) api.wallet_id = wallet_id;
-    if (host_url !== undefined) api.host_url = host_url;
+    if (host_url !== undefined) {
+      api.host_url = host_url.trim().replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1');
+    }
     if (gateway_url !== undefined) api.gateway_url = gateway_url;
     if (api_path !== undefined) api.api_path = api_path;
     if (status !== undefined) api.status = status;
@@ -15056,6 +15498,11 @@ app.put('/api/admin/integrations/:id', requireSystemsAdmin, async (req, res) => 
     }
 
     savePersistentStore(true);
+
+    if (String(id).includes('unifi') || api.id === 'unifi_api' || api.provider?.toLowerCase().includes('ubiquiti')) {
+      syncUniFiVouchers().catch(e => console.warn('[UniFi Auto-Sync Update]', e.message));
+    }
+
     res.json({ success: true, message: 'API Configuration Saved' });
   } else {
     res.status(404).json({ error: 'API Integration not found.' });

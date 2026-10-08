@@ -15,7 +15,8 @@ import {
   generateWorkOrderPOSReceiptPDF,
   generateWifiVoucherPrintoutPDF,
   generateJobApplicationReceipt80mmPDF,
-  generateContractLetterPDF
+  generateContractLetterPDF,
+  generateTicketThreadPDF
 } from '../utils/pdfGenerator';
 import { 
   LayoutDashboard, 
@@ -44,6 +45,7 @@ import {
   Send, 
   Plus, 
   Edit, 
+  Edit2,
   Edit3, 
   Tag, 
   Search, 
@@ -953,7 +955,9 @@ const normalizeTabName = (rawTab) => {
   const [apiIntegrations, setApiIntegrations] = useState([]);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedApiConfig, setSelectedApiConfig] = useState(null);
+  const [showConfigSecret, setShowConfigSecret] = useState(false);
   const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
+  const [showNewSecret, setShowNewSecret] = useState(false);
   const [newIntegrationForm, setNewIntegrationForm] = useState({
     name: '',
     provider: '',
@@ -1222,7 +1226,7 @@ const normalizeTabName = (rawTab) => {
   const [replyingToId, setReplyingToId] = useState(null);
   const [isReplying, setIsReplying] = useState(false);
   const [contactsPage, setContactsPage] = useState(1);
-  const CONTACTS_PER_PAGE = 10;
+  const CONTACTS_PER_PAGE = 6;
   const [replyCc, setReplyCc] = useState('');
   const [replyAttachment, setReplyAttachment] = useState(null);
 
@@ -4738,10 +4742,14 @@ const normalizeTabName = (rawTab) => {
     e.preventDefault();
     try {
       showToast('Saving UniFi credentials and verifying live connection...', 'info');
+      const cleanedForm = {
+        ...unifiConfigForm,
+        host_url: (unifiConfigForm.host_url || '').trim().replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1')
+      };
       const res = await fetch('/api/admin/unifi/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify(unifiConfigForm)
+        body: JSON.stringify(cleanedForm)
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save UniFi configuration');
@@ -12631,7 +12639,7 @@ const normalizeTabName = (rawTab) => {
               const filteredContacts = allContacts.filter(c => {
                 // Search query
                 if (contactSearch) {
-                  const q = contactSearch.toLowerCase();
+                  const q = contactSearch.toLowerCase().trim();
                   const matchesSearch = 
                     (c.ticket_number || '').toLowerCase().includes(q) ||
                     (c.name || '').toLowerCase().includes(q) ||
@@ -12640,7 +12648,10 @@ const normalizeTabName = (rawTab) => {
                     (c.subject || '').toLowerCase().includes(q) ||
                     (c.message || '').toLowerCase().includes(q) ||
                     (c.assigned_to_name || '').toLowerCase().includes(q) ||
-                    (c.category || '').toLowerCase().includes(q);
+                    (c.category || '').toLowerCase().includes(q) ||
+                    (c.priority || '').toLowerCase().includes(q) ||
+                    (c.status || '').toLowerCase().includes(q) ||
+                    String(c.id || '').includes(q);
                   if (!matchesSearch) return false;
                 }
 
@@ -12853,8 +12864,8 @@ const normalizeTabName = (rawTab) => {
                     </div>
                   </div>
 
-                  {/* Tickets List */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Tickets List - 3 Cards Per Row */}
+                  <div className="helpdesk-tickets-grid">
                     {paginatedContacts.map(c => {
                       const priority = (c.priority || 'medium').toLowerCase();
                       const priorityColor = priority === 'urgent' ? '#ef4444' : priority === 'high' ? '#f97316' : priority === 'medium' ? '#0284c7' : '#64748b';
@@ -12863,7 +12874,7 @@ const normalizeTabName = (rawTab) => {
                       const isTimelineExpanded = expandedTimelineId === c.id;
 
                       return (
-                        <div key={c.id} className="glass-card" style={{ padding: '1.5rem', borderLeft: `5px solid ${priorityColor}` }}>
+                        <div key={c.id} className="glass-card" style={{ padding: '1.25rem', borderLeft: `5px solid ${priorityColor}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
                           {/* Card Header */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -12925,10 +12936,21 @@ const normalizeTabName = (rawTab) => {
                               )}
                             </div>
 
-                            {/* Timestamp & Source */}
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                              <div>Logged: {new Date(c.created_at || Date.now()).toLocaleString()}</div>
-                              {c.source && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Via: {c.source === 'admin_manual' ? 'Staff Manual' : 'Website Form'}</span>}
+                            {/* Timestamp, Source & PDF Print Button */}
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                              <div>Logged: {new Date(c.created_at || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {c.source && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Via: {c.source === 'admin_manual' ? 'Staff Manual' : 'Website'}</span>}
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); generateTicketThreadPDF(c, { siteLogo }); }}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.15rem 0.45rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px', borderRadius: '5px' }}
+                                  title="Print Ticket Thread & Audit Trail (PDF)"
+                                >
+                                  <Printer size={11} /> PDF
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -13091,16 +13113,29 @@ const normalizeTabName = (rawTab) => {
                               )}
                             </div>
 
-                            {/* Timeline Toggle */}
-                            {hasTimeline && (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              {/* Print Thread PDF Button */}
                               <button
-                                onClick={() => setExpandedTimelineId(isTimelineExpanded ? null : c.id)}
+                                type="button"
+                                onClick={() => generateTicketThreadPDF(c, { siteLogo })}
                                 className="btn-secondary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(2, 132, 199, 0.08)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
+                                title="Print Ticket Thread & Complete Audit Log (PDF)"
                               >
-                                <Clock size={13} /> {isTimelineExpanded ? 'Hide History' : `History (${c.timeline.length})`}
+                                <Printer size={13} /> Print Thread PDF
                               </button>
-                            )}
+
+                              {/* Timeline Toggle */}
+                              {hasTimeline && (
+                                <button
+                                  onClick={() => setExpandedTimelineId(isTimelineExpanded ? null : c.id)}
+                                  className="btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  <Clock size={13} /> {isTimelineExpanded ? 'Hide History' : `History (${c.timeline.length})`}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Expanded Audit Timeline */}
@@ -13181,7 +13216,7 @@ const normalizeTabName = (rawTab) => {
                     })}
 
                     {filteredContacts.length === 0 && (
-                      <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
+                      <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center', gridColumn: '1 / -1' }}>
                         <LifeBuoy size={48} style={{ color: 'var(--text-muted)', opacity: 0.4, margin: '0 auto 1rem' }} />
                         <h3 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>No support tickets match your filters</h3>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto 1rem' }}>
@@ -13967,6 +14002,7 @@ const normalizeTabName = (rawTab) => {
                           <button 
                             onClick={() => {
                               setSelectedApiConfig(api);
+                              setShowConfigSecret(false);
                               setShowConfigModal(true);
                             }}
                             className="btn-primary" 
@@ -18587,6 +18623,8 @@ const normalizeTabName = (rawTab) => {
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   try {
+                    const cleanHost = (selectedApiConfig.host_url || '').trim().replace(/^(https?:\/\/unifi\.ncloud\.co\.ug):8443/i, '$1');
+                    const isUniFi = selectedApiConfig.id?.includes('unifi') || selectedApiConfig.type === 'network' || (selectedApiConfig.provider && selectedApiConfig.provider.toLowerCase().includes('ubiquiti'));
                     const res = await fetch(`/api/admin/integrations/${selectedApiConfig.id}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
@@ -18597,7 +18635,7 @@ const normalizeTabName = (rawTab) => {
                         client_secret: selectedApiConfig.client_secret || selectedApiConfig.api_key || '',
                         api_key: selectedApiConfig.api_key || selectedApiConfig.client_secret || '',
                         wallet_id: selectedApiConfig.wallet_id,
-                        host_url: selectedApiConfig.host_url,
+                        host_url: cleanHost,
                         site_id: selectedApiConfig.site_id || selectedApiConfig.client_id || '',
                         gateway_url: selectedApiConfig.gateway_url,
                         api_path: selectedApiConfig.api_path
@@ -18607,6 +18645,9 @@ const normalizeTabName = (rawTab) => {
                       showToast('API Configuration saved successfully!', 'success');
                       setShowConfigModal(false);
                       fetchApiIntegrations();
+                      if (isUniFi) {
+                        fetchUnifiVouchers();
+                      }
                     } else {
                       const d = await res.json();
                       throw new Error(d.error || 'Failed to save');
@@ -18643,19 +18684,41 @@ const normalizeTabName = (rawTab) => {
                     <>
                       <div className="form-group">
                         <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi API Key (X-API-KEY) *</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder={selectedApiConfig.client_secret || selectedApiConfig.api_key ? '********' : 'Enter UniFi API Key'}
-                          value={selectedApiConfig.client_secret || selectedApiConfig.api_key || ''}
-                          onChange={e => setSelectedApiConfig({
-                            ...selectedApiConfig,
-                            client_secret: e.target.value,
-                            api_key: e.target.value
-                          })}
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showConfigSecret ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '2.5rem', fontFamily: 'monospace' }}
+                            placeholder="Enter UniFi API Key"
+                            value={selectedApiConfig.client_secret || selectedApiConfig.api_key || ''}
+                            onChange={e => setSelectedApiConfig({
+                              ...selectedApiConfig,
+                              client_secret: e.target.value,
+                              api_key: e.target.value
+                            })}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfigSecret(!showConfigSecret)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showConfigSecret ? 'Hide Key' : 'Show Key'}
+                          >
+                            {showConfigSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                         <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                          UniFi OS only requires an API Key (created in UniFi OS Console under Admins &gt; API Keys). Leave blank to retain current key.
+                          UniFi OS only requires an API Key (created in UniFi OS Console under Admins &gt; API Keys). Toggle the eye icon to view or verify.
                         </small>
                       </div>
 
@@ -18667,7 +18730,7 @@ const normalizeTabName = (rawTab) => {
                             className="form-input"
                             value={selectedApiConfig.host_url || ''}
                             onChange={e => setSelectedApiConfig({...selectedApiConfig, host_url: e.target.value})}
-                            placeholder="e.g. https://unifi.yourcompany.com:8443"
+                            placeholder="https://unifi.ncloud.co.ug"
                           />
                         </div>
                         <div className="form-group">
@@ -18714,14 +18777,35 @@ const normalizeTabName = (rawTab) => {
                       </div>
                       <div className="form-group">
                         <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder={selectedApiConfig.client_secret ? '********' : 'Enter Secret'}
-                          value={selectedApiConfig.client_secret || ''}
-                          onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
-                        />
-                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Leave blank to retain current secret.</small>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showConfigSecret ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '2.5rem', fontFamily: 'monospace' }}
+                            placeholder="Enter Secret"
+                            value={selectedApiConfig.client_secret || ''}
+                            onChange={e => setSelectedApiConfig({...selectedApiConfig, client_secret: e.target.value})}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfigSecret(!showConfigSecret)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showConfigSecret ? 'Hide Secret' : 'Show Secret'}
+                          >
+                            {showConfigSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Toggle the eye icon to view or verify.</small>
                       </div>
                       {(selectedApiConfig.id === 'iotec_pay' || selectedApiConfig.type === 'payment' || selectedApiConfig.wallet_id) && (
                         <div className="form-group">
@@ -18922,18 +19006,39 @@ const normalizeTabName = (rawTab) => {
                     <>
                       <div className="form-group">
                         <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>UniFi API Key (X-API-KEY) *</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="Paste X-API-KEY from UniFi OS Console"
-                          value={newIntegrationForm.client_secret || ''}
-                          onChange={e => setNewIntegrationForm({
-                            ...newIntegrationForm,
-                            client_secret: e.target.value,
-                            api_key: e.target.value
-                          })}
-                          required
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showNewSecret ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '2.5rem', fontFamily: 'monospace' }}
+                            placeholder="Paste X-API-KEY from UniFi OS Console"
+                            value={newIntegrationForm.client_secret || ''}
+                            onChange={e => setNewIntegrationForm({
+                              ...newIntegrationForm,
+                              client_secret: e.target.value,
+                              api_key: e.target.value
+                            })}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewSecret(!showNewSecret)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showNewSecret ? 'Hide Key' : 'Show Key'}
+                          >
+                            {showNewSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                         <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                           Ubiquiti UniFi only uses an API Key generated in your UniFi OS Console under Admins &gt; API Keys.
                         </small>
@@ -18945,7 +19050,7 @@ const normalizeTabName = (rawTab) => {
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="e.g. https://unifi.yourcompany.com:8443"
+                            placeholder="https://unifi.ncloud.co.ug"
                             value={newIntegrationForm.host_url}
                             onChange={e => setNewIntegrationForm({...newIntegrationForm, host_url: e.target.value})}
                             required
@@ -18997,14 +19102,35 @@ const normalizeTabName = (rawTab) => {
 
                       <div className="form-group">
                         <label style={{ fontWeight: '700', fontSize: '0.85rem' }}>Client Secret / Token *</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="API secret key or auth token"
-                          value={newIntegrationForm.client_secret}
-                          onChange={e => setNewIntegrationForm({...newIntegrationForm, client_secret: e.target.value})}
-                          required
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showNewSecret ? 'text' : 'password'}
+                            className="form-input"
+                            style={{ paddingRight: '2.5rem', fontFamily: 'monospace' }}
+                            placeholder="API secret key or auth token"
+                            value={newIntegrationForm.client_secret}
+                            onChange={e => setNewIntegrationForm({...newIntegrationForm, client_secret: e.target.value})}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewSecret(!showNewSecret)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showNewSecret ? 'Hide Secret' : 'Show Secret'}
+                          >
+                            {showNewSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
                       </div>
 
                       {newIntegrationForm.type === 'payment' && (

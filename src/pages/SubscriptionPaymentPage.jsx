@@ -508,109 +508,115 @@ export default function SubscriptionPaymentPage({ setActivePage = () => {} }) {
               Your order reference is <strong>{successData.subscription?.reference || successData.reference || 'NV-SUB-8812'}</strong>. An official Tax Invoice <strong>#{successData.invoice?.invoice_number || 'INV-2026-0041'}</strong> has been generated. Your subscription will be activated automatically once payment is cleared 100%.
             </p>
 
-            {/* Auto-Account Created Box */}
-            {successData.new_account_created && (
-              <div style={{
-                background: 'rgba(37, 99, 235, 0.08)',
-                padding: '1.25rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(37, 99, 235, 0.3)',
-                marginBottom: '1.5rem',
-                textAlign: 'left',
-                color: 'var(--text-main)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#2563eb', fontWeight: '800', fontSize: '1rem' }}>
-                  <User size={18} /> New Customer Account Created & Logged In!
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
-                  We created a new customer account for you and logged you in automatically. Your login credentials have also been emailed to <strong>{successData.subscription?.customer_email}</strong>.
-                </p>
-                <div style={{ background: 'var(--bg-main)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-                  <div style={{ marginBottom: '4px' }}><strong>Login Email:</strong> {successData.subscription?.customer_email || successData.created_user?.email}</div>
-                  <div><strong>Temporary Password:</strong> <code style={{ background: 'rgba(37, 99, 235, 0.15)', padding: '2px 8px', borderRadius: '4px', color: '#2563eb', fontWeight: '800' }}>{successData.temp_password}</code></div>
-                </div>
-              </div>
-            )}
+            {(() => {
+              const orderSub = successData.subscription || {};
+              const orderInv = successData.invoice || {};
+              const custEmail = orderSub.customer_email || orderInv.customer_email || successData.created_user?.email || customerInfo.email || '';
+              const custName = orderSub.customer_name || orderInv.customer_name || successData.created_user?.name || customerInfo.name || 'Valued Subscriber';
+              const custCompany = orderSub.company || orderInv.company || customerInfo.company || '';
+              const custAddress = orderSub.customer_address || orderInv.customer_address || customerInfo.address || '';
+              const packageOrdered = orderSub.plan_name || orderInv.plan_name || orderInv.item_name || (Array.isArray(orderInv.items) && orderInv.items.length > 0 ? orderInv.items.map(it => it.name).join(', ') : '') || 'Enterprise Cloud & Managed Services';
+              const billingDuration = orderSub.duration || orderInv.duration || 'Monthly';
+              const invNumber = orderInv.invoice_number || orderSub.invoice_number || successData.reference || 'INV-2026-0041';
+              const totalAmountVal = Number(orderSub.amount ?? orderInv.amount ?? orderInv.total_amount_due ?? grandTotal ?? 0);
+              const currencyVal = orderSub.currency || orderInv.currency || 'UGX';
 
-            <div style={{
-              background: 'var(--bg-main)',
-              padding: '1.25rem',
-              borderRadius: '12px',
-              marginBottom: '2rem',
-              textAlign: 'left',
-              border: '1px solid var(--border-color)',
-              fontSize: '0.9rem'
-            }}>
-              <div style={{ fontWeight: '800', marginBottom: '0.6rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
-                Subscription Order Summary
-              </div>
-              <div style={{ marginBottom: '4px' }}><strong>Packages Ordered:</strong> {successData.subscription?.plan_name}</div>
-              <div style={{ marginBottom: '4px' }}><strong>Subscriber Name:</strong> {successData.subscription?.customer_name} {successData.subscription?.company ? `(${successData.subscription?.company})` : ''}</div>
-              {successData.subscription?.customer_address && <div style={{ marginBottom: '4px' }}><strong>Billing Address:</strong> {successData.subscription?.customer_address}</div>}
-              <div style={{ marginBottom: '4px' }}><strong>Billing Duration:</strong> {successData.subscription?.duration}</div>
-              <div style={{ marginBottom: '4px' }}><strong>Tax Invoice Number:</strong> {successData.invoice?.invoice_number || 'INV-2026-0041'}</div>
-              <div style={{ marginBottom: '4px' }}><strong>Total Amount:</strong> {successData.subscription?.currency || 'UGX'} {Number(successData.subscription?.amount || 0).toLocaleString()}</div>
-              <div><strong>Order Status:</strong> Order Received & Active</div>
-            </div>
+              return (
+                <>
+                  {/* Auto-Account Created Box */}
+                  {successData.new_account_created && (
+                    <div style={{
+                      background: 'rgba(37, 99, 235, 0.08)',
+                      padding: '1.25rem',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(37, 99, 235, 0.3)',
+                      marginBottom: '1.5rem',
+                      textAlign: 'left',
+                      color: 'var(--text-main)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#2563eb', fontWeight: '800', fontSize: '1rem' }}>
+                        <User size={18} /> New Customer Account Created & Logged In!
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>
+                        We created a new customer account for you and logged you in automatically. Your login credentials have also been emailed to <strong>{custEmail}</strong>.
+                      </p>
+                      <div style={{ background: 'var(--bg-main)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <div style={{ marginBottom: '4px' }}><strong>Login Email:</strong> {custEmail}</div>
+                        <div><strong>Temporary Password:</strong> <code style={{ background: 'rgba(37, 99, 235, 0.15)', padding: '2px 8px', borderRadius: '4px', color: '#2563eb', fontWeight: '800' }}>{successData.temp_password}</code></div>
+                      </div>
+                    </div>
+                  )}
 
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const invData = successData.invoice || {
-                    invoice_number: successData.subscription?.reference || 'INV-2026-0041',
-                    customer_name: successData.subscription?.customer_name || customerInfo.name,
-                    customer_email: successData.subscription?.customer_email || customerInfo.email,
-                    customer_phone: successData.subscription?.customer_phone || customerInfo.phone,
-                    customer_address: successData.subscription?.customer_address || customerInfo.address,
-                    company: successData.subscription?.company || customerInfo.company,
-                    total_amount: successData.subscription?.amount || grandTotal,
-                    items: successData.items || [{ name: successData.subscription?.plan_name || 'Cloud Infrastructure', quantity: 1, unit_price: successData.subscription?.amount || grandTotal }]
-                  };
-                  generateInvoicePDF(invData, { siteLogo });
-                }}
-                className="btn-secondary"
-                style={{ padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1.5px solid var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}
-              >
-                <Download size={16} /> Download Tax Invoice (PDF)
-              </button>
+                  <div style={{
+                    background: 'var(--bg-main)',
+                    padding: '1.25rem',
+                    borderRadius: '12px',
+                    marginBottom: '2rem',
+                    textAlign: 'left',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.9rem'
+                  }}>
+                    <div style={{ fontWeight: '800', marginBottom: '0.6rem', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
+                      Subscription Order Summary
+                    </div>
+                    <div style={{ marginBottom: '4px' }}><strong>Packages Ordered:</strong> {packageOrdered}</div>
+                    <div style={{ marginBottom: '4px' }}><strong>Subscriber Name:</strong> {custName} {custCompany ? `(${custCompany})` : ''}</div>
+                    {custAddress && <div style={{ marginBottom: '4px' }}><strong>Billing Address:</strong> {custAddress}</div>}
+                    <div style={{ marginBottom: '4px' }}><strong>Billing Duration:</strong> {billingDuration}</div>
+                    <div style={{ marginBottom: '4px' }}><strong>Tax Invoice Number:</strong> {invNumber}</div>
+                    <div style={{ marginBottom: '4px' }}><strong>Total Amount:</strong> {currencyVal} {totalAmountVal.toLocaleString()}</div>
+                    <div><strong>Order Status:</strong> Order Received & Active</div>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const quoteData = {
-                    quote_number: `QTN-${successData.invoice?.invoice_number ? successData.invoice.invoice_number.replace('INV-', '') : '2026-0041'}`,
-                    customer_name: successData.subscription?.customer_name || customerInfo.name,
-                    customer_email: successData.subscription?.customer_email || customerInfo.email,
-                    customer_phone: successData.subscription?.customer_phone || customerInfo.phone,
-                    customer_address: successData.subscription?.customer_address || customerInfo.address,
-                    company: successData.subscription?.company || customerInfo.company,
-                    total_amount: successData.subscription?.amount || grandTotal,
-                    items: successData.items || [{ name: successData.subscription?.plan_name || 'Cloud Infrastructure', quantity: 1, unit_price: successData.subscription?.amount || grandTotal }]
-                  };
-                  generateQuotationPDF(quoteData, { siteLogo });
-                }}
-                className="btn-secondary"
-                style={{ padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1.5px solid var(--border-color)', color: 'var(--text-main)', cursor: 'pointer' }}
-              >
-                <FileText size={16} /> Download Quotation (PDF)
-              </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const invData = successData.invoice ? {
+                          ...successData.invoice,
+                          customer_name: successData.invoice.customer_name || custName,
+                          customer_email: successData.invoice.customer_email || custEmail,
+                          customer_phone: successData.invoice.customer_phone || orderSub.customer_phone || customerInfo.phone,
+                          customer_address: successData.invoice.customer_address || custAddress,
+                          company: successData.invoice.company || custCompany,
+                          total_amount: Number(successData.invoice.amount || totalAmountVal),
+                          items: (successData.invoice.items && successData.invoice.items.length > 0) ? successData.invoice.items : (successData.items || [{ name: packageOrdered, quantity: 1, unit_price: totalAmountVal }])
+                        } : {
+                          invoice_number: invNumber,
+                          customer_name: custName,
+                          customer_email: custEmail,
+                          customer_phone: orderSub.customer_phone || customerInfo.phone,
+                          customer_address: custAddress,
+                          company: custCompany,
+                          total_amount: totalAmountVal,
+                          items: successData.items || [{ name: packageOrdered, quantity: 1, unit_price: totalAmountVal }]
+                        };
+                        generateInvoicePDF(invData, { siteLogo });
+                      }}
+                      className="btn-secondary"
+                      style={{ padding: '0.75rem 1.25rem', fontSize: '0.875rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', border: '1.5px solid var(--primary)', color: 'var(--primary)', cursor: 'pointer' }}
+                    >
+                      <Download size={16} /> Download Tax Invoice (PDF)
+                    </button>
 
-              <button
-                onClick={() => {
-                  setSuccessData(null);
-                  if (setActivePage) {
-                    setActivePage('shop');
-                  } else if (typeof window !== 'undefined') {
-                    window.location.href = '/shop';
-                  }
-                }}
-                className="btn-primary"
-                style={{ padding: '0.75rem 1.75rem', fontSize: '0.925rem', fontWeight: '800' }}
-              >
-                Return to Digital Shop
-              </button>
-            </div>
+                    <button
+                      onClick={() => {
+                        setSuccessData(null);
+                        if (setActivePage) {
+                          setActivePage('shop');
+                        } else if (typeof window !== 'undefined') {
+                          window.location.href = '/shop';
+                        }
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '0.75rem 1.75rem', fontSize: '0.925rem', fontWeight: '800' }}
+                    >
+                      Return to Digital Shop
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
 
             {paymentPolling && (
               <div style={{

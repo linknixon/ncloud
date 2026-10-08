@@ -2,10 +2,11 @@ import SEO from "../components/SEO";
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAutoSaveDraft } from '../hooks/useAutoSaveDraft';
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle2, Copy, Check, Ticket, AlertCircle } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle2, Copy, Check, Ticket, AlertCircle, Printer } from 'lucide-react';
+import { generateTicketThreadPDF } from '../utils/pdfGenerator';
 
 export default function ContactPage() {
-  const { showToast } = useApp();
+  const { showToast, siteLogo } = useApp();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -21,6 +22,7 @@ export default function ContactPage() {
   const [ticketNumber, setTicketNumber] = useState('');
   const [copiedTicket, setCopiedTicket] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [submittedTicket, setSubmittedTicket] = useState(null);
 
 
   const turnstileRef = React.useRef(null);
@@ -150,8 +152,22 @@ export default function ContactPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to send message');
 
       const generatedNum = data.ticket_number || data.contact?.ticket_number || '';
+      const fullTicketObj = {
+        ...(data.contact || {}),
+        ticket_number: generatedNum,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        category: formData.category,
+        priority: formData.priority,
+        subject: formData.subject,
+        message: formData.message,
+        source: 'Website Contact Form',
+        created_at: new Date().toISOString()
+      };
       setTicketNumber(generatedNum);
       setSubmittedEmail(formData.email);
+      setSubmittedTicket(fullTicketObj);
       setSubmitted(true);
       showToast(generatedNum ? `Support Ticket #${generatedNum} created!` : 'Support request logged successfully!', 'success');
       clearDraft();
@@ -288,11 +304,8 @@ export default function ContactPage() {
 
           {/* Contact Form */}
           <div className="glass-card">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Support Desk & Inquiries</h2>
-              <span style={{ fontSize: '0.75rem', fontWeight: '800', background: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', padding: '0.25rem 0.65rem', borderRadius: '12px', border: '1px solid rgba(2, 132, 199, 0.3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Auto-Ticketing Enabled
-              </span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
               Fill out the form below. Messages generate an official support ticket and notify our engineering team immediately.
@@ -368,14 +381,24 @@ export default function ContactPage() {
                   A confirmation email has been dispatched to <strong>{submittedEmail || 'your email'}</strong>. Our assigned Technical Support Engineers will review and contact you shortly.
                 </div>
 
-                <div>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => generateTicketThreadPDF(submittedTicket || { ticket_number: ticketNumber, name: submittedEmail, email: submittedEmail, subject: 'Support Ticket Inquiry' }, { siteLogo })}
+                    className="btn-primary"
+                    style={{ padding: '0.65rem 1.4rem', fontSize: '0.875rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', borderRadius: '8px' }}
+                  >
+                    <Printer size={16} /> Print / Download Ticket PDF
+                  </button>
+
                   <button
                     onClick={() => {
                       setSubmitted(false);
                       setTicketNumber('');
+                      setSubmittedTicket(null);
                     }}
                     className="btn-secondary"
-                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.9rem' }}
+                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.875rem', borderRadius: '8px' }}
                   >
                     Submit Another Ticket
                   </button>

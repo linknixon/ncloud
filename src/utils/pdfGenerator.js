@@ -3435,3 +3435,363 @@ export async function generateContractLetterPDF(contractData = {}, options = {})
   return doc;
 }
 
+// ============================================================================
+// 12. GENERATE HELPDESK TICKET THREAD & AUDIT LOG PDF (A4 EXECUTIVE ITSM)
+// ============================================================================
+
+export async function generateTicketThreadPDF(ticket = {}, options = {}) {
+  const opts = typeof options === 'string' ? { siteLogo: options } : (options || {});
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  registerTrebuchetFont(doc);
+
+  const ticketNum = ticket.ticket_number || (`TKT-${String(ticket.id || '0001').padStart(4, '0')}`);
+  const createdDate = new Date(ticket.created_at || Date.now());
+  const dateStr = createdDate.toISOString().split('T')[0];
+  const priority = String(ticket.priority || 'medium').toLowerCase();
+  const status = String(ticket.status || 'open').toLowerCase();
+
+  const priorityColor = priority === 'urgent' 
+    ? BRAND.colors.crimson 
+    : priority === 'high' 
+      ? [234, 88, 12] 
+      : priority === 'medium' 
+        ? BRAND.colors.novaBlue 
+        : [100, 116, 139];
+
+  const statusLabel = status === 'replied' 
+    ? 'RESOLVED / REPLIED' 
+    : status === 'complete' 
+      ? 'RESOLVED' 
+      : status === 'in_progress' 
+        ? 'IN PROGRESS' 
+        : status === 'closed' 
+          ? 'CLOSED' 
+          : 'OPEN';
+
+  // 1. Executive Top Header
+  drawA4ExecutiveHeader(doc, {
+    title: 'HELPDESK TICKET THREAD',
+    refNumber: ticketNum,
+    refLabel: 'TICKET',
+    dateStr,
+    status: statusLabel,
+    logoDataUrl: opts.siteLogo,
+    accentColor: priorityColor
+  });
+
+  let y = 43;
+
+  const ensureSpace = (neededHeight, sectionTitle = 'HELPDESK TICKET THREAD') => {
+    if (y + neededHeight > 272) {
+      doc.addPage();
+      drawA4ContinuationHeader(doc, { 
+        title: sectionTitle, 
+        refNumber: ticketNum, 
+        accentColor: priorityColor 
+      });
+      y = 26;
+    }
+  };
+
+  // 2. Metadata & Parties Summary Cards (Two Columns)
+  ensureSpace(42);
+  const colW = 88;
+  const colH = 38;
+
+  // Left Card: Customer / Requester Profile
+  doc.setFillColor(...BRAND.colors.bgSoft);
+  doc.setDrawColor(...BRAND.colors.borderLight);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, colW, colH, 2, 2, 'FD');
+
+  // Left Card Title Bar
+  doc.setFillColor(...BRAND.colors.navyDark);
+  doc.roundedRect(14, y, colW, 6.5, 2, 2, 'F');
+  doc.rect(14, y + 4, colW, 2.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.white);
+  doc.text('CUSTOMER / REQUESTER PROFILE', 18, y + 4.5);
+
+  // Left Card Content
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.colors.navyDark);
+  doc.text(ticket.name || 'Anonymous Customer', 18, y + 12);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.textBody);
+  doc.text(`Email: ${ticket.email || 'N/A'}`, 18, y + 17);
+  doc.text(`Phone: ${ticket.phone || 'N/A'}`, 18, y + 21.5);
+  doc.text(`Company: ${ticket.company || 'Corporate Client'}`, 18, y + 26);
+  doc.setTextColor(...BRAND.colors.textMuted);
+  const sourceLabel = ticket.source === 'admin_manual' ? 'Staff Manual Entry' : (ticket.source || 'Website Contact Form');
+  doc.text(`Channel: ${sourceLabel}`, 18, y + 31);
+
+  // Right Card: Ticket Classification & Assignment
+  doc.setFillColor(...BRAND.colors.bgSoft);
+  doc.setDrawColor(...BRAND.colors.borderLight);
+  doc.roundedRect(108, y, colW, colH, 2, 2, 'FD');
+
+  // Right Card Title Bar
+  doc.setFillColor(...priorityColor);
+  doc.roundedRect(108, y, colW, 6.5, 2, 2, 'F');
+  doc.rect(108, y + 4, colW, 2.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.white);
+  doc.text('CLASSIFICATION & ASSIGNMENT', 112, y + 4.5);
+
+  // QR Code in right card
+  const qrUrl = `https://ncloud.co.ug/verify?ticket=${encodeURIComponent(ticketNum)}`;
+  const qrDataUrl = await createQRCodeDataURL(qrUrl, 140);
+  if (qrDataUrl) {
+    try {
+      doc.addImage(qrDataUrl, 'PNG', 170, y + 10, 22, 22);
+    } catch (e) {}
+  }
+
+  // Right Card Content
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8.2);
+  doc.setTextColor(...BRAND.colors.navyDark);
+  doc.text(`Category: ${ticket.category || 'General Support'}`, 112, y + 12);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.textBody);
+  doc.text(`Priority: ${priority.toUpperCase()}`, 112, y + 16.5);
+  doc.text(`Assigned To: ${ticket.assigned_to_name || 'Unassigned / Tier-1 NOC'}`, 112, y + 21);
+  if (ticket.assigned_to_email) {
+    doc.setTextColor(...BRAND.colors.textMuted);
+    doc.text(`Engineer Email: ${ticket.assigned_to_email}`, 112, y + 25.5);
+  }
+  doc.setTextColor(...BRAND.colors.textMuted);
+  doc.text(`Logged: ${createdDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`, 112, y + 30);
+  if (ticket.closed_at) {
+    doc.text(`Closed: ${new Date(ticket.closed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`, 112, y + 34.5);
+  }
+
+  y += colH + 6;
+
+  // 3. Original Issue / Inquiry Description
+  const subjectStr = String(ticket.subject || 'Support Ticket Inquiry');
+  const messageStr = String(ticket.message || 'No description provided.');
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.6);
+  const splitMessage = doc.splitTextToSize(messageStr, 172);
+  const msgBoxHeight = Math.max(18, splitMessage.length * 3.8 + 14);
+
+  ensureSpace(msgBoxHeight + 10);
+
+  // Section Header
+  doc.setFillColor(...BRAND.colors.navySlate);
+  doc.roundedRect(14, y, 182, 6.5, 1.5, 1.5, 'F');
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.white);
+  doc.text('ORIGINAL INQUIRY & INCIDENT DESCRIPTION', 18, y + 4.5);
+  y += 6.5;
+
+  // Box Body
+  doc.setFillColor(...BRAND.colors.bgSoft);
+  doc.setDrawColor(...BRAND.colors.borderLight);
+  doc.setLineWidth(0.3);
+  doc.rect(14, y, 182, msgBoxHeight, 'FD');
+
+  // Left Accent Stripe
+  doc.setFillColor(...priorityColor);
+  doc.rect(14, y, 2.5, msgBoxHeight, 'F');
+
+  // Subject Line
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.colors.navyDark);
+  doc.text(`Subject: ${subjectStr}`, 20, y + 6);
+
+  // Message Lines
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(7.4);
+  doc.setTextColor(...BRAND.colors.textBody);
+  doc.text(splitMessage, 20, y + 11);
+
+  y += msgBoxHeight + 6;
+
+  // 4. Customer Resolution / Dispatched Reply (if present)
+  if (ticket.response) {
+    const responseStr = String(ticket.response);
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7.4);
+    const splitResponse = doc.splitTextToSize(responseStr, 172);
+    const respBoxHeight = Math.max(18, splitResponse.length * 3.8 + 14);
+
+    ensureSpace(respBoxHeight + 10);
+
+    // Section Header
+    doc.setFillColor(...BRAND.colors.emerald);
+    doc.roundedRect(14, y, 182, 6.5, 1.5, 1.5, 'F');
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(...BRAND.colors.white);
+    const repliedBy = ticket.replied_by || 'Engineering Support Desk';
+    const repliedTime = ticket.replied_at ? new Date(ticket.replied_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    doc.text(`CUSTOMER RESOLUTION REPLY (DISPATCHED BY: ${repliedBy.toUpperCase()}${repliedTime ? ` • ${repliedTime}` : ''})`, 18, y + 4.5);
+    y += 6.5;
+
+    // Box Body
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+    doc.setLineWidth(0.3);
+    doc.rect(14, y, 182, respBoxHeight, 'FD');
+
+    // Left Emerald Stripe
+    doc.setFillColor(...BRAND.colors.emerald);
+    doc.rect(14, y, 2.5, respBoxHeight, 'F');
+
+    // Response Content
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7.4);
+    doc.setTextColor(20, 83, 45);
+    doc.text(splitResponse, 20, y + 7);
+
+    y += respBoxHeight + 6;
+  }
+
+  // 5. Activity Audit Trail & Lifecycle Log Table
+  let timeline = [];
+  if (Array.isArray(ticket.timeline) && ticket.timeline.length > 0) {
+    timeline = ticket.timeline;
+  } else if (Array.isArray(ticket.history) && ticket.history.length > 0) {
+    timeline = ticket.history;
+  } else if (typeof ticket.history === 'string' && ticket.history.trim().startsWith('[')) {
+    try { timeline = JSON.parse(ticket.history); } catch (e) {}
+  }
+
+  if (!timeline || timeline.length === 0) {
+    timeline = [
+      {
+        timestamp: ticket.created_at || new Date().toISOString(),
+        actor: ticket.name || 'Customer',
+        note: `Ticket created via ${ticket.source || 'website contact form'}.`
+      }
+    ];
+    if (ticket.assigned_to_name) {
+      timeline.push({
+        timestamp: ticket.assigned_at || ticket.created_at || new Date().toISOString(),
+        actor: 'Dispatcher',
+        note: `Assigned to lead engineer ${ticket.assigned_to_name}.`
+      });
+    }
+    if (ticket.response) {
+      timeline.push({
+        timestamp: ticket.replied_at || new Date().toISOString(),
+        actor: ticket.replied_by || 'Engineering Support',
+        note: 'Customer resolution email dispatched with ticket ref attached.'
+      });
+    }
+    if (ticket.status === 'closed') {
+      timeline.push({
+        timestamp: ticket.closed_at || new Date().toISOString(),
+        actor: ticket.closed_by || 'Admin',
+        note: 'Ticket closed and resolved.'
+      });
+    }
+  }
+
+  ensureSpace(25);
+
+  const drawTimelineTableHeader = (curY) => {
+    doc.setFillColor(...BRAND.colors.navyDark);
+    doc.roundedRect(14, curY, 182, 7, 1.5, 1.5, 'F');
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setFontSize(7.2);
+    doc.setTextColor(...BRAND.colors.white);
+    doc.text('TIMESTAMP (EAT)', 18, curY + 4.8);
+    doc.text('OPERATOR / ACTOR', 62, curY + 4.8);
+    doc.text('ACTIVITY AUDIT NOTES & LIFECYCLE EVENT', 106, curY + 4.8);
+    return curY + 7;
+  };
+
+  y = drawTimelineTableHeader(y);
+
+  timeline.forEach((event, idx) => {
+    const timeStr = event.timestamp 
+      ? new Date(event.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+      : 'N/A';
+    const actorStr = String(event.actor || 'System');
+    const noteStr = String(event.note || event.action || 'Audit event logged');
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setFontSize(7);
+    const splitNote = doc.splitTextToSize(noteStr, 86);
+    const rowH = Math.max(7.5, splitNote.length * 3.5 + 3);
+
+    if (y + rowH > 270) {
+      doc.addPage();
+      drawA4ContinuationHeader(doc, { 
+        title: 'TICKET AUDIT TRAIL (CONTINUED)', 
+        refNumber: ticketNum, 
+        accentColor: priorityColor 
+      });
+      y = drawTimelineTableHeader(24);
+    }
+
+    doc.setFillColor(idx % 2 === 1 ? BRAND.colors.bgZebra[0] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[1] : 255, idx % 2 === 1 ? BRAND.colors.bgZebra[2] : 255);
+    doc.rect(14, y, 182, rowH, 'F');
+
+    // Hairline border
+    doc.setDrawColor(...BRAND.colors.borderLight);
+    doc.setLineWidth(0.2);
+    doc.line(14, y + rowH, 196, y + rowH);
+
+    // Text columns
+    doc.setFont('TrebuchetMS', 'bold');
+    doc.setTextColor(...BRAND.colors.textMuted);
+    doc.text(timeStr, 18, y + 4.8);
+
+    doc.setTextColor(...BRAND.colors.navyDark);
+    doc.text(actorStr, 62, y + 4.8);
+
+    doc.setFont('TrebuchetMS', 'normal');
+    doc.setTextColor(...BRAND.colors.textBody);
+    doc.text(splitNote, 106, y + 4.8);
+
+    y += rowH;
+  });
+
+  y += 6;
+
+  // 6. SLA Certification & System Dispatch Notice
+  ensureSpace(18);
+  doc.setFillColor(...BRAND.colors.bgSoft);
+  doc.setDrawColor(...BRAND.colors.borderLight);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, 182, 14, 1.5, 1.5, 'FD');
+
+  doc.setFont('TrebuchetMS', 'bold');
+  doc.setFontSize(7.2);
+  doc.setTextColor(...BRAND.colors.navyDark);
+  doc.text('CERTIFIED ITSM SYSTEM DISPATCH & AUDIT VERIFICATION', 18, y + 5);
+
+  doc.setFont('TrebuchetMS', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...BRAND.colors.textMuted);
+  doc.text(
+    `This transcript represents the complete immutable activity history for Ticket #${ticketNum}. Nova Cloud Edges IT Service Management (ITSM) • SLA Priority: ${priority.toUpperCase()} • Generated: ${new Date().toLocaleString()}`,
+    18,
+    y + 9.5
+  );
+
+  // 7. Two-Pass Footers
+  applyA4Footers(doc, { docRef: ticketNum, title: 'Helpdesk Ticket Thread' });
+
+  if (opts.autoSave !== false) {
+    const filename = `Ticket_${ticketNum.replace(/[^a-zA-Z0-9-]/g, '_')}_Transcript.pdf`;
+    openPdfInBrowser(doc, filename, ticketNum);
+  }
+
+  return doc;
+}
+
+
