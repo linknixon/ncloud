@@ -2995,7 +2995,7 @@ function requireCRUDAS(req, res, next) {
   else if (path.includes('/work-orders')) module = 'work_orders';
   else if (path.includes('/payments') || path.includes('/bank-accounts')) module = 'payments';
   else if (path.includes('/company-expenses') || path.includes('/expense')) module = 'expenses';
-  else if (path.includes('/hr/') || path.includes('/schedules') || path.includes('/applications')) module = 'hr';
+  else if (path.includes('/hr/') || path.includes('/schedules') || path.includes('/applications') || path.includes('/payroll')) module = 'hr';
   else if (path.includes('/unifi/') || path.includes('/wifi/')) module = 'unifi';
   else if (path.includes('/roles') || path.includes('/users')) module = 'roles';
   else if (path.includes('/store') || path.includes('/product-categories')) module = 'store';
@@ -10020,7 +10020,7 @@ app.put('/api/admin/users/:id/role', (req, res) => {
 // Full User Data & Profile Update
 app.put('/api/admin/users/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, email, role, phone, company, department, position, salary, status, location, notes, avatar_url, supervisor_id, supervisor_name, password } = req.body;
+  const { name, email, role, phone, company, department, position, salary, status, location, notes, avatar_url, supervisor_id, supervisor_name, password, ticket_teams } = req.body;
   const targetUser = memoryStore.users.find(u => u.id == id);
   if (!targetUser) {
     return res.status(404).json({ error: 'User not found' });
@@ -10061,6 +10061,8 @@ app.put('/api/admin/users/:id', async (req, res) => {
   if (avatar_url !== undefined) targetUser.avatar_url = avatar_url;
   if (supervisor_id !== undefined) targetUser.supervisor_id = supervisor_id;
   if (supervisor_name !== undefined) targetUser.supervisor_name = supervisor_name;
+
+  if (ticket_teams !== undefined) targetUser.ticket_teams = ticket_teams;
 
   targetUser.updated_at = new Date().toISOString();
   savePersistentStore();
@@ -10150,7 +10152,7 @@ app.delete('/api/admin/users/:id', requireSuperAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/users', async (req, res) => {
-  const { name, email, role, phone, company, department, position, salary, status, location, notes, supervisor_id, supervisor_name, password } = req.body;
+  const { name, email, role, phone, company, department, position, salary, status, location, notes, supervisor_id, supervisor_name, password, ticket_teams } = req.body;
   if (!name || !email) {
     return res.status(400).json({ error: 'Name and email address are required' });
   }

@@ -12968,7 +12968,7 @@ const normalizeTabName = (rawTab) => {
                                 {c.source && <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Via: {c.source === 'admin_manual' ? 'Staff Manual' : 'Website'}</span>}
                                 <button
                                   type="button"
-                                  onClick={(e) => { e.stopPropagation(); generateTicketThreadPDF(c, { siteLogo }); }}
+                                  onClick={(e) => { e.stopPropagation(); generateTicketThreadPDF(c, { siteLogo: logoInput || siteLogo }); }}
                                   className="btn-secondary"
                                   style={{ padding: '0.15rem 0.45rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px', borderRadius: '5px' }}
                                   title="Print Ticket Thread & Audit Trail (PDF)"
@@ -13153,7 +13153,7 @@ const normalizeTabName = (rawTab) => {
                               {/* Print Thread PDF Button */}
                               <button
                                 type="button"
-                                onClick={() => generateTicketThreadPDF(c, { siteLogo })}
+                                onClick={() => generateTicketThreadPDF(c, { siteLogo: logoInput || siteLogo })}
                                 className="btn-secondary"
                                 style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(2, 132, 199, 0.08)', color: '#0284c7', border: '1px solid rgba(2, 132, 199, 0.3)' }}
                                 title="Print Ticket Thread & Complete Audit Log (PDF)"
