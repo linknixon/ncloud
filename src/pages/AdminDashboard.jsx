@@ -11652,7 +11652,7 @@ const normalizeTabName = (rawTab) => {
                                 <Lock size={13} /> Locked
                               </button>
                             ) : (
-                              canUpdate('work_orders') && (
+                              isSuperAdmin && (
                                 <button
                                   onClick={() => {
                                     setEditingWorkOrder(wo);
@@ -11677,7 +11677,7 @@ const normalizeTabName = (rawTab) => {
                               )
                             )}
 
-                            {(canDelete('work_orders') || canDeleteSystemRecords) && (
+                            {isSuperAdmin && (
                               <button
                                 onClick={() => handleDeleteWorkOrder(wo.id, wo.order_number)}
                                 className="btn-secondary"
@@ -20717,7 +20717,9 @@ const normalizeTabName = (rawTab) => {
                         value={workOrderForm.status || 'Scheduled'}
                         onChange={e => setWorkOrderForm({ ...workOrderForm, status: e.target.value })}
                       >
+                        <option value="Pending Approval">Pending Approval</option>
                         <option value="Scheduled">Scheduled</option>
+                        <option value="Approved">Approved</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>

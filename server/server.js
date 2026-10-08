@@ -7988,7 +7988,7 @@ app.get('/api/admin/work-orders', (req, res) => {
 
 app.post('/api/admin/work-orders', async (req, res) => {
   if(memoryStore.audit_logs) memoryStore.audit_logs.unshift({id: memoryStore.audit_logs.length + 1, timestamp: new Date().toISOString(), user_email: req.userEmail || 'System', ip_address: req.ip || '127.0.0.1', action: 'Created a new Work Order / Job Ticket'});
-  const { task_title, client_site, assigned_staff_id, assigned_staff_name, assigned_staff_email, charging_mode, rate, quantity, scheduled_date, description } = req.body;
+  const { task_title, client_site, assigned_staff_id, assigned_staff_name, assigned_staff_email, charging_mode, rate, quantity, scheduled_date, description, status } = req.body;
   if (!task_title) return res.status(400).json({ error: 'Task title is required' });
 
   const orderNumber = `WO-${new Date().getFullYear()}-${String((memoryStore.work_orders || []).length + 14).padStart(4, '0')}`;
@@ -8013,7 +8013,7 @@ app.post('/api/admin/work-orders', async (req, res) => {
     total_cost: totalCost,
     scheduled_date: scheduled_date || new Date().toISOString().split('T')[0],
     completion_date: null,
-    status: 'Scheduled', // Scheduled, In Progress, Completed, Cancelled
+    status: status || 'Pending Approval', // Scheduled, Pending Approval, Approved, In Progress, Completed, Cancelled
     description: description || '',
     created_at: new Date().toISOString()
   };
@@ -8140,8 +8140,31 @@ app.put('/api/admin/work-orders/:id', async (req, res) => {
     if (quantity !== undefined) order.quantity = Number(quantity);
     order.total_cost = order.rate * order.quantity;
     if (scheduled_date) order.scheduled_date = scheduled_date;
+    const oldStatus = order.status;
     if (status) order.status = status;
     if (description !== undefined) order.description = description;
+
+    if (oldStatus !== 'Approved' && status === 'Approved') {
+      const newExpense = {
+        id: memoryStore.staff_expenses.length > 0 ? Math.max(...memoryStore.staff_expenses.map(e => e.id || 0)) + 1 : 1,
+        staff_id: order.assigned_staff_id || null,
+        staff_name: order.assigned_staff_name || 'Unassigned Staff',
+        staff_email: order.assigned_staff_email || 'finance@ncloud.co.ug',
+        supervisor_name: req.userEmail || 'System Administrator',
+        category: 'Field Operations',
+        description: `Work Order ${order.order_number} - ${order.task_title}`,
+        amount: order.total_cost,
+        receipt_ref: `WO-EXP-${order.order_number}`,
+        status: 'Approved',
+        date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        created_by: req.userEmail || 'System',
+        attachment_url: '',
+        attachment_name: ''
+      };
+      if(!memoryStore.staff_expenses) memoryStore.staff_expenses = [];
+      memoryStore.staff_expenses.unshift(newExpense);
+    }
 
     savePersistentStore();
 
