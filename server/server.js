@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import multer from 'multer';
 import { NOVA_LOGO_BASE64 } from '../src/utils/logoBase64.js';
 import cors from 'cors';
 import path from 'path';
@@ -1171,7 +1172,9 @@ memoryStore.contacts.forEach((c, idx) => {
       "ALTER TABLE contacts ADD COLUMN assigned_at DATETIME NULL",
       "ALTER TABLE contacts ADD COLUMN closed_at DATETIME NULL",
       "ALTER TABLE contacts ADD COLUMN closed_by VARCHAR(255) NULL",
-      "ALTER TABLE contacts ADD COLUMN history LONGTEXT NULL"
+      "ALTER TABLE contacts ADD COLUMN history LONGTEXT NULL",
+      "ALTER TABLE contacts ADD COLUMN ip_address VARCHAR(50) NULL",
+      "ALTER TABLE contacts ADD COLUMN attachments JSON NULL"
     ];
     for (const sql of alters) {
       await query(sql).catch(() => {});
@@ -3696,103 +3699,7 @@ app.delete('/api/team/:id', requireSuperAdmin, async (req, res) => {
 // ----------------------------------------------------
 // Job Openings & Application Endpoints
 // ----------------------------------------------------
-const MASTER_DEFAULT_JOBS = [
-  {
-    id: 1,
-    title: "Assistant Office Attendant (1)",
-    slug: "assistant-office-attendant",
-    department: "Administration & Operations",
-    location: "Kampala, Uganda",
-    type: "Full-time",
-    vacancies: 1,
-    status: "open",
-    deadline: "2026-12-31",
-    description: "Nova Cloud Edges (U) Limited is looking for a dedicated and energetic Assistant Office Attendant to support our day-to-day office operations, client hospitality, document coordination, and administrative functions.",
-    requirements: [
-      "Uganda Certificate of Education (UCE) or Diploma in Business Administration/Office Management",
-      "Minimum 1-2 years of relevant experience in a corporate or tech office setting",
-      "Strong written and verbal communication skills in English and Luganda",
-      "Punctual, organized, trustworthy, and proactive attitude",
-      "Basic computer literacy (MS Word, Email, Web Browsing)"
-    ],
-    responsibilities: [
-      "Welcome clients, visitors, and partners at the reception area",
-      "Ensure office cleanliness, orderly meeting rooms, and refreshment management",
-      "Receive and log incoming mail, packages, and office supplies deliveries",
-      "Assist administrative officers with filing, photocopying, and scanning documents",
-      "Run essential external errands for office operations when required"
-    ]
-  },
-  {
-    id: 2,
-    title: "Cloud Systems & DevOps Engineer",
-    slug: "cloud-systems-engineer",
-    department: "Engineering & Cloud Infrastructure",
-    location: "Kampala, Uganda",
-    type: "Full-time",
-    vacancies: 2,
-    status: "open",
-    deadline: "2026-12-31",
-    description: "Join Nova Cloud Edges technical team to design, maintain, and automate our cloud hosting infrastructure, virtualized edge nodes, and Kubernetes clusters.",
-    requirements: [
-      "Bachelor's Degree in Computer Science, Software Engineering, or IT",
-      "3+ years experience with Linux administration (Debian/Ubuntu/CentOS), Docker, and KVM/Proxmox",
-      "Hands-on experience with MySQL/MariaDB replication and performance tuning",
-      "Certifications in AWS, CKA, or RHCE are an added advantage"
-    ],
-    responsibilities: [
-      "Manage cloud virtualization hosts and storage networks",
-      "Implement CI/CD pipelines and automated backup strategies",
-      "Monitor server performance and resolve escalation alerts 24/7"
-    ]
-  },
-  {
-    id: 3,
-    title: "Cyber Security & SOC Analyst",
-    slug: "cyber-security-soc-analyst",
-    department: "Information Security & SOC",
-    location: "Kampala, Uganda",
-    type: "Full-time",
-    vacancies: 1,
-    status: "open",
-    deadline: "2026-12-31",
-    description: "Monitor, analyze, and neutralize incoming security events, manage Next-Gen Firewalls, conduct vulnerability assessments, and protect sovereign cloud infrastructure.",
-    requirements: [
-      "Bachelor's Degree in Computer Science, Cyber Security, or Information Systems",
-      "2+ years experience in SIEM monitoring, threat hunting, and firewall configuration",
-      "Knowledge of ISO/IEC 27001 standards and zero-trust security architectures",
-      "CEH, CompTIA Security+, or CISSP is an added advantage"
-    ],
-    responsibilities: [
-      "24/7 incident triage and forensic investigation of security alerts",
-      "Coordinate patch management and endpoint protection across edge servers",
-      "Audit access logs and prepare compliance reports"
-    ]
-  },
-  {
-    id: 4,
-    title: "Enterprise Solutions & Cloud Sales Executive",
-    slug: "enterprise-cloud-sales-executive",
-    department: "Sales & Business Development",
-    location: "Kampala, Uganda",
-    type: "Full-time",
-    vacancies: 2,
-    status: "open",
-    deadline: "2026-12-31",
-    description: "Drive enterprise client acquisition for Cloud VPS, Tier III Colocation, QuickBooks ERP deployment, and corporate connectivity solutions across Uganda.",
-    requirements: [
-      "Bachelor's Degree in Business Administration, Marketing, IT, or related field",
-      "2+ years experience in B2B corporate sales or telecommunications / ISP solutions",
-      "Demonstrated ability to close corporate IT infrastructure contracts",
-      "Excellent presentation, negotiation, and relationship management skills"
-    ],
-    responsibilities: [
-      "Identify and engage corporate prospects, NGOs, and financial institutions",
-      "Prepare custom quotations, respond to tenders, and present technical proposals",
-      "Maintain long-term client relationships and ensure SLA satisfaction"
-    ]
-  }
-];
+const MASTER_DEFAULT_JOBS = [];
 
 const getUnifiedJobsList = async () => {
   if (!memoryStore.jobs) memoryStore.jobs = [];
@@ -5745,11 +5652,39 @@ function generateTicketEmailHtml({
   });
 }
 
+const contactUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, 'uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + '-' + file.originalname);
+    }
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 }
+});
+
 // 1. Inbound Public Contact Form -> Creates Support Ticket
-app.post('/api/contact', verifyTurnstile, async (req, res) => {
+app.post('/api/contact', contactUpload.array('attachments', 10), verifyTurnstile, async (req, res) => {
   const { name, email, phone, subject, message, category, priority } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
+  }
+
+  const ip_address = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  let attachmentsList = [];
+  if (req.files && req.files.length > 0) {
+    attachmentsList = req.files.map(f => ({
+      filename: f.filename,
+      originalname: f.originalname,
+      path: f.path,
+      mimetype: f.mimetype,
+      size: f.size
+    }));
   }
 
   const ticketNumber = generateTicketNumber();
@@ -5761,9 +5696,9 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
 
   const nowIso = new Date().toISOString();
   const dbRes = await query(
-    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 'website_contact_form', ?)`,
-    [ticketNumber, name, email, phone || '', subject || 'General Inquiry', message, finalCategory, finalPriority, nowIso]
+    `INSERT INTO contacts (ticket_number, name, email, phone, subject, message, category, priority, status, source, created_at, ip_address, attachments)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 'website_contact_form', ?, ?, ?)`,
+    [ticketNumber, name, email, phone || '', subject || 'General Inquiry', message, finalCategory, finalPriority, nowIso, ip_address, JSON.stringify(attachmentsList)]
   );
 
   const contactRecord = {
@@ -5778,6 +5713,8 @@ app.post('/api/contact', verifyTurnstile, async (req, res) => {
     priority: finalPriority,
     status: 'open',
     source: 'website_contact_form',
+    ip_address,
+    attachments: attachmentsList,
     assigned_to_id: null,
     assigned_to_name: null,
     assigned_to_email: null,
@@ -6617,6 +6554,7 @@ app.post('/api/admin/hr/payroll', (req, res) => {
   };
 
   memoryStore.payroll.unshift(newSlip);
+  savePersistentStore();
   res.json({ message: `Payroll payslip logged successfully for ${staff_name} (${pay_period})`, payslip: newSlip });
 });
 
@@ -6626,9 +6564,25 @@ app.put('/api/admin/hr/payroll/:id/status', (req, res) => {
   const slip = memoryStore.payroll.find(p => p.id == id);
   if (slip) {
     slip.status = status;
+    savePersistentStore();
     return res.json({ message: `Payroll status for ${slip.staff_name} updated to ${status}`, payslip: slip });
   }
   res.status(404).json({ error: 'Payroll record not found' });
+});
+
+app.delete('/api/admin/contacts/:id', (req, res) => {
+  const { id } = req.params;
+  const targetIdStr = String(id).trim();
+  const initialLength = memoryStore.contacts.length;
+  memoryStore.contacts = memoryStore.contacts.filter(c => String(c.id) !== targetIdStr);
+  
+  if (memoryStore.contacts.length < initialLength) {
+    savePersistentStore();
+    // Non-blocking delete from MySQL database
+    query('DELETE FROM contacts WHERE id = ?', [targetIdStr]).catch(() => {});
+    return res.json({ message: 'Ticket deleted successfully.' });
+  }
+  res.status(404).json({ error: 'Ticket not found.' });
 });
 
 app.post('/api/admin/hr/expenses', async (req, res) => {

@@ -23,6 +23,7 @@
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.33.0",
+    "multer": "^2.4.0",
     "mysql2": "^3.23.4",
     "nodemailer": "^9.0.5",
     "qrcode": "^1.5.4",

@@ -5508,6 +5508,22 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const handleDeleteContact = async (contactId) => {
+    if (!window.confirm("Are you sure you want to delete this ticket permanently? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/admin/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': currentRole }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete ticket');
+      showToast('Ticket deleted successfully.', 'success');
+      fetchDashboardData(true);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleAssignTicket = async (e) => {
     e && e.preventDefault();
     if (!selectedTicketForAssign || !assignEngineerId) {
@@ -12637,6 +12653,13 @@ const normalizeTabName = (rawTab) => {
               const resolvedCount = allContacts.filter(c => ['complete', 'resolved', 'closed', 'replied'].includes(c.status)).length;
 
               const filteredContacts = allContacts.filter(c => {
+                // Team based visibility
+                if (!isSuperAdmin && user?.ticket_teams && user.ticket_teams.length > 0) {
+                  const isAssignedToMe = c.assigned_to_id === user?.id;
+                  const inMyTeam = user.ticket_teams.includes(c.category);
+                  if (!isAssignedToMe && !inMyTeam) return false;
+                }
+
                 // Search query
                 if (contactSearch) {
                   const q = contactSearch.toLowerCase().trim();
@@ -12659,8 +12682,10 @@ const normalizeTabName = (rawTab) => {
                 if (ticketStatusFilter !== 'all') {
                   if (ticketStatusFilter === 'open' && (c.status && c.status !== 'open')) return false;
                   if (ticketStatusFilter === 'in_progress' && c.status !== 'in_progress') return false;
-                  if (ticketStatusFilter === 'resolved' && !['complete', 'resolved', 'replied'].includes(c.status)) return false;
-                  if (ticketStatusFilter === 'closed' && c.status !== 'closed') return false;
+                  if (ticketStatusFilter === 'archived' && !['complete', 'resolved', 'closed', 'replied'].includes(c.status)) return false;
+                } else {
+                  // Active tickets only
+                  if (['complete', 'resolved', 'closed'].includes(c.status)) return false;
                 }
 
                 // Priority filter
@@ -12730,9 +12755,9 @@ const normalizeTabName = (rawTab) => {
                   {/* KPI Cards Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #0284c7', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('all'); setTicketPriorityFilter('all'); setTicketAssigneeFilter('all'); }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Tickets</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', marginTop: '0.25rem' }}>{totalTicketsCount}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.25rem' }}>All logged inquiries</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Tickets</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', marginTop: '0.25rem' }}>{openTicketsCount + inProgressCount}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#0284c7', marginTop: '0.25rem' }}>Open & In Progress</div>
                     </div>
 
                     <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #f59e0b', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('open'); setTicketPriorityFilter('all'); }}>
@@ -12753,8 +12778,8 @@ const normalizeTabName = (rawTab) => {
                       <div style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem' }}>Critical SLA priority</div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #10b981', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('resolved'); setTicketPriorityFilter('all'); }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Resolved / Closed</div>
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid #10b981', cursor: 'pointer' }} onClick={() => { setTicketStatusFilter('archived'); setTicketPriorityFilter('all'); }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Archived / Resolved</div>
                       <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981', marginTop: '0.25rem' }}>{resolvedCount}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Completed solutions</div>
                     </div>
@@ -12874,9 +12899,9 @@ const normalizeTabName = (rawTab) => {
                       const isTimelineExpanded = expandedTimelineId === c.id;
 
                       return (
-                        <div key={c.id} className="glass-card" style={{ padding: '1.25rem', borderLeft: `5px solid ${priorityColor}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
+                        <div key={c.id} className="glass-card" style={{ padding: '1.25rem', borderLeft: `5px solid ${priorityColor}`, display: 'flex', flexDirection: 'column', height: 'auto', gap: '0.75rem' }}>
                           {/* Card Header */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                               {/* Ticket Number Pill */}
                               <span style={{
@@ -13079,14 +13104,25 @@ const normalizeTabName = (rawTab) => {
                                 </button>
                               )}
 
-                              {/* Mark Complete */}
-                              {canUpdate('contacts') && c.status !== 'complete' && c.status !== 'closed' && (
+                              {/* Mark Resolved */}
+                              {canUpdate('contacts') && c.status !== 'complete' && c.status !== 'resolved' && c.status !== 'closed' && (
                                 <button 
                                   className="btn-secondary" 
                                   style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
-                                  onClick={() => handleUpdateContactStatus(c.id, 'complete')}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'resolved')}
                                 >
                                   <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Resolved
+                                </button>
+                              )}
+
+                              {/* Delete Ticket */}
+                              {canDelete('contacts') && (
+                                <button
+                                  className="btn-secondary"
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                                  onClick={() => handleDeleteContact(c.id)}
+                                >
+                                  <Trash2 size={14} style={{ marginRight: '4px' }} /> Delete
                                 </button>
                               )}
 
@@ -22254,6 +22290,30 @@ const normalizeTabName = (rawTab) => {
                         value={userForm.department}
                         onChange={e => setUserForm({ ...userForm, department: e.target.value })}
                       />
+                    </div>
+                    
+                    <div className="form-group" style={{ marginBottom: '0.9rem' }}>
+                      <label style={{ fontWeight: '700', fontSize: '0.825rem' }}>Ticket Service Categories (Teams)</label>
+                      <select
+                        multiple
+                        className="form-input"
+                        style={{ height: '100px' }}
+                        value={userForm.ticket_teams || []}
+                        onChange={e => {
+                          const options = Array.from(e.target.options);
+                          const selected = options.filter(o => o.selected).map(o => o.value);
+                          setUserForm({ ...userForm, ticket_teams: selected });
+                        }}
+                      >
+                        <option value="General Technical Support">General Technical Support</option>
+                        <option value="Broadband & Fiber Connectivity">Broadband & Fiber Connectivity</option>
+                        <option value="Cloud Colocation & Server Hosting">Cloud Colocation & Server Hosting</option>
+                        <option value="Corporate Email (Zimbra) & Domains">Corporate Email (Zimbra) & Domains</option>
+                        <option value="UniFi WiFi & Enterprise Networking">UniFi WiFi & Enterprise Networking</option>
+                        <option value="Hardware Repair & Maintenance">Hardware Repair & Maintenance</option>
+                        <option value="Billing & Subscriptions">Billing & Subscriptions</option>
+                      </select>
+                      <small style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Hold Ctrl/Cmd to select multiple categories for this staff member.</small>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '0.9rem' }}>

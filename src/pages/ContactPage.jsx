@@ -19,6 +19,7 @@ export default function ContactPage() {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [files, setFiles] = useState([]);
   const [ticketNumber, setTicketNumber] = useState('');
   const [copiedTicket, setCopiedTicket] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
@@ -139,13 +140,14 @@ export default function ContactPage() {
     setTurnstileError('');
 
     try {
+      const dataPayload = new FormData();
+      Object.keys(formData).forEach(key => dataPayload.append(key, formData[key]));
+      dataPayload.append('turnstileToken', turnstileToken || (isLocalhost ? 'bypass-localhost' : ''));
+      Array.from(files).forEach(file => dataPayload.append('attachments', file));
+
       const res = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
-          turnstileToken: turnstileToken || (isLocalhost ? 'bypass-localhost' : '') 
-        })
+        body: dataPayload
       });
       const data = await res.json();
 
@@ -171,6 +173,7 @@ export default function ContactPage() {
       setSubmitted(true);
       showToast(generatedNum ? `Support Ticket #${generatedNum} created!` : 'Support request logged successfully!', 'success');
       clearDraft();
+      setFiles([]);
       setFormData({
         name: '',
         email: '',
@@ -501,6 +504,28 @@ export default function ContactPage() {
                     onChange={e => setFormData({ ...formData, message: e.target.value })}
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Attachments (Optional, max 20MB total)</label>
+                  <input
+                    type="file"
+                    className="form-input"
+                    multiple
+                    accept=".jpg,.gif,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.csv,.sql,.txt,.html,.bmp,.zip,.tar.gz,.crt,.key,.ca-bundle"
+                    onChange={e => {
+                      const selected = Array.from(e.target.files);
+                      const totalSize = selected.reduce((sum, f) => sum + f.size, 0);
+                      if (totalSize > 20 * 1024 * 1024) {
+                        alert('Total file size exceeds 20MB limit.');
+                        e.target.value = '';
+                        setFiles([]);
+                        return;
+                      }
+                      setFiles(selected);
+                    }}
+                  />
+                  <small style={{ color: 'var(--text-muted)' }}>Allowed: .jpg, .gif, .jpeg, .png, .pdf, .doc, .docx, .xls, .xlsx, .csv, .sql, .txt, .html, .bmp, .zip, .tar.gz, .crt, .key, .ca-bundle</small>
                 </div>
 
                 {turnstileError && (
