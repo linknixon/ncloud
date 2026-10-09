@@ -11905,7 +11905,9 @@ const normalizeTabName = (rawTab) => {
                                               headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
                                               body: JSON.stringify({ mac: client.mac, action: client.blocked ? 'unblock' : 'block' })
                                             });
-                                            showToast('Client state updated', 'success');
+                                            // Optimistic UI update
+                                            setUnifiClients(prev => prev.map(c => c.mac === client.mac ? { ...c, blocked: !c.blocked } : c));
+                                            showToast(client.blocked ? 'Client unblocked successfully' : 'Client blocked successfully', 'success');
                                           } catch (e) {
                                             showToast('Failed to update client', 'error');
                                           }

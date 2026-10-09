@@ -9493,20 +9493,23 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
     let fetchError = null;
     let clientsRes = { data: [] };
     let devicesRes = { data: [] };
+    let guestsRes = { data: [] };
 
     try {
-      [clientsRes, devicesRes] = await Promise.all([
+      [clientsRes, devicesRes, guestsRes] = await Promise.all([
         unifiFetch(clientsUrl, {}, unifi),
-        unifiFetch(devicesUrl, {}, unifi)
+        unifiFetch(devicesUrl, {}, unifi),
+        unifiFetch(getUrls(isUnifiOS, site).clientsUrl.replace('stat/sta', 'stat/guest'), {}, unifi).catch(() => ({ data: [] }))
       ]);
     } catch (firstErr) {
       if (firstErr.status === 404 || firstErr.message.includes('404')) {
         console.warn(`[UniFi] 404 on first attempt (${clientsUrl}). Retrying with alternative path format...`);
         const altUrls = getUrls(!isUnifiOS);
         try {
-          [clientsRes, devicesRes] = await Promise.all([
+          [clientsRes, devicesRes, guestsRes] = await Promise.all([
             unifiFetch(altUrls.clientsUrl, {}, unifi),
-            unifiFetch(altUrls.devicesUrl, {}, unifi)
+            unifiFetch(altUrls.devicesUrl, {}, unifi),
+            unifiFetch(altUrls.clientsUrl.replace('stat/sta', 'stat/guest'), {}, unifi).catch(() => ({ data: [] }))
           ]);
           fetchError = null;
         } catch (altErr) {
@@ -9526,9 +9529,10 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
             unifi.site_id = discoveredSite;
 
             const newUrls = getUrls(isUnifiOS, discoveredSite);
-            [clientsRes, devicesRes] = await Promise.all([
+            [clientsRes, devicesRes, guestsRes] = await Promise.all([
               unifiFetch(newUrls.clientsUrl, {}, unifi),
-              unifiFetch(newUrls.devicesUrl, {}, unifi)
+              unifiFetch(newUrls.devicesUrl, {}, unifi),
+              unifiFetch(newUrls.clientsUrl.replace('stat/sta', 'stat/guest'), {}, unifi).catch(() => ({ data: [] }))
             ]);
             fetchError = null;
           } else {
@@ -9548,6 +9552,21 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
     }
     
     let clientsData = clientsRes.data || [];
+    let guestsData = guestsRes.data || [];
+    
+    // Map voucher codes from guests to clients
+    if (guestsData.length > 0) {
+      const guestMap = {};
+      guestsData.forEach(g => {
+        if (g.mac && g.voucher_code) guestMap[g.mac.toLowerCase()] = g.voucher_code;
+      });
+      clientsData = clientsData.map(c => {
+        if (c.mac && guestMap[c.mac.toLowerCase()]) {
+          c.voucher_code = guestMap[c.mac.toLowerCase()];
+        }
+        return c;
+      });
+    }
     
     // If we failed to get real data (length is 0), populate with mock demo data
     if (clientsData.length === 0) {
