@@ -646,34 +646,7 @@ export default function AdminDashboard({ setActivePage }) {
     }
   }, [user?.role]);
 
-  // UniFi Live Feed 5-second Auto-Refresh
-  useEffect(() => {
-    let intervalId;
-    if (activeTab === 'integrations' && activeIntegrationsTab === 'unifi') {
-      const fetchLiveFeed = async () => {
-        try {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/admin/unifi/monitoring/clients/default', { 
-            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setUnifiClients(data.clients || []);
-          }
-        } catch (e) {
-          console.error("Auto-refresh UniFi feed error:", e);
-        }
-      };
-      
-      // Fetch immediately on mount, then every 5 seconds
-      fetchLiveFeed();
-      intervalId = setInterval(fetchLiveFeed, 5000);
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [activeTab, activeIntegrationsTab]);
+
   const updateActiveTab = (newTab) => {
     let targetTab = newTab;
     if (newTab === 'careers') {
@@ -5992,6 +5965,35 @@ const normalizeTabName = (rawTab) => {
       </div>
     );
   }
+
+  // UniFi Live Feed 5-second Auto-Refresh
+  useEffect(() => {
+    let intervalId;
+    if (activeTab === 'internet') {
+      const fetchLiveFeed = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/admin/unifi/monitoring/clients/default', { 
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUnifiClients(data.clients || []);
+          }
+        } catch (e) {
+          console.error("Auto-refresh UniFi feed error:", e);
+        }
+      };
+      
+      // Fetch immediately on mount, then every 5 seconds
+      fetchLiveFeed();
+      intervalId = setInterval(fetchLiveFeed, 5000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeTab]);
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: '2.5rem', paddingBottom: '5rem' }}>
