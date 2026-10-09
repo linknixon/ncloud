@@ -12976,8 +12976,10 @@ app.post('/api/admin/invoices', async (req, res) => {
   
   const qty = Math.max(1, parseInt(quantity) || 1);
   const pricePerUnit = Number(unit_price) || 650000;
-  const grossSubtotal = pricePerUnit * qty;
   
+  const grossSubtotal = (Array.isArray(items) && items.length > 0)
+    ? items.reduce((sum, it) => sum + (Number(it.amount) || (Number(it.unit_price || it.price || 0) * (Number(it.quantity || 1)))), 0)
+    : pricePerUnit * qty;
   // Calculate discount (Money or Percentage)
   const dValue = Number(discount_value) || 0;
   const discountType = discount_type === 'percentage' ? 'percentage' : 'fixed';
