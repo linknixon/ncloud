@@ -5986,13 +5986,24 @@ const normalizeTabName = (rawTab) => {
         }
       };
       
+      const backgroundSyncVouchers = async () => {
+        try {
+          const res = await fetch('/api/admin/unifi/vouchers/sync', { method: 'POST' });
+          if (res.ok) fetchUnifiVouchers();
+        } catch (e) {
+          console.error("Auto-sync vouchers error:", e);
+        }
+      };
+      
       // Fetch immediately on mount, then every 5 seconds
       fetchLiveFeed();
       fetchUnifiVouchers();
+      // Do a background sync on mount too
+      backgroundSyncVouchers();
       
       intervalId = setInterval(() => {
         fetchLiveFeed();
-        fetchUnifiVouchers();
+        backgroundSyncVouchers();
       }, 5000);
     }
     
