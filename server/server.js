@@ -8488,10 +8488,51 @@ export function getActiveUniFiIntegration() {
   };
 }
 
-async function unifiFetch(url, options = {}, apiKey) {
+async function unifiLogin(unifi) {
+  if (unifi.cookie && unifi.cookieExpires > Date.now()) {
+    return unifi.cookie;
+  }
+  
+  const isUnifiOS = (unifi.siteBaseUrl && unifi.siteBaseUrl.includes('/proxy/network')) || unifi.gateway_url?.includes('/proxy/network');
+  const loginUrl = isUnifiOS ? `${unifi.origin}/api/auth/login` : `${unifi.origin}/api/login`;
+  
+  // Use client_id as username and api_key or client_secret as password (based on our mock or user config)
+  const username = process.env.UNIFI_USERNAME || unifi.client_id || 'admin';
+  const password = process.env.UNIFI_PASSWORD || unifi.api_key || unifi.client_secret || '';
+
+  const response = await fetch(loginUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+
+  if (!response.ok) {
+    throw new Error(`UniFi Login failed at ${loginUrl} (HTTP ${response.status}). Please check your UNIFI_USERNAME and UNIFI_PASSWORD in .env or the API Integration settings.`);
+  }
+
+  const setCookie = response.headers.get('set-cookie');
+  if (setCookie) {
+    unifi.cookie = setCookie;
+    unifi.cookieExpires = Date.now() + 1000 * 60 * 60 * 12; // 12 hours
+    return setCookie;
+  }
+  throw new Error(`UniFi Login succeeded but no session cookie was returned.`);
+}
+
+async function unifiFetch(url, options = {}, unifiObj) {
+  let cookie = '';
+  if (unifiObj && unifiObj.origin) {
+    try {
+      cookie = await unifiLogin(unifiObj);
+    } catch (loginErr) {
+      console.warn('[UniFi] Login attempt failed, falling back to X-API-KEY auth.', loginErr.message);
+    }
+  }
+
   const headers = {
-    'X-API-KEY': apiKey,
+    'X-API-KEY': unifiObj?.apiKey || unifiObj?.api_key || '',
     'Accept': 'application/json',
+    ...(cookie ? { 'Cookie': cookie } : {}),
     ...(options.headers || {})
   };
 
@@ -9454,21 +9495,19 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
 
     try {
       [clientsRes, devicesRes] = await Promise.all([
-        unifiFetch(clientsUrl, {}, unifi.apiKey),
-        unifiFetch(devicesUrl, {}, unifi.apiKey)
+        unifiFetch(clientsUrl, {}, unifi),
+        unifiFetch(devicesUrl, {}, unifi)
       ]);
     } catch (firstErr) {
-      // If the first attempt resulted in a 404, the user might be using UniFi OS but we didn't detect it (or vice versa).
-      // Let's try the alternative path format before giving up.
       if (firstErr.status === 404 || firstErr.message.includes('404')) {
         console.warn(`[UniFi] 404 on first attempt (${clientsUrl}). Retrying with alternative path format...`);
         const altUrls = getUrls(!isUnifiOS);
         try {
           [clientsRes, devicesRes] = await Promise.all([
-            unifiFetch(altUrls.clientsUrl, {}, unifi.apiKey),
-            unifiFetch(altUrls.devicesUrl, {}, unifi.apiKey)
+            unifiFetch(altUrls.clientsUrl, {}, unifi),
+            unifiFetch(altUrls.devicesUrl, {}, unifi)
           ]);
-          fetchError = null; // Success on alternative!
+          fetchError = null;
         } catch (altErr) {
           fetchError = altErr.message;
         }
@@ -9511,7 +9550,7 @@ app.post('/api/admin/unifi/monitoring/block/:site', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cmd: action === 'block' ? 'block-sta' : 'unblock-sta', mac })
-    }, unifi.apiKey);
+    }, unifi);
     
     res.json({ success: true, message: `Client successfully ${action === 'block' ? 'blocked' : 'unblocked'}` });
   } catch (err) {
