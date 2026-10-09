@@ -5988,7 +5988,12 @@ const normalizeTabName = (rawTab) => {
       
       // Fetch immediately on mount, then every 5 seconds
       fetchLiveFeed();
-      intervalId = setInterval(fetchLiveFeed, 5000);
+      fetchUnifiVouchers();
+      
+      intervalId = setInterval(() => {
+        fetchLiveFeed();
+        fetchUnifiVouchers();
+      }, 5000);
     }
     
     return () => {
