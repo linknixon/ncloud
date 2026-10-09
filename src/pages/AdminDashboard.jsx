@@ -17877,20 +17877,20 @@ const normalizeTabName = (rawTab) => {
               const rawInvoices = Array.isArray(data?.invoices) ? data.invoices : [];
               const paidInvoicesWithVat = rawInvoices.filter(inv => 
                 (inv.status === 'Paid' || inv.status === '100% Paid') && !inv.vat_exempt && (Number(inv.vat_amount) > 0)
-              ).sort((a, b) => new Date(b.created_at || b.issue_date) - new Date(a.created_at || a.issue_date));
+              ).sort((a, b) => new Date(b.created_at || b.date || b.issue_date || Date.now()) - new Date(a.created_at || a.date || a.issue_date || Date.now()));
 
               const currentMonth = new Date().getMonth();
               const currentYear = new Date().getFullYear();
 
               const currentMonthVatCollected = paidInvoicesWithVat.reduce((sum, inv) => {
-                const invDate = new Date(inv.created_at || inv.issue_date);
+                const invDate = new Date(inv.created_at || inv.date || inv.issue_date || Date.now());
                 if (invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear) {
                   return sum + (Number(inv.vat_amount) || 0);
                 }
                 return sum;
               }, 0);
 
-              const itemsPerPage = 8;
+              const itemsPerPage = 5;
               const totalVatPages = Math.ceil(paidInvoicesWithVat.length / itemsPerPage);
               const paginatedVat = paidInvoicesWithVat.slice((vatPage - 1) * itemsPerPage, vatPage * itemsPerPage);
 
@@ -17939,7 +17939,7 @@ const normalizeTabName = (rawTab) => {
                             <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                               <td style={{ padding: '0.75rem 0.85rem', fontWeight: '700', color: 'var(--primary)' }}>{inv.invoice_number}</td>
                               <td style={{ padding: '0.75rem 0.85rem', color: 'var(--text-main)', fontWeight: '600' }}>{inv.customer_name}</td>
-                              <td style={{ padding: '0.75rem 0.85rem', color: 'var(--text-muted)' }}>{new Date(inv.created_at || inv.issue_date).toLocaleDateString()}</td>
+                              <td style={{ padding: '0.75rem 0.85rem', color: 'var(--text-muted)' }}>{new Date(inv.created_at || inv.date || inv.issue_date || Date.now()).toLocaleDateString()}</td>
                               <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right', color: 'var(--text-muted)' }}>
                                 {Number(inv.subtotal || (inv.amount - inv.vat_amount)).toLocaleString()}
                               </td>
