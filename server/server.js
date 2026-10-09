@@ -9559,7 +9559,21 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
         const allUserUrl = getUrls(isUnifiOS, site).clientsUrl.replace('stat/sta', 'stat/alluser');
         const allUserRes = await unifiFetch(allUserUrl, {}, unifi).catch(() => ({ data: [] }));
         if (allUserRes && allUserRes.data && Array.isArray(allUserRes.data)) {
-          memoryStore.unifi_blocked_clients.data = allUserRes.data.filter(u => u.blocked === true);
+          const apiBlocked = allUserRes.data.filter(u => u.blocked === true);
+          const apiBlockedMacs = new Set(apiBlocked.map(u => u.mac.toLowerCase()));
+          
+          // Merge API blocked with manually blocked. Keep manually blocked for a while even if API doesn't show them yet.
+          const mergedBlocked = [...apiBlocked];
+          memoryStore.unifi_blocked_clients.data.forEach(manualClient => {
+            if (manualClient.mac && !apiBlockedMacs.has(manualClient.mac.toLowerCase())) {
+              // Only keep manual blocks if they were blocked recently (give UniFi 5 mins to sync)
+              if (manualClient._blockedAt && now - manualClient._blockedAt < 300000) {
+                mergedBlocked.push(manualClient);
+              }
+            }
+          });
+          
+          memoryStore.unifi_blocked_clients.data = mergedBlocked;
           memoryStore.unifi_blocked_clients.lastFetch = now;
         }
       } catch (err) {
@@ -9630,7 +9644,14 @@ app.post('/api/admin/unifi/monitoring/block/:site', async (req, res) => {
     if (memoryStore.unifi_blocked_clients && memoryStore.unifi_blocked_clients.data) {
       if (action === 'block') {
         const exists = memoryStore.unifi_blocked_clients.data.find(u => u.mac === mac);
-        if (!exists) memoryStore.unifi_blocked_clients.data.push({ mac, blocked: true, hostname: req.body.hostname || 'Unknown Device' });
+        if (!exists) {
+          memoryStore.unifi_blocked_clients.data.push({ 
+            mac, 
+            blocked: true, 
+            hostname: req.body.hostname || 'Unknown Device',
+            _blockedAt: Date.now() // Timestamp to prevent premature wiping by stat/alluser sync
+          });
+        }
       } else {
         memoryStore.unifi_blocked_clients.data = memoryStore.unifi_blocked_clients.data.filter(u => u.mac !== mac);
       }
