@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useApp } from '../context/AppContext';
 import QRCode from 'qrcode';
 import { 
@@ -17403,20 +17404,86 @@ const normalizeTabName = (rawTab) => {
                     </div>
                   </div>
 
-                  {/* 2-Column: Star Selling Performers vs Items Needing Push */}
+                  {/* Interactive Recharts Data Science Visualizations */}
+                  <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                    
+                    {/* Top Selling Performers - Revenue Bar Chart */}
+                    <div className="glass-card" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#16a34a', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <TrendingUp size={18} color="#16a34a" /> Revenue by Product (Top 5)
+                      </h4>
+                      <div style={{ width: '100%', height: 300 }}>
+                        {topSelling.length === 0 ? (
+                          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No sales data yet.</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={topSelling.slice(0, 5).map(item => ({ name: item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name, revenue: item.total_revenue || item.revenue || 0 }))}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                              <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} interval={0} angle={-15} textAnchor="end" height={60} />
+                              <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(val) => `UGX ${Math.floor(val/1000)}k`} />
+                              <RechartsTooltip 
+                                contentStyle={{ background: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                itemStyle={{ color: '#16a34a', fontWeight: 'bold' }}
+                                formatter={(value) => [`UGX ${Number(value).toLocaleString()}`, 'Revenue']}
+                              />
+                              <Bar dataKey="revenue" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expenditure Categories - Pie Chart */}
+                    <div className="glass-card" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#ef4444', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <PieChart size={18} color="#ef4444" /> Expenditure Allocation
+                      </h4>
+                      <div style={{ width: '100%', height: 300 }}>
+                        {categoryBreakdown.length === 0 ? (
+                          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No expenditure data yet.</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartsPieChart>
+                              <Pie
+                                data={categoryBreakdown.map(c => ({ name: c.category, value: c.total_amount }))}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({ name, percent }) => `${name.substring(0, 15)} (${(percent * 100).toFixed(0)}%)`}
+                              >
+                                {categoryBreakdown.map((entry, index) => {
+                                  const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#6366f1'];
+                                  return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                                })}
+                              </Pie>
+                              <RechartsTooltip 
+                                contentStyle={{ background: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                formatter={(value) => [`UGX ${Number(value).toLocaleString()}`, 'Amount']}
+                              />
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column: Star Selling Performers vs Items Needing Push (List Format for quick glance) */}
                   <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                    {/* Column 1: Star Performers */}
+                    {/* Column 1: Star Performers List */}
                     <div className="glass-card" style={{ padding: '1.25rem' }}>
                       <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#16a34a', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <TrendingUp size={18} color="#16a34a" /> Star Performing Offerings (High Demand & Sales)
+                        <TrendingUp size={18} color="#16a34a" /> Top 5 Products (Sales Volume)
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                         {topSelling.length === 0 ? (
                           <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            No sales recorded in database yet. Sales metrics populate automatically as invoices are generated.
+                            No sales recorded in database yet.
                           </div>
                         ) : (
-                          topSelling.map((it, i) => (
+                          topSelling.slice(0, 5).sort((a,b) => b.sales_count - a.sales_count).map((it, i) => (
                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', background: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                               <div>
                                 <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>{it.name}</div>
@@ -17466,39 +17533,6 @@ const normalizeTabName = (rawTab) => {
                         )}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Company Expenditures by Category Breakdown */}
-                  <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-                    <h4 style={{ fontSize: '1.05rem', fontWeight: '800', marginBottom: '1rem', color: '#ef4444' }}>
-                      Expenditures Breakdown by Budget Category
-                    </h4>
-                    {categoryBreakdown.length === 0 ? (
-                      <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        No expenditure records in system database yet.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem' }}>
-                        {categoryBreakdown.map((cat, i) => {
-                          const totalExpenditure = metrics.total_expenditures || 1;
-                          const pct = Math.min(100, Math.round(((cat.total_amount || 0) / totalExpenditure) * 100));
-                          return (
-                            <div key={i} style={{ padding: '0.85rem', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.825rem' }}>
-                                <strong style={{ color: 'var(--text-main)' }}>{cat.category}</strong>
-                                <span style={{ fontWeight: '800', color: '#ef4444' }}>UGX {Number(cat.total_amount).toLocaleString()}</span>
-                              </div>
-                              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                                <div style={{ width: `${pct}%`, height: '100%', background: '#ef4444', borderRadius: '4px' }} />
-                              </div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'right' }}>
-                                {pct}% of total expenditure
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
 
                   {/* Real-Time Audited System Financial Ledger Table */}
