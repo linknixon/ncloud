@@ -8747,6 +8747,38 @@ setInterval(() => {
   }
 }, 3 * 60 * 1000);
 
+// Background Task: Auto-aggregate UniFi Usage Stats every 10 minutes
+setInterval(async () => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    if (!unifi) return;
+    const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
+    const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${unifi.siteId}/stat/sta` : `${unifi.origin}/api/s/${unifi.siteId}/stat/sta`;
+    
+    const res = await unifiFetch(clientsUrl, {}, unifi.apiKey);
+    if (res && res.data) {
+      if (!memoryStore.unifi_stats_history) memoryStore.unifi_stats_history = [];
+      const totalTx = res.data.reduce((sum, client) => sum + (client.tx_bytes || 0), 0);
+      const totalRx = res.data.reduce((sum, client) => sum + (client.rx_bytes || 0), 0);
+      
+      memoryStore.unifi_stats_history.push({
+        timestamp: new Date().toISOString(),
+        active_clients: res.data.length,
+        total_tx_bytes: totalTx,
+        total_rx_bytes: totalRx
+      });
+      
+      // Keep only the last 24 hours (144 data points if 10 mins each)
+      if (memoryStore.unifi_stats_history.length > 144) {
+        memoryStore.unifi_stats_history = memoryStore.unifi_stats_history.slice(-144);
+      }
+      savePersistentStore();
+    }
+  } catch (err) {
+    // Ignore silent failures for background monitoring
+  }
+}, 10 * 60 * 1000);
+
 // Dedicated UniFi Test Connection Handler (Supports GET and POST)
 const handleUniFiTest = async (req, res) => {
   try {
@@ -9426,6 +9458,25 @@ app.post('/api/admin/unifi/monitoring/block/:site', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.get('/api/admin/unifi/logs/:site', async (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
+    const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
+    const eventsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/event` : `${unifi.origin}/api/s/${site}/stat/event`;
+    
+    const eventsRes = await unifiFetch(eventsUrl, {}, unifi.apiKey).catch(() => ({ data: [] }));
+    res.json(eventsRes.data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/unifi/monitoring/history', requireSystemsAdmin, (req, res) => {
+  res.json(memoryStore.unifi_stats_history || []);
+});
+
 
 // POST/PUT WiFi voucher price map — sets price for specific duration_hours
 app.post('/api/admin/wifi/voucher-prices', requireSystemsAdmin, (req, res) => {

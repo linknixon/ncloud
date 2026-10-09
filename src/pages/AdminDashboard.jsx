@@ -894,6 +894,7 @@ const normalizeTabName = (rawTab) => {
   // Search states
   const [quotationSearch, setQuotationSearch] = useState('');
   const [workOrderSearch, setWorkOrderSearch] = useState('');
+  const [workOrderStatusFilter, setWorkOrderStatusFilter] = useState('all');
   const [unifiSearch, setUnifiSearch] = useState('');
   const [scheduleSearch, setScheduleSearch] = useState('');
   const [bankSearch, setBankSearch] = useState('');
@@ -11488,13 +11489,19 @@ const normalizeTabName = (rawTab) => {
                 : (isSuperAdmin || isSalesAdmin) ? allOrders 
                 : allOrders.filter(o => (o.assigned_staff_name && o.assigned_staff_name === user?.name) || (o.assigned_staff_id && o.assigned_staff_id == user?.id));
 
-              const filteredOrders = rawOrders.filter(o =>
-                !workOrderSearch ||
-                o.order_number.toLowerCase().includes(workOrderSearch.toLowerCase()) ||
-                o.task_title.toLowerCase().includes(workOrderSearch.toLowerCase()) ||
-                (o.assigned_staff_name || '').toLowerCase().includes(workOrderSearch.toLowerCase()) ||
-                (o.client_site || '').toLowerCase().includes(workOrderSearch.toLowerCase())
-              );
+              const filteredOrders = rawOrders.filter(o => {
+                const searchMatch = !workOrderSearch ||
+                  o.order_number.toLowerCase().includes(workOrderSearch.toLowerCase()) ||
+                  o.task_title.toLowerCase().includes(workOrderSearch.toLowerCase()) ||
+                  (o.assigned_staff_name || '').toLowerCase().includes(workOrderSearch.toLowerCase()) ||
+                  (o.client_site || '').toLowerCase().includes(workOrderSearch.toLowerCase());
+                
+                const statusMatch = workOrderStatusFilter === 'all' || 
+                  (workOrderStatusFilter === 'completed' && o.status === 'Completed') ||
+                  (workOrderStatusFilter === 'pending' && o.status !== 'Completed');
+
+                return searchMatch && statusMatch;
+              });
 
               const WO_PER_PAGE = 6;
               const totalWoPages = Math.ceil(filteredOrders.length / WO_PER_PAGE) || 1;
@@ -11559,6 +11566,18 @@ const normalizeTabName = (rawTab) => {
                         onChange={e => { setWorkOrderSearch(e.target.value); setWorkOrderPage(1); }}
                         style={{ paddingLeft: '2.5rem', width: '100%' }}
                       />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <select
+                        className="form-input"
+                        style={{ padding: '0.45rem 0.85rem', width: '140px', fontSize: '0.85rem' }}
+                        value={workOrderStatusFilter}
+                        onChange={e => { setWorkOrderStatusFilter(e.target.value); setWorkOrderPage(1); }}
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                      </select>
                     </div>
                     <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontWeight: '700' }}>
                       Showing {paginatedOrders.length} of {filteredOrders.length} Work Orders (3 per row • 6 per page)
