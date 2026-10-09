@@ -2657,6 +2657,23 @@ const normalizeTabName = (rawTab) => {
       setAnalyticsLoading(false);
     }
   };
+  const handleTriggerStatements = async () => {
+    if (!window.confirm('Are you sure you want to trigger automated Monthly Statements (Aging Reports) to all customers with unpaid invoices? This will securely dispatch email statements to all matching clients.')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/trigger-statements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '', 'x-user-role': currentRole },
+        body: JSON.stringify({ role: currentRole })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to trigger statements');
+      showToast(data.message || `Successfully sent ${data.sent} statements.`, 'success');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
 
   // ==========================================
   // CSV EXPORTS & CATALOG BULK UPLOAD HANDLERS
@@ -11776,6 +11793,95 @@ const normalizeTabName = (rawTab) => {
 
               return (
                 <div>
+                    {/* Live Network Monitoring */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#10b981' }}>UniFi Live Network Monitoring</h3>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            View connected clients, data usage, and device status dynamically fetched from your active UniFi controller API sync.
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch('/api/admin/unifi/monitoring/clients/default', { headers: { 'Authorization': token ? `Bearer ${token}` : '' }});
+                            if (res.ok) {
+                              const data = await res.json();
+                              window.__unifiClients = data.clients || [];
+                              showToast(`Synced ${window.__unifiClients.length} active clients from UniFi`, 'success');
+                            }
+                          }}
+                          className="btn-primary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', background: '#10b981' }}
+                        >
+                          <Wifi size={14} style={{ marginRight: '6px' }} /> Refresh Live Feed
+                        </button>
+                      </div>
+                      
+                      <div className="glass-card" style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        {window.__unifiClients && window.__unifiClients.length > 0 ? (
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', fontSize: '0.8rem', textAlign: 'left', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.2)', color: '#059669' }}>
+                                  <th style={{ padding: '0.5rem' }}>Hostname</th>
+                                  <th style={{ padding: '0.5rem' }}>IP Address</th>
+                                  <th style={{ padding: '0.5rem' }}>MAC</th>
+                                  <th style={{ padding: '0.5rem' }}>Network / SSID</th>
+                                  <th style={{ padding: '0.5rem' }}>Uptime</th>
+                                  <th style={{ padding: '0.5rem', textAlign: 'right' }}>Tx/Rx (MB)</th>
+                                  <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {window.__unifiClients.map((client, i) => (
+                                  <tr key={i} style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                                    <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{client.hostname || 'Unknown Device'}</td>
+                                    <td style={{ padding: '0.5rem' }}>{client.ip}</td>
+                                    <td style={{ padding: '0.5rem', fontFamily: 'monospace' }}>{client.mac}</td>
+                                    <td style={{ padding: '0.5rem' }}>{client.essid || 'LAN'}</td>
+                                    <td style={{ padding: '0.5rem' }}>{Math.floor(client.uptime / 60)} mins</td>
+                                    <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                                      {((client.tx_bytes || 0) / 1048576).toFixed(1)} / {((client.rx_bytes || 0) / 1048576).toFixed(1)}
+                                    </td>
+                                    <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                      <button 
+                                        className="btn-secondary" 
+                                        style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', color: client.blocked ? '#10b981' : '#ef4444', borderColor: client.blocked ? '#10b981' : '#ef4444' }}
+                                        onClick={async () => {
+                                          if (!window.confirm(`Are you sure you want to ${client.blocked ? 'unblock' : 'block'} this client?`)) return;
+                                          try {
+                                            const token = localStorage.getItem('token');
+                                            await fetch('/api/admin/unifi/monitoring/block/default', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
+                                              body: JSON.stringify({ mac: client.mac, action: client.blocked ? 'unblock' : 'block' })
+                                            });
+                                            showToast('Client state updated', 'success');
+                                          } catch (e) {
+                                            showToast('Failed to update client', 'error');
+                                          }
+                                        }}
+                                      >
+                                        {client.blocked ? 'Unblock' : 'Block'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)' }}>
+                            No active clients synced or fetched. Click "Refresh Live Feed" to pull from UniFi API.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <hr style={{ border: 'none', borderTop: '1px dashed var(--border-color)', margin: '2rem 0' }} />
+
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                       <div>
@@ -17236,6 +17342,13 @@ const normalizeTabName = (rawTab) => {
                           style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#10b981', justifyContent: 'center', gap: '6px' }}
                         >
                           <Download size={14} /> Sales Velocity Report (PDF)
+                        </button>
+                        <button
+                          onClick={handleTriggerStatements}
+                          className="btn-primary"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', background: '#f59e0b', justifyContent: 'center', gap: '6px', color: '#fff' }}
+                        >
+                          <Send size={14} /> Send Monthly Statements (Aging)
                         </button>
                       </div>
                     </div>

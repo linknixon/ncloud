@@ -536,10 +536,10 @@ const memoryStore = {
     },
     {
       id: 2,
-      name: 'Quarterly Customer Financial Statements Generator',
-      description: 'Generates and archives balance sheets and tax clearance receipts per customer.',
-      cron_expression: '0 0 1 1,4,7,10 *',
-      frequency: 'Every Quarter on 1st',
+      name: 'Monthly Customer Financial Statements Generator',
+      description: 'Generates and dispatches monthly aging reports and financial statements per customer.',
+      cron_expression: '0 0 1 * *',
+      frequency: 'Every Month on 1st',
       target: 'statements',
       enabled: true,
       last_run: '2026-07-01T00:00:00Z',
@@ -560,8 +560,8 @@ const memoryStore = {
       id: 4,
       name: 'UniFi WiFi Guest Token Expiration Janitor',
       description: 'Revokes expired UniFi Guest WiFi tokens and synchronizes voucher state.',
-      cron_expression: '*/30 * * * * *',
-      frequency: 'Every 30 Seconds',
+      cron_expression: '*/3 * * * *',
+      frequency: 'Every 3 Minutes',
       target: 'unifi_janitor',
       enabled: true,
       last_run: '2026-08-24T18:00:00Z',
@@ -8724,7 +8724,7 @@ export async function syncUniFiVouchers() {
   }
 }
 
-// Background Task: Auto-sync UniFi vouchers every 30 seconds (Only when active)
+// Background Task: Auto-sync UniFi vouchers every 3 minutes (Only when active)
 setInterval(() => {
   try {
     const unifi = getActiveUniFiIntegration();
@@ -8745,7 +8745,7 @@ setInterval(() => {
       }
     }).catch(err => console.error('[Cron] Unifi Sync failed:', err));
   }
-}, 30 * 1000);
+}, 3 * 60 * 1000);
 
 // Dedicated UniFi Test Connection Handler (Supports GET and POST)
 const handleUniFiTest = async (req, res) => {
@@ -9375,6 +9375,56 @@ app.delete('/api/admin/wifi/vouchers/:id', async (req, res) => {
 // GET WiFi voucher price map (admin)
 app.get('/api/admin/wifi/voucher-prices', (req, res) => {
   res.json(memoryStore.wifi_voucher_prices || {});
+});
+
+// UniFi Monitoring Endpoints
+app.get('/api/admin/unifi/monitoring/sites', async (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    const result = await unifiFetch(unifi.sitesListUrl, {}, unifi.apiKey);
+    res.json(result.data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
+    const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
+    const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`;
+    const devicesUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/device` : `${unifi.origin}/api/s/${site}/stat/device`;
+    
+    const [clientsRes, devicesRes] = await Promise.all([
+      unifiFetch(clientsUrl, {}, unifi.apiKey).catch(() => ({ data: [] })),
+      unifiFetch(devicesUrl, {}, unifi.apiKey).catch(() => ({ data: [] }))
+    ]);
+    
+    res.json({ clients: clientsRes.data || [], devices: devicesRes.data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/unifi/monitoring/block/:site', async (req, res) => {
+  try {
+    const unifi = getActiveUniFiIntegration();
+    const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
+    const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
+    const cmdUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/cmd/stamgr` : `${unifi.origin}/api/s/${site}/cmd/stamgr`;
+    const { mac, action } = req.body;
+    
+    await unifiFetch(cmdUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd: action === 'block' ? 'block-sta' : 'unblock-sta', mac })
+    }, unifi.apiKey);
+    
+    res.json({ success: true, message: `Client successfully ${action === 'block' ? 'blocked' : 'unblocked'}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST/PUT WiFi voucher price map — sets price for specific duration_hours
@@ -14516,6 +14566,49 @@ setTimeout(autoDemandOverdueInvoices, 30000); // 30 seconds after startup to ens
 setInterval(autoDemandOverdueInvoices, 24 * 60 * 60 * 1000);
 setTimeout(checkPasswordExpiryAlerts, 45000);
 setInterval(checkPasswordExpiryAlerts, 24 * 60 * 60 * 1000);
+
+// Auto-dispatch Monthly Statements (Aging Reports) on the 1st of every month
+async function autoDispatchMonthlyStatements() {
+  const today = new Date();
+  if (today.getDate() !== 1) return;
+  
+  const currentMonthKey = `${today.getFullYear()}-${today.getMonth() + 1}`;
+  if (memoryStore.last_statement_dispatch === currentMonthKey) return;
+
+  try {
+    const portStr = process.env.PORT || 8092;
+    const res = await fetch(`http://127.0.0.1:${portStr}/api/admin/trigger-statements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': 'super_admin'
+      },
+      body: JSON.stringify({ role: 'super_admin' })
+    });
+    const data = await res.json();
+    console.log(`[Cron] Monthly Statements auto-dispatch: ${data.message || 'No statements sent'}`);
+    
+    if (typeof logAuditEvent === 'function') {
+      await logAuditEvent('SYSTEM', 'SYSTEM_CRON', 'Dispatched Monthly Aging Statements', `Result: ${data.message}`);
+    }
+
+    memoryStore.last_statement_dispatch = currentMonthKey;
+    
+    const sched = (memoryStore.schedules || []).find(s => s.target === 'statements');
+    if (sched) {
+      sched.last_run = new Date().toISOString();
+      sched.last_status = `Success (Auto-dispatched ${data.sent || 0} statements)`;
+    }
+    
+    savePersistentStore();
+  } catch (err) {
+    console.error('[Cron] Monthly Statements error:', err);
+  }
+}
+
+setTimeout(autoDispatchMonthlyStatements, 60000); // Check 1 min after startup
+setInterval(autoDispatchMonthlyStatements, 12 * 60 * 60 * 1000); // Check twice daily
+
 
 app.post('/api/admin/forensics/purge-old', requireSuperAdmin, async (req, res) => {
   const purgedCount = await purgeOldAuditLogs();
