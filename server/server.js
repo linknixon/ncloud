@@ -16206,6 +16206,35 @@ app.get(/(.*)/, (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
+// Temporary repair for buggy custom invoice calculations (historical data sync)
+if (memoryStore.invoices) {
+  let repaired = false;
+  memoryStore.invoices.forEach(inv => {
+    if (Array.isArray(inv.items) && inv.items.length > 0) {
+      const isWifi = String(inv.item_name).toLowerCase().includes('wifi') || inv.items.some(i => String(i.name).toLowerCase().includes('wifi'));
+      const grossSubtotal = inv.items.reduce((sum, it) => sum + (Number(it.amount) || (Number(it.unit_price || it.price || 0) * (Number(it.quantity || it.qty || 1)))), 0);
+      const discAmt = Number(inv.discount_amount) || 0;
+      const netSub = Math.max(0, grossSubtotal - discAmt);
+      const vat = (inv.vat_exempt || isWifi) ? 0 : Math.round(netSub * 0.18);
+      const total = netSub + vat;
+      
+      // Check if it's wrongly summed
+      if (Math.abs(Number(inv.amount || 0) - total) > 1000) {
+        inv.subtotal = grossSubtotal;
+        inv.net_subtotal = netSub;
+        inv.vat_amount = vat;
+        inv.amount = total;
+        inv.balance = Math.max(0, total - (Number(inv.paid_amount) || 0));
+        repaired = true;
+      }
+    }
+  });
+  if (repaired) {
+    console.log('[System] One-time recalculation of custom invoice totals applied.');
+    savePersistentStore();
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`Nova Cloud Edges API Server running on port ${PORT}`);
 });

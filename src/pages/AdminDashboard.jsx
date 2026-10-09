@@ -1198,6 +1198,9 @@ const normalizeTabName = (rawTab) => {
   // Pagination Constants & Remaining States (3 per row, 6 per page)
   const [invoicePage, setInvoicePage] = useState(1);
   const [vatPage, setVatPage] = useState(1);
+  const [vatSearch, setVatSearch] = useState('');
+  const [vatMonthFilter, setVatMonthFilter] = useState(new Date().getMonth());
+  const [vatYearFilter, setVatYearFilter] = useState(new Date().getFullYear());
   const INVOICES_PER_PAGE = 6;
   const PAYMENTS_PER_PAGE = 6;
   const EXPENSES_PER_PAGE = 6;
@@ -13128,14 +13131,14 @@ const normalizeTabName = (rawTab) => {
                                 </button>
                               )}
 
-                              {/* Mark Resolved */}
+                              {/* Close Ticket */}
                               {canUpdate('contacts') && c.status !== 'complete' && c.status !== 'resolved' && c.status !== 'closed' && (
                                 <button 
                                   className="btn-secondary" 
-                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
                                   onClick={() => handleUpdateContactStatus(c.id, 'closed')}
                                 >
-                                  <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Resolved
+                                  <CheckCircle size={14} style={{ marginRight: '4px' }} /> Close Ticket
                                 </button>
                               )}
 
@@ -17875,20 +17878,30 @@ const normalizeTabName = (rawTab) => {
             {/* URA VAT TAX COLLECTION MODULE */}
             {activeTab === 'reports' && (() => {
               const rawInvoices = Array.isArray(data?.invoices) ? data.invoices : [];
-              const paidInvoicesWithVat = rawInvoices.filter(inv => 
+              const rawPaidInvoicesWithVat = rawInvoices.filter(inv => 
                 (inv.status === 'Paid' || inv.status === '100% Paid') && !inv.vat_exempt && (Number(inv.vat_amount) > 0)
               ).sort((a, b) => new Date(b.created_at || b.date || b.issue_date || Date.now()) - new Date(a.created_at || a.date || a.issue_date || Date.now()));
 
-              const currentMonth = new Date().getMonth();
-              const currentYear = new Date().getFullYear();
-
-              const currentMonthVatCollected = paidInvoicesWithVat.reduce((sum, inv) => {
+              const currentMonthVatCollected = rawPaidInvoicesWithVat.reduce((sum, inv) => {
                 const invDate = new Date(inv.created_at || inv.date || inv.issue_date || Date.now());
-                if (invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear) {
+                if (invDate.getMonth() === Number(vatMonthFilter) && invDate.getFullYear() === Number(vatYearFilter)) {
                   return sum + (Number(inv.vat_amount) || 0);
                 }
                 return sum;
               }, 0);
+
+              const paidInvoicesWithVat = rawPaidInvoicesWithVat.filter(inv => {
+                const sTerm = vatSearch.toLowerCase();
+                const invDate = new Date(inv.created_at || inv.date || inv.issue_date || Date.now());
+                
+                const matchesSearch = !sTerm || 
+                  String(inv.invoice_number || '').toLowerCase().includes(sTerm) || 
+                  String(inv.customer_name || '').toLowerCase().includes(sTerm);
+                  
+                const matchesMonth = invDate.getMonth() === Number(vatMonthFilter) && invDate.getFullYear() === Number(vatYearFilter);
+                
+                return matchesSearch && matchesMonth;
+              });
 
               const itemsPerPage = 5;
               const totalVatPages = Math.ceil(paidInvoicesWithVat.length / itemsPerPage);
@@ -17908,12 +17921,48 @@ const normalizeTabName = (rawTab) => {
                         Track statutory 18% VAT collected from settled and paid commercial invoices.
                       </p>
                     </div>
-                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.65rem 1rem', borderRadius: '10px' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>This Month's VAT Pool</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#059669' }}>
-                        UGX {currentMonthVatCollected.toLocaleString()}
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.65rem 1rem', borderRadius: '10px' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selected Month's VAT Pool</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#059669' }}>
+                          UGX {currentMonthVatCollected.toLocaleString()}
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                      <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input 
+                        type="text" 
+                        placeholder="Search VAT collection by customer or invoice ref..."
+                        value={vatSearch}
+                        onChange={(e) => { setVatSearch(e.target.value); setVatPage(1); }}
+                        className="form-input"
+                        style={{ paddingLeft: '35px', fontSize: '0.825rem' }}
+                      />
+                    </div>
+                    <select 
+                      value={vatMonthFilter}
+                      onChange={(e) => { setVatMonthFilter(e.target.value); setVatPage(1); }}
+                      className="form-input"
+                      style={{ width: '140px', fontSize: '0.825rem' }}
+                    >
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <option key={i} value={i}>{new Date(2000, i).toLocaleString('default', { month: 'long' })}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={vatYearFilter}
+                      onChange={(e) => { setVatYearFilter(e.target.value); setVatPage(1); }}
+                      className="form-input"
+                      style={{ width: '100px', fontSize: '0.825rem' }}
+                    >
+                      {[...new Set(rawPaidInvoicesWithVat.map(inv => new Date(inv.created_at || inv.date || inv.issue_date || Date.now()).getFullYear()))].sort().reverse().map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
