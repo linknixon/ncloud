@@ -339,6 +339,7 @@ export default function AdminDashboard({ setActivePage }) {
   const { user, openAuthModal, showToast, siteLogo, updateSiteLogo, siteFavicon, updateSiteFavicon, topbarSettings, updateTopbarSettings, logout } = useApp();
   const [logoInput, setLogoInput] = useState(siteLogo || '');
   const [faviconInput, setFaviconInput] = useState(siteFavicon || '');
+  const [unifiClients, setUnifiClients] = useState([]);
   
   const [currentRole, setCurrentRole] = useState(user?.role || 'super_admin');
   const [rolesList, setRolesList] = useState([]);
@@ -11815,8 +11816,9 @@ const normalizeTabName = (rawTab) => {
                             const res = await fetch('/api/admin/unifi/monitoring/clients/default', { headers: { 'Authorization': token ? `Bearer ${token}` : '' }});
                             if (res.ok) {
                               const data = await res.json();
-                              window.__unifiClients = data.clients || [];
-                              showToast(`Synced ${window.__unifiClients.length} active clients from UniFi`, 'success');
+                              const clientsData = data.clients || [];
+                              setUnifiClients(clientsData);
+                              showToast(`Synced ${clientsData.length} active clients from UniFi`, 'success');
                             }
                           }}
                           className="btn-primary"
@@ -11827,7 +11829,7 @@ const normalizeTabName = (rawTab) => {
                       </div>
                       
                       <div className="glass-card" style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                        {window.__unifiClients && window.__unifiClients.length > 0 ? (
+                        {unifiClients && unifiClients.length > 0 ? (
                           <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', fontSize: '0.8rem', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
@@ -11842,7 +11844,7 @@ const normalizeTabName = (rawTab) => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {window.__unifiClients.map((client, i) => (
+                                {unifiClients.map((client, i) => (
                                   <tr key={i} style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
                                     <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{client.hostname || 'Unknown Device'}</td>
                                     <td style={{ padding: '0.5rem' }}>{client.ip}</td>
