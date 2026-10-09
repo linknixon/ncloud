@@ -11904,7 +11904,7 @@ const normalizeTabName = (rawTab) => {
                                             await fetch('/api/admin/unifi/monitoring/block/default', {
                                               method: 'POST',
                                               headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
-                                              body: JSON.stringify({ mac: client.mac, action: client.blocked ? 'unblock' : 'block' })
+                                              body: JSON.stringify({ mac: client.mac, hostname: client.hostname, action: client.blocked ? 'unblock' : 'block' })
                                             });
                                             // Optimistic UI update
                                             setUnifiClients(prev => prev.map(c => c.mac === client.mac ? { ...c, blocked: !c.blocked } : c));

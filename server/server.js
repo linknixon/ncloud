@@ -9551,6 +9551,22 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
       return res.status(500).json({ error: `UniFi Fetch Failed: ${fetchError}` });
     }
     
+    // --- Fetch and Cache Blocked Users (throttled to once per minute to avoid overloading controller) ---
+    if (!memoryStore.unifi_blocked_clients) memoryStore.unifi_blocked_clients = { data: [], lastFetch: 0 };
+    const now = Date.now();
+    if (now - memoryStore.unifi_blocked_clients.lastFetch > 60000) {
+      try {
+        const allUserUrl = getUrls(isUnifiOS, site).clientsUrl.replace('stat/sta', 'stat/alluser');
+        const allUserRes = await unifiFetch(allUserUrl, {}, unifi).catch(() => ({ data: [] }));
+        if (allUserRes && allUserRes.data && Array.isArray(allUserRes.data)) {
+          memoryStore.unifi_blocked_clients.data = allUserRes.data.filter(u => u.blocked === true);
+          memoryStore.unifi_blocked_clients.lastFetch = now;
+        }
+      } catch (err) {
+        console.warn(`[UniFi] Failed to fetch blocked users for cache: ${err.message}`);
+      }
+    }
+    
     let clientsData = clientsRes.data || [];
     let guestsData = guestsRes.data || [];
     
@@ -9565,6 +9581,19 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
           c.voucher_code = guestMap[c.mac.toLowerCase()];
         }
         return c;
+      });
+    }
+    
+    // Merge blocked clients so they don't disappear from the UI
+    if (memoryStore.unifi_blocked_clients && memoryStore.unifi_blocked_clients.data.length > 0) {
+      const activeMacs = new Set(clientsData.map(c => c.mac.toLowerCase()));
+      memoryStore.unifi_blocked_clients.data.forEach(blockedUser => {
+        if (blockedUser.mac && !activeMacs.has(blockedUser.mac.toLowerCase())) {
+          clientsData.push({
+            ...blockedUser,
+            is_offline_blocked: true // Flag to help UI if needed
+          });
+        }
       });
     }
     
@@ -9596,6 +9625,16 @@ app.post('/api/admin/unifi/monitoring/block/:site', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cmd: action === 'block' ? 'block-sta' : 'unblock-sta', mac })
     }, unifi);
+    
+    // Instantly update the backend memory cache so the client doesn't disappear from the UI
+    if (memoryStore.unifi_blocked_clients && memoryStore.unifi_blocked_clients.data) {
+      if (action === 'block') {
+        const exists = memoryStore.unifi_blocked_clients.data.find(u => u.mac === mac);
+        if (!exists) memoryStore.unifi_blocked_clients.data.push({ mac, blocked: true, hostname: req.body.hostname || 'Unknown Device' });
+      } else {
+        memoryStore.unifi_blocked_clients.data = memoryStore.unifi_blocked_clients.data.filter(u => u.mac !== mac);
+      }
+    }
     
     res.json({ success: true, message: `Client successfully ${action === 'block' ? 'blocked' : 'unblocked'}` });
   } catch (err) {
