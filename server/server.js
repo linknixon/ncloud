@@ -8535,11 +8535,24 @@ async function unifiFetch(url, options = {}, apiKey) {
     throw error;
   }
 
+  if (!response.ok && response.status === 404) {
+    const error = new Error(`Endpoint not found (HTTP 404). This usually means the site ID is incorrect or the UniFi OS path prefix (/proxy/network) is missing or extra.`);
+    error.status = 404;
+    error.url = url;
+    throw error;
+  }
+
   let data = null;
   if (rawText.trim()) {
     try {
       data = JSON.parse(rawText);
     } catch (parseErr) {
+      if (!response.ok) {
+        const error = new Error(`UniFi API error (HTTP ${response.status} ${response.statusText}): ${rawText.slice(0, 200)}`);
+        error.status = response.status;
+        error.url = url;
+        throw error;
+      }
       const error = new Error(`Failed to parse UniFi response as JSON: ${parseErr.message}. Response was: ${rawText.slice(0, 200)}`);
       error.status = response.status;
       error.url = url;
@@ -9425,23 +9438,44 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
     const unifi = getActiveUniFiIntegration();
     
     const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
-    const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
-    const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`;
-    const devicesUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/device` : `${unifi.origin}/api/s/${site}/stat/device`;
+    const isUnifiOS = (unifi.siteBaseUrl && unifi.siteBaseUrl.includes('/proxy/network')) || unifi.gateway_url?.includes('/proxy/network');
+    
+    // Attempt to fetch with the guessed URL type
+    const getUrls = (useUnifiOS) => ({
+      clientsUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`,
+      devicesUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/device` : `${unifi.origin}/api/s/${site}/stat/device`
+    });
+
+    let { clientsUrl, devicesUrl } = getUrls(isUnifiOS);
     
     let fetchError = null;
-    const [clientsRes, devicesRes] = await Promise.all([
-      unifiFetch(clientsUrl, {}, unifi.apiKey).catch((e) => { 
-        console.error("UniFi Fetch Error (Clients):", e); 
-        fetchError = e.message;
-        return { data: [] }; 
-      }),
-      unifiFetch(devicesUrl, {}, unifi.apiKey).catch((e) => { 
-        console.error("UniFi Fetch Error (Devices):", e); 
-        if (!fetchError) fetchError = e.message;
-        return { data: [] }; 
-      })
-    ]);
+    let clientsRes = { data: [] };
+    let devicesRes = { data: [] };
+
+    try {
+      [clientsRes, devicesRes] = await Promise.all([
+        unifiFetch(clientsUrl, {}, unifi.apiKey),
+        unifiFetch(devicesUrl, {}, unifi.apiKey)
+      ]);
+    } catch (firstErr) {
+      // If the first attempt resulted in a 404, the user might be using UniFi OS but we didn't detect it (or vice versa).
+      // Let's try the alternative path format before giving up.
+      if (firstErr.status === 404 || firstErr.message.includes('404')) {
+        console.warn(`[UniFi] 404 on first attempt (${clientsUrl}). Retrying with alternative path format...`);
+        const altUrls = getUrls(!isUnifiOS);
+        try {
+          [clientsRes, devicesRes] = await Promise.all([
+            unifiFetch(altUrls.clientsUrl, {}, unifi.apiKey),
+            unifiFetch(altUrls.devicesUrl, {}, unifi.apiKey)
+          ]);
+          fetchError = null; // Success on alternative!
+        } catch (altErr) {
+          fetchError = altErr.message;
+        }
+      } else {
+        fetchError = firstErr.message;
+      }
+    }
     
     // If there was a real error fetching, return it to the frontend so we can debug
     if (fetchError) {
