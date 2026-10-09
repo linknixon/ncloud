@@ -8616,7 +8616,7 @@ async function unifiFetch(url, options = {}, unifiObj) {
 // Helper to auto-discover and resolve active UniFi site ID if needed
 async function autoDiscoverUniFiSite(unifi) {
   try {
-    const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi.apiKey);
+    const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi);
     const sites = Array.isArray(sitesData) ? sitesData : (sitesData?.data || sitesData?.sites || []);
     if (!Array.isArray(sites) || sites.length === 0) return null;
 
@@ -8674,7 +8674,7 @@ export async function syncUniFiVouchers() {
     let data = null;
 
     try {
-      data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
+      data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi);
     } catch (firstErr) {
       // If 400 (e.g. 'default' is not a valid siteId), 404, or HTML, attempt site auto-discovery
       const isSiteError = firstErr.status === 400 || 
@@ -8695,7 +8695,7 @@ export async function syncUniFiVouchers() {
           unifi.vouchersUrl = newEndpoints.vouchersUrl;
           unifi.siteId = discoveredSiteId;
           vouchersUrl = `${newEndpoints.vouchersUrl}?filter=expired.eq(false)&limit=1000`;
-          data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi.apiKey);
+          data = await unifiFetch(vouchersUrl, { method: 'GET' }, unifi);
         } else {
           throw firstErr;
         }
@@ -8809,7 +8809,7 @@ setInterval(async () => {
     const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
     const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${unifi.siteId}/stat/sta` : `${unifi.origin}/api/s/${unifi.siteId}/stat/sta`;
     
-    const res = await unifiFetch(clientsUrl, {}, unifi.apiKey);
+    const res = await unifiFetch(clientsUrl, {}, unifi);
     if (res && res.data) {
       if (!memoryStore.unifi_stats_history) memoryStore.unifi_stats_history = [];
       const totalTx = res.data.reduce((sum, client) => sum + (client.tx_bytes || 0), 0);
@@ -8865,7 +8865,7 @@ const handleUniFiTest = async (req, res) => {
 
     let sites = [];
     try {
-      const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi.apiKey);
+      const sitesData = await unifiFetch(unifi.sitesListUrl, { method: 'GET' }, unifi);
       sites = Array.isArray(sitesData) ? sitesData : (sitesData?.data || sitesData?.sites || []);
     } catch (e) {
       console.warn('[UniFi Test] Sites list check warning:', e.message);
@@ -9073,7 +9073,7 @@ app.post('/api/admin/unifi/vouchers/generate', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }, unifi.apiKey);
+    }, unifi);
 
     // After creation, immediately run a sync to pull the newly generated codes down
     const syncRes = await syncUniFiVouchers();
@@ -9252,7 +9252,7 @@ app.delete('/api/admin/unifi/vouchers/:id', async (req, res) => {
     // Delete from UniFi controller directly using active integration
     const unifi = getActiveUniFiIntegration();
     try {
-      await unifiFetch(`${unifi.vouchersUrl}/${voucher.id}`, { method: 'DELETE' }, unifi.apiKey);
+      await unifiFetch(`${unifi.vouchersUrl}/${voucher.id}`, { method: 'DELETE' }, unifi);
     } catch (unifiErr) {
       if (unifiErr.status !== 404) {
         throw unifiErr;
@@ -9442,7 +9442,7 @@ app.delete('/api/admin/wifi/vouchers/:id', async (req, res) => {
 
     if (unifi && unifi.vouchersUrl && unifi.apiKey) {
       try {
-        await unifiFetch(`${unifi.vouchersUrl}/${id}`, { method: 'DELETE' }, unifi.apiKey);
+        await unifiFetch(`${unifi.vouchersUrl}/${id}`, { method: 'DELETE' }, unifi);
       } catch (err) {
         if (err.status !== 404) {
           console.warn(`[UniFi] Failed to delete voucher ${id} from UniFi during deletion: ${err.message}`);
@@ -9467,7 +9467,7 @@ app.get('/api/admin/wifi/voucher-prices', (req, res) => {
 app.get('/api/admin/unifi/monitoring/sites', async (req, res) => {
   try {
     const unifi = getActiveUniFiIntegration();
-    const result = await unifiFetch(unifi.sitesListUrl, {}, unifi.apiKey);
+    const result = await unifiFetch(unifi.sitesListUrl, {}, unifi);
     res.json(result.data || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -9591,7 +9591,7 @@ app.get('/api/admin/unifi/logs/:site', async (req, res) => {
     const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
     const eventsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/event` : `${unifi.origin}/api/s/${site}/stat/event`;
     
-    const eventsRes = await unifiFetch(eventsUrl, {}, unifi.apiKey).catch((e) => { console.error("UniFi Fetch Error:", e); return { data: [] }; });
+    const eventsRes = await unifiFetch(eventsUrl, {}, unifi).catch((e) => { console.error("UniFi Fetch Error:", e); return { data: [] }; });
     res.json(eventsRes.data || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
