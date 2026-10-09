@@ -3525,6 +3525,19 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
+  const handleTriggerStatements = async () => {
+    if (!window.confirm("Generate and send Monthly Aging Statements to ALL customers with outstanding balances?")) return;
+    try {
+      showToast('Compiling aging reports and dispatching monthly statements...', 'info');
+      const res = await fetch('/api/admin/trigger-statements', { method: 'POST' });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch statements');
+      showToast(resData.message, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleSendDemandNotice = async (inv) => {
     if (!inv) return;
     if (!window.confirm(`Dispatch official Statutory Demand Notice email to ${inv.customer_email || inv.customer_name} for overdue Invoice #${inv.invoice_number}?`)) return;
@@ -10624,6 +10637,16 @@ const normalizeTabName = (rawTab) => {
                       >
                         <BellRing size={16} color="#dc2626" /> Dispatch Demand Notices
                       </button>
+                      {isSuperAdmin && (
+                        <button
+                          onClick={handleTriggerStatements}
+                          className="btn-secondary"
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', color: '#0369a1', border: '1px solid rgba(3, 105, 161, 0.35)', background: 'rgba(3, 105, 161, 0.05)', gap: '6px', fontWeight: '700' }}
+                          title="Generate and send Monthly Aging Statements to all customers with unpaid balances"
+                        >
+                          <Send size={16} color="#0369a1" /> Send Monthly Statements
+                        </button>
+                      )}
                       {(isSuperAdmin || canCreate('users')) && (
                         <button
                           onClick={() => {

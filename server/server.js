@@ -15042,6 +15042,120 @@ app.post('/api/admin/invoices/trigger-demand-notices', async (req, res) => {
   });
 });
 
+// Trigger Monthly Statements (Aging Reports)
+app.post('/api/admin/trigger-statements', async (req, res) => {
+  const isSuperAdmin = ['super_admin', 'admin', 'web_admin', 'sales_admin', 'finance_admin'].includes(req.headers['x-user-role'] || req.body.role);
+  if (!isSuperAdmin) {
+    return res.status(403).json({ error: 'Permission Denied: You must be an administrator to dispatch global statements.' });
+  }
+
+  // Get distinct customer emails from users and invoices
+  const customerEmails = new Set([
+    ...(memoryStore.users || []).filter(u => u.role === 'customer' && u.email).map(u => u.email),
+    ...(memoryStore.invoices || []).filter(i => i.customer_email).map(i => i.customer_email)
+  ]);
+
+  let sentCount = 0;
+  let skippedCount = 0;
+
+  for (const email of customerEmails) {
+    const customerName = (memoryStore.users || []).find(u => u.email === email)?.name 
+      || (memoryStore.invoices || []).find(i => i.customer_email === email)?.customer_name 
+      || 'Valued Customer';
+
+    // Find unpaid invoices for this customer
+    const unpaidInvoices = (memoryStore.invoices || []).filter(inv => 
+      inv.customer_email === email && 
+      inv.status !== 'Paid' && 
+      inv.status !== '100% Paid' && 
+      inv.status !== 'Paid & Settled' && 
+      inv.status !== 'Cancelled'
+    );
+    
+    if (unpaidInvoices.length === 0) {
+      skippedCount++;
+      continue;
+    }
+    
+    let current = 0;
+    let days30 = 0;
+    let days60 = 0;
+    let days90 = 0;
+    let totalDue = 0;
+    
+    const now = new Date();
+    
+    let rowsHtml = '';
+    
+    unpaidInvoices.forEach(inv => {
+      const invDate = new Date(inv.created_at || inv.date || inv.issue_date || Date.now());
+      const diffTime = Math.abs(now - invDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const bal = Math.max(0, Number(inv.amount || 0) - Number(inv.paid_amount || 0));
+      
+      if (bal <= 0) return;
+
+      totalDue += bal;
+      if (diffDays <= 30) current += bal;
+      else if (diffDays <= 60) days30 += bal;
+      else if (diffDays <= 90) days60 += bal;
+      else days90 += bal;
+      
+      rowsHtml += `
+        <tr>
+          <td><strong>${inv.invoice_number}</strong><br/><span style="font-size: 0.75rem; color: #64748b;">${inv.item_name || 'Cloud Service'}</span></td>
+          <td style="text-align: center;">${invDate.toLocaleDateString()}</td>
+          <td style="text-align: right;">UGX ${bal.toLocaleString()}</td>
+        </tr>
+      `;
+    });
+    
+    if (totalDue <= 0) {
+      skippedCount++;
+      continue;
+    }
+
+    const emailHtml = generateCorporateEmailHtml({
+      title: `Monthly Statement of Account`,
+      badgeText: 'Aging Report & Statement',
+      recipientName: customerName,
+      introText: `Please find your official monthly statement of account below, generated on ${new Date().toLocaleDateString()}. This report outlines your current and overdue balances.`,
+      itemsRows: rowsHtml,
+      subtotalText: `UGX ${totalDue.toLocaleString()}`,
+      vatText: 'Included',
+      totalAmountText: `UGX ${totalDue.toLocaleString()}`,
+      shareLink: 'https://ncloud.co.ug/portal',
+      ctaText: 'Login to Portal & Settle Balance',
+      ctaLink: 'https://ncloud.co.ug/portal',
+      footerNote: `
+        <div style="margin-top: 15px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <h4 style="margin: 0 0 10px 0; color: #334155; font-size: 14px;">Aging Balance Summary:</h4>
+          <table style="width: 100%; font-size: 13px; text-align: left; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e2e8f0;"><th style="padding: 6px 0;">Current (0-30 Days)</th><td style="text-align: right; font-weight: 600; color: #0f172a;">UGX ${current.toLocaleString()}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><th style="padding: 6px 0;">31-60 Days Overdue</th><td style="text-align: right; font-weight: 600; color: #d97706;">UGX ${days30.toLocaleString()}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><th style="padding: 6px 0;">61-90 Days Overdue</th><td style="text-align: right; font-weight: 600; color: #ea580c;">UGX ${days60.toLocaleString()}</td></tr>
+            <tr><th style="padding: 6px 0;">90+ Days Overdue</th><td style="text-align: right; color: #dc2626; font-weight: 800;">UGX ${days90.toLocaleString()}</td></tr>
+          </table>
+        </div>
+        <p style="margin-top: 15px; font-size: 12px; color: #64748b;">If you have already settled these invoices within the last 48 hours, please disregard this automated statement.</p>
+      `
+    });
+
+    try {
+      await sendMail({
+        to: email,
+        subject: `Monthly Statement of Account - ${customerName}`,
+        html: emailHtml
+      });
+      sentCount++;
+    } catch (e) {
+      console.error(`Statement email failed for ${email}:`, e.message);
+    }
+  }
+
+  res.json({ message: `Statements dispatched to ${sentCount} customers with outstanding balances. (Skipped ${skippedCount} fully settled customers).` });
+});
+
 // Single Invoice Demand Notice Endpoint
 app.post('/api/admin/invoices/:id/demand-notice', async (req, res) => {
   const { id } = req.params;
