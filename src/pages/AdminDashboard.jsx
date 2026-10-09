@@ -4831,6 +4831,7 @@ const normalizeTabName = (rawTab) => {
           body: JSON.stringify({ ids, customer_name: 'Physical Printout', customer_email: 'admin-print@ncloud.co.ug' })
         });
         showToast(`Successfully printed and locked ${vouchersToPrint.length} vouchers!`, 'success');
+        fetchUnifiVouchers();
       } else {
         showToast(`Successfully generated reprint for ${vouchersToPrint.length} bought vouchers!`, 'success');
       }
