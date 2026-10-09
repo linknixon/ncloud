@@ -1197,6 +1197,7 @@ const normalizeTabName = (rawTab) => {
 
   // Pagination Constants & Remaining States (3 per row, 6 per page)
   const [invoicePage, setInvoicePage] = useState(1);
+  const [vatPage, setVatPage] = useState(1);
   const INVOICES_PER_PAGE = 6;
   const PAYMENTS_PER_PAGE = 6;
   const EXPENSES_PER_PAGE = 6;
@@ -13109,7 +13110,7 @@ const normalizeTabName = (rawTab) => {
                                 <button 
                                   className="btn-secondary" 
                                   style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
-                                  onClick={() => handleUpdateContactStatus(c.id, 'resolved')}
+                                  onClick={() => handleUpdateContactStatus(c.id, 'closed')}
                                 >
                                   <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark Resolved
                                 </button>
@@ -13130,7 +13131,7 @@ const normalizeTabName = (rawTab) => {
                               {canUpdate('contacts') && c.status !== 'closed' && (
                                 <button 
                                   className="btn-secondary" 
-                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(100, 116, 139, 0.1)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)' }}
+                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
                                   onClick={() => handleUpdateContactStatus(c.id, 'closed')}
                                 >
                                   <XCircle size={14} style={{ marginRight: '4px' }} /> Close Ticket
@@ -17844,6 +17845,114 @@ const normalizeTabName = (rawTab) => {
                       );
                     })()}
                   </div>
+                </div>
+              );
+            })()}
+
+            {/* URA VAT TAX COLLECTION MODULE */}
+            {activeTab === 'reports' && (() => {
+              const rawInvoices = Array.isArray(data?.invoices) ? data.invoices : [];
+              const paidInvoicesWithVat = rawInvoices.filter(inv => 
+                (inv.status === 'Paid' || inv.status === '100% Paid') && !inv.vat_exempt && (Number(inv.vat_amount) > 0)
+              ).sort((a, b) => new Date(b.created_at || b.issue_date) - new Date(a.created_at || a.issue_date));
+
+              const currentMonth = new Date().getMonth();
+              const currentYear = new Date().getFullYear();
+
+              const currentMonthVatCollected = paidInvoicesWithVat.reduce((sum, inv) => {
+                const invDate = new Date(inv.created_at || inv.issue_date);
+                if (invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear) {
+                  return sum + (Number(inv.vat_amount) || 0);
+                }
+                return sum;
+              }, 0);
+
+              const itemsPerPage = 8;
+              const totalVatPages = Math.ceil(paidInvoicesWithVat.length / itemsPerPage);
+              const paginatedVat = paidInvoicesWithVat.slice((vatPage - 1) * itemsPerPage, vatPage * itemsPerPage);
+
+              return (
+                <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '16px', marginTop: '1.5rem', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                          <TrendingUp size={14} />
+                        </span>
+                        URA VAT Tax Collection Repository
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        Track statutory 18% VAT collected from settled and paid commercial invoices.
+                      </p>
+                    </div>
+                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.65rem 1rem', borderRadius: '10px' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>This Month's VAT Pool</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#059669' }}>
+                        UGX {currentMonthVatCollected.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.825rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-card-hover)', borderBottom: '2px solid var(--border-color)' }}>
+                          <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)' }}>Invoice Ref</th>
+                          <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)' }}>Customer / Party</th>
+                          <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)' }}>Date Settled</th>
+                          <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: 'var(--text-muted)', textAlign: 'right' }}>Taxable Base (UGX)</th>
+                          <th style={{ padding: '0.75rem 0.85rem', fontWeight: '800', color: '#ef4444', textAlign: 'right' }}>VAT Collected (UGX)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedVat.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              No VAT-applicable paid invoices found.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedVat.map(inv => (
+                            <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '0.75rem 0.85rem', fontWeight: '700', color: 'var(--primary)' }}>{inv.invoice_number}</td>
+                              <td style={{ padding: '0.75rem 0.85rem', color: 'var(--text-main)', fontWeight: '600' }}>{inv.customer_name}</td>
+                              <td style={{ padding: '0.75rem 0.85rem', color: 'var(--text-muted)' }}>{new Date(inv.created_at || inv.issue_date).toLocaleDateString()}</td>
+                              <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right', color: 'var(--text-muted)' }}>
+                                {Number(inv.subtotal || (inv.amount - inv.vat_amount)).toLocaleString()}
+                              </td>
+                              <td style={{ padding: '0.75rem 0.85rem', textAlign: 'right', fontWeight: '800', color: '#ef4444' }}>
+                                {Number(inv.vat_amount).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {totalVatPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
+                      <button
+                        onClick={() => setVatPage(prev => Math.max(1, prev - 1))}
+                        disabled={vatPage === 1}
+                        className="btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', opacity: vatPage === 1 ? 0.5 : 1 }}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Page {vatPage} of {totalVatPages}
+                      </span>
+                      <button
+                        onClick={() => setVatPage(prev => Math.min(totalVatPages, prev + 1))}
+                        disabled={vatPage === totalVatPages}
+                        className="btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', opacity: vatPage === totalVatPages ? 0.5 : 1 }}
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })()}

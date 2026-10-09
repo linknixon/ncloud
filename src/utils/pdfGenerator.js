@@ -3445,7 +3445,8 @@ export async function generateTicketThreadPDF(ticket = {}, options = {}) {
   registerTrebuchetFont(doc);
 
   const ticketNum = ticket.ticket_number || (`TKT-${String(ticket.id || '0001').padStart(4, '0')}`);
-  const createdDate = new Date(ticket.created_at || Date.now());
+  let createdDate = new Date(ticket.created_at || Date.now());
+  if (isNaN(createdDate.getTime())) createdDate = new Date();
   const dateStr = createdDate.toISOString().split('T')[0];
   const priority = String(ticket.priority || 'medium').toLowerCase();
   const status = String(ticket.status || 'open').toLowerCase();
