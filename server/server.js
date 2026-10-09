@@ -9429,10 +9429,24 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
     const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`;
     const devicesUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/device` : `${unifi.origin}/api/s/${site}/stat/device`;
     
+    let fetchError = null;
     const [clientsRes, devicesRes] = await Promise.all([
-      unifiFetch(clientsUrl, {}, unifi.apiKey).catch((e) => { console.error("UniFi Fetch Error:", e); return { data: [] }; }),
-      unifiFetch(devicesUrl, {}, unifi.apiKey).catch((e) => { console.error("UniFi Fetch Error:", e); return { data: [] }; })
+      unifiFetch(clientsUrl, {}, unifi.apiKey).catch((e) => { 
+        console.error("UniFi Fetch Error (Clients):", e); 
+        fetchError = e.message;
+        return { data: [] }; 
+      }),
+      unifiFetch(devicesUrl, {}, unifi.apiKey).catch((e) => { 
+        console.error("UniFi Fetch Error (Devices):", e); 
+        if (!fetchError) fetchError = e.message;
+        return { data: [] }; 
+      })
     ]);
+    
+    // If there was a real error fetching, return it to the frontend so we can debug
+    if (fetchError) {
+      return res.status(500).json({ error: `UniFi Fetch Failed: ${fetchError}` });
+    }
     
     let clientsData = clientsRes.data || [];
     

@@ -11819,6 +11819,9 @@ const normalizeTabName = (rawTab) => {
                               const clientsData = data.clients || [];
                               setUnifiClients(clientsData);
                               showToast(`Synced ${clientsData.length} active clients from UniFi`, 'success');
+                            } else {
+                              const errData = await res.json().catch(() => ({}));
+                              showToast(errData.error || `Failed to fetch UniFi clients (HTTP ${res.status})`, 'error');
                             }
                           }}
                           className="btn-primary"
