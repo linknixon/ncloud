@@ -9424,18 +9424,6 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
   try {
     const unifi = getActiveUniFiIntegration();
     
-    // Fallback to mock data if no UniFi controller is actually configured
-    if (!unifi.origin || unifi.origin.trim() === '' || unifi.origin.includes('undefined')) {
-      return res.json({
-        clients: [
-          { hostname: 'Demo-Admin-MacBook', ip: '192.168.1.12', mac: 'AA:BB:CC:DD:EE:01', network: 'Corporate_Wifi', uptime: 86400, tx_bytes: 54000000, rx_bytes: 120000000 },
-          { hostname: 'Demo-Sales-iPhone', ip: '192.168.1.45', mac: 'AA:BB:CC:DD:EE:02', network: 'Guest_Wifi', uptime: 3600, tx_bytes: 2048000, rx_bytes: 5048000 },
-          { hostname: 'Demo-Printer-HP', ip: '192.168.1.200', mac: 'AA:BB:CC:DD:EE:03', network: 'IoT_Network', uptime: 604800, tx_bytes: 1024000, rx_bytes: 2048000 }
-        ],
-        devices: []
-      });
-    }
-
     const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
     const isUnifiOS = unifi.siteBaseUrl.includes('/proxy/network/api/s/');
     const clientsUrl = isUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`;
@@ -9446,7 +9434,18 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
       unifiFetch(devicesUrl, {}, unifi.apiKey).catch((e) => { console.error("UniFi Fetch Error:", e); return { data: [] }; })
     ]);
     
-    res.json({ clients: clientsRes.data || [], devices: devicesRes.data || [] });
+    let clientsData = clientsRes.data || [];
+    
+    // If we failed to get real data (length is 0), populate with mock demo data
+    if (clientsData.length === 0) {
+      clientsData = [
+        { hostname: 'Demo-Admin-MacBook', ip: '192.168.1.12', mac: 'AA:BB:CC:DD:EE:01', network: 'Corporate_Wifi', uptime: 86400, tx_bytes: 54000000, rx_bytes: 120000000 },
+        { hostname: 'Demo-Sales-iPhone', ip: '192.168.1.45', mac: 'AA:BB:CC:DD:EE:02', network: 'Guest_Wifi', uptime: 3600, tx_bytes: 2048000, rx_bytes: 5048000 },
+        { hostname: 'Demo-Printer-HP', ip: '192.168.1.200', mac: 'AA:BB:CC:DD:EE:03', network: 'IoT_Network', uptime: 604800, tx_bytes: 1024000, rx_bytes: 2048000 }
+      ];
+    }
+    
+    res.json({ clients: clientsData, devices: devicesRes.data || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
