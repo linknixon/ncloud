@@ -3546,19 +3546,6 @@ const normalizeTabName = (rawTab) => {
     }
   };
 
-  const handleTriggerStatements = async () => {
-    if (!window.confirm("Generate and send Monthly Aging Statements to ALL customers with outstanding balances?")) return;
-    try {
-      showToast('Compiling aging reports and dispatching monthly statements...', 'info');
-      const res = await fetch('/api/admin/trigger-statements', { method: 'POST' });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || 'Failed to dispatch statements');
-      showToast(resData.message, 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
   const handleSendDemandNotice = async (inv) => {
     if (!inv) return;
     if (!window.confirm(`Dispatch official Statutory Demand Notice email to ${inv.customer_email || inv.customer_name} for overdue Invoice #${inv.invoice_number}?`)) return;
