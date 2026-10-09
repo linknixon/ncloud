@@ -9481,13 +9481,14 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
     const site = req.params.site === 'default' ? unifi.siteId : req.params.site;
     const isUnifiOS = (unifi.siteBaseUrl && unifi.siteBaseUrl.includes('/proxy/network')) || unifi.gateway_url?.includes('/proxy/network');
     
-    // Attempt to fetch with the guessed URL type
-    const getUrls = (useUnifiOS) => ({
-      clientsUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/sta` : `${unifi.origin}/api/s/${site}/stat/sta`,
-      devicesUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${site}/stat/device` : `${unifi.origin}/api/s/${site}/stat/device`
+    // Attempt to fetch with the guessed URL type and a specific site
+    const getUrls = (useUnifiOS, targetSite) => ({
+      clientsUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${targetSite}/stat/sta` : `${unifi.origin}/api/s/${targetSite}/stat/sta`,
+      devicesUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/s/${targetSite}/stat/device` : `${unifi.origin}/api/s/${targetSite}/stat/device`,
+      sitesUrl: useUnifiOS ? `${unifi.origin}/proxy/network/api/stat/sites` : `${unifi.origin}/api/stat/sites`
     });
 
-    let { clientsUrl, devicesUrl } = getUrls(isUnifiOS);
+    let { clientsUrl, devicesUrl, sitesUrl } = getUrls(isUnifiOS, site);
     
     let fetchError = null;
     let clientsRes = { data: [] };
@@ -9510,6 +9511,31 @@ app.get('/api/admin/unifi/monitoring/clients/:site', async (req, res) => {
           fetchError = null;
         } catch (altErr) {
           fetchError = altErr.message;
+        }
+      } else if (firstErr.message.includes('api.err.NoSiteContext')) {
+        // Site ID is incorrect, let's try to auto-discover it
+        console.warn(`[UniFi] NoSiteContext for site '${site}'. Attempting to auto-discover correct site ID...`);
+        try {
+          const sitesRes = await unifiFetch(sitesUrl, {}, unifi);
+          if (sitesRes.data && sitesRes.data.length > 0) {
+            const discoveredSite = sitesRes.data[0].name;
+            console.log(`[UniFi] Discovered valid site ID: ${discoveredSite}. Retrying fetch...`);
+            
+            // Update in memory so subsequent calls are faster
+            unifi.siteId = discoveredSite;
+            unifi.site_id = discoveredSite;
+
+            const newUrls = getUrls(isUnifiOS, discoveredSite);
+            [clientsRes, devicesRes] = await Promise.all([
+              unifiFetch(newUrls.clientsUrl, {}, unifi),
+              unifiFetch(newUrls.devicesUrl, {}, unifi)
+            ]);
+            fetchError = null;
+          } else {
+            fetchError = "No sites found on controller.";
+          }
+        } catch (discoverErr) {
+          fetchError = `Site discovery failed: ${discoverErr.message}`;
         }
       } else {
         fetchError = firstErr.message;
