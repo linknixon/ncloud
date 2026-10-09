@@ -52,7 +52,7 @@ export const openPdfInBrowser = async (pdfDoc, fileName = 'Nova_Cloud_Official_D
 
     // On PC: Open directly in the browser via clean secure URL (no blob URL used!)
     let detectedDoc = docNumber;
-    if (!detectedDoc && fileName && !isReceiptDoc) {
+    if (!detectedDoc && fileName) {
       const match = fileName.match(/(INV-[A-Za-z0-9-]+|QTN-[A-Za-z0-9-]+|WO-[A-Za-z0-9-]+|EXP-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+|DN-[A-Za-z0-9-]+)/i);
       if (match) detectedDoc = match[1];
     }

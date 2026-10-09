@@ -13259,16 +13259,6 @@ const normalizeTabName = (rawTab) => {
                                 </button>
                               )}
 
-                              {/* Mark Closed */}
-                              {canUpdate('contacts') && c.status !== 'closed' && (
-                                <button 
-                                  className="btn-secondary" 
-                                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
-                                  onClick={() => handleUpdateContactStatus(c.id, 'closed')}
-                                >
-                                  <XCircle size={14} style={{ marginRight: '4px' }} /> Close Ticket
-                                </button>
-                              )}
 
                               {/* Reopen Closed */}
                               {canUpdate('contacts') && c.status === 'closed' && (
