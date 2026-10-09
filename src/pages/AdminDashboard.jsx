@@ -645,6 +645,35 @@ export default function AdminDashboard({ setActivePage }) {
       setCurrentRole(user.role);
     }
   }, [user?.role]);
+
+  // UniFi Live Feed 5-second Auto-Refresh
+  useEffect(() => {
+    let intervalId;
+    if (activeTab === 'integrations' && activeIntegrationsTab === 'unifi') {
+      const fetchLiveFeed = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/admin/unifi/monitoring/clients/default', { 
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUnifiClients(data.clients || []);
+          }
+        } catch (e) {
+          console.error("Auto-refresh UniFi feed error:", e);
+        }
+      };
+      
+      // Fetch immediately on mount, then every 5 seconds
+      fetchLiveFeed();
+      intervalId = setInterval(fetchLiveFeed, 5000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeTab, activeIntegrationsTab]);
   const updateActiveTab = (newTab) => {
     let targetTab = newTab;
     if (newTab === 'careers') {
@@ -11841,6 +11870,7 @@ const normalizeTabName = (rawTab) => {
                                   <th style={{ padding: '0.5rem' }}>IP Address</th>
                                   <th style={{ padding: '0.5rem' }}>MAC</th>
                                   <th style={{ padding: '0.5rem' }}>Network / SSID</th>
+                                  <th style={{ padding: '0.5rem' }}>Voucher</th>
                                   <th style={{ padding: '0.5rem' }}>Uptime</th>
                                   <th style={{ padding: '0.5rem', textAlign: 'right' }}>Tx/Rx (MB)</th>
                                   <th style={{ padding: '0.5rem', textAlign: 'center' }}>Actions</th>
@@ -11853,6 +11883,9 @@ const normalizeTabName = (rawTab) => {
                                     <td style={{ padding: '0.5rem' }}>{client.ip}</td>
                                     <td style={{ padding: '0.5rem', fontFamily: 'monospace' }}>{client.mac}</td>
                                     <td style={{ padding: '0.5rem' }}>{client.essid || 'LAN'}</td>
+                                    <td style={{ padding: '0.5rem', opacity: 0.8 }}>
+                                      {client.voucher_code || (client.authorized_by === 'voucher' ? 'Yes (Hidden)' : (client.authorized_by || '-'))}
+                                    </td>
                                     <td style={{ padding: '0.5rem' }}>{Math.floor(client.uptime / 60)} mins</td>
                                     <td style={{ padding: '0.5rem', textAlign: 'right' }}>
                                       {((client.tx_bytes || 0) / 1048576).toFixed(1)} / {((client.rx_bytes || 0) / 1048576).toFixed(1)}
