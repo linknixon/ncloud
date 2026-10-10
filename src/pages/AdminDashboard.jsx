@@ -11828,6 +11828,7 @@ const normalizeTabName = (rawTab) => {
                 : (() => { window.__wifiStatusFilter = 'all'; window.__setWifiStatusFilter = v => { window.__wifiStatusFilter = v; }; return ['all', () => {}]; })();
 
               const filteredVouchers = rawVouchers.filter(v =>
+                v.status !== 'bought' &&
                 (wifiStatusFilter === 'all' || v.status === wifiStatusFilter) &&
                 (!unifiSearch ||
                   v.token.toLowerCase().includes(unifiSearch.toLowerCase()) ||
@@ -15632,22 +15633,7 @@ const normalizeTabName = (rawTab) => {
                           <Plus size={16} /> Process Payroll & Payslip
                         </button>
                       )}
-                      <button
-                        onClick={() => {
-                          setExpenseForm({
-                            staff_name: user?.name || 'Staff Member',
-                            category: 'Field Infrastructure Deployment',
-                            description: '',
-                            amount: 150000,
-                            receipt_ref: ''
-                          });
-                          setShowExpenseModal(true);
-                        }}
-                        className="btn-secondary"
-                        style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', gap: '0.4rem', color: '#06b6d4', borderColor: '#06b6d4' }}
-                      >
-                        <Receipt size={16} /> Submit Expense Claim
-                      </button>
+                      {/* Expense button removed as requested */}
                     </div>
                   </div>
 
@@ -15740,21 +15726,7 @@ const normalizeTabName = (rawTab) => {
                         >
                           Payroll Disbursement Roll
                         </button>
-                        <button
-                          onClick={() => setHrTab('expenses')}
-                          style={{
-                            padding: '0.4rem 0.85rem',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: hrTab === 'expenses' ? '#06b6d4' : 'transparent',
-                            color: hrTab === 'expenses' ? '#fff' : 'var(--text-muted)',
-                            fontWeight: '700',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Company Expenditures & Expense Claims ({(data?.staff_expenses || []).length || 4})
-                        </button>
+                        {/* Company Expenditures & Expense Claims tab removed as requested */}
                       </div>
 
                       {hrTab === 'expenses' ? (
@@ -15928,12 +15900,95 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     </div>
                     <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>Statutory Tax / NSSF Pool</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>NSSF Statutory Pool</div>
                       <div style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent-emerald)' }}>
-                        UGX {allPayrolls.reduce((sum, p) => sum + (Number(p.deductions) || 0), 0).toLocaleString()}
+                        UGX {allPayrolls.reduce((sum, p) => sum + (Number(p.nssf) || 0), 0).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="glass-card" style={{ padding: '1rem 1.25rem' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700' }}>PAYE Tax Pool</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#ef4444' }}>
+                        UGX {allPayrolls.reduce((sum, p) => sum + (Number(p.paye) || 0), 0).toLocaleString()}
                       </div>
                     </div>
                   </div>
+
+                  {/* Active Staff Roll List */}
+                  {(() => {
+                    const activeStaff = (data?.users || []).filter(u => u.status === 'active' && (u.role === 'staff' || u.role === 'engineer' || u.role === 'hr_manager' || String(u.category).toLowerCase().includes('staff') || String(u.category).toLowerCase().includes('engineer')));
+                    const totalStaffPages = Math.ceil(activeStaff.length / 5) || 1;
+                    const [staffPage, setStaffPage] = window.__staffPage ? [window.__staffPage, window.__setStaffPage] : (() => { window.__staffPage = 1; window.__setStaffPage = (p) => { window.__staffPage = p; }; return [1, () => {}]; })();
+                    const currentStaffPage = Math.min(staffPage, totalStaffPages);
+                    const paginatedStaff = activeStaff.slice((currentStaffPage - 1) * 5, currentStaffPage * 5);
+                    
+                    return (
+                      <div style={{ marginBottom: '2rem' }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '1rem', color: 'var(--text-main)' }}>Active Staff & Engineers Roll</h4>
+                        <div className="table-responsive">
+                          <table className="table" style={{ width: '100%', minWidth: '600px' }}>
+                            <thead>
+                              <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role / Category</th>
+                                <th>Status</th>
+                                <th style={{ textAlign: 'right' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginatedStaff.map((staff, idx) => (
+                                <tr key={idx}>
+                                  <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>{staff.name}</td>
+                                  <td>{staff.email}</td>
+                                  <td>{staff.role || staff.category || 'Staff'}</td>
+                                  <td>
+                                    <span className="badge-tag" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#16a34a' }}>Active</span>
+                                  </td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    {(canCreate('hr') || isSuperAdmin) && (
+                                      <button
+                                        onClick={() => {
+                                          setEditingPayroll(null);
+                                          setPayrollForm({
+                                            staff_name: staff.name,
+                                            email: staff.email,
+                                            position: staff.role || 'Staff Engineer',
+                                            department: 'Engineering',
+                                            base_salary: 3500000,
+                                            allowances: 250000,
+                                            other_deductions: 0,
+                                            pay_period: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+                                            status: 'Approved'
+                                          });
+                                          setShowPayrollModal(true);
+                                        }}
+                                        className="btn-primary"
+                                        style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', background: '#f97316' }}
+                                      >
+                                        <Plus size={12} /> Process Payroll
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                              {paginatedStaff.length === 0 && (
+                                <tr>
+                                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>No active staff/engineers found on roll.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {totalStaffPages > 1 && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                            <button className="btn-secondary" disabled={currentStaffPage === 1} onClick={() => { setStaffPage(currentStaffPage - 1); fetchDashboardData(); }} style={{ padding: '0.35rem 0.6rem' }}><ChevronLeft size={16} /></button>
+                            <span style={{ alignSelf: 'center', fontSize: '0.85rem', fontWeight: '700' }}>Page {currentStaffPage} of {totalStaffPages}</span>
+                            <button className="btn-secondary" disabled={currentStaffPage === totalStaffPages} onClick={() => { setStaffPage(currentStaffPage + 1); fetchDashboardData(); }} style={{ padding: '0.35rem 0.6rem' }}><ChevronRight size={16} /></button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Payroll Card Grid (3 per row, 6 per page) */}
                   {(() => {
@@ -17528,6 +17583,58 @@ const normalizeTabName = (rawTab) => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Monthly Trend Data Science LineChart */}
+                  {(() => {
+                    // Calculate monthly trends from rawInvoices and rawExpenses
+                    const monthlyData = {};
+                    rawInvoices.forEach(inv => {
+                      if (inv.status === 'Paid' || inv.status === '100% Paid' || inv.status === 'Partially Paid') {
+                        const date = new Date(inv.created_at || inv.date || inv.issue_date || Date.now());
+                        const month = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                        if (!monthlyData[month]) monthlyData[month] = { name: month, revenue: 0, expenses: 0 };
+                        monthlyData[month].revenue += Number(inv.amount_paid || inv.amount || 0);
+                      }
+                    });
+                    rawExpenses.forEach(exp => {
+                      if (exp.status === 'Paid' || exp.status === 'Approved') {
+                        const date = new Date(exp.date || exp.created_at || Date.now());
+                        const month = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                        if (!monthlyData[month]) monthlyData[month] = { name: month, revenue: 0, expenses: 0 };
+                        monthlyData[month].expenses += Number(exp.amount || 0);
+                      }
+                    });
+                    
+                    const trendData = Object.values(monthlyData).sort((a, b) => new Date(a.name) - new Date(b.name)).slice(-6); // Last 6 months
+
+                    return (
+                      <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#8b5cf6', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <TrendingUp size={18} color="#8b5cf6" /> 6-Month Financial Trend Analysis
+                        </h4>
+                        <div style={{ width: '100%', height: 320 }}>
+                          {trendData.length === 0 ? (
+                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No historical data for trend analysis.</div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={trendData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(val) => `UGX ${Math.floor(val/1000)}k`} />
+                                <RechartsTooltip 
+                                  contentStyle={{ background: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}
+                                  formatter={(value, name) => [`UGX ${Number(value).toLocaleString()}`, name === 'revenue' ? 'Revenue' : 'Expenses']}
+                                />
+                                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                                <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#16a34a" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 2-Column: Star Selling Performers vs Items Needing Push (List Format for quick glance) */}
                   <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
@@ -23893,7 +24000,7 @@ const normalizeTabName = (rawTab) => {
                               ...paymentForm,
                               items: updated,
                               amount_due: totalWithVat,
-                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : Math.round(totalWithVat * 0.5)
+                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : paymentForm.amount_paid
                             });
                           }}
                         />
@@ -23918,7 +24025,7 @@ const normalizeTabName = (rawTab) => {
                               ...paymentForm,
                               items: updated,
                               amount_due: totalWithVat,
-                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : Math.round(totalWithVat * 0.5)
+                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : paymentForm.amount_paid
                             });
                           }}
                         />
@@ -23944,7 +24051,7 @@ const normalizeTabName = (rawTab) => {
                               ...paymentForm,
                               items: updated,
                               amount_due: totalWithVat,
-                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : Math.round(totalWithVat * 0.5)
+                              amount_paid: paymentForm.status === '100% Paid' ? totalWithVat : paymentForm.amount_paid
                             });
                           }}
                           style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
@@ -24088,12 +24195,12 @@ const normalizeTabName = (rawTab) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label style={{ fontWeight: '700' }}>Tax / NSSF</label>
+                    <label style={{ fontWeight: '700' }}>Other Deductions</label>
                     <input
                       type="number"
                       className="form-input"
-                      value={payrollForm.deductions}
-                      onChange={e => setPayrollForm({ ...payrollForm, deductions: Number(e.target.value) })}
+                      value={payrollForm.other_deductions || ''}
+                      onChange={e => setPayrollForm({ ...payrollForm, other_deductions: Number(e.target.value) })}
                     />
                   </div>
                 </div>

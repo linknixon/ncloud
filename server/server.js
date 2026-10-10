@@ -937,13 +937,9 @@ try {
   if (mysqlStore && mysqlStore.users && mysqlStore.users.length > 0) {
     Object.keys(mysqlStore).forEach(key => {
       if (Array.isArray(mysqlStore[key])) {
-        // If MySQL returned an empty array for api_integrations, contacts, or events, preserve existing disk configs!
-        if (key === 'api_integrations' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.api_integrations?.length > 0) {
-          memoryStore[key] = loadedDiskStore.api_integrations;
-        } else if (key === 'contacts' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.contacts?.length > 0) {
-          memoryStore[key] = loadedDiskStore.contacts;
-        } else if (key === 'events' && (!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.events?.length > 0) {
-          memoryStore[key] = loadedDiskStore.events;
+        // If MySQL returned an empty array, preserve existing disk configs to avoid data loss!
+        if ((!mysqlStore[key] || mysqlStore[key].length === 0) && loadedDiskStore?.[key]?.length > 0) {
+          memoryStore[key] = loadedDiskStore[key];
         } else {
           memoryStore[key] = mysqlStore[key];
         }
@@ -6527,35 +6523,54 @@ app.get('/api/admin/hr/overview', (req, res) => {
 });
 
 app.post('/api/admin/hr/payroll', (req, res) => {
-  const { staff_name, email, position, department, base_salary, allowances, deductions, pay_period } = req.body;
+  const { staff_name, email, position, department, base_salary, allowances, other_deductions, pay_period } = req.body;
   if (!staff_name || !base_salary) {
     return res.status(400).json({ error: 'Staff name and base salary are required.' });
   }
 
-  const base = Number(base_salary) || 3000000;
+  const base = Number(base_salary) || 0;
   const allow = Number(allowances) || 0;
-  const deduct = Number(deductions) || Math.round(base * 0.15);
-  const netPay = base + allow - deduct;
+  const otherDeduct = Number(other_deductions) || 0;
+  
+  const grossSalary = base + allow;
+  const nssf = Math.round(grossSalary * 0.05);
+  
+  let taxable = grossSalary;
+  let paye = 0;
+  if (taxable <= 335000) paye = 0;
+  else if (taxable <= 410000) paye = 0.20 * (taxable - 335000);
+  else if (taxable <= 485000) paye = 15000 + 0.25 * (taxable - 410000);
+  else if (taxable <= 10000000) paye = 33750 + 0.30 * (taxable - 485000);
+  else paye = 33750 + 0.30 * (taxable - 485000) + 0.10 * (taxable - 10000000);
+  
+  paye = Math.round(paye);
+  const totalDeductions = nssf + paye + otherDeduct;
+  const netPay = grossSalary - totalDeductions;
 
   const newSlip = {
-    id: memoryStore.payroll.length + 1,
+    id: (memoryStore.payroll || []).length + 1,
     staff_id: Date.now(),
     staff_name,
     email: email || 'staff@ncloud.co.ug',
-    position: position || 'Staff Engineer',
+    position: position || 'Staff',
     department: department || 'Operations',
     base_salary: base,
     allowances: allow,
-    deductions: deduct,
+    gross_salary: grossSalary,
+    nssf: nssf,
+    paye: paye,
+    other_deductions: otherDeduct,
+    deductions: totalDeductions,
     net_pay: netPay,
-    pay_period: pay_period || 'August 2026',
+    pay_period: pay_period || new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
     status: 'Approved',
     created_at: new Date().toISOString()
   };
 
+  if (!memoryStore.payroll) memoryStore.payroll = [];
   memoryStore.payroll.unshift(newSlip);
   savePersistentStore();
-  res.json({ message: `Payroll payslip logged successfully for ${staff_name} (${pay_period})`, payslip: newSlip });
+  res.json({ message: `Payroll logged successfully for ${staff_name} (${newSlip.pay_period})`, payslip: newSlip });
 });
 
 app.put('/api/admin/hr/payroll/:id/status', (req, res) => {

@@ -840,6 +840,38 @@ export async function syncStoreToMysql(store) {
       }
     }
 
+    // 14c. Team Members
+    if (store.team && Array.isArray(store.team)) {
+      for (const t of store.team) {
+        await pool.query(
+          `INSERT INTO team (id, name, role, bio, image)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             name=VALUES(name), role=VALUES(role), bio=VALUES(bio), image=VALUES(image)`,
+          [
+            t.id || null, t.name || 'Member', t.role || 'Role', t.bio || '', t.image || ''
+          ]
+        ).catch(() => {});
+      }
+    }
+
+    // 14d. Partners
+    if (store.partners && Array.isArray(store.partners)) {
+      for (const p of store.partners) {
+        await pool.query(
+          `INSERT INTO partners (id, name, logo_url, logo_text, description, website)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             name=VALUES(name), logo_url=VALUES(logo_url), logo_text=VALUES(logo_text), 
+             description=VALUES(description), website=VALUES(website)`,
+          [
+            p.id || null, p.name || 'Partner', p.logo || p.logo_url || '', p.logoText || p.logo_text || '', 
+            p.description || '', p.website || ''
+          ]
+        ).catch(() => {});
+      }
+    }
+
     // 15. Universal System Settings (Including api_integrations, smtp, topbar, security)
     const systemSettingsKeys = [
       'api_integrations', 'smtp_settings', 'topbar_settings', 
